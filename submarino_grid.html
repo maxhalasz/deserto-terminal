@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUBMERSIBLE // VIEWPORT [GRID-DDA]</title>
+<style>
+  :root{--font:"SFMono-Regular",ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#000}
+  body{font-family:var(--font);color:#8a9a9c;user-select:none;-webkit-user-select:none;touch-action:none}
+
+  #standby{position:fixed;inset:0;z-index:60;background:#05060a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+  #standby .ring{width:14px;height:14px;border-radius:50%;border:2px solid #2a3a3a;border-top-color:#4a6a6a;animation:spin 2s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #standby .msg{letter-spacing:.3em;font-size:12px;color:#3a4a4a}
+  #standby .sub{font-size:10px;color:#2a3a3a;letter-spacing:.12em}
+
+  #sub{position:fixed;inset:0;display:none}
+  #sub.on{display:block}
+
+  /* ===== camadas =====
+     #viewport: a janela alinhada ao buraco do casco. Contém o breu.
+     #abyss: canvas do mundo submerso.
+     #moonpoolLayer: imagem da moonpool que rola.
+     #hullImg: o casco PNG por cima, com o visor recortado.
+  */
+  #viewport{position:absolute;overflow:hidden;background:#02060a;z-index:2}
+  /* suaviza o canto duro do recorte, mais no NeuroStat (visor menos quadrado) */
+  #sub.old #viewport{border-radius:10px}
+  #sub.modern #viewport{border-radius:7% / 9%}
+  #abyss{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:1}
+  #moonpoolLayer{position:absolute;left:0;width:100%;z-index:2;background-size:cover;background-position:center top;will-change:transform;display:none}
+  #splash{position:absolute;inset:0;width:100%;height:100%;z-index:3;display:none;pointer-events:none}
+  /* vinheta escura nas bordas do visor: esconde artefatos da IA e dá profundidade */
+  #viewportVignette{position:absolute;inset:0;z-index:3;pointer-events:none;
+    box-shadow:inset 0 0 8vmin 2vmin rgba(0,0,0,.7), inset 0 0 2vmin rgba(0,0,0,.5)}
+  /* reflexo do vidro: brilho diagonal sutil + curvatura. Responde à luz do facho. */
+  #glassReflect{position:absolute;inset:0;z-index:3;pointer-events:none;mix-blend-mode:screen;opacity:.5;
+    background:
+      linear-gradient(135deg, rgba(170,200,210,.10) 0%, transparent 28%, transparent 72%, rgba(120,150,160,.06) 100%),
+      radial-gradient(ellipse 120% 80% at 30% 20%, rgba(180,210,220,.08) 0%, transparent 50%);}
+  /* leve curvatura/abaulamento do vidro nas bordas */
+  #glassCurve{position:absolute;inset:0;z-index:3;pointer-events:none;
+    box-shadow:inset 0 0 3vmin 1vmin rgba(120,160,170,.04);
+    background:radial-gradient(ellipse 100% 100% at 50% 50%, transparent 60%, rgba(0,0,0,.15) 100%)}
+
+  /* o casco preenche a tela (escurecido) */
+  #hullImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:4;pointer-events:none;filter:brightness(.72)}
+  #sub.old #hullImg{filter:brightness(.85)}
+
+  /* escurecimento + luz piscante de cima (só no casco velho) */
+  #flicker{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,.25) 30%, rgba(0,0,0,.45) 100%)}
+  #sub.old #flicker{opacity:1}
+  /* a fonte de luz tremida vinda de cima */
+  #flickerLight{position:absolute;left:0;right:0;top:-10%;height:60%;z-index:5;pointer-events:none;opacity:0;
+    background:radial-gradient(ellipse 70% 100% at 50% 0%, rgba(180,150,90,.22) 0%, transparent 65%)}
+  #sub.old #flickerLight{opacity:1;animation:flick 4s linear infinite}
+  @keyframes flick{
+    0%{opacity:.7}3%{opacity:.15}5%{opacity:.6}7%{opacity:.2}8%{opacity:.75}
+    40%{opacity:.7}42%{opacity:.1}43%{opacity:.65}
+    70%{opacity:.7}71%{opacity:.25}73%{opacity:.7}74%{opacity:.12}76%{opacity:.7}
+    100%{opacity:.7}
+  }
+
+  /* blur global da VISÃO (na frente de tudo — casco + visor). Focar reduz. */
+  #visionBlur{position:absolute;inset:0;z-index:7;pointer-events:none;backdrop-filter:blur(1.5px);transition:backdrop-filter .35s ease}
+
+  /* HUD */
+  #hud{position:absolute;inset:0;z-index:8;pointer-events:none}
+  .hud-top{position:absolute;top:2.5vh;left:0;right:0;display:flex;justify-content:center}
+  .compass{font-size:12px;letter-spacing:.34em;color:#6a9a9a;text-shadow:0 0 10px rgba(90,180,180,.5)}
+  #sub.old .compass{color:#b8923a;text-shadow:0 0 10px rgba(180,140,50,.5)}
+  .hud-state{position:absolute;top:2.5vh;right:3vw;font-size:11px;letter-spacing:.2em;color:#4a6a6a}
+  #sub.old .hud-state{color:#7a6030}
+  .hud-read{position:absolute;bottom:12vh;left:0;right:0;text-align:center;padding:0 12vw}
+  .hud-read .line{display:inline-block;font-size:13px;letter-spacing:.06em;color:#9cc;background:rgba(0,10,12,.66);padding:7px 16px;border:1px solid rgba(100,160,160,.3);max-width:80ch;line-height:1.5}
+
+  /* medidor de profundidade, logo acima do painel */
+  #depthbox{position:absolute;top:6.2vh;left:50%;transform:translateX(-50%);z-index:8;
+    display:flex;align-items:baseline;gap:6px;background:rgba(0,10,12,.6);padding:6px 16px;
+    border:1px solid rgba(100,160,160,.3);border-radius:4px;font-variant-numeric:tabular-nums}
+  #depthbox .dlabel{font-size:9px;letter-spacing:.24em;color:#5a7a7a}
+  #depthbox .dval{font-size:20px;letter-spacing:.1em;color:#9cc;font-weight:600}
+  #depthbox .dunit{font-size:11px;color:#5a7a7a}
+  #sub.old #depthbox .dval{color:#ca9}
+  #sub.old #depthbox .dlabel,#sub.old #depthbox .dunit{color:#7a6030}
+  #depthbox.beyond{border-color:rgba(214,90,90,.5)}
+  #depthbox.beyond .dval{color:#e88}
+  #depthbox.beyond .dlabel{color:#d65a5a}
+
+  /* flash de colisao com a parede */
+  #wallHit{position:absolute;inset:0;z-index:7;pointer-events:none;opacity:0}
+  #wallHit.hit{animation:wallflash .4s ease}
+  @keyframes wallflash{0%{opacity:0}30%{opacity:1;box-shadow:inset 0 0 12vmin 4vmin rgba(80,15,15,.55)}100%{opacity:0}}
+
+  #ctrls{position:absolute;bottom:3.5vh;left:0;right:0;z-index:9;display:flex;gap:12px;justify-content:center;align-items:center}
+  .cbtn{pointer-events:auto;cursor:pointer;background:rgba(8,16,18,.82);border:1px solid rgba(100,150,150,.4);color:#8aaaaa;border-radius:5px;padding:10px 18px;font-family:inherit;font-size:11px;letter-spacing:.16em;transition:all .15s;backdrop-filter:blur(3px)}
+  .cbtn:hover{border-color:#7cc;color:#bdd}
+  .cbtn:active{transform:scale(.97)}
+  .cbtn.active{background:rgba(120,180,180,.2);border-color:#8cc;color:#dee}
+  .hint-drag{position:absolute;bottom:9.5vh;left:0;right:0;text-align:center;font-size:9px;letter-spacing:.2em;color:#2e3e3e;z-index:9;pointer-events:none}
+
+  /* tremida calma do submersivel na moonpool (aplicada ao viewport inteiro) */
+  #sub.bobbing #viewport{animation:bob 6s ease-in-out infinite}
+  @keyframes bob{
+    0%{transform:translate(0,0) rotate(0deg)}
+    25%{transform:translate(0.4%,0.5%) rotate(0.15deg)}
+    50%{transform:translate(-0.3%,0.3%) rotate(-0.12deg)}
+    75%{transform:translate(0.2%,-0.4%) rotate(0.1deg)}
+    100%{transform:translate(0,0) rotate(0deg)}
+  }
+
+  @media (prefers-reduced-motion:reduce){#standby .ring,#sub.bobbing #viewport{animation:none}}
+</style>
+</head>
+<body>
+
+  <div id="standby">
+    <div class="ring"></div>
+    <div class="msg">SUBMERSIBLE OFFLINE</div>
+    <div class="sub">viewport feed inactive</div>
+  </div>
+
+  <div id="sub" class="old">
+    <!-- janela do visor (posicionada via JS sobre o buraco do casco) -->
+    <div id="viewport">
+      <canvas id="abyss"></canvas>
+      <div id="moonpoolLayer"></div>
+      <canvas id="splash"></canvas>
+      <div id="glassCurve"></div>
+      <div id="glassReflect"></div>
+      <div id="viewportVignette"></div>
+    </div>
+
+    <!-- casco por cima -->
+    <img id="hullImg" alt="">
+
+    <!-- escurecimento + luz piscante (casco velho) -->
+    <div id="flicker"></div>
+    <div id="flickerLight"></div>
+
+    <!-- blur da visão, na frente de tudo -->
+    <div id="visionBlur"></div>
+    <!-- flash de colisão com parede -->
+    <div id="wallHit"></div>
+
+    <div id="hud">
+      <div class="hud-top"><div class="compass" id="compass">BRG 000</div></div>
+      <div class="hud-state" id="hudstate">—</div>
+      <div class="hud-read" id="hudread"></div>
+      <div class="depthbox" id="depthbox">
+        <span class="dlabel">DEPTH</span>
+        <span class="dval" id="depthval">0000</span>
+        <span class="dunit">m</span>
+      </div>
+    </div>
+
+    <div class="hint-drag" id="hintdrag">WASD pilot · drag look · SPACE focus · CTRL light</div>
+    <div id="ctrls">
+      <div class="cbtn" id="btnLight">LIGHT: OFF</div>
+      <div class="cbtn" id="btnFocus">HOLD TO FOCUS</div>
+    </div>
+  </div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+  // ====== posicao do visor em cada casco (fração da imagem) ======
+  // medido das imagens reais
+  const HULLS = {
+    old_intact:  { src:"img/old_intact.png",  vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
+    old_cracked: { src:"img/old_cracked.png", vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
+    neurostat:   { src:"img/neurostat.png",   vis:{cx:0.499, cy:0.456, w:0.246, h:0.338} }
+  };
+  const MOONPOOL_SRC = "img/moonpool.png";
+
+  const MY_ID="inv-"+Math.random().toString(36).slice(2,8);
+  const ref=sessionRef.child("submarine");
+  const presenceRef=ref.child("viewers/"+MY_ID);
+
+  // ====== CANYON: corredor 2D com paredes reais ======
+  // linha central que serpenteia descendo; o submarino navega em (x, depth).
+  // colisão = encostar nas margens (centro ± meia-largura). Ajustável depois.
+  const MAX_DEPTH=3122, CORAL_DEPTH=600, START_DEPTH=200;
+  const CANYON=(function(){
+    let s=7; const rnd=()=>{s=(s*9301+49297)%233280;return s/233280;};
+    const pts=[]; let cx=0, vx=0;
+    for(let d=0; d<=MAX_DEPTH; d+=40){
+      vx+=(rnd()-0.5)*8; vx*=0.82; cx+=vx;
+      cx=Math.max(-180,Math.min(180,cx));
+      let hw = d<CORAL_DEPTH ? 95-(d/CORAL_DEPTH)*15 : 80-((d-CORAL_DEPTH)/(MAX_DEPTH-CORAL_DEPTH))*35;
+      pts.push({depth:d, cx:Math.round(cx), hw:Math.round(hw)});
+    }
+    return pts;
+  })();
+  function corridorAt(depth){
+    depth=Math.max(0,Math.min(MAX_DEPTH,depth));
+    const i=Math.min(CANYON.length-1, Math.floor(depth/40));
+    const j=Math.min(CANYON.length-1, i+1);
+    const f=(depth-CANYON[i].depth)/40;
+    return {
+      cx: CANYON[i].cx+(CANYON[j].cx-CANYON[i].cx)*f,
+      hw: CANYON[i].hw+(CANYON[j].hw-CANYON[i].hw)*f
+    };
+  }
+  // estrutura da petroleira: DOIS pilares grossos + parede no fundo, ACIMA do ponto de partida.
+  // você começa a 200m; a estação fica entre a moonpool (100m) e o início (200m), então
+  // ela está ATRÁS/ACIMA de você — descer (pra frente) é o canyon aberto. olhar pra cima = estação.
+  // MESMA fórmula usada no raycaster, pra colisão e visual baterem exatamente.
+  const STATION_TOP=120, STATION_PILLARS_LO=150, STATION_PILLARS_HI=195;
+  function isPillar(x, depth){
+    if(depth>STATION_PILLARS_HI || depth<STATION_PILLARS_LO) return false;
+    const c=corridorAt(depth);
+    // dois pilares grossos, posicionados a ~45% de cada lado do centro do corredor
+    const halfGap=c.hw*0.45;       // distância de cada pilar ao centro
+    const pillarR=c.hw*0.28;       // raio (grossura) de cada pilar
+    const dxL=Math.abs(x-(c.cx-halfGap));
+    const dxR=Math.abs(x-(c.cx+halfGap));
+    return (dxL<pillarR || dxR<pillarR);
+  }
+  // parede/teto da estrutura da petroleira (no topo, acima dos pilares) — fecha o começo por cima
+  function isStationBackWall(depth){
+    return depth>=STATION_TOP && depth<STATION_TOP+10;
+  }
+
+  // ===== GRID DE TILES (DDA raycaster — etapa 2 da migração) =====
+  // MAP[linha][coluna]: 0=agua, 1=rocha, 2=pilar, 3=parede_estacao
+  // TILE=40u, 10 colunas laterais (X de -200 a +200), ~80 linhas de profundidade.
+  const TILE=40, X_MIN_G=-200;
+  const COLS_G=10;                              // (200-(-200))/40
+  const ROWS_G=Math.ceil(MAX_DEPTH/TILE)+2;    // ~80 linhas
+  const MAP=(function(){
+    const m=[];
+    for(let row=0;row<ROWS_G;row++){
+      m[row]=new Array(COLS_G).fill(1);        // default: rocha sólida
+      const d=row*TILE;
+      if(d>=STATION_TOP && d<STATION_TOP+10){  // parede da estrutura (fecha por cima)
+        for(let col=0;col<COLS_G;col++) m[row][col]=3;
+        continue;
+      }
+      if(d>=STATION_PILLARS_LO && d<=STATION_PILLARS_HI){ // zona dos pilares grossos
+        const c=corridorAt(d);
+        for(let col=0;col<COLS_G;col++){
+          const wx=X_MIN_G+(col+0.5)*TILE;
+          if(Math.abs(wx-c.cx)<=c.hw) m[row][col]=isPillar(wx,d)?2:0;
+        }
+        continue;
+      }
+      const c=corridorAt(d);                   // corredor normal
+      for(let col=0;col<COLS_G;col++){
+        const wx=X_MIN_G+(col+0.5)*TILE;
+        if(Math.abs(wx-c.cx)<=c.hw) m[row][col]=0;
+      }
+    }
+    return m;
+  })();
+
+  // ====== navegação compartilhada ======
+  // estado autoritativo: submarine/nav = { x, depth, heading, mode }
+  // x = posição lateral no corredor; depth = profundidade; heading = pra onde aponta (0=descer)
+  let nav={x:0, depth:START_DEPTH, heading:0, mode:"moonpool"};
+  let navReady=false;
+  const keys={};
+  let lastWallHit=0;
+
+  let heading=0, lightMode=false, lightOn=false, focusing=false;
+  let beamX=0.5, beamY=0.5, focusAmt=0;
+  let STATE={};
+  let imgEl=null, imgReady=false;
+  let curHull=null;
+  let moonScroll=0; // 0 = na superficie (moonpool visivel), 1 = submerso
+
+  const cv=document.getElementById("abyss"), x=cv.getContext("2d");
+  const elViewport=document.getElementById("viewport");
+  const elHull=document.getElementById("hullImg");
+  const elMoon=document.getElementById("moonpoolLayer");
+  let VPW=0,VPH=0,DPR=1;
+
+  // posiciona a janela do visor sobre o buraco do casco atual
+  function layoutViewport(){
+    if(!curHull) return;
+    const vis=HULLS[curHull].vis;
+    // o casco é object-fit:cover na tela toda. Precisamos saber como ele foi escalado.
+    const iw=elHull.naturalWidth||1400, ih=elHull.naturalHeight||800;
+    const sw=window.innerWidth, sh=window.innerHeight;
+    const scale=Math.max(sw/iw, sh/ih); // cover
+    const dw=iw*scale, dh=ih*scale;
+    const ox=(sw-dw)/2, oy=(sh-dh)/2; // offset do cover (centralizado)
+    // posicao do visor em px na tela
+    const vx=ox + vis.cx*dw, vy=oy + vis.cy*dh;
+    const vw=vis.w*dw, vh=vis.h*dh;
+    elViewport.style.left=(vx-vw/2)+"px";
+    elViewport.style.top=(vy-vh/2)+"px";
+    elViewport.style.width=vw+"px";
+    elViewport.style.height=vh+"px";
+    // canvas na resolucao do visor
+    DPR=Math.min(window.devicePixelRatio||1,2);
+    VPW=vw; VPH=vh;
+    cv.width=vw*DPR; cv.height=vh*DPR;
+    cv.style.width=vw+"px"; cv.style.height=vh+"px";
+    x.setTransform(DPR,0,0,DPR,0,0);
+    // moonpool layer: alta o suficiente pra rolar
+    elMoon.style.height=(vh*2.2)+"px";
+    elMoon.style.backgroundImage=`url(${MOONPOOL_SRC})`;
+  }
+  window.addEventListener("resize",layoutViewport);
+
+  // particulas
+  // partículas suspensas "na cena": sx,sy = posição base na tela (0..1); pz = profundidade
+  // na cena (0 longe .. 1 perto). o movimento do sub as translada (ver drawParticles).
+  const motes=[];
+  for(let i=0;i<110;i++)motes.push({sx:Math.random(),sy:Math.random(),pz:Math.random(),r:Math.random()*1.6+.4,ph:Math.random()*6.28});
+  // PLÂNCTON: partículas suspensas FIXAS no espaço do mundo (x lateral, profundidade, altura).
+  // só ficam visíveis onde a lanterna ilumina — como sujeira/plâncton brilhando no facho.
+  // distribuídas num volume ao redor do submarino; recicladas quando ficam pra trás.
+  const plankton=[];
+  for(let i=0;i<260;i++)plankton.push({
+    ox:(Math.random()-0.5)*220,        // deslocamento lateral em relação ao sub (mundo)
+    od:Math.random()*180+10,           // distância à frente (profundidade relativa)
+    oy:(Math.random()-0.5)*1.6,        // altura (-1 teto .. +1 chão), 0 = linha do olho
+    r:Math.random()*1.6+0.4,
+    ph:Math.random()*6.28
+  });
+
+  // move e desenha as partículas suspensas conforme o movimento REAL do submarino.
+  // eixos: depth = vertical do mundo (descer faz partículas DESCEREM na tela e vice-versa);
+  // avanço no plano + giro = deslizamento horizontal. movimento leve, não dominam a tela.
+  let _pLastD=null, _pLastX=null, _pLastH=null;
+  function drawParticles(w,h,depth){
+    const dDepth = depth - (_pLastD ?? depth);
+    const dX     = nav.x  - (_pLastX ?? nav.x);
+    let dHead    = nav.heading - (_pLastH ?? nav.heading);
+    if(dHead>180)dHead-=360; if(dHead<-180)dHead+=360;
+    _pLastD=depth; _pLastX=nav.x; _pLastH=nav.heading;
+    const hdg=nav.heading*Math.PI/180;
+    // avanço "para frente" no plano (pra escoamento radial leve = sensação de atravessar a água)
+    const fwdMove = dDepth*Math.cos(hdg) + dX*Math.sin(hdg);
+    for(const m of motes){
+      // escoamento radial leve do centro pras bordas conforme avança (vêm em tua direção)
+      m.pz += Math.abs(fwdMove)*0.010;
+      if(m.pz>1) m.pz-=1;
+      const spread=0.4+m.pz*0.7;
+      let px=(m.sx-0.5)*w*spread + w/2;
+      let py=(m.sy-0.5)*h*spread + h/2;
+      // DESLIZAMENTO VERTICAL pela mudança de profundidade: descer (dDepth>0) -> as partículas
+      // ficam pra trás/acima -> SOBEM na tela. subir (dDepth<0) -> descem. (sinal invertido)
+      m.scrollY = (m.scrollY||0) - dDepth*3.0;
+      // DESLIZAMENTO HORIZONTAL por giro e movimento lateral
+      m.scrollX = (m.scrollX||0) - (dX*2.2 + dHead*4.0);
+      px += m.scrollX;
+      py += m.scrollY;
+      // wrap nos dois eixos (campo contínuo de partículas)
+      px=((px%w)+w)%w;
+      py=((py%h)+h)%h;
+      const sz=m.r*(0.7+m.pz*0.5);
+      const tw=0.5+0.5*Math.sin(t*0.05+m.ph);
+      x.globalAlpha=(0.06+m.pz*0.24)*(0.5+tw*0.5);
+      x.fillStyle="rgba(180,210,215,.7)";
+      x.beginPath();x.arc(px,py,sz,0,6.28);x.fill();
+    }
+    x.globalAlpha=1;
+  }
+
+  let t=0;
+  function draw(){
+    t+=1;
+    const w=VPW,h=VPH;
+    if(w<2){requestAnimationFrame(draw);return;}
+    x.clearRect(0,0,w,h);
+    const st=STATE.state||"void";              // estado de ameaça (DM)
+    const depth=nav.depth, mode=nav.mode;      // pilotagem
+    const isOld=(STATE.skin||"old").startsWith("old");   // skin do casco (escopo do draw inteiro)
+
+    // ===== ILUMINAÇÃO AMBIENTE: decai com a profundidade. clara a 200m, escurece ao fundo.
+    const depthN = Math.max(0, Math.min(1, (depth-START_DEPTH)/(MAX_DEPTH-START_DEPTH)));
+    const ambLight = 1 - depthN*0.8;            // 1 (200m) -> 0.2 (fundo)
+    const beyond = depth>CORAL_DEPTH;
+    // fundo do breu: tom esverdeado/frio; a 200m bem mais claro, escurecendo com a profundidade
+    const baseTop = beyond ? [26,44,40] : [34,58,64];
+    const tb = baseTop.map(c=>Math.round(c*(0.25+ambLight*0.95)));
+    const g=x.createRadialGradient(w/2,h*0.45,8,w/2,h*0.5,Math.max(w,h)*0.75);
+    g.addColorStop(0, `rgb(${tb[0]},${tb[1]},${tb[2]})`);
+    g.addColorStop(1, beyond ? `rgb(${Math.round(4*(0.3+ambLight))},${Math.round(8*(0.3+ambLight))},${Math.round(7*(0.3+ambLight))})` : `rgb(${Math.round(6*(0.3+ambLight))},${Math.round(12*(0.3+ambLight))},${Math.round(14*(0.3+ambLight))})`);
+    x.fillStyle=g;x.fillRect(0,0,w,h);
+
+    // ===== RAYCASTER: corredor coerente (paredes = margens do canyon) =====
+    // o sub está em (nav.x, nav.depth) olhando p/ heading. as duas margens do corredor
+    // são paredes. p/ cada coluna do visor lanço um raio, acho onde cruza a margem,
+    // calculo a distância perpendicular (corrige fish-eye) e desenho uma tira vertical
+    // de altura ∝ 1/dist com textura de rocha. perto = alta; longe = baixa.
+    if(mode==="diving" || mode==="reeling"){
+      const FOV=Math.PI*78/180;            // campo de visão (rad)
+      const hdg=nav.heading*Math.PI/180;   // 0 = descer (+depth)
+      const COLS=Math.max(60, Math.floor(w/4)); // colunas do raycaster (resolução)
+      const colW=w/COLS;
+      const MAXD=520;                      // alcance do raio (unidades de mundo)
+      const STEP=5;                        // passo de marcha do raio
+      const WALLH=h*46;                    // fator de altura da parede projetada
+      const horizon=h/2;
+
+      // ---- CHÃO (sempre) e TETO (só na caverna) via FLOOR CASTING (gira com o heading) ----
+      // técnica lodev: pra cada linha y abaixo do horizonte, a distância é posZ/(y-horizon),
+      // e o ponto no mundo = pos + dist*rayDir, com rayDir interpolando entre os vetores
+      // (dir - plane) e (dir + plane), que GIRAM com o heading. textura por ruído no mundo.
+      const inCave = depth>CORAL_DEPTH;
+      // vetores de câmera (giram com o heading): dir = pra onde olha, plane = perpendicular (FOV)
+      const dirX=Math.sin(hdg), dirY=Math.cos(hdg);            // direção (no plano x,profundidade)
+      const planeMag=Math.tan(FOV/2);
+      const planeX=Math.cos(hdg)*planeMag, planeY=-Math.sin(hdg)*planeMag;  // plano de câmera
+      const posX=nav.x, posY=depth;                            // posição no mundo
+      const ROWH=3;                                            // resolução vertical (blocos de 3px)
+      const COLN=Math.max(40, Math.floor(w/8));                // resolução horizontal do chão
+      const cstep=w/COLN;
+
+      // textura de rocha: ruído quebrado nas coords do mundo (sem listras alinhadas)
+      function rockShade(wx,wy){
+        const n = Math.sin(wx*0.21+wy*0.13)*Math.sin(wy*0.17-wx*0.09)
+                + 0.5*Math.sin(wx*0.41-wy*0.37)
+                + 0.4*Math.sin((wx+wy)*0.29);
+        return Math.max(0,Math.min(1,(n+1.9)/3.8));
+      }
+
+      // CHÃO (sempre) via floor casting (técnica lodev). escurece com a distância (breu).
+      const GRID=16;
+      const SIGHT=13;
+      for(let y=Math.floor(horizon)+1; y<h; y+=ROWH){
+        const p = y - horizon;
+        const rowDist = (h*0.5) / p;
+        const vis = Math.max(0, Math.min(1, 1 - rowDist/SIGHT));
+        const vis2 = vis*vis;
+        if(vis2<=0.01) continue;
+        const wx0 = posX + rowDist*(dirX - planeX);
+        const wy0 = posY + rowDist*(dirY - planeY);
+        const wx1 = posX + rowDist*(dirX + planeX);
+        const wy1 = posY + rowDist*(dirY + planeY);
+        for(let cxi=0; cxi<COLN; cxi++){
+          const t2=cxi/COLN;
+          const wx=wx0+(wx1-wx0)*t2, wy=wy0+(wy1-wy0)*t2;
+          const sh=rockShade(wx,wy);
+          const gx=Math.abs(((wx%GRID)+GRID)%GRID - GRID/2);
+          const gy=Math.abs(((wy%GRID)+GRID)%GRID - GRID/2);
+          const onLine = Math.min(gx,gy) < 0.7;
+          let base = (22 + sh*30) * vis2 * (0.45+ambLight*0.7);
+          if(onLine) base += 12*vis2*(0.45+ambLight*0.7);
+          let r,g,b;
+          if(isOld){ r=(base*1.0)|0; g=(base*0.86)|0; b=(base*0.6)|0; }
+          else { r=(base*0.85)|0; g=(base*0.97)|0; b=(base*1.04)|0; }
+          x.fillStyle=`rgb(${r},${g},${b})`;
+          x.fillRect(cxi*cstep, y, cstep+1, ROWH+1);
+        }
+      }
+
+      // ---- PAREDES via DDA (lodev/Wolfenstein) ----
+      // posição em tile-coords com epsilon pra nunca ficar exatamente na borda de célula.
+      const posGX=(posX-X_MIN_G)/TILE+1e-6;
+      const posGY=posY/TILE+1e-6;
+      const VIS_WALL=320-depthN*120;          // alcance de visão: ~320u→~200u com profundidade
+      const VIS_TILES=VIS_WALL/TILE;
+
+      for(let i=0;i<COLS;i++){
+        const camX=2*i/(COLS-1)-1;             // -1 (esq) a +1 (dir) no plano da câmera
+        const rayDX=dirX+planeX*camX;
+        const rayDY=dirY+planeY*camX;
+        const colX=(i+0.5)*colW;
+
+        // DDA: avança de célula em célula até bater em parede ou atingir VIS_WALL.
+        // perpWallDist é a distância PERPENDICULAR — sem fish-eye por construção (lodev).
+        let mx=Math.floor(posGX), my=Math.floor(posGY);
+        const ddx=Math.abs(rayDX)<1e-9?1e30:Math.abs(1/rayDX);
+        const ddy=Math.abs(rayDY)<1e-9?1e30:Math.abs(1/rayDY);
+        const sx=rayDX<0?-1:1, sy=rayDY<0?-1:1;
+        let sdx=rayDX<0?(posGX-mx)*ddx:(mx+1-posGX)*ddx;
+        let sdy=rayDY<0?(posGY-my)*ddy:(my+1-posGY)*ddy;
+        let side=0, hitKind="wall", perpD=0, hit=false;
+
+        for(let iter=0;iter<200;iter++){
+          if(sdx<sdy){sdx+=ddx;mx+=sx;side=0;}
+          else{sdy+=ddy;my+=sy;side=1;}
+          perpD=side===0?sdx-ddx:sdy-ddy;
+          if(perpD>=VIS_TILES){perpD=VIS_TILES;hitKind="dark";hit=true;break;}
+          if(mx<0||mx>=COLS_G||my<0||my>=ROWS_G){hitKind="dark";hit=true;break;}
+          const cell=MAP[my][mx];
+          if(cell>0){hitKind=cell===2?"pillar":cell===3?"station_wall":"wall";hit=true;break;}
+        }
+        if(!hit) continue;
+
+        const dist=Math.max(8,perpD*TILE);     // distância em unidades de mundo (mín 8u)
+        const hitSide=side===0?(sx<0?-1:1):0;  // face vertical: esq mais escura
+
+        // PAREDE DE ESCURIDÃO: breu absoluto na distância máxima de visão
+        if(hitKind==="dark"){
+          const shD=Math.min(h*1.4,WALLH/dist);
+          x.fillStyle="#000";
+          x.fillRect(colX-colW/2-0.5,h/2-shD/2,colW+1,shD);
+          continue;
+        }
+
+        const sh2=Math.min(h*1.4,WALLH/dist);
+        const y0=h/2-sh2/2, y1=h/2+sh2/2;
+
+        const WALL_SIGHT=340;
+        const fog=Math.max(0,Math.min(1,1-dist/WALL_SIGHT));
+        const fog2=fog*fog;
+        // textura: ponto exato de impacto (não o tile inteiro) → variação contínua sem saltos
+        const wallU=(side===0?(posGY+perpD*rayDY):(posGX+perpD*rayDX))*TILE;
+        const tex=0.5+0.5*Math.sin(wallU*0.18+i*0.4)*Math.sin(wallU*0.05+i*0.13);
+
+        let lit=0;
+        if(lightOn){
+          const bxw=beamX*w,byh=beamY*h;
+          lit=Math.max(0,1-Math.abs(bxw-colX)/(w*0.42))*Math.max(0,1-Math.abs(byh-h/2)/(h*0.6));
+        }
+
+        const sideShade=hitSide<0?0.82:1.0;
+        let base=((16+tex*26)*sideShade*fog2*(0.4+ambLight*0.75)+lit*fog*(isOld?70:90));
+        base=Math.min(190,base);
+        let r,g,b;
+        if(hitKind==="pillar"){
+          const pb=Math.min(200,(30+tex*18)*fog2+lit*fog*95);
+          r=pb*0.82|0;g=pb*0.88|0;b=pb*0.96|0;
+        } else if(hitKind==="station_wall"){
+          const fb=Math.min(170,(14+tex*20)*fog2+lit*fog*(isOld?60:78));
+          if(isOld){r=fb*0.95|0;g=fb*0.85|0;b=fb*0.66|0;}
+          else{r=fb*0.88|0;g=fb*0.96|0;b=fb*1.0|0;}
+        } else if(isOld){r=base*1.0|0;g=base*0.9|0;b=base*0.72|0;}
+        else{r=base*0.92|0;g=base*1.0|0;b=base*1.06|0;}
+
+        x.fillStyle=`rgb(${r},${g},${b})`;
+        x.fillRect(colX-colW/2-0.5,y0,colW+1,y1-y0);
+        x.fillStyle=`rgba(0,0,0,${(0.3*fog+0.2).toFixed(2)})`;
+        x.fillRect(colX-colW/2-0.5,y0,colW+1,Math.max(1,sh2*0.06));
+        x.fillRect(colX-colW/2-0.5,y1-Math.max(1,sh2*0.06),colW+1,Math.max(1,sh2*0.06));
+      }
+    }
+
+    // ===== PARTICULAS suspensas (sobre as paredes): reagem ao movimento real do sub.
+    // pra frente -> escoam radialmente do centro pras bordas; giro/lateral -> deslizam de lado;
+    // subir/descer -> escoam no vertical. movimento leve (não crescem nem dominam a tela).
+    drawParticles(w,h,depth);
+
+
+
+    // AMEACA direcional
+    if(["distant","passing","close"].includes(st)){
+      let delta=((STATE.threatDir!=null?STATE.threatDir:90)-heading+540)%360-180;
+      if(Math.abs(delta)<=85){
+        const cx=w/2+(delta/70)*(w*0.6), cy=h*0.52;
+        const scale=st==="close"?1:(st==="passing"?0.6:0.4);
+        if(STATE.imgUrl && imgReady){
+          const iw=Math.min(w,h)*0.7*scale, ih=iw*(imgEl.height/imgEl.width||1);
+          x.save();x.globalAlpha=0.88;x.filter="brightness(.62) contrast(1.12)";
+          x.drawImage(imgEl,cx-iw/2,cy-ih/2,iw,ih);x.restore();
+        } else {
+          x.save();x.filter=`blur(${st==="close"?6:10}px)`;x.fillStyle="rgba(3,9,10,.93)";
+          x.beginPath();
+          const R=Math.min(w,h)*0.30*scale;
+          for(let a=0;a<6.28;a+=0.3){const rr=R*(0.78+0.32*Math.sin(a*3+t*0.018));const px=cx+Math.cos(a)*rr,py=cy+Math.sin(a)*rr*1.25;a===0?x.moveTo(px,py):x.lineTo(px,py);}
+          x.closePath();x.fill();x.restore();
+        }
+      }
+    }
+
+    // (a parede de escuridão é uma superfície sólida no mundo, tratada pelo raycaster — ver acima)
+    if(mode==="diving" || mode==="reeling"){
+
+      // ===== PLÂNCTON iluminado: partículas suspensas que só brilham sob o facho da lanterna =====
+      if(lightOn){
+        const hdg=nav.heading*Math.PI/180;
+        const ch=Math.cos(-hdg), sh=Math.sin(-hdg);
+        const FOV=Math.PI*78/180, halfFov=FOV/2;
+        const bxw=beamX*w, byh=beamY*h;
+        for(const pk of plankton){
+          // recicla: conforme o sub desce, a profundidade relativa diminui; quando passa, reposiciona
+          pk.od -= (nav.depth - (pk._lastDepth??nav.depth));
+          pk._lastDepth = nav.depth;
+          if(pk.od < 6){ pk.od += 180; pk.ox=(Math.random()-0.5)*220; pk.oy=(Math.random()-0.5)*1.6; }
+          if(pk.od > 200){ pk.od -= 180; }
+          // posição no mundo relativa ao sub: lateral ox, frente od. rotaciona pelo heading.
+          const lat=pk.ox, fwd=pk.od;
+          const camX=lat*ch - fwd*sh;
+          const camZ=lat*sh + fwd*ch;
+          if(camZ<=4) continue;                       // atrás/perto demais
+          const rel=Math.atan2(-camX,camZ);
+          if(Math.abs(rel)>halfFov*1.05) continue;    // fora do campo de visão
+          // projeta na tela: x pelo ângulo (igual paredes), y pela altura/distância (perspectiva)
+          const sx2=w/2 + (rel/halfFov)*(w/2);
+          const scale=Math.min(2.4, 40/camZ);
+          const py=h/2 + pk.oy*(h*0.42)*scale;
+          // só brilha se estiver perto do facho (na tela) — simula a luz batendo na partícula
+          const distBeam=Math.hypot(sx2-bxw, py-byh);
+          const R=Math.min(w,h)*0.55;
+          if(distBeam>R) continue;
+          const litByBeam=Math.max(0,1-distBeam/R);
+          // mais fundo na água = mais fraco; cintila levemente
+          const depthFade=Math.max(0,Math.min(1,1-camZ/200));
+          const tw=0.6+0.4*Math.sin(t*0.06+pk.ph);
+          const alpha=litByBeam*litByBeam*depthFade*tw*0.9;
+          if(alpha<0.02) continue;
+          const sz=pk.r*scale;
+          x.globalAlpha=alpha;
+          x.fillStyle = isOld ? "rgba(225,205,150,1)" : "rgba(200,225,235,1)";
+          x.beginPath();x.arc(sx2,py,sz,0,6.28);x.fill();
+        }
+        x.globalAlpha=1;
+      }
+    }
+
+    // FACHO
+    if(lightOn){
+      x.save();x.globalCompositeOperation="screen";
+      const bx=beamX*w,by=beamY*h;
+      const R=Math.min(w,h)*0.62;
+      const bg=x.createRadialGradient(bx,by,5,bx,by,R);
+      if(isOld){bg.addColorStop(0,"rgba(210,180,100,.24)");bg.addColorStop(.4,"rgba(150,120,55,.08)");}
+      else{bg.addColorStop(0,"rgba(160,205,210,.24)");bg.addColorStop(.4,"rgba(120,165,170,.08)");}
+      bg.addColorStop(1,"transparent");
+      x.fillStyle=bg;x.beginPath();x.arc(bx,by,R,0,6.28);x.fill();
+      x.restore();
+    }
+    // reflexo do vidro reage à luz: mais brilho quando o facho está aceso
+    const gr=document.getElementById("glassReflect");
+    if(gr) gr.style.opacity = lightOn ? "0.8" : "0.5";
+
+    // FOCO: blur de base sempre leve, focar reduz quase a zero (na frente de tudo)
+    focusAmt += ((focusing?1:0)-focusAmt)*0.1;
+    const baseBlur = 1.5 - focusAmt*1.35; // 1.5 normal -> 0.15 focado
+    document.getElementById("visionBlur").style.backdropFilter=`blur(${baseBlur.toFixed(2)}px)`;
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+
+  // ===== moonpool: posicionamento e animação de descida =====
+  function positionMoon(){
+    // na superfície: a imagem fica posicionada mostrando água embaixo + estrutura em cima
+    // top negativo = mostra parte de baixo da imagem no visor
+    const vh=VPH;
+    const moonH=vh*2.2;
+    // mostra os ~45% de baixo da imagem (a água/linha)
+    elMoon.style.transform=`translateY(${-(moonH-vh)*0.55}px)`;
+  }
+  let diveAnim=null, splashActive=false;
+  const splashCv=document.getElementById("splash"), sx=splashCv.getContext("2d");
+  function animateDive(ascending){
+    if(diveAnim) return;
+    const vh=VPH, vw=VPW, moonH=vh*2.2;
+    // a moonpool ocupa o visor; ela sobe devagar revelando, abaixo da linha d'água,
+    // uma região preta com partículas (o breu). ao fim ela saiu inteira de vista.
+    const startTop=-(moonH-vh)*0.55;     // posição inicial (água/linha no visor)
+    const endTop=-moonH-vh*0.3;          // bem acima: moonpool totalmente fora de vista
+    let p=0;
+    splashCv.width=vw*DPR; splashCv.height=vh*DPR; sx.setTransform(DPR,0,0,DPR,0,0);
+    splashCv.style.display="block"; splashActive=true;
+    // partículas da água preta (o breu surgindo sob as ondas)
+    const wmotes=[]; for(let i=0;i<70;i++)wmotes.push({x:Math.random(),y:Math.random(),r:Math.random()*2+0.5,v:Math.random()*0.4+0.2});
+    const bubbles=[]; for(let i=0;i<50;i++)bubbles.push({x:Math.random(),y:Math.random(),r:Math.random()*3+1,v:Math.random()*0.5+0.3});
+    let st=0;
+    const SPEED=0.0022;   // ~7.5s, transição mais longa e fluida
+    const MOON_DEPTH=100, DIVE_DEPTH=START_DEPTH;  // superfície a 100m, submerso a 200m
+    diveAnim=setInterval(()=>{
+      p+=SPEED; st++;
+      // anima o depth junto: descendo 100->200, subindo 200->100
+      const depthProg = ascending ? (1-p) : p;
+      nav.depth = MOON_DEPTH + (DIVE_DEPTH-MOON_DEPTH)*Math.max(0,Math.min(1,depthProg));
+      if(p>=1){
+        p=1; clearInterval(diveAnim); diveAnim=null;
+        splashCv.style.display="none"; splashActive=false;
+        nav.depth = ascending ? MOON_DEPTH : DIVE_DEPTH;
+        // moonpool já saiu de vista: descendo mostra o breu; subindo mantém a moonpool
+        elMoon.style.display = ascending ? "block" : "none";
+        if(ascending) positionMoon();
+        return;
+      }
+      // easing orgânico de afundamento: começa lento, acelera (peso/inércia da água)
+      const prog0 = ascending ? (1-p) : p;
+      const ease = prog0<0.5 ? 4*prog0*prog0*prog0 : 1-Math.pow(-2*prog0+2,3)/2;
+      const prog = ease;
+      // posição da moonpool: sobe de startTop até endTop (sai inteira de vista)
+      const top = startTop + (endTop-startTop)*prog;
+      elMoon.style.transform=`translateY(${top}px)`;
+
+      // a "linha d'água" no visor = borda inferior da imagem da moonpool.
+      // abaixo dela é o breu preto com partículas, que cresce conforme a moonpool sobe.
+      const w=vw,h=vh;
+      const moonBottomPx = top + moonH;     // onde a imagem termina, em px do visor (linha d'água real)
+      const surfYraw = moonBottomPx;        // posição real da linha (pode estar acima/abaixo do visor)
+      const surfY = Math.max(0, Math.min(h, moonBottomPx)); // clampada (pra preencher o breu)
+      sx.clearRect(0,0,w,h);
+
+      // 1) região preta do breu (abaixo da linha d'água)
+      if(surfY < h){
+        const bg=sx.createLinearGradient(0,surfY,0,h);
+        bg.addColorStop(0,"#04080a"); bg.addColorStop(1,"#01040600");
+        sx.fillStyle="#02060a"; sx.fillRect(0,surfY,w,h-surfY);
+        // partículas de água suspensas no breu
+        sx.fillStyle="rgba(150,180,185,.5)";
+        for(const m of wmotes){
+          m.y+=m.v*0.004;
+          if(m.y>1)m.y=0;
+          const py=surfY+((m.y)*(h-surfY));
+          sx.globalAlpha=0.15+0.35*Math.sin(st*0.05+m.x*6.28);
+          sx.beginPath();sx.arc(m.x*w,py,m.r,0,6.28);sx.fill();
+        }
+        sx.globalAlpha=1;
+      }
+
+      // 2) ondas + espuma na linha d'água — seguem a borda REAL da imagem até ela sair do visor
+      if(surfYraw > -40 && surfYraw < h+40){
+        const sy=surfYraw;
+        sx.globalAlpha=0.55;
+        sx.strokeStyle="rgba(180,225,235,.6)"; sx.lineWidth=2;
+        for(let l=0;l<5;l++){
+          sx.beginPath();
+          for(let px=0;px<=w;px+=6){
+            const yy=sy+l*7+Math.sin(px*0.03+st*0.25+l)*8;
+            px===0?sx.moveTo(px,yy):sx.lineTo(px,yy);
+          }
+          sx.stroke();
+        }
+        // espuma
+        sx.globalAlpha=0.4;
+        const fg=sx.createLinearGradient(0,sy-14,0,sy+30);
+        fg.addColorStop(0,"transparent");fg.addColorStop(0.5,"rgba(200,230,235,.55)");fg.addColorStop(1,"transparent");
+        sx.fillStyle=fg; sx.fillRect(0,sy-14,w,46);
+        // bolhas subindo perto da superfície
+        sx.globalAlpha=0.6; sx.fillStyle="rgba(200,225,230,.7)";
+        bubbles.forEach(b=>{
+          b.y-=b.v*0.006; if(b.y<0)b.y=1;
+          const py=sy+(1-b.y)*120;
+          if(py>sy-20 && py<h){ sx.beginPath();sx.arc(b.x*w,py,b.r,0,6.28);sx.fill(); }
+        });
+        sx.globalAlpha=1;
+      }
+    },16);
+  }
+
+  // ===== navegação: heading compartilhado + W/S profundidade + colisão =====
+  const elDepthVal=document.getElementById("depthval");
+  const elDepthBox=document.getElementById("depthbox");
+  const elWallHit=document.getElementById("wallHit");
+
+  // throttle de escrita do nav no firebase (10x/s)
+  let navDirty=false;
+  function pushNav(){ navDirty=true; }
+  setInterval(()=>{
+    if(!navDirty) return; navDirty=false;
+    const dm=Math.round(nav.depth);
+    ref.child("nav").update({
+      x:Math.round(nav.x), depth:dm,
+      heading:Math.round(nav.heading), mode:nav.mode
+    });
+    presenceRef.update({heading:Math.round(nav.heading),depth:dm,at:Date.now()});
+  },100);
+
+  // loop de simulação local (~60fps): movimento livre Iron Lung em 2D
+  let lastT=performance.now();
+  const SPEED=42, TURN=52; // unidades/s e graus/s
+  function navLoop(now){
+    const dt=Math.min((now-lastT)/1000, 0.05); lastT=now;
+
+    if(nav.mode==="diving"){
+      // virar com A/D (gira o submarino)
+      let turn=0;
+      if(keys["KeyA"]||keys["ArrowLeft"]) turn-=1;
+      if(keys["KeyD"]||keys["ArrowRight"]) turn+=1;
+      if(turn){ nav.heading=(nav.heading+turn*TURN*dt+360)%360; pushNav(); }
+
+      // mover: W pra frente na direção que olha, S ré (movimento livre Iron Lung)
+      let drive=0;
+      if(keys["KeyW"]||keys["ArrowUp"]) drive+=1;
+      if(keys["KeyS"]||keys["ArrowDown"]) drive-=1;
+      if(drive!==0){
+        const rad=nav.heading*Math.PI/180;
+        // plano de cima: heading 0 = descer (+depth), 90 = +x (direita)
+        const stepX = Math.sin(rad)*SPEED*dt*drive;
+        const stepD = Math.cos(rad)*SPEED*dt*drive;
+
+        // limite de profundidade: pode subir até o topo da estação (lá a parede/pilares barram).
+        // o fundo é MAX_DEPTH. assim a estrutura da petroleira fica visível acima do início.
+        let nd = nav.depth + stepD;
+        nd = Math.max(STATION_TOP, Math.min(MAX_DEPTH, nd));
+
+        // colisão lateral checada NA profundidade de destino, eixo X separado:
+        // tenta mover X; se sair do corredor, encosta na parede (desliza, não trava tudo).
+        const cTarget = corridorAt(nd);
+        let nx = nav.x + stepX;
+        const leftWall = cTarget.cx - cTarget.hw;
+        const rightWall = cTarget.cx + cTarget.hw;
+        let hitWall=false;
+        if(nx < leftWall){ nx = leftWall; hitWall=true; }
+        else if(nx > rightWall){ nx = rightWall; hitWall=true; }
+
+        // colisão com PILARES: se o destino cai num pilar, não entra (testa eixos separados
+        // pra deslizar ao redor em vez de travar de vez).
+        if(isPillar(nx, nd)){
+          if(!isPillar(nav.x, nd)){ nx=nav.x; hitWall=true; }      // bloqueia X, mantém profundidade
+          else if(!isPillar(nx, nav.depth)){ nd=nav.depth; hitWall=true; } // bloqueia profundidade
+          else { nx=nav.x; nd=nav.depth; hitWall=true; }            // encurralado: para
+        }
+        // colisão com a parede de fundo da estação: não atravessa em direção à moonpool
+        if(isStationBackWall(nd) && !isStationBackWall(nav.depth)){
+          nd=nav.depth; hitWall=true;
+        }
+
+        // aplica: a profundidade sempre avança (dentro dos limites), o X desliza preso à parede
+        nav.x = nx;
+        nav.depth = nd;
+        pushNav();
+
+        // só sinaliza impacto quando DE FATO raspa a parede lateral (não nos limites de profundidade)
+        if(hitWall && Math.abs(stepX)>0.5 && now-lastWallHit>450){
+          lastWallHit=now; elWallHit.classList.remove("hit"); void elWallHit.offsetWidth; elWallHit.classList.add("hit");
+        }
+      }
+    }
+    else if(nav.mode==="reeling"){
+      // o cabo recolhe pela LINHA CENTRAL do corredor (caminho garantidamente livre).
+      const c=corridorAt(nav.depth);
+      // segurança: se por algum motivo estiver além da margem, traz pra dentro já.
+      if(nav.x < c.cx-c.hw) nav.x=c.cx-c.hw+1;
+      if(nav.x > c.cx+c.hw) nav.x=c.cx+c.hw-1;
+      const offCenter=Math.abs(nav.x-c.cx);
+      if(offCenter>2){
+        nav.x += (c.cx-nav.x)*Math.min(1, dt*5);
+        nav.depth=Math.max(START_DEPTH, nav.depth-8*dt);
+        pushNav();
+      } else if(nav.depth>START_DEPTH){
+        nav.x=c.cx;
+        nav.depth=Math.max(START_DEPTH, nav.depth-26*dt);
+        pushNav();
+        if(nav.depth<=START_DEPTH){ nav.x=corridorAt(START_DEPTH).cx; nav.mode="moonpool"; pushNav(); }
+      } else {
+        nav.x=corridorAt(START_DEPTH).cx; nav.mode="moonpool"; pushNav();
+      }
+    }
+
+    // HUD local
+    heading=nav.heading;
+    document.getElementById("compass").textContent="BRG "+String(Math.round(nav.heading)).padStart(3,"0");
+    const dm=Math.round(nav.depth);
+    elDepthVal.textContent=String(dm).padStart(4,"0");
+    elDepthBox.classList.toggle("beyond", dm>CORAL_DEPTH);
+
+    requestAnimationFrame(navLoop);
+  }
+  requestAnimationFrame(navLoop);
+
+  let dragging=false,lastX=0,lastY=0;
+  const surface=document.getElementById("sub");
+  function pt(e){return e.touches&&e.touches[0]?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};}
+  function down(e){if(e.target.classList.contains("cbtn"))return;dragging=true;const p=pt(e);lastX=p.x;lastY=p.y;}
+  function move(e){
+    if(!dragging)return;const p=pt(e);const dx=p.x-lastX,dy=p.y-lastY;lastX=p.x;lastY=p.y;
+    if(lightMode){beamX=Math.max(0,Math.min(1,beamX+dx/VPW));beamY=Math.max(0,Math.min(1,beamY+dy/VPH));}
+    else if(nav.mode==="diving"){ nav.heading=(nav.heading+dx*0.2+360)%360; pushNav(); } // só gira submerso
+  }
+  function up(){dragging=false;}
+  surface.addEventListener("mousedown",down);
+  addEventListener("mousemove",move);addEventListener("mouseup",up);
+  surface.addEventListener("touchstart",down,{passive:true});
+  addEventListener("touchmove",move,{passive:true});addEventListener("touchend",up);
+
+  // DESKTOP: quando a luz está no modo AIM, o facho segue o cursor livre (sem clicar)
+  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints>0;
+  if(!isTouch){
+    addEventListener("mousemove",e=>{
+      if(!lightMode || dragging) return; // ao arrastar, usa o move() acima
+      const r=elViewport.getBoundingClientRect();
+      beamX=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+      beamY=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+    });
+  }
+
+  const btnLight=document.getElementById("btnLight");
+  function toggleLight(){
+    if(!lightOn){ lightOn=true; lightMode=true; }
+    else { lightOn=false; lightMode=false; }
+    btnLight.classList.toggle("active",lightOn);
+    btnLight.textContent=lightOn?"LIGHT: AIM":"LIGHT: OFF";
+    document.getElementById("hintdrag").textContent=lightMode?"move cursor / drag to aim · SPACE focus · CTRL light":"WASD pilot · drag look · SPACE focus · CTRL light";
+  }
+  btnLight.addEventListener("click",toggleLight);
+
+  const btnFocus=document.getElementById("btnFocus");
+  function fStart(){focusing=true;btnFocus.classList.add("active");}
+  function fEnd(){focusing=false;btnFocus.classList.remove("active");}
+  btnFocus.addEventListener("mousedown",fStart);
+  btnFocus.addEventListener("mouseup",fEnd);btnFocus.addEventListener("mouseleave",fEnd);
+  btnFocus.addEventListener("touchstart",e=>{e.preventDefault();fStart();},{passive:false});
+  btnFocus.addEventListener("touchend",e=>{e.preventDefault();fEnd();},{passive:false});
+  // ===== teclado: WASD (pilotar), Ctrl (luz AIM), Espaço (foco) =====
+  addEventListener("keydown",e=>{
+    // foco
+    if(e.code==="Space" && !e.repeat){ e.preventDefault(); fStart(); return; }
+    // ctrl liga/desliga a luz AIM
+    if((e.code==="ControlLeft"||e.code==="ControlRight") && !e.repeat){
+      e.preventDefault(); toggleLight(); return;
+    }
+    // teclas de movimento
+    if(["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)){
+      keys[e.code]=true;
+      if(e.code.startsWith("Arrow")) e.preventDefault();
+    }
+  });
+  addEventListener("keyup",e=>{
+    if(e.code==="Space"){ e.preventDefault(); fEnd(); return; }
+    keys[e.code]=false;
+  });
+  // se a janela perde foco, solta todas as teclas (evita "tecla grudada")
+  addEventListener("blur",()=>{ for(const k in keys) keys[k]=false; });
+
+  // ===== troca de casco =====
+  function setHull(which){
+    if(curHull===which) return;
+    curHull=which;
+    elHull.onload=layoutViewport;
+    elHull.src=HULLS[which].src;
+    document.getElementById("sub").classList.toggle("old", which.startsWith("old"));
+    document.getElementById("sub").classList.toggle("modern", which==="neurostat");
+  }
+
+  // ===== presenca =====
+  presenceRef.onDisconnect().remove();
+  presenceRef.set({heading:0,depth:0,at:Date.now()});
+
+  // ===== escuta o nav compartilhado (vindo de outros clientes / DM) =====
+  let lastMode=null;
+  let firstNavLoad=true;
+  ref.child("nav").on("value",snap=>{
+    const n=snap.val();
+    if(!n){ navReady=true; firstNavLoad=false; lastMode=nav.mode; applyModeInstant(); return; }
+    // adota o estado remoto quando ESTE cliente não está mexendo nas teclas
+    const meActive = Object.values(keys).some(Boolean) || dragging;
+    if(!meActive){
+      if(typeof n.heading==="number") nav.heading=n.heading;
+      if(typeof n.depth==="number")  nav.depth=n.depth;
+      if(typeof n.x==="number")      nav.x=n.x;
+    }
+    if(n.mode){ nav.mode=n.mode; }
+    navReady=true;
+
+    if(firstNavLoad){
+      // PRIMEIRA carga: adota o estado como está, SEM animar transição nem voltar pra moonpool
+      firstNavLoad=false;
+      lastMode=nav.mode;
+      applyModeInstant();
+      return;
+    }
+    // mudanças genuínas depois da carga: aí sim toca a transição
+    if(nav.mode!==lastMode){
+      const prev=lastMode;
+      lastMode=nav.mode;
+      document.getElementById("sub").classList.toggle("bobbing", nav.mode==="moonpool");
+      if(diveAnim){clearInterval(diveAnim);diveAnim=null;}
+      updateMoonpoolByMode(prev);
+    }
+  });
+
+  // aplica o modo SEM animação (usado na carga inicial): mostra direto o estado certo
+  function applyModeInstant(){
+    document.getElementById("sub").classList.toggle("bobbing", nav.mode==="moonpool");
+    if(diveAnim){clearInterval(diveAnim);diveAnim=null;}
+    if(splashActive){ splashCv.style.display="none"; splashActive=false; }
+    if(nav.mode==="moonpool"){ elMoon.style.display="block"; positionMoon(); }
+    else { elMoon.style.display="none"; }  // submerso ou reeling: breu direto, sem moonpool
+  }
+
+  function updateMoonpoolByMode(prev){
+    if(nav.mode==="moonpool"){
+      elMoon.style.display="block"; positionMoon();
+      // voltando de submersos/reeling: toca a transição (subindo pela superfície)
+      if(prev==="reeling"||prev==="diving"){ animateDive(true); }
+    }
+    else if(nav.mode==="diving"){
+      // descendo a partir da moonpool: toca a transição de furar a água
+      if(prev==="moonpool"||prev==null){ elMoon.style.display="block"; animateDive(false); }
+      else { elMoon.style.display="none"; }
+    }
+    else { // reeling
+      elMoon.style.display="none";
+    }
+  }
+
+  // ===== escuta DM (casco, ameaça, leitura) =====
+  ref.on("value",snap=>{
+    STATE=snap.val()||{};
+    const online=!!STATE.online;
+    document.getElementById("standby").style.display=online?"none":"flex";
+    document.getElementById("sub").classList.toggle("on",online);
+
+    let skin=STATE.skin||"old";
+    let hull = skin==="neurostat" ? "neurostat" : (STATE.cracked?"old_cracked":"old_intact");
+    setHull(hull);
+
+    // estado textual no HUD: usa nav.mode (pilotagem) + ameaça do DM
+    const modeLabels={moonpool:"IN MOONPOOL",diving:"DESCENDING",reeling:"REELING IN"};
+    const threatLabels={distant:"CONTACT — DISTANT",passing:"MOVEMENT",close:"CONTACT — CLOSE"};
+    const tl = threatLabels[STATE.state];
+    document.getElementById("hudstate").textContent = tl || modeLabels[nav.mode] || "—";
+
+    if(STATE.imgUrl){
+      if(!imgEl||imgEl.src!==STATE.imgUrl){imgReady=false;imgEl=new Image();imgEl.crossOrigin="anonymous";imgEl.onload=()=>imgReady=true;imgEl.src=STATE.imgUrl;}
+    } else {imgEl=null;imgReady=false;}
+
+    const read=(STATE.readout||"").trim();
+    document.getElementById("hudread").innerHTML=read?`<span class="line">${esc(read)}</span>`:"";
+  });
+  function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+</script></body></html>
