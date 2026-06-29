@@ -1291,11 +1291,11 @@
       cs.textContent=cracked?"RACHADO":"intacto"; cs.style.color=cracked?"var(--danger)":"var(--ink-dim)";
     }
     const neuCracked=!!s.neuCracked;
-    const nb=document.getElementById("neuCrackBtn"), ns=document.getElementById("neuCrackStat");
-    if(nb){
-      nb.textContent=neuCracked?"✓ CONSERTAR CASCO (moderno)":"⚠ RACHAR CASCO (moderno)";
-      nb.style.borderColor=neuCracked?"var(--danger)":""; nb.style.color=neuCracked?"var(--danger)":"";
-      ns.textContent=neuCracked?"RACHADO":"intacto"; ns.style.color=neuCracked?"var(--danger)":"var(--ink-dim)";
+    const elNeuCrack=document.getElementById("neuCrackBtn"), elNeuCrackStat=document.getElementById("neuCrackStat");
+    if(elNeuCrack){
+      elNeuCrack.textContent=neuCracked?"✓ CONSERTAR CASCO (moderno)":"⚠ RACHAR CASCO (moderno)";
+      elNeuCrack.style.borderColor=neuCracked?"var(--danger)":""; elNeuCrack.style.color=neuCracked?"var(--danger)":"";
+      elNeuCrackStat.textContent=neuCracked?"RACHADO":"intacto"; elNeuCrackStat.style.color=neuCracked?"var(--danger)":"var(--ink-dim)";
     }
 
     const navmode=(s.nav&&s.nav.mode)||"moonpool";
