@@ -654,8 +654,9 @@
   const UNITS_PER_M=10;
   // ===== MAPA DO MUNDO (mesma grade do submarino/monitor) =====
   const TILE=40, X_MIN_W=-400, GRID_COLS=21, GRID_ROWS=640;
-  const MAP_VIS_ABOVE=40, MAP_VIS_BELOW=40;
-  const MAP_CELL_W=15, MAP_CELL_H=4; // 15*21=315px, 4*80=320px — cabe no canvas 320×320
+  const MAP_VIS_ABOVE=120, MAP_VIS_BELOW=120;  // 3× o monitor (player vê 40+40)
+  const MAP_CELL_W=15;
+  const MAP_CELL_H=S_H/(MAP_VIS_ABOVE+MAP_VIS_BELOW); // ~1.33px por linha de tile
   const MAP=(()=>{
     const m=Array.from({length:GRID_ROWS},()=>new Uint8Array(GRID_COLS).fill(1));
     const open=(r0,r1,c0,c1)=>{

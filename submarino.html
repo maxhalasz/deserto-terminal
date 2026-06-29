@@ -259,6 +259,15 @@
         cv.getContext('2d').drawImage(oc, c*fw+INS, r*fh+INS, fw-INS*2, fh-INS*2, 0,0,cv.width,cv.height);
         dfFrames.push(cv);
       }
+      // gera versões espelhadas para rotação Doom (ângulos 181-359°)
+      dfFrames.forEach(cv=>{
+        const flip=document.createElement('canvas');
+        flip.width=cv.width; flip.height=cv.height;
+        const fc=flip.getContext('2d');
+        fc.translate(cv.width,0); fc.scale(-1,1);
+        fc.drawImage(cv,0,0);
+        dfFramesFlip.push(flip);
+      });
     };
   }
 
@@ -590,16 +599,20 @@
 
   // ===== CRIATURA (billboard procedural — sprite real enviado depois) =====
   let creatureEntities={};
+  // ===== DOOM SPRITE ROTATION (5 linhas = 5 ângulos, espelhado para 360°) =====
+  // Linha 0 = de frente (face-on), linha 2 = de lado (90°), linha 4 = de costas.
+  // viewAngle = atan2(sub.x - ent.wx, sub.depth - ent.wd) = direção ent→câmera.
+  // relDeg = (viewAngle - ent._facing + 360) % 360. Se relDeg>180 → usa frame espelhado.
   function drawCreatureSprites(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_){
-    const ents=Object.values(creatureEntities).filter(e=>e&&e.visible!==false);
+    const ents=Object.entries(creatureEntities).filter(([,e])=>e&&e.visible!==false);
     if(!ents.length) return;
     const hdg=nav.heading*Math.PI/180;
     const dirX=Math.sin(hdg), dirY=Math.cos(hdg);
     const invDet=1.0/Math.tan(Math.PI*78/360);
 
-    ents.sort((a,b)=>Math.hypot((b.wx||0)-nav.x,(b.wd||0)-nav.depth)-Math.hypot((a.wx||0)-nav.x,(a.wd||0)-nav.depth));
+    ents.sort(([,a],[,b])=>Math.hypot((b.wx||0)-nav.x,(b.wd||0)-nav.depth)-Math.hypot((a.wx||0)-nav.x,(a.wd||0)-nav.depth));
 
-    for(const ent of ents){
+    for(const [id,ent] of ents){
       const {tX,tY}=billboardTransform(ent.wx||0,ent.wd||nav.depth,hdg,invDet,dirX,dirY);
       if(tY<=0.5) continue;
       const screenX=w/2*(1+tX/tY);
@@ -607,17 +620,25 @@
       if(fog<0.05) continue;
 
       if(dfFrames.length){
-        const beh=ent.behavior||"wander";
-        const isChase=(beh==="chase"||ent.chasing);
-        // linhas do sheet: 0-4 nado normal, 15-19 chase (linha 3)
-        const rowStart=isChase?15:0;
-        const fIdx=rowStart+Math.floor(t/4)%5;
-        const projH=Math.min(h*2.5, WALLH_*2.0/tY);
-        const projW=projH*(dfFrames[0].width/dfFrames[0].height);
-        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,dfFrames[fIdx]);
+        // ---- Rotação estilo Doom ----
+        const facing=ent._facing||0;
+        const viewAngle=Math.atan2(nav.x-(ent.wx||0), nav.depth-(ent.wd||nav.depth));
+        let relDeg=((viewAngle-facing)*180/Math.PI+360)%360;
+        const flipX=relDeg>180;
+        if(flipX) relDeg=360-relDeg;
+        // 5 linhas para 0°,45°,90°,135°,180°
+        const rotRow=Math.min(4, Math.round(relDeg/45));
+        const animCol=Math.floor(t/4)%DF_COLS;
+        const fIdx=rotRow*DF_COLS+animCol;
+        const frames=flipX?dfFramesFlip:dfFrames;
+        const frame=frames[Math.min(frames.length-1,fIdx)];
+
+        const projH=Math.min(h*3.5, WALLH_*3.2/tY);
+        const projW=projH*(frame.width/frame.height);
+        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame);
       } else {
-        // fallback procedural enquanto sprite não carregou
-        const projH=Math.min(h*0.8, WALLH_*0.45/tY);
+        // fallback procedural
+        const projH=Math.min(h*1.2, WALLH_*0.7/tY);
         const projW=projH*0.7;
         const centerCol=Math.min(COLS_-1,Math.floor(screenX/colW_));
         if(tY>=zBuf[centerCol]) continue;
@@ -630,11 +651,6 @@
         x.save(); x.globalAlpha=fog;
         x.fillStyle=gr;
         x.beginPath(); x.ellipse(cx,cy,projW*0.5,projH*0.5,0,0,Math.PI*2); x.fill();
-        x.fillStyle=`rgba(0,0,0,${fog})`;
-        x.beginPath(); x.ellipse(cx,cy,projW*0.09,projH*0.17,0,0,Math.PI*2); x.fill();
-        x.strokeStyle=`rgba(255,100,0,${0.5*fog*pulse})`;
-        x.lineWidth=1.5;
-        x.beginPath(); x.ellipse(cx,cy,projW*0.5*pulse,projH*0.5*pulse,0,0,Math.PI*2); x.stroke();
         x.restore();
       }
     }
@@ -1182,19 +1198,33 @@
       elShutter.style.transform = shutterClosed ? "translateY(0)" : "translateY(-110%)";
     }
 
-    // IA das criaturas: wander/stalk/chase
+    // IA das criaturas: wander/stalk/chase — velocidades relativas ao sub
+    // steerMove: tenta mover (ewx+vx, ewd+vd); se parede, gira o vetor em 45° até achar caminho livre
+    function steerMove(ewx,ewd,vx,vd){
+      const len=Math.hypot(vx,vd); if(len<0.001) return {x:ewx,d:ewd};
+      const nx=vx/len, nd=vd/len;
+      const ANGLES=[0,Math.PI/4,-Math.PI/4,Math.PI/2,-Math.PI/2,3*Math.PI/4,-3*Math.PI/4,Math.PI];
+      for(const a of ANGLES){
+        const ca=Math.cos(a),sa=Math.sin(a);
+        const rx=nx*ca-nd*sa, rd=nx*sa+nd*ca;
+        const px=ewx+rx*len, pd=ewd+rd*len;
+        if(!isWall(px,pd)&&!isWall(px-22,pd)&&!isWall(px+22,pd)) return {x:px,d:pd};
+      }
+      return {x:ewx,d:ewd};
+    }
+
     Object.entries(creatureEntities).forEach(([id,ent])=>{
       if(!ent) return;
       const ewx=ent.wx||0, ewd=ent.wd||nav.depth;
       const dx=nav.x-ewx, dd=nav.depth-ewd;
       const dist=Math.hypot(dx,dd);
       const beh=ent.behavior||"wander";
-      let newWx=ewx, newWd=ewd;
+      let vx=0, vd=0;
 
       if(beh==="chase"||ent.chasing){
         if(dist>8){
-          const spd=(ent.speed||20)*(NAV_SPEED/30)*dt;
-          newWx=ewx+(dx/dist)*spd; newWd=ewd+(dd/dist)*spd;
+          const spd=0.65*NAV_SPEED*dt;
+          vx=(dx/dist)*spd; vd=(dd/dist)*spd;
         }
         // jumpscare ao chegar muito perto
         if(dist<80&&now-jumpscareT>10000){
@@ -1207,40 +1237,70 @@
           ref.child("hullDamage").set(wallHitCount);
         }
       } else if(beh==="stalk"){
+        // mantém zona morta 280-440wu; navega pelas paredes com steerMove
         const STALK_MIN=280, STALK_MAX=440;
         if(dist>0){
+          const spd=0.55*NAV_SPEED*dt;
           if(dist>STALK_MAX){
-            const spd=(ent.speed||18)*dt;
-            newWx=ewx+(dx/dist)*spd; newWd=ewd+(dd/dist)*spd;
+            vx=(dx/dist)*spd; vd=(dd/dist)*spd;
           } else if(dist<STALK_MIN){
-            const spd=(ent.speed||18)*dt;
-            newWx=ewx-(dx/dist)*spd; newWd=ewd-(dd/dist)*spd;
+            // afasta: prefere se mover perpendicularmente ao sub (hugs walls)
+            const awayX=-(dx/dist), awayD=-(dd/dist);
+            const perpX=awayD, perpD=-awayX; // perpendicular da direção de afastamento
+            // escolhe a perpendicular que mais afasta do sub
+            const dot1=awayX*perpX+awayD*perpD; // sempre 0 (ortogonal)
+            const sign=Math.sin(now*0.001+id.charCodeAt(0))>0?1:-1;
+            vx=(awayX*0.6+perpX*sign*0.8)*spd;
+            vd=(awayD*0.6+perpD*sign*0.8)*spd;
           } else {
-            const perp=Math.sin(now*0.0008+id.charCodeAt(0))*0.3;
-            newWx=ewx+(-dd/dist)*perp; newWd=ewd+(dx/dist)*perp;
+            // dentro da zona: deriva lateralmente ao longo das paredes
+            const perp=Math.sin(now*0.0009+id.charCodeAt(0)*1.3);
+            const perpX=-dd/dist, perpD=dx/dist;
+            vx=perpX*perp*0.45*NAV_SPEED*dt;
+            vd=perpD*perp*0.45*NAV_SPEED*dt;
           }
         }
-      } else { // wander
+      } else { // wander — alvo em tile válido do grid
         const wt=creatureWanderTargets[id];
-        if(!wt||Math.hypot(ewx-(wt.x||ewx),ewd-(wt.d||ewd))<30){
-          const offX=(Math.floor(Math.sin(now*0.003+id.charCodeAt(0)*7)*3))*TILE;
-          const offD=(Math.floor(Math.sin(now*0.002+id.charCodeAt(0)*11)*2)+1)*TILE;
-          const tx=ewx+offX, td=ewd+offD;
-          if(!isWall(tx,td)) creatureWanderTargets[id]={x:tx,d:td};
-          else creatureWanderTargets[id]={x:ewx,d:ewd};
+        const distToTarget=wt?Math.hypot(ewx-wt.x,ewd-wt.d):999;
+        if(!wt||distToTarget<TILE*0.7){
+          // escolhe novo alvo: tile aleatório mas válido próximo
+          const ph=(creatureWanderPhase[id]||0)+1;
+          creatureWanderPhase[id]=ph;
+          const seed=id.charCodeAt(0)*97+ph*31;
+          const r1=(Math.sin(seed*1.73)*0.5+0.5);
+          const r2=(Math.sin(seed*2.31)*0.5+0.5);
+          const r3=(Math.sin(seed*3.07)*0.5+0.5);
+          const curRow=Math.floor(ewd/TILE), curCol=Math.floor((ewx-X_MIN_W)/TILE);
+          const dr=Math.round((r1-0.3)*6); // -2..+3 (ligeiramente pra frente)
+          const dc=Math.round((r2-0.5)*4); // -2..+2
+          let tr=Math.max(0,Math.min(GRID_ROWS-1,curRow+dr));
+          let tc=Math.max(0,Math.min(GRID_COLS-1,curCol+dc));
+          // fallback se bloqueado: tente vizinhos
+          if(!MAP[tr]||MAP[tr][tc]!==0){
+            const tries=[[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1]];
+            for(const [dr2,dc2] of tries){
+              const tr2=Math.max(0,Math.min(GRID_ROWS-1,curRow+dr2));
+              const tc2=Math.max(0,Math.min(GRID_COLS-1,curCol+dc2));
+              if(MAP[tr2]&&MAP[tr2][tc2]===0){tr=tr2;tc=tc2;break;}
+            }
+          }
+          creatureWanderTargets[id]={x:X_MIN_W+tc*TILE+TILE/2, d:tr*TILE+TILE/2};
         }
-        const wtp=creatureWanderTargets[id]||{x:ewx,d:ewd};
-        const wd2=Math.hypot(wtp.x-ewx,wtp.d-ewd);
-        if(wd2>5){
-          const spd=(ent.speed||12)*dt;
-          newWx=ewx+(wtp.x-ewx)/wd2*spd; newWd=ewd+(wtp.d-ewd)/wd2*spd;
+        const wtp=creatureWanderTargets[id];
+        const dtgt=Math.hypot(wtp.x-ewx,wtp.d-ewd);
+        if(dtgt>5){
+          const spd=0.2*NAV_SPEED*dt;
+          vx=(wtp.x-ewx)/dtgt*spd; vd=(wtp.d-ewd)/dtgt*spd;
         }
       }
 
-      // colisão simples
-      if(!isWall(newWx,newWd)&&!isWall(newWx-22,newWd)&&!isWall(newWx+22,newWd)){
-        creatureEntities[id]={...ent,wx:newWx,wd:newWd};
-      }
+      // steerMove: desvia de paredes, nunca trava
+      const moved=steerMove(ewx,ewd,vx,vd);
+      // atualiza facing com base na direção real do movimento
+      const mvx=moved.x-ewx, mvd=moved.d-ewd;
+      const newFacing=(Math.hypot(mvx,mvd)>0.01)?Math.atan2(mvx,mvd):(ent._facing||0);
+      creatureEntities[id]={...ent,wx:moved.x,wd:moved.d,_facing:newFacing};
     });
     if(now-creatureWriteT>200){
       creatureWriteT=now;
@@ -1413,7 +1473,8 @@
 
   // entidades do mundo: peixes e criaturas renderizados como sprites 3D
   let creatureWriteT=0, jumpscareT=0;
-  let creatureWanderTargets={};
+  let creatureWanderTargets={}, creatureWanderPhase={};
+  let dfFramesFlip=[];  // frames espelhados horizontalmente para rotação Doom
   ref.child("entities").on("value",snap=>{
     fishEntities={}; creatureEntities={};
     const val=snap.val()||{};
