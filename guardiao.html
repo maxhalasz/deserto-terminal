@@ -195,6 +195,13 @@
               <button class="btn" id="crackBtn" style="flex:1">⚠ RACHAR CASCO (velho)</button>
               <span id="crackStat" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim);min-width:90px;text-align:center">intacto</span>
             </div>
+            <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+              <button class="btn" id="neuCrackBtn" style="flex:1">⚠ RACHAR CASCO (moderno)</button>
+              <span id="neuCrackStat" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim);min-width:90px;text-align:center">intacto</span>
+            </div>
+            <div style="margin-top:8px">
+              <button class="btn" id="blackoutBtn" style="width:100%;background:#111;border-color:#333;color:#999">APAGAR TELA (BLACKOUT)</button>
+            </div>
           </div>
           <div>
             <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">PERCURSO / PILOTAGEM
@@ -311,10 +318,20 @@
 
           <div>
             <div class="s-lbl">ENTIDADES / AMEAÇAS</div>
-            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
               <button class="btn" id="entAdd" style="flex:1;font-size:10px">+ ameaça</button>
               <button class="btn" id="entFish" style="flex:1;font-size:10px;color:#44aacc">+ peixe</button>
               <button class="btn" id="entClear" style="flex:1;font-size:10px;color:var(--danger)">limpar</button>
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+              <button class="btn" id="entDeadFish" style="flex:1;font-size:10px;color:#c86030">+ peixe morto</button>
+              <button class="btn" id="entDeadFishClear" style="font-size:10px;color:var(--danger);padding:4px 10px">remover</button>
+            </div>
+            <div id="creatureBehBox" style="display:none;gap:5px;margin-bottom:8px;flex-wrap:wrap">
+              <div style="font-size:9px;color:var(--ink-dim);width:100%;letter-spacing:.1em;margin-bottom:2px">COMPORTAMENTO</div>
+              <button class="beh-btn btn" data-beh="wander" style="flex:1;font-size:9px">PASSEAR</button>
+              <button class="beh-btn btn" data-beh="stalk" style="flex:1;font-size:9px;color:var(--warn)">STALKAR</button>
+              <button class="beh-btn btn" data-beh="chase" style="flex:1;font-size:9px;color:var(--danger)">PERSEGUIR</button>
             </div>
             <div id="entityList" style="display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto;overflow-x:hidden"></div>
           </div>
@@ -566,6 +583,31 @@
       if(!isCracked){if(confirm("Rachar o casco?")) subRef.child("cracked").set(true);}
       else subRef.child("cracked").set(false);
     });
+  });
+
+  document.getElementById("neuCrackBtn").addEventListener("click",()=>{
+    subRef.child("neuCracked").once("value").then(s=>{
+      const isCracked=!!s.val();
+      if(!isCracked){if(confirm("Rachar o casco moderno?")) subRef.child("neuCracked").set(true);}
+      else subRef.child("neuCracked").set(false);
+    });
+  });
+
+  // blackout: apaga/restaura a tela do submarino
+  let blackoutOn=false;
+  const elBlackoutBtn=document.getElementById("blackoutBtn");
+  elBlackoutBtn.addEventListener("click",()=>{
+    blackoutOn=!blackoutOn;
+    subRef.child("blackout").set(blackoutOn);
+    elBlackoutBtn.textContent=blackoutOn?"RESTAURAR TELA":"APAGAR TELA (BLACKOUT)";
+    elBlackoutBtn.style.color=blackoutOn?"var(--live)":"#999";
+    elBlackoutBtn.style.borderColor=blackoutOn?"var(--live)":"#333";
+  });
+  subRef.child("blackout").on("value",snap=>{
+    blackoutOn=!!snap.val();
+    elBlackoutBtn.textContent=blackoutOn?"RESTAURAR TELA":"APAGAR TELA (BLACKOUT)";
+    elBlackoutBtn.style.color=blackoutOn?"var(--live)":"#999";
+    elBlackoutBtn.style.borderColor=blackoutOn?"var(--live)":"#333";
   });
   // shutter override
   const elShutterStatus=document.getElementById("shutterStatus");
@@ -1188,6 +1230,46 @@
     entities={}; entityBlips={}; renderEntityList();
   });
 
+  // ---- Peixe Morto (criatura grande) ----
+  let deadFishId=null;
+  function addDeadFishEntity(wx, wd){
+    if(deadFishId) subRef.child("entities/"+deadFishId).remove();
+    const id="df"+Date.now().toString(36);
+    const ent={mode:"creature",wx,wd,visible:true,speed:20,behavior:"wander",chasing:false,color:"#c86030"};
+    deadFishId=id;
+    entities[id]=ent;
+    subRef.child("entities/"+id).set(ent);
+    expandedEntities.add(id);
+    renderEntityList();
+    document.getElementById("creatureBehBox").style.display="flex";
+  }
+  document.getElementById("entDeadFish").addEventListener("click",()=>{
+    const hdgRad=(currentSubNav.heading||0)*Math.PI/180;
+    const wx=(currentSubNav.x||0)+Math.sin(hdgRad)*500;
+    const wd=(currentSubNav.depth||2000)+Math.cos(hdgRad)*500;
+    addDeadFishEntity(wx, wd);
+  });
+  document.getElementById("entDeadFishClear").addEventListener("click",()=>{
+    if(deadFishId){
+      subRef.child("entities/"+deadFishId).remove();
+      delete entities[deadFishId]; deadFishId=null;
+      document.getElementById("creatureBehBox").style.display="none";
+      renderEntityList();
+    }
+  });
+  document.querySelectorAll(".beh-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      if(!deadFishId) return;
+      const beh=btn.dataset.beh;
+      const chasing=(beh==="chase");
+      subRef.child("entities/"+deadFishId).update({behavior:beh,chasing});
+      if(entities[deadFishId]) entities[deadFishId]={...entities[deadFishId],behavior:beh,chasing};
+      document.querySelectorAll(".beh-btn").forEach(b=>{ b.style.borderColor=""; b.style.color=""; });
+      const colors={wander:"var(--live)",stalk:"var(--warn)",chase:"var(--danger)"};
+      btn.style.borderColor=colors[beh]||""; btn.style.color=colors[beh]||"";
+    });
+  });
+
   // ---- Listener Firebase do submarino ----
   subRef.on("value",snap=>{
     const s=snap.val()||{};
@@ -1207,6 +1289,13 @@
       cb.textContent=cracked?"✓ CONSERTAR CASCO":"⚠ RACHAR CASCO (velho)";
       cb.style.borderColor=cracked?"var(--danger)":""; cb.style.color=cracked?"var(--danger)":"";
       cs.textContent=cracked?"RACHADO":"intacto"; cs.style.color=cracked?"var(--danger)":"var(--ink-dim)";
+    }
+    const neuCracked=!!s.neuCracked;
+    const nb=document.getElementById("neuCrackBtn"), ns=document.getElementById("neuCrackStat");
+    if(nb){
+      nb.textContent=neuCracked?"✓ CONSERTAR CASCO (moderno)":"⚠ RACHAR CASCO (moderno)";
+      nb.style.borderColor=neuCracked?"var(--danger)":""; nb.style.color=neuCracked?"var(--danger)":"";
+      ns.textContent=neuCracked?"RACHADO":"intacto"; ns.style.color=neuCracked?"var(--danger)":"var(--ink-dim)";
     }
 
     const navmode=(s.nav&&s.nav.mode)||"moonpool";

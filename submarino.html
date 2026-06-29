@@ -131,6 +131,11 @@
     <div class="sub">viewport feed inactive</div>
   </div>
 
+  <!-- blackout: fade do GM (z>standby para cobrir tudo quando online) -->
+  <div id="blackout" style="position:fixed;inset:0;z-index:58;background:#000;opacity:0;pointer-events:none;transition:opacity 1.5s ease"></div>
+  <!-- jflash: flash branco do jumpscare -->
+  <div id="jflash" style="position:fixed;inset:0;z-index:59;background:#fff;opacity:0;pointer-events:none;display:none"></div>
+
   <div id="sub" class="old">
     <!-- janela do visor (posicionada via JS sobre o buraco do casco) -->
     <div id="viewport">
@@ -182,9 +187,10 @@
   // ====== posicao do visor em cada casco (fração da imagem) ======
   // medido das imagens reais
   const HULLS = {
-    old_intact:  { src:"img/old_intact.png",  vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
-    old_cracked: { src:"img/old_cracked.png", vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
-    neurostat:   { src:"img/neurostat.png",   vis:{cx:0.499, cy:0.456, w:0.246, h:0.338} }
+    old_intact:        { src:"img/old_intact.png",        vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
+    old_cracked:       { src:"img/old_cracked.png",       vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
+    neurostat:         { src:"img/neurostat.png",          vis:{cx:0.499, cy:0.456, w:0.246, h:0.338} },
+    neurostat_cracked: { src:"img/neurostat_cracked.png", vis:{cx:0.499, cy:0.456, w:0.246, h:0.338} }
   };
   const MOONPOOL_SRC = "img/moonpool.png";
 
@@ -216,7 +222,7 @@
         if(g>r*1.6&&g>b*1.3&&g>25) d[i+3]=0;
       }
       ox.putImageData(id,0,0);
-      // 2. pre-corta cada frame com inset de 4px em canvas próprio (zero bleeding)
+      // 2. pre-corta cada frame com inset de 4px em canvas próprio (zero bleeding)ding)
       const INS=4;
       fishFrames = FISH_FRAMES.map(([fc,fr])=>{
         const cv=document.createElement('canvas');
@@ -224,6 +230,35 @@
         cv.getContext('2d').drawImage(oc, fc*FISH_FW+INS, fr*FISH_FH+INS, FISH_FW-INS*2, FISH_FH-INS*2, 0, 0, cv.width, cv.height);
         return cv;
       });
+    };
+  }
+
+  // ===== SPRITE PEIXE MORTO (criatura grande) =====
+  // spritesheet 5×5 = 25 frames. background branco removido.
+  const DF_COLS=5, DF_ROWS=5;
+  let dfFrames=[];
+  {
+    const dimg=new Image();
+    dimg.src='img/dead_fish.png';
+    dimg.onload=()=>{
+      const fw=Math.floor(dimg.naturalWidth/DF_COLS), fh=Math.floor(dimg.naturalHeight/DF_ROWS);
+      const oc=document.createElement('canvas');
+      oc.width=dimg.naturalWidth; oc.height=dimg.naturalHeight;
+      const ox=oc.getContext('2d');
+      ox.drawImage(dimg,0,0);
+      const id=ox.getImageData(0,0,oc.width,oc.height);
+      const d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        if(d[i]>230&&d[i+1]>230&&d[i+2]>230) d[i+3]=0;
+      }
+      ox.putImageData(id,0,0);
+      const INS=2;
+      for(let r=0;r<DF_ROWS;r++) for(let c=0;c<DF_COLS;c++){
+        const cv=document.createElement('canvas');
+        cv.width=fw-INS*2; cv.height=fh-INS*2;
+        cv.getContext('2d').drawImage(oc, c*fw+INS, r*fh+INS, fw-INS*2, fh-INS*2, 0,0,cv.width,cv.height);
+        dfFrames.push(cv);
+      }
     };
   }
 
@@ -322,7 +357,8 @@
   let navReady=false;
   const keys={};
   let lastWallHit=0, wallHitCount=0;
-  let navPath=[], lastPathPoint=null, reelingWpIdx=-1, reelingSpeed=80;
+  let navPath=[], lastPathPoint=null, reelingSpeed=80;
+  let reelingPath=[], reelingWpIdx=-1;  // reelingPath = caminho esticado calculado ao iniciar reeling
   let navPathWriteT=0;
   function pushNavPath(){
     // sync do navPath para Firebase: guardião e monitor desenham o cabo
@@ -567,32 +603,40 @@
       const {tX,tY}=billboardTransform(ent.wx||0,ent.wd||nav.depth,hdg,invDet,dirX,dirY);
       if(tY<=0.5) continue;
       const screenX=w/2*(1+tX/tY);
-      const projH=Math.min(h*0.8, WALLH_*0.45/tY);
-      const projW=projH*0.7;
       const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
       if(fog<0.05) continue;
-      // verifica zbuffer no centro (placeholder procedural não faz clipping por coluna)
-      const centerCol=Math.min(COLS_-1,Math.floor(screenX/colW_));
-      if(tY>=zBuf[centerCol]) continue;
-      // pulso
-      const pulse=0.55+0.45*Math.sin(t*0.07);
-      const y0=h/2-projH/2, cx=screenX, cy=h/2;
-      // brilho externo
-      const gr=x.createRadialGradient(cx,cy,projH*0.05,cx,cy,projH*0.5);
-      gr.addColorStop(0,`rgba(255,60,0,${0.85*fog})`);
-      gr.addColorStop(0.45,`rgba(160,10,0,${0.5*fog})`);
-      gr.addColorStop(1,`rgba(80,0,0,0)`);
-      x.save(); x.globalAlpha=fog;
-      x.fillStyle=gr;
-      x.beginPath(); x.ellipse(cx,cy,projW*0.5,projH*0.5,0,0,Math.PI*2); x.fill();
-      // pupila
-      x.fillStyle=`rgba(0,0,0,${fog})`;
-      x.beginPath(); x.ellipse(cx,cy,projW*0.09,projH*0.17,0,0,Math.PI*2); x.fill();
-      // anel pulsante
-      x.strokeStyle=`rgba(255,100,0,${0.5*fog*pulse})`;
-      x.lineWidth=1.5;
-      x.beginPath(); x.ellipse(cx,cy,projW*0.5*pulse,projH*0.5*pulse,0,0,Math.PI*2); x.stroke();
-      x.restore();
+
+      if(dfFrames.length){
+        const beh=ent.behavior||"wander";
+        const isChase=(beh==="chase"||ent.chasing);
+        // linhas do sheet: 0-4 nado normal, 15-19 chase (linha 3)
+        const rowStart=isChase?15:0;
+        const fIdx=rowStart+Math.floor(t/4)%5;
+        const projH=Math.min(h*2.5, WALLH_*2.0/tY);
+        const projW=projH*(dfFrames[0].width/dfFrames[0].height);
+        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,dfFrames[fIdx]);
+      } else {
+        // fallback procedural enquanto sprite não carregou
+        const projH=Math.min(h*0.8, WALLH_*0.45/tY);
+        const projW=projH*0.7;
+        const centerCol=Math.min(COLS_-1,Math.floor(screenX/colW_));
+        if(tY>=zBuf[centerCol]) continue;
+        const pulse=0.55+0.45*Math.sin(t*0.07);
+        const cx=screenX, cy=h/2;
+        const gr=x.createRadialGradient(cx,cy,projH*0.05,cx,cy,projH*0.5);
+        gr.addColorStop(0,`rgba(255,60,0,${0.85*fog})`);
+        gr.addColorStop(0.45,`rgba(160,10,0,${0.5*fog})`);
+        gr.addColorStop(1,`rgba(80,0,0,0)`);
+        x.save(); x.globalAlpha=fog;
+        x.fillStyle=gr;
+        x.beginPath(); x.ellipse(cx,cy,projW*0.5,projH*0.5,0,0,Math.PI*2); x.fill();
+        x.fillStyle=`rgba(0,0,0,${fog})`;
+        x.beginPath(); x.ellipse(cx,cy,projW*0.09,projH*0.17,0,0,Math.PI*2); x.fill();
+        x.strokeStyle=`rgba(255,100,0,${0.5*fog*pulse})`;
+        x.lineWidth=1.5;
+        x.beginPath(); x.ellipse(cx,cy,projW*0.5*pulse,projH*0.5*pulse,0,0,Math.PI*2); x.stroke();
+        x.restore();
+      }
     }
   }
 
@@ -1003,6 +1047,28 @@
     return true;
   }
 
+  // Calcula o caminho esticado (taut) do sub até o início do navPath.
+  // String pulling: começa do sub, pula para o waypoint mais longe com LOS,
+  // repete até chegar em navPath[0]. Resultado = array shallow→deep (ordem Firebase).
+  function computeTautPath(){
+    if(!navPath.length) return [];
+    let px=nav.x, pd=nav.depth;
+    let i=navPath.length-1;
+    const pivots=[];
+    while(i>=0){
+      let tgt=i;
+      for(let j=i-1;j>=0;j--){
+        if(lineOfSight(px,pd,navPath[j].x,navPath[j].depth)) tgt=j;
+        else break;
+      }
+      pivots.push(navPath[tgt]);
+      px=navPath[tgt].x; pd=navPath[tgt].depth;
+      i=tgt-1;
+    }
+    pivots.reverse(); // deixa shallow (moonpool) primeiro, igual ao navPath
+    return pivots;
+  }
+
   // loop de simulação local (~60fps): movimento livre Iron Lung em 2D
   let lastT=performance.now();
   let NAV_SPEED=30; const TURN=52; // unidades/s e graus/s
@@ -1074,41 +1140,36 @@
         if(hitWall && Math.abs(stepX)>0.5 && now-lastWallHit>450){
           lastWallHit=now; elWallHit.classList.remove("hit"); void elWallHit.offsetWidth; elWallHit.classList.add("hit");
           wallHitCount++;
-          elImpactBox.classList.add("active","fresh");
-          elImpactVal.textContent=wallHitCount;
-          clearTimeout(elImpactBox._ft); elImpactBox._ft=setTimeout(()=>elImpactBox.classList.remove("fresh"),1200);
+          ref.child("hullDamage").set(wallHitCount);
         }
       }
     }
     else if(nav.mode==="reeling"){
-      if(reelingWpIdx<0||navPath.length===0){
-        // sem waypoints: centraliza e sobe até a profundidade inicial
-        nav.x += (0-nav.x)*Math.min(1,dt*3);
-        nav.depth = Math.max(START_DEPTH, nav.depth - reelingSpeed*dt);
+      if(reelingWpIdx<0){
+        // todos os pivôs consumidos: centraliza e sobe à profundidade inicial
+        nav.x+=(0-nav.x)*Math.min(1,dt*3);
+        nav.depth=Math.max(START_DEPTH,nav.depth-reelingSpeed*dt);
         pushNav();
         if(nav.depth<=START_DEPTH){ nav.x=0; nav.mode="moonpool"; pushNav(); }
       } else {
-        // string pulling: acha o waypoint mais longe com linha de visão direta (sem parede)
-        // — corta atalhos em trechos retos, segue curvas onde não tem LOS
-        let tgtIdx=reelingWpIdx;
-        const lookBack=Math.max(0,reelingWpIdx-5);
-        for(let i=reelingWpIdx-1;i>=lookBack;i--){
-          if(lineOfSight(nav.x,nav.depth,navPath[i].x,navPath[i].depth)) tgtIdx=i;
-          else break;
-        }
-        const target=navPath[tgtIdx];
+        const target=reelingPath[reelingWpIdx];
         const dx=target.x-nav.x, dd=target.depth-nav.depth;
         const dist=Math.hypot(dx,dd);
         if(dist<25){
-          // chegou: consome todos os waypoints até tgtIdx inclusive
-          reelingWpIdx=tgtIdx-1;
-          ref.child("navPath").set(reelingWpIdx>=0?navPath.slice(0,reelingWpIdx+1):null);
+          reelingWpIdx--;
+          // poda o cabo: remove o pivô chegado
+          ref.child("navPath").set(reelingWpIdx>=0?reelingPath.slice(0,reelingWpIdx+1):null);
         } else {
-          nav.x+=(dx/dist)*reelingSpeed*dt;
-          nav.depth+=(dd/dist)*reelingSpeed*dt;
+          // move com collision detection — não trava em parede
+          const R=22, stepX=(dx/dist)*reelingSpeed*dt, stepD=(dd/dist)*reelingSpeed*dt;
+          let nx=nav.x+stepX, nd=nav.depth+stepD;
+          if(isWall(nx,nd)||isWall(nx-R,nd)||isWall(nx+R,nd)||isPillar(nx,nd)){
+            if(!isWall(nav.x,nd)&&!isWall(nav.x-R,nd)&&!isWall(nav.x+R,nd)&&!isPillar(nav.x,nd)) nx=nav.x;
+            else if(!isWall(nx,nav.depth)&&!isWall(nx-R,nav.depth)&&!isWall(nx+R,nav.depth)&&!isPillar(nx,nav.depth)) nd=nav.depth;
+            else { nx=nav.x; nd=nav.depth; }
+          }
+          nav.x=nx; nav.depth=nd;
           pushNav();
-          // mantém cabo no Firebase sincronizado com o alvo atual (throttle 200ms)
-          if(now-navPathWriteT>200){navPathWriteT=now;ref.child("navPath").set(navPath.slice(0,tgtIdx+1));}
         }
       }
     }
@@ -1121,19 +1182,70 @@
       elShutter.style.transform = shutterClosed ? "translateY(0)" : "translateY(-110%)";
     }
 
-    // Criatura: quando chasing=true, move em direção ao sub (cliente é autoridade de posição)
+    // IA das criaturas: wander/stalk/chase
     Object.entries(creatureEntities).forEach(([id,ent])=>{
-      if(!ent||!ent.chasing) return;
-      const spd=(ent.speed||20)*(NAV_SPEED/30)*dt;
-      const dx=nav.x-(ent.wx||0), dd=nav.depth-(ent.wd||0);
+      if(!ent) return;
+      const ewx=ent.wx||0, ewd=ent.wd||nav.depth;
+      const dx=nav.x-ewx, dd=nav.depth-ewd;
       const dist=Math.hypot(dx,dd);
-      if(dist<8) return;
-      creatureEntities[id]={...ent, wx:(ent.wx||0)+(dx/dist)*spd, wd:(ent.wd||0)+(dd/dist)*spd};
+      const beh=ent.behavior||"wander";
+      let newWx=ewx, newWd=ewd;
+
+      if(beh==="chase"||ent.chasing){
+        if(dist>8){
+          const spd=(ent.speed||20)*(NAV_SPEED/30)*dt;
+          newWx=ewx+(dx/dist)*spd; newWd=ewd+(dd/dist)*spd;
+        }
+        // jumpscare ao chegar muito perto
+        if(dist<80&&now-jumpscareT>10000){
+          jumpscareT=now;
+          const jf=document.getElementById("jflash");
+          jf.style.display="block"; jf.style.transition="none"; jf.style.opacity="1";
+          setTimeout(()=>{jf.style.transition="opacity 0.9s ease";jf.style.opacity="0";
+            setTimeout(()=>{jf.style.display="none";jf.style.transition="none";},1000);},80);
+          wallHitCount+=10;
+          ref.child("hullDamage").set(wallHitCount);
+        }
+      } else if(beh==="stalk"){
+        const STALK_MIN=280, STALK_MAX=440;
+        if(dist>0){
+          if(dist>STALK_MAX){
+            const spd=(ent.speed||18)*dt;
+            newWx=ewx+(dx/dist)*spd; newWd=ewd+(dd/dist)*spd;
+          } else if(dist<STALK_MIN){
+            const spd=(ent.speed||18)*dt;
+            newWx=ewx-(dx/dist)*spd; newWd=ewd-(dd/dist)*spd;
+          } else {
+            const perp=Math.sin(now*0.0008+id.charCodeAt(0))*0.3;
+            newWx=ewx+(-dd/dist)*perp; newWd=ewd+(dx/dist)*perp;
+          }
+        }
+      } else { // wander
+        const wt=creatureWanderTargets[id];
+        if(!wt||Math.hypot(ewx-(wt.x||ewx),ewd-(wt.d||ewd))<30){
+          const offX=(Math.floor(Math.sin(now*0.003+id.charCodeAt(0)*7)*3))*TILE;
+          const offD=(Math.floor(Math.sin(now*0.002+id.charCodeAt(0)*11)*2)+1)*TILE;
+          const tx=ewx+offX, td=ewd+offD;
+          if(!isWall(tx,td)) creatureWanderTargets[id]={x:tx,d:td};
+          else creatureWanderTargets[id]={x:ewx,d:ewd};
+        }
+        const wtp=creatureWanderTargets[id]||{x:ewx,d:ewd};
+        const wd2=Math.hypot(wtp.x-ewx,wtp.d-ewd);
+        if(wd2>5){
+          const spd=(ent.speed||12)*dt;
+          newWx=ewx+(wtp.x-ewx)/wd2*spd; newWd=ewd+(wtp.d-ewd)/wd2*spd;
+        }
+      }
+
+      // colisão simples
+      if(!isWall(newWx,newWd)&&!isWall(newWx-22,newWd)&&!isWall(newWx+22,newWd)){
+        creatureEntities[id]={...ent,wx:newWx,wd:newWd};
+      }
     });
     if(now-creatureWriteT>200){
       creatureWriteT=now;
       Object.entries(creatureEntities).forEach(([id,ent])=>{
-        if(ent&&ent.chasing) ref.child("entities/"+id).update({wx:ent.wx,wd:ent.wd});
+        if(ent) ref.child("entities/"+id).update({wx:ent.wx,wd:ent.wd});
       });
     }
 
@@ -1258,20 +1370,21 @@
       updateMoonpoolByMode(prev);
       if(nav.mode==="moonpool" && prev && prev!=="moonpool"){
         wallHitCount=0;
-        elImpactBox.classList.remove("active","fresh"); elImpactVal.textContent="0";
-        navPath=[]; lastPathPoint=null;  // moonpool reseta o caminho
-        ref.child("navPath").set(null);  // limpa cabo no Firebase
+        ref.child("hullDamage").set(0);
+        navPath=[]; lastPathPoint=null; reelingPath=[]; reelingWpIdx=-1;
+        ref.child("navPath").set(null);
       }
       if(nav.mode==="reeling" && prev!=="reeling"){
-        // garante que posição atual está no caminho (pode estar até 60wu além do último breadcrumb)
+        // garante que posição atual está no caminho
         const lastWp=navPath[navPath.length-1];
         if(!lastWp||Math.hypot(nav.x-lastWp.x,nav.depth-lastWp.depth)>30) navPath.push({x:nav.x,depth:nav.depth});
-        reelingWpIdx=navPath.length-1;
-        navPathWriteT=0;  // reseta throttle para próxima write de cabo disparar imediatamente
-        pushNavPath();
+        // calcula o caminho esticado UMA VEZ — evita seguir loops/voltas do sub
+        reelingPath=computeTautPath();
+        reelingWpIdx=reelingPath.length-1;
+        ref.child("navPath").set(reelingPath.length?reelingPath:null);
       }
       if(nav.mode==="diving" && prev==="moonpool"){
-        navPath=[]; lastPathPoint=null;  // nova descida: limpa caminho anterior
+        navPath=[]; lastPathPoint=null; reelingPath=[]; reelingWpIdx=-1;
         ref.child("navPath").set(null);
       }
     }
@@ -1287,6 +1400,11 @@
     const v=snap.val(); if(typeof v==="number"&&v>0) NAV_SPEED=v;
   });
 
+  // blackout: GM apaga a tela para reposicionar visuais
+  ref.child("blackout").on("value",snap=>{
+    document.getElementById("blackout").style.opacity=snap.val()?"1":"0";
+  });
+
   // escuta override do shutter (guardião ou monitor)
   ref.child("shutter").on("value",snap=>{
     const v=snap.val();
@@ -1294,7 +1412,8 @@
   });
 
   // entidades do mundo: peixes e criaturas renderizados como sprites 3D
-  let creatureWriteT=0;
+  let creatureWriteT=0, jumpscareT=0;
+  let creatureWanderTargets={};
   ref.child("entities").on("value",snap=>{
     fishEntities={}; creatureEntities={};
     const val=snap.val()||{};
@@ -1338,7 +1457,9 @@
     document.getElementById("sub").classList.toggle("on",online);
 
     let skin=STATE.skin||"old";
-    let hull = skin==="neurostat" ? "neurostat" : (STATE.cracked?"old_cracked":"old_intact");
+    let hull;
+    if(skin==="neurostat") hull=STATE.neuCracked?"neurostat_cracked":"neurostat";
+    else hull=STATE.cracked?"old_cracked":"old_intact";
     setHull(hull);
 
     // estado textual no HUD: usa nav.mode (pilotagem) + ameaça do DM
