@@ -90,6 +90,12 @@
   #depthbox.beyond .dval{color:#e88}
   #depthbox.beyond .dlabel{color:#d65a5a}
 
+  #impactbox{position:absolute;top:2.5vh;left:3vw;font-size:10px;letter-spacing:.22em;color:#6a4a4a;pointer-events:none;display:none}
+  #impactbox.active{display:block}
+  #impactbox.fresh{color:#cc6060;text-shadow:0 0 8px rgba(200,80,80,.6)}
+  #sub.old #impactbox{color:#7a5030}
+  #sub.old #impactbox.fresh{color:#e09050;text-shadow:0 0 8px rgba(200,130,50,.6)}
+
   /* flash de colisao com a parede */
   #wallHit{position:absolute;inset:0;z-index:7;pointer-events:none;opacity:0}
   #wallHit.hit{animation:wallflash .4s ease}
@@ -102,6 +108,8 @@
   .cbtn.active{background:rgba(120,180,180,.2);border-color:#8cc;color:#dee}
   .hint-drag{position:absolute;bottom:9.5vh;left:0;right:0;text-align:center;font-size:9px;letter-spacing:.2em;color:#2e3e3e;z-index:9;pointer-events:none}
 
+  #shutter{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;z-index:8;transform:translateY(-110%);transition:transform 1.8s cubic-bezier(0.2,0,0.5,1.0);pointer-events:none}
+  #coralFlash{position:absolute;inset:0;background:#000;z-index:9;display:none;opacity:0;pointer-events:none}
   /* tremida calma do submersivel na moonpool (aplicada ao viewport inteiro) */
   #sub.bobbing #viewport{animation:bob 6s ease-in-out infinite}
   @keyframes bob{
@@ -132,6 +140,8 @@
       <div id="glassCurve"></div>
       <div id="glassReflect"></div>
       <div id="viewportVignette"></div>
+      <img id="shutter" src="img/shutter.png" alt="">
+      <div id="coralFlash"></div>
     </div>
 
     <!-- casco por cima -->
@@ -147,6 +157,7 @@
     <div id="wallHit"></div>
 
     <div id="hud">
+      <div id="impactbox">IMPACTS <span id="impactval">0</span></div>
       <div class="hud-top"><div class="compass" id="compass">BRG 000</div></div>
       <div class="hud-state" id="hudstate">—</div>
       <div class="hud-read" id="hudread"></div>
@@ -181,49 +192,127 @@
   const ref=sessionRef.child("submarine");
   const presenceRef=ref.child("viewers/"+MY_ID);
 
-  // ====== CANYON: corredor 2D com paredes reais ======
-  // linha central que serpenteia descendo; o submarino navega em (x, depth).
-  // colisão = encostar nas margens (centro ± meia-largura). Ajustável depois.
-  const MAX_DEPTH=3122, CORAL_DEPTH=600, START_DEPTH=200;
-  const CANYON=(function(){
-    let s=7; const rnd=()=>{s=(s*9301+49297)%233280;return s/233280;};
-    const pts=[]; let cx=0, vx=0;
-    for(let d=0; d<=MAX_DEPTH; d+=40){
-      vx+=(rnd()-0.5)*8; vx*=0.82; cx+=vx;
-      cx=Math.max(-180,Math.min(180,cx));
-      let hw = d<CORAL_DEPTH ? 95-(d/CORAL_DEPTH)*15 : 80-((d-CORAL_DEPTH)/(MAX_DEPTH-CORAL_DEPTH))*35;
-      pts.push({depth:d, cx:Math.round(cx), hw:Math.round(hw)});
-    }
-    return pts;
-  })();
-  function corridorAt(depth){
-    depth=Math.max(0,Math.min(MAX_DEPTH,depth));
-    const i=Math.min(CANYON.length-1, Math.floor(depth/40));
-    const j=Math.min(CANYON.length-1, i+1);
-    const f=(depth-CANYON[i].depth)/40;
-    return {
-      cx: CANYON[i].cx+(CANYON[j].cx-CANYON[i].cx)*f,
-      hw: CANYON[i].hw+(CANYON[j].hw-CANYON[i].hw)*f
+  // ===== SPRITES DE PEIXE =====
+  // spritesheet 1408×768 = 4 cols × 4 linhas de 352×192px. background verde removido.
+  // FISH_FRAMES: sequência de animação [col, row]. Pre-cortados em canvases individuais
+  // para eliminar bleeding de bordas — cada canvas tem exatamente 352×192px isolados.
+  const FISH_FW=352, FISH_FH=192;
+  const FISH_FRAMES=[[0,0],[0,1],[0,2],[0,3],[1,3],[1,0],[1,1],[1,2]];
+  let fishFrames=[];   // array de 8 canvases pre-cortados
+  let fishEntities={};
+  {
+    const fimg=new Image();
+    fimg.src='img/fish.png';
+    fimg.onload=()=>{
+      // 1. key out green background no sheet completo
+      const oc=document.createElement('canvas');
+      oc.width=fimg.width; oc.height=fimg.height;
+      const ox=oc.getContext('2d');
+      ox.drawImage(fimg,0,0);
+      const id=ox.getImageData(0,0,oc.width,oc.height);
+      const d=id.data;
+      for(let i=0;i<d.length;i+=4){
+        const r=d[i],g=d[i+1],b=d[i+2];
+        if(g>r*1.6&&g>b*1.3&&g>25) d[i+3]=0;
+      }
+      ox.putImageData(id,0,0);
+      // 2. pre-corta cada frame com inset de 4px em canvas próprio (zero bleeding)
+      const INS=4;
+      fishFrames = FISH_FRAMES.map(([fc,fr])=>{
+        const cv=document.createElement('canvas');
+        cv.width=FISH_FW-INS*2; cv.height=FISH_FH-INS*2;
+        cv.getContext('2d').drawImage(oc, fc*FISH_FW+INS, fr*FISH_FH+INS, FISH_FW-INS*2, FISH_FH-INS*2, 0, 0, cv.width, cv.height);
+        return cv;
+      });
     };
   }
-  // estrutura da petroleira: DOIS pilares grossos + parede no fundo, ACIMA do ponto de partida.
-  // você começa a 200m; a estação fica entre a moonpool (100m) e o início (200m), então
-  // ela está ATRÁS/ACIMA de você — descer (pra frente) é o canyon aberto. olhar pra cima = estação.
-  // MESMA fórmula usada no raycaster, pra colisão e visual baterem exatamente.
-  const STATION_TOP=120, STATION_PILLARS_LO=150, STATION_PILLARS_HI=195;
+
+  // ====== CANYON: corredor 2D com paredes reais ======
+  // linha central que serpenteia descendo; o submarino navega em (x, depth).
+  // ===== MUNDO EM GRID (Wolfenstein/Doom-style) =====
+  // Escala: UNITS_PER_M=10 → 10 unidades de mundo = 1 metro. SPEED=30wu/s = 3m/s realistas.
+  const UNITS_PER_M=10;
+  const MAX_DEPTH=25600, CORAL_DEPTH=6000, START_DEPTH=2000;
+  const TILE=40;              // lado de um tile em wu (1 tile = 4 metros)
+  const X_MIN_W=-400;         // X mínimo do mundo (col 0)
+  const GRID_COLS=21;         // 21 cols × 40wu = 840wu de largura total
+  const GRID_ROWS=640;        // 640 rows × 40wu = 25600wu = 2560m de profundidade
+  // MAP[row][col]: 0=água navegável, 1=rocha/parede
+  const MAP=(()=>{
+    const m=Array.from({length:GRID_ROWS},()=>new Uint8Array(GRID_COLS).fill(1));
+    const open=(r0,r1,c0,c1)=>{
+      for(let r=Math.max(0,r0);r<=Math.min(GRID_ROWS-1,r1);r++)
+        for(let c=Math.max(0,c0);c<=Math.min(GRID_COLS-1,c1);c++) m[r][c]=0;
+    };
+    // col(X=0) = floor((0-(-400))/40) = 10. Corredor central = cols 9-11.
+
+    // CANAL DA MOONPOOL (rows 25-29, 100-116m): estreito, transição
+    open(25,29,9,11);
+    // ESTRUTURA DA ESTAÇÃO (rows 30-49, 120-196m): pilares por isPillar()
+    open(30,49,8,12);
+    // CANYON DE ENTRADA (rows 50-74, 200-296m)
+    open(50,74,8,12);
+
+    // GRANDE ÁREA DE BIFURCAÇÃO (rows 75-124, 300-496m): caverna aberta c/ 4 saídas
+    open(75,124,4,16);
+
+    // ===== SAÍDA 1: BROCAS (direita, ~800m) =====
+    // Caminho médio; descida lenta; brocas enormes no fim
+    open(115,130,13,19);  // junção com grande área
+    open(130,160,14,19);  // descida inicial direita (520-640m)
+    open(155,200,13,18);  // volta levemente pro centro, continua (620-800m)
+    open(197,207,11,18);  // câmara das brocas (788-828m, 8 cols = 32m)
+
+    // ===== SAÍDA 2: FENDA / CAVERNA (centro-esquerda, ~2364m) =====
+    // Percurso longo; partes planas; queda irreversível a 1892m
+    open(125,239,8,12);   // descida regular (500-956m)
+    // Primeira zona plana (rows 240-280, 960-1120m): espaço amplo pra RP
+    open(240,280,7,15);
+    // Segunda descida (rows 280-459, 1120-1836m)
+    open(280,459,8,12);
+    // Plataforma pré-queda (rows 460-472, 1840-1888m)
+    open(460,472,7,13);
+    // A QUEDA (rows 473-508, 1892-2032m — 143m, sentido único para baixo):
+    // o "puxar de volta" percorre esses rows subindo sem restrição
+    open(473,508,9,11);
+    // Descida pós-queda até caverna (rows 509-589, 2036-2356m)
+    open(509,589,8,12);
+    // CAVERNA do hive-mind (rows 590-632, 2360-2528m): espaço enorme
+    open(590,632,3,17);
+
+    // ===== SAÍDA 3: PLACEHOLDER — esquerda, experimental =====
+    open(100,130,3,6);    // junção da grande área
+    open(130,180,2,6);    // corredor esquerdo
+    open(175,192,2,9);    // câmara estranha de chegada
+    open(185,225,4,7);    // poço experimental
+
+    // ===== SAÍDA 4: PLACEHOLDER — direita profunda, experimental =====
+    open(190,210,14,19);  // junção com saída 1
+    open(200,265,17,20);  // corredor lateral direito
+    open(250,285,13,20);  // câmara grande (geometria experimental)
+    open(270,300,15,18);  // saída da câmara
+
+    return m;
+  })();
+
+  // Lookup de parede no grid (ponto do mundo → tile)
+  function isWall(wx,depth){
+    const col=Math.floor((wx-X_MIN_W)/TILE);
+    const row=Math.floor(depth/TILE);
+    if(row<0||row>=GRID_ROWS||col<0||col>=GRID_COLS) return true;
+    return MAP[row][col]!==0;
+  }
+
+  // Estrutura da petroleira acima do START_DEPTH (pilares decorativos + parede de fundo)
+  const STATION_TOP=1200, STATION_PILLARS_LO=1500, STATION_PILLARS_HI=1950;
   function isPillar(x, depth){
     if(depth>STATION_PILLARS_HI || depth<STATION_PILLARS_LO) return false;
-    const c=corridorAt(depth);
-    // dois pilares grossos, posicionados a ~45% de cada lado do centro do corredor
-    const halfGap=c.hw*0.45;       // distância de cada pilar ao centro
-    const pillarR=c.hw*0.28;       // raio (grossura) de cada pilar
-    const dxL=Math.abs(x-(c.cx-halfGap));
-    const dxR=Math.abs(x-(c.cx+halfGap));
-    return (dxL<pillarR || dxR<pillarR);
+    const cx=0, hw=80; // corredor da estação fixo centrado em X=0
+    const halfGap=hw*0.45, pillarR=hw*0.28;
+    return (Math.abs(x-(cx-halfGap))<pillarR || Math.abs(x-(cx+halfGap))<pillarR);
   }
-  // parede/teto da estrutura da petroleira (no topo, acima dos pilares) — fecha o começo por cima
   function isStationBackWall(depth){
-    return depth>=STATION_TOP && depth<STATION_TOP+10;
+    return depth>=STATION_TOP && depth<STATION_TOP+100;
   }
 
   // ====== navegação compartilhada ======
@@ -232,13 +321,20 @@
   let nav={x:0, depth:START_DEPTH, heading:0, mode:"moonpool"};
   let navReady=false;
   const keys={};
-  let lastWallHit=0;
+  let lastWallHit=0, wallHitCount=0;
+  let navPath=[], lastPathPoint=null, reelingWpIdx=-1, reelingSpeed=80;
+  let navPathWriteT=0;
+  function pushNavPath(){
+    // sync do navPath para Firebase: guardião e monitor desenham o cabo
+    ref.child("navPath").set(navPath.length ? navPath : null);
+  }
 
   let heading=0, lightMode=false, lightOn=false, focusing=false;
   let beamX=0.5, beamY=0.5, focusAmt=0;
   let STATE={};
   let imgEl=null, imgReady=false;
   let curHull=null;
+  let coralActive=false, shutterClosed=false, shutterOverride="auto";
   let moonScroll=0; // 0 = na superficie (moonpool visivel), 1 = submerso
 
   const cv=document.getElementById("abyss"), x=cv.getContext("2d");
@@ -276,6 +372,50 @@
   }
   window.addEventListener("resize",layoutViewport);
 
+  // ===== MANCHAS DE FUNDO =====
+  // silhuetas grandes e borradas que derivam atrás das paredes (acima da linha do horizonte)
+  const _BLOBS = Array.from({length: 24}, (_,i) => {
+    const r = n => Math.abs(Math.sin(i*13.7+n)*0.5+Math.sin(i*7.3+n*2.1)*0.5);
+    return {
+      angle: r(1)*Math.PI*2,          // ângulo no mundo (rad)
+      dist:  120 + r(2)*550,           // distância pseudo (wu) — afeta tamanho
+      sizeW: 50  + r(3)*200,           // largura base (wu) — manchas longas
+      sizeH: 5   + r(4)*18,            // altura base (wu)
+      speed: (r(5)-0.5)*0.012,         // deriva angular (rad/s) — lentas
+      yFrac: 0.04 + r(6)*0.56,         // posição vertical no céu (0=topo,1=horizonte)
+      alpha: 0.022 + r(7)*0.055,       // opacidade base
+      blur:  2.5 + r(8)*5,             // raio de blur
+    };
+  });
+  let _blobsLastT = null;
+  function drawBlobs(w, h, heading, ambLight, beyond){
+    const FOV=Math.PI*78/180, halfFov=FOV/2;
+    const now=performance.now()/1000;
+    const dt=_blobsLastT!==null ? Math.min(0.1,now-_blobsLastT) : 0;
+    _blobsLastT=now;
+    x.save();
+    for(const b of _BLOBS){
+      b.angle += b.speed*dt;
+      let rel=b.angle - heading*Math.PI/180;
+      while(rel>Math.PI) rel-=Math.PI*2;
+      while(rel<-Math.PI) rel+=Math.PI*2;
+      if(Math.abs(rel)>halfFov*1.35) continue;
+      const scale=110/b.dist;
+      const screenX=w/2+(rel/halfFov)*(w/2);
+      const blobW=Math.max(6, (Math.atan2(b.sizeW*scale,2)/halfFov)*w);
+      const blobH=Math.max(1.5, b.sizeH*scale*(h*0.007));
+      const screenY=h*0.5*b.yFrac;
+      const alpha=b.alpha*Math.min(1.8,scale)*(0.25+ambLight*0.75);
+      if(alpha<0.004) continue;
+      const blurPx=Math.max(1.2,(b.blur*(0.4+scale))).toFixed(1);
+      x.filter=`blur(${blurPx}px)`;
+      x.globalAlpha=alpha;
+      x.fillStyle=beyond?'#04100c':'#050f15';
+      x.beginPath();x.ellipse(screenX,screenY,blobW/2,blobH/2,0,0,Math.PI*2);x.fill();
+    }
+    x.filter='none'; x.globalAlpha=1; x.restore();
+  }
+
   // particulas
   // partículas suspensas "na cena": sx,sy = posição base na tela (0..1); pz = profundidade
   // na cena (0 longe .. 1 perto). o movimento do sub as translada (ver drawParticles).
@@ -304,23 +444,26 @@
     if(dHead>180)dHead-=360; if(dHead<-180)dHead+=360;
     _pLastD=depth; _pLastX=nav.x; _pLastH=nav.heading;
     const hdg=nav.heading*Math.PI/180;
-    // avanço "para frente" no plano (pra escoamento radial leve = sensação de atravessar a água)
-    const fwdMove = dDepth*Math.cos(hdg) + dX*Math.sin(hdg);
+    // decompõe movimento em câmera-space:
+    // fwdMove = componente na direção do olhar (radial na tela)
+    // rightMove = componente lateral da câmera (deslizamento horizontal na tela)
+    const fwdMove  =  dX*Math.sin(hdg) + dDepth*Math.cos(hdg);
+    const rightMove=  dX*Math.cos(hdg) - dDepth*Math.sin(hdg);
     for(const m of motes){
-      // escoamento radial leve do centro pras bordas conforme avança (vêm em tua direção)
+      // escoamento radial ao avançar
       m.pz += Math.abs(fwdMove)*0.010;
       if(m.pz>1) m.pz-=1;
       const spread=0.4+m.pz*0.7;
       let px=(m.sx-0.5)*w*spread + w/2;
       let py=(m.sy-0.5)*h*spread + h/2;
-      // DESLIZAMENTO VERTICAL pela mudança de profundidade: descer (dDepth>0) -> as partículas
-      // ficam pra trás/acima -> SOBEM na tela. subir (dDepth<0) -> descem. (sinal invertido)
-      m.scrollY = (m.scrollY||0) - dDepth*3.0;
-      // DESLIZAMENTO HORIZONTAL por giro e movimento lateral
-      m.scrollX = (m.scrollX||0) - (dX*2.2 + dHead*4.0);
+      // corrente ambiente: turbulência suave mesmo com o sub parado
+      const ambX=Math.sin(t*0.018+m.ph*2.1)*0.28+Math.cos(t*0.011+m.ph*1.3)*0.13;
+      const ambY=Math.cos(t*0.014+m.ph*1.7)*0.22+Math.sin(t*0.009+m.ph*0.9)*0.10;
+      // acumuladores com leve atrito (evita deriva infinita)
+      m.scrollX=(m.scrollX||0)*0.97 - rightMove*2.8 - dHead*3.5 + ambX;
+      m.scrollY=(m.scrollY||0)*0.97 - dDepth*3.0 + ambY;
       px += m.scrollX;
       py += m.scrollY;
-      // wrap nos dois eixos (campo contínuo de partículas)
       px=((px%w)+w)%w;
       py=((py%h)+h)%h;
       const sz=m.r*(0.7+m.pz*0.5);
@@ -330,6 +473,127 @@
       x.beginPath();x.arc(px,py,sz,0,6.28);x.fill();
     }
     x.globalAlpha=1;
+  }
+
+  // ===== SPRITES BILLBOARD (Doom-style, fórmula lodev) =====
+  // Seleção de frame por ÂNGULO câmera→sprite (Doom rotation), não por tempo.
+  // Cada peixe tem parâmetros de movimento derivados de fishPhase → variação individual.
+  function billboardTransform(wx, wd, hdg, invDet, dirX_, dirY_){
+    const rx=wx-nav.x, rd=wd-nav.depth;
+    const tX=invDet*(dirY_*rx - dirX_*rd);
+    const tY=dirX_*rx + dirY_*rd;
+    return {tX, tY, rx, rd};
+  }
+  function billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_, screenX, tY, projH, projW, fCanvas){
+    const y0=h/2-projH/2;
+    const x0=screenX-projW/2, x1=screenX+projW/2;
+    if(x1<0||x0>w) return;
+    const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
+    if(fog<0.05) return;
+    const fw=fCanvas.width, fh=fCanvas.height;
+    x.save(); x.globalAlpha=Math.min(0.92,fog);
+    const sx0=Math.max(0,Math.floor(x0)), sx1=Math.min(w-1,Math.ceil(x1));
+    let seg=-1;
+    const flush=(end)=>{
+      if(seg<0) return;
+      x.save(); x.beginPath(); x.rect(seg,y0,end-seg,projH); x.clip();
+      x.drawImage(fCanvas,0,0,fw,fh,x0,y0,projW,projH);
+      x.restore(); seg=-1;
+    };
+    for(let sx=sx0;sx<=sx1;sx++){
+      const col=Math.min(COLS_-1,Math.floor(sx/colW_));
+      if(tY<zBuf[col]){ if(seg<0) seg=sx; } else flush(sx);
+    }
+    flush(sx1+1); x.restore();
+  }
+
+  function drawFishSprites(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_){
+    if(!fishFrames.length) return;
+    const ents=Object.values(fishEntities).filter(e=>e&&e.visible!==false);
+    if(!ents.length) return;
+    const now=t*0.016;
+    const hdg=nav.heading*Math.PI/180;
+    const dirX=Math.sin(hdg), dirY=Math.cos(hdg);
+    const invDet=1.0/Math.tan(Math.PI*78/360);
+
+    ents.sort((a,b)=>Math.hypot((b.wx||0)-nav.x,(b.wd||0)-nav.depth)-Math.hypot((a.wx||0)-nav.x,(a.wd||0)-nav.depth));
+
+    for(const ent of ents){
+      // parâmetros individuais derivados de fishPhase (deterministicamente "aleatórios" por peixe)
+      const fp=ent.fishPhase||0;
+      const swimSpeed=0.35 + (Math.sin(fp*7.3)*0.5+0.5)*0.65;  // 0.35..1.0 rad/s
+      const swimAmp  =18  + (Math.sin(fp*3.7)*0.5+0.5)*32;     // 18..50wu
+      const depthDrift=    (Math.sin(fp*5.1)*0.5+0.5)*40;      // deriva lenta em profundidade
+      const driftSpeed=0.08+(Math.sin(fp*11)*0.5+0.5)*0.12;    // 0.08..0.2 rad/s
+
+      const phase=now*swimSpeed+fp;
+      const glideX=Math.sin(phase)*swimAmp;
+      const glideVel=Math.cos(phase); // >0 = movendo +X
+      const depthOffset=Math.sin(now*driftSpeed+fp*2)*depthDrift;
+
+      const fishX=(ent.wx||0)+glideX;
+      const fishD=(ent.wd||nav.depth)+depthOffset;
+
+      const {tX,tY}=billboardTransform(fishX,fishD,hdg,invDet,dirX,dirY);
+      if(tY<=0.5) continue;
+
+      const screenX=w/2*(1+tX/tY);
+      const projH=Math.min(h*0.65, WALLH_*0.28/tY);
+      const projW=projH*(fishFrames[0].width/fishFrames[0].height);
+
+      // Doom rotation: ângulo da câmera em relação à direção de nado do peixe
+      // fishHeading: 90° (+X) quando glideVel>0, 270° (-X) quando <0
+      const fishHdgRad = glideVel>=0 ? Math.PI/2 : -Math.PI/2;
+      const viewAngle=Math.atan2(nav.x-fishX, nav.depth-fishD); // ângulo fish→player no espaço mundo
+      const relAngle=((viewAngle-fishHdgRad)*(180/Math.PI)+720)%360;
+      const fIdx=Math.round(relAngle/45)%8;
+
+      billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,fishFrames[fIdx]);
+    }
+  }
+
+  // ===== CRIATURA (billboard procedural — sprite real enviado depois) =====
+  let creatureEntities={};
+  function drawCreatureSprites(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_){
+    const ents=Object.values(creatureEntities).filter(e=>e&&e.visible!==false);
+    if(!ents.length) return;
+    const hdg=nav.heading*Math.PI/180;
+    const dirX=Math.sin(hdg), dirY=Math.cos(hdg);
+    const invDet=1.0/Math.tan(Math.PI*78/360);
+
+    ents.sort((a,b)=>Math.hypot((b.wx||0)-nav.x,(b.wd||0)-nav.depth)-Math.hypot((a.wx||0)-nav.x,(a.wd||0)-nav.depth));
+
+    for(const ent of ents){
+      const {tX,tY}=billboardTransform(ent.wx||0,ent.wd||nav.depth,hdg,invDet,dirX,dirY);
+      if(tY<=0.5) continue;
+      const screenX=w/2*(1+tX/tY);
+      const projH=Math.min(h*0.8, WALLH_*0.45/tY);
+      const projW=projH*0.7;
+      const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
+      if(fog<0.05) continue;
+      // verifica zbuffer no centro (placeholder procedural não faz clipping por coluna)
+      const centerCol=Math.min(COLS_-1,Math.floor(screenX/colW_));
+      if(tY>=zBuf[centerCol]) continue;
+      // pulso
+      const pulse=0.55+0.45*Math.sin(t*0.07);
+      const y0=h/2-projH/2, cx=screenX, cy=h/2;
+      // brilho externo
+      const gr=x.createRadialGradient(cx,cy,projH*0.05,cx,cy,projH*0.5);
+      gr.addColorStop(0,`rgba(255,60,0,${0.85*fog})`);
+      gr.addColorStop(0.45,`rgba(160,10,0,${0.5*fog})`);
+      gr.addColorStop(1,`rgba(80,0,0,0)`);
+      x.save(); x.globalAlpha=fog;
+      x.fillStyle=gr;
+      x.beginPath(); x.ellipse(cx,cy,projW*0.5,projH*0.5,0,0,Math.PI*2); x.fill();
+      // pupila
+      x.fillStyle=`rgba(0,0,0,${fog})`;
+      x.beginPath(); x.ellipse(cx,cy,projW*0.09,projH*0.17,0,0,Math.PI*2); x.fill();
+      // anel pulsante
+      x.strokeStyle=`rgba(255,100,0,${0.5*fog*pulse})`;
+      x.lineWidth=1.5;
+      x.beginPath(); x.ellipse(cx,cy,projW*0.5*pulse,projH*0.5*pulse,0,0,Math.PI*2); x.stroke();
+      x.restore();
+    }
   }
 
   let t=0;
@@ -353,6 +617,9 @@
     g.addColorStop(0, `rgb(${tb[0]},${tb[1]},${tb[2]})`);
     g.addColorStop(1, beyond ? `rgb(${Math.round(4*(0.3+ambLight))},${Math.round(8*(0.3+ambLight))},${Math.round(7*(0.3+ambLight))})` : `rgb(${Math.round(6*(0.3+ambLight))},${Math.round(12*(0.3+ambLight))},${Math.round(14*(0.3+ambLight))})`);
     x.fillStyle=g;x.fillRect(0,0,w,h);
+
+    // manchas de fundo derivando atrás das paredes (sky area)
+    if(mode==="diving"||mode==="reeling") drawBlobs(w,h,nav.heading,ambLight,beyond);
 
     // ===== RAYCASTER: corredor coerente (paredes = margens do canyon) =====
     // o sub está em (nav.x, nav.depth) olhando p/ heading. as duas margens do corredor
@@ -392,8 +659,8 @@
       }
 
       // CHÃO (sempre) via floor casting (técnica lodev). escurece com a distância (breu).
-      const GRID=16;
-      const SIGHT=13;
+      const GRID=10;   // grid em metros (depois de dividir por UNITS_PER_M)
+      const SIGHT=40;
       for(let y=Math.floor(horizon)+1; y<h; y+=ROWH){
         const p = y - horizon;
         const rowDist = (h*0.5) / p;
@@ -407,9 +674,10 @@
         for(let cxi=0; cxi<COLN; cxi++){
           const t2=cxi/COLN;
           const wx=wx0+(wx1-wx0)*t2, wy=wy0+(wy1-wy0)*t2;
-          const sh=rockShade(wx,wy);
-          const gx=Math.abs(((wx%GRID)+GRID)%GRID - GRID/2);
-          const gy=Math.abs(((wy%GRID)+GRID)%GRID - GRID/2);
+          const mx=wx/UNITS_PER_M, my=wy/UNITS_PER_M; // converte para metros
+          const sh=rockShade(mx,my);
+          const gx=Math.abs(((mx%GRID)+GRID)%GRID - GRID/2);
+          const gy=Math.abs(((my%GRID)+GRID)%GRID - GRID/2);
           const onLine = Math.min(gx,gy) < 0.7;
           let base = (22 + sh*30) * vis2 * (0.45+ambLight*0.7);
           if(onLine) base += 12*vis2*(0.45+ambLight*0.7);
@@ -422,14 +690,17 @@
       }
 
       // ---- PAREDES (raycasting) ----
+      // parede de escuridão: 320wu (32m) no início, encolhe para 180wu (18m) no fundo.
+      // depthN já calculado acima (0 em START_DEPTH, 1 em MAX_DEPTH).
+      const VIS_WALL = Math.max(180, 320 - depthN*140);
+      const WALL_SIGHT = VIS_WALL*0.9;
+      // zbuffer: distância perpendicular de cada coluna (para sprite depth test)
+      const zBuffer = new Float32Array(COLS).fill(MAXD);
       // direção de cada raio: varre de -FOV/2 a +FOV/2 em torno do heading.
       for(let i=0;i<COLS;i++){
         const a = hdg + (i/(COLS-1) - 0.5)*FOV;   // ângulo absoluto do raio
         const camAng = (i/(COLS-1)-0.5)*FOV;       // ângulo relativo (p/ corrigir fish-eye)
         const dx=Math.sin(a), dd=Math.cos(a);      // passo lateral / profundidade
-        // distância máxima de visão: além disso é breu (parede de escuridão que acompanha o sub).
-        // encolhe com a profundidade — vê-se menos longe no fundo da twilight zone.
-        const VIS_WALL = 320 - depthN*120;          // ~320u perto da superfície -> ~200u no fundo
         // marcha o raio até bater em algo: margem do corredor, parede de fundo, pilar, ou escuridão.
         let rx=nav.x, rd=nav.depth, dist=0, hitSide=0, hitKind="wall";
         for(let s=STEP;s<=MAXD;s+=STEP){
@@ -440,15 +711,14 @@
           if(isStationBackWall(rd)){ dist=s; hitSide=0; hitKind="station_wall"; break; }
           // PILARES grossos da petroleira perto do começo (fonte única: isPillar)
           if(isPillar(rx,rd)){ dist=s; hitSide=0; hitKind="pillar"; break; }
-          const cc=corridorAt(rd);
-          if(rx < cc.cx-cc.hw){ dist=s; hitSide=-1; break; }   // margem esquerda
-          if(rx > cc.cx+cc.hw){ dist=s; hitSide=1;  break; }   // margem direita
+          if(isWall(rx,rd)){ dist=s; hitSide=dx<0?-1:1; break; }
           // nada bateu ainda: ao atingir a distância máxima de visão, vira PAREDE DE ESCURIDÃO
           if(s>=VIS_WALL){ dist=s; hitSide=0; hitKind="dark"; break; }
         }
         if(!dist) continue;  // (não deve ocorrer — a escuridão sempre fecha)
         // corrige distorção fish-eye: distância perpendicular
         const perp=Math.max(8, dist*Math.cos(camAng));
+        zBuffer[i]=perp;
         const colX=(i+0.5)*colW;
         // PAREDE DE ESCURIDÃO: parede preta sólida na distância máxima de visão, com a MESMA
         // altura projetada de uma parede do corredor naquela distância (fecha o corredor ao fundo).
@@ -464,7 +734,6 @@
         const sh2=Math.min(h*1.4, WALLH/perp);
         const y0=h/2 - sh2/2, y1=h/2 + sh2/2;
         // sombreamento por distância: visão limitada, longe some no breu (mesmo princípio do chão)
-        const WALL_SIGHT=340;   // alcance de visão das paredes (acompanha a parede de escuridão)
         const fog=Math.max(0, Math.min(1, 1 - dist/WALL_SIGHT));
         const fog2=fog*fog;     // queda acentuada
         // textura: faixa de rocha que rola verticalmente com a profundidade + ruído por coluna
@@ -499,6 +768,11 @@
         x.fillRect(colX-colW/2-0.5, y0, colW+1, Math.max(1,sh2*0.06));
         x.fillRect(colX-colW/2-0.5, y1-Math.max(1,sh2*0.06), colW+1, Math.max(1,sh2*0.06));
       }
+      // sprites billboard no mundo (depth test pelo zbuffer)
+      if(mode==="diving"||mode==="reeling"){
+        drawFishSprites(w,h,zBuffer,COLS,colW,WALLH,VIS_WALL);
+        drawCreatureSprites(w,h,zBuffer,COLS,colW,WALLH,VIS_WALL);
+      }
     }
 
     // ===== PARTICULAS suspensas (sobre as paredes): reagem ao movimento real do sub.
@@ -507,26 +781,6 @@
     drawParticles(w,h,depth);
 
 
-
-    // AMEACA direcional
-    if(["distant","passing","close"].includes(st)){
-      let delta=((STATE.threatDir!=null?STATE.threatDir:90)-heading+540)%360-180;
-      if(Math.abs(delta)<=85){
-        const cx=w/2+(delta/70)*(w*0.6), cy=h*0.52;
-        const scale=st==="close"?1:(st==="passing"?0.6:0.4);
-        if(STATE.imgUrl && imgReady){
-          const iw=Math.min(w,h)*0.7*scale, ih=iw*(imgEl.height/imgEl.width||1);
-          x.save();x.globalAlpha=0.88;x.filter="brightness(.62) contrast(1.12)";
-          x.drawImage(imgEl,cx-iw/2,cy-ih/2,iw,ih);x.restore();
-        } else {
-          x.save();x.filter=`blur(${st==="close"?6:10}px)`;x.fillStyle="rgba(3,9,10,.93)";
-          x.beginPath();
-          const R=Math.min(w,h)*0.30*scale;
-          for(let a=0;a<6.28;a+=0.3){const rr=R*(0.78+0.32*Math.sin(a*3+t*0.018));const px=cx+Math.cos(a)*rr,py=cy+Math.sin(a)*rr*1.25;a===0?x.moveTo(px,py):x.lineTo(px,py);}
-          x.closePath();x.fill();x.restore();
-        }
-      }
-    }
 
     // (a parede de escuridão é uma superfície sólida no mundo, tratada pelo raycaster — ver acima)
     if(mode==="diving" || mode==="reeling"){
@@ -585,9 +839,24 @@
       x.fillStyle=bg;x.beginPath();x.arc(bx,by,R,0,6.28);x.fill();
       x.restore();
     }
+    // névoa radial de distância: escurece bordas simulando dificuldade de ver longe em todas as direções
+    if(mode==="diving"||mode==="reeling"){
+      const fs=0.28+depthN*0.32;
+      const fg=x.createRadialGradient(w/2,h/2,w*0.06,w/2,h*0.52,w*0.7);
+      fg.addColorStop(0,'rgba(0,0,0,0)');
+      fg.addColorStop(0.5,`rgba(0,0,0,${(fs*0.28).toFixed(3)})`);
+      fg.addColorStop(1,`rgba(0,0,0,${fs.toFixed(3)})`);
+      x.fillStyle=fg; x.fillRect(0,0,w,h);
+    }
+
     // reflexo do vidro reage à luz: mais brilho quando o facho está aceso
     const gr=document.getElementById("glassReflect");
     if(gr) gr.style.opacity = lightOn ? "0.8" : "0.5";
+
+    // red tint persistente quando o coral cresce
+    if(coralActive){
+      x.save(); x.fillStyle="rgba(110,0,0,0.28)"; x.fillRect(0,0,w,h); x.restore();
+    }
 
     // FOCO: blur de base sempre leve, focar reduz quase a zero (na frente de tudo)
     focusAmt += ((focusing?1:0)-focusAmt)*0.1;
@@ -624,7 +893,7 @@
     const bubbles=[]; for(let i=0;i<50;i++)bubbles.push({x:Math.random(),y:Math.random(),r:Math.random()*3+1,v:Math.random()*0.5+0.3});
     let st=0;
     const SPEED=0.0022;   // ~7.5s, transição mais longa e fluida
-    const MOON_DEPTH=100, DIVE_DEPTH=START_DEPTH;  // superfície a 100m, submerso a 200m
+    const MOON_DEPTH=1000, DIVE_DEPTH=START_DEPTH;  // 100m wu=1000, submerso wu=2000
     diveAnim=setInterval(()=>{
       p+=SPEED; st++;
       // anima o depth junto: descendo 100->200, subindo 200->100
@@ -706,6 +975,8 @@
   const elDepthVal=document.getElementById("depthval");
   const elDepthBox=document.getElementById("depthbox");
   const elWallHit=document.getElementById("wallHit");
+  const elImpactBox=document.getElementById("impactbox");
+  const elImpactVal=document.getElementById("impactval");
 
   // throttle de escrita do nav no firebase (10x/s)
   let navDirty=false;
@@ -720,9 +991,21 @@
     presenceRef.update({heading:Math.round(nav.heading),depth:dm,at:Date.now()});
   },100);
 
+  // linha de visão: verifica se a reta de (x1,d1) a (x2,d2) cruza alguma parede do grid
+  function lineOfSight(x1,d1,x2,d2){
+    const dist=Math.hypot(x2-x1,d2-d1);
+    const steps=Math.max(2,Math.ceil(dist/(TILE*0.45)));
+    for(let i=1;i<steps;i++){
+      const t=i/steps;
+      const cx=x1+(x2-x1)*t, cd=d1+(d2-d1)*t;
+      if(isWall(cx,cd)||isWall(cx-22,cd)||isWall(cx+22,cd)) return false;
+    }
+    return true;
+  }
+
   // loop de simulação local (~60fps): movimento livre Iron Lung em 2D
   let lastT=performance.now();
-  const SPEED=42, TURN=52; // unidades/s e graus/s
+  let NAV_SPEED=30; const TURN=52; // unidades/s e graus/s
   function navLoop(now){
     const dt=Math.min((now-lastT)/1000, 0.05); lastT=now;
 
@@ -740,8 +1023,8 @@
       if(drive!==0){
         const rad=nav.heading*Math.PI/180;
         // plano de cima: heading 0 = descer (+depth), 90 = +x (direita)
-        const stepX = Math.sin(rad)*SPEED*dt*drive;
-        const stepD = Math.cos(rad)*SPEED*dt*drive;
+        const stepX = Math.sin(rad)*NAV_SPEED*dt*drive;
+        const stepD = Math.cos(rad)*NAV_SPEED*dt*drive;
 
         // limite de profundidade: pode subir até o topo da estação (lá a parede/pilares barram).
         // o fundo é MAX_DEPTH. assim a estrutura da petroleira fica visível acima do início.
@@ -750,22 +1033,25 @@
 
         // colisão lateral checada NA profundidade de destino, eixo X separado:
         // tenta mover X; se sair do corredor, encosta na parede (desliza, não trava tudo).
-        const cTarget = corridorAt(nd);
         let nx = nav.x + stepX;
-        const leftWall = cTarget.cx - cTarget.hw;
-        const rightWall = cTarget.cx + cTarget.hw;
         let hitWall=false;
-        if(nx < leftWall){ nx = leftWall; hitWall=true; }
-        else if(nx > rightWall){ nx = rightWall; hitWall=true; }
-
-        // colisão com PILARES: se o destino cai num pilar, não entra (testa eixos separados
-        // pra deslizar ao redor em vez de travar de vez).
-        if(isPillar(nx, nd)){
-          if(!isPillar(nav.x, nd)){ nx=nav.x; hitWall=true; }      // bloqueia X, mantém profundidade
-          else if(!isPillar(nx, nav.depth)){ nd=nav.depth; hitWall=true; } // bloqueia profundidade
-          else { nx=nav.x; nd=nav.depth; hitWall=true; }            // encurralado: para
+        // colisão com o grid: margem lateral da hitbox do sub
+        const R=22;
+        if(isWall(nx,nd)||isWall(nx-R,nd)||isWall(nx+R,nd)){
+          if(!isWall(nav.x,nd)&&!isWall(nav.x-R,nd)&&!isWall(nav.x+R,nd)){
+            nx=nav.x; hitWall=true;          // desliza em depth
+          } else if(!isWall(nx,nav.depth)&&!isWall(nx-R,nav.depth)&&!isWall(nx+R,nav.depth)){
+            nd=nav.depth; hitWall=true;      // desliza em X
+          } else {
+            nx=nav.x; nd=nav.depth; hitWall=true;
+          }
         }
-        // colisão com a parede de fundo da estação: não atravessa em direção à moonpool
+        // pilares decorativos da estação (sobrepostos ao grid)
+        if(isPillar(nx, nd)){
+          if(!isPillar(nav.x, nd)){ nx=nav.x; hitWall=true; }
+          else if(!isPillar(nx, nav.depth)){ nd=nav.depth; hitWall=true; }
+          else { nx=nav.x; nd=nav.depth; hitWall=true; }
+        }
         if(isStationBackWall(nd) && !isStationBackWall(nav.depth)){
           nd=nav.depth; hitWall=true;
         }
@@ -775,43 +1061,91 @@
         nav.depth = nd;
         pushNav();
 
+        // breadcrumb: registra ponto do caminho a cada 60wu de movimento
+        if(!lastPathPoint) lastPathPoint={x:nav.x,depth:nav.depth};
+        if(Math.hypot(nav.x-lastPathPoint.x,nav.depth-lastPathPoint.depth)>60){
+          navPath.push({x:nav.x,depth:nav.depth});
+          lastPathPoint={x:nav.x,depth:nav.depth};
+          // sync throttled (3s) — guardião/monitor desenham o cabo no mapa
+          if(now-navPathWriteT>3000){ navPathWriteT=now; pushNavPath(); }
+        }
+
         // só sinaliza impacto quando DE FATO raspa a parede lateral (não nos limites de profundidade)
         if(hitWall && Math.abs(stepX)>0.5 && now-lastWallHit>450){
           lastWallHit=now; elWallHit.classList.remove("hit"); void elWallHit.offsetWidth; elWallHit.classList.add("hit");
+          wallHitCount++;
+          elImpactBox.classList.add("active","fresh");
+          elImpactVal.textContent=wallHitCount;
+          clearTimeout(elImpactBox._ft); elImpactBox._ft=setTimeout(()=>elImpactBox.classList.remove("fresh"),1200);
         }
       }
     }
     else if(nav.mode==="reeling"){
-      // o cabo recolhe pela LINHA CENTRAL do corredor (caminho garantidamente livre).
-      const c=corridorAt(nav.depth);
-      // segurança: se por algum motivo estiver além da margem, traz pra dentro já.
-      if(nav.x < c.cx-c.hw) nav.x=c.cx-c.hw+1;
-      if(nav.x > c.cx+c.hw) nav.x=c.cx+c.hw-1;
-      const offCenter=Math.abs(nav.x-c.cx);
-      if(offCenter>2){
-        nav.x += (c.cx-nav.x)*Math.min(1, dt*5);
-        nav.depth=Math.max(START_DEPTH, nav.depth-8*dt);
+      if(reelingWpIdx<0||navPath.length===0){
+        // sem waypoints: centraliza e sobe até a profundidade inicial
+        nav.x += (0-nav.x)*Math.min(1,dt*3);
+        nav.depth = Math.max(START_DEPTH, nav.depth - reelingSpeed*dt);
         pushNav();
-      } else if(nav.depth>START_DEPTH){
-        nav.x=c.cx;
-        nav.depth=Math.max(START_DEPTH, nav.depth-26*dt);
-        pushNav();
-        if(nav.depth<=START_DEPTH){ nav.x=corridorAt(START_DEPTH).cx; nav.mode="moonpool"; pushNav(); }
+        if(nav.depth<=START_DEPTH){ nav.x=0; nav.mode="moonpool"; pushNav(); }
       } else {
-        nav.x=corridorAt(START_DEPTH).cx; nav.mode="moonpool"; pushNav();
+        // string pulling: acha o waypoint mais longe com linha de visão direta (sem parede)
+        // — corta atalhos em trechos retos, segue curvas onde não tem LOS
+        let tgtIdx=reelingWpIdx;
+        const lookBack=Math.max(0,reelingWpIdx-5);
+        for(let i=reelingWpIdx-1;i>=lookBack;i--){
+          if(lineOfSight(nav.x,nav.depth,navPath[i].x,navPath[i].depth)) tgtIdx=i;
+          else break;
+        }
+        const target=navPath[tgtIdx];
+        const dx=target.x-nav.x, dd=target.depth-nav.depth;
+        const dist=Math.hypot(dx,dd);
+        if(dist<25){
+          // chegou: consome todos os waypoints até tgtIdx inclusive
+          reelingWpIdx=tgtIdx-1;
+          ref.child("navPath").set(reelingWpIdx>=0?navPath.slice(0,reelingWpIdx+1):null);
+        } else {
+          nav.x+=(dx/dist)*reelingSpeed*dt;
+          nav.depth+=(dd/dist)*reelingSpeed*dt;
+          pushNav();
+          // mantém cabo no Firebase sincronizado com o alvo atual (throttle 200ms)
+          if(now-navPathWriteT>200){navPathWriteT=now;ref.child("navPath").set(navPath.slice(0,tgtIdx+1));}
+        }
       }
+    }
+
+    // blast shutter: fecha a 1000m (10000wu); pode ser forçado via Firebase
+    const needShutter = shutterOverride==="force_closed" || (shutterOverride!=="force_open" && nav.depth>=10000);
+    if(needShutter !== shutterClosed){
+      shutterClosed = needShutter;
+      const elShutter = document.getElementById("shutter");
+      elShutter.style.transform = shutterClosed ? "translateY(0)" : "translateY(-110%)";
+    }
+
+    // Criatura: quando chasing=true, move em direção ao sub (cliente é autoridade de posição)
+    Object.entries(creatureEntities).forEach(([id,ent])=>{
+      if(!ent||!ent.chasing) return;
+      const spd=(ent.speed||20)*(NAV_SPEED/30)*dt;
+      const dx=nav.x-(ent.wx||0), dd=nav.depth-(ent.wd||0);
+      const dist=Math.hypot(dx,dd);
+      if(dist<8) return;
+      creatureEntities[id]={...ent, wx:(ent.wx||0)+(dx/dist)*spd, wd:(ent.wd||0)+(dd/dist)*spd};
+    });
+    if(now-creatureWriteT>200){
+      creatureWriteT=now;
+      Object.entries(creatureEntities).forEach(([id,ent])=>{
+        if(ent&&ent.chasing) ref.child("entities/"+id).update({wx:ent.wx,wd:ent.wd});
+      });
     }
 
     // HUD local
     heading=nav.heading;
     document.getElementById("compass").textContent="BRG "+String(Math.round(nav.heading)).padStart(3,"0");
-    const dm=Math.round(nav.depth);
+    const dm=Math.round(nav.depth/UNITS_PER_M);
     elDepthVal.textContent=String(dm).padStart(4,"0");
-    elDepthBox.classList.toggle("beyond", dm>CORAL_DEPTH);
+    elDepthBox.classList.toggle("beyond", nav.depth>CORAL_DEPTH);
 
-    requestAnimationFrame(navLoop);
   }
-  requestAnimationFrame(navLoop);
+  setInterval(()=>navLoop(performance.now()), 16);
 
   let dragging=false,lastX=0,lastY=0;
   const surface=document.getElementById("sub");
@@ -897,8 +1231,9 @@
   ref.child("nav").on("value",snap=>{
     const n=snap.val();
     if(!n){ navReady=true; firstNavLoad=false; lastMode=nav.mode; applyModeInstant(); return; }
-    // adota o estado remoto quando ESTE cliente não está mexendo nas teclas
-    const meActive = Object.values(keys).some(Boolean) || dragging;
+    // adota o estado remoto quando ESTE cliente não está no controle
+    // durante reeling: sub É a autoridade de posição; não deixar Firebase sobrescrever
+    const meActive = Object.values(keys).some(Boolean) || dragging || nav.mode==="reeling";
     if(!meActive){
       if(typeof n.heading==="number") nav.heading=n.heading;
       if(typeof n.depth==="number")  nav.depth=n.depth;
@@ -921,7 +1256,53 @@
       document.getElementById("sub").classList.toggle("bobbing", nav.mode==="moonpool");
       if(diveAnim){clearInterval(diveAnim);diveAnim=null;}
       updateMoonpoolByMode(prev);
+      if(nav.mode==="moonpool" && prev && prev!=="moonpool"){
+        wallHitCount=0;
+        elImpactBox.classList.remove("active","fresh"); elImpactVal.textContent="0";
+        navPath=[]; lastPathPoint=null;  // moonpool reseta o caminho
+        ref.child("navPath").set(null);  // limpa cabo no Firebase
+      }
+      if(nav.mode==="reeling" && prev!=="reeling"){
+        // garante que posição atual está no caminho (pode estar até 60wu além do último breadcrumb)
+        const lastWp=navPath[navPath.length-1];
+        if(!lastWp||Math.hypot(nav.x-lastWp.x,nav.depth-lastWp.depth)>30) navPath.push({x:nav.x,depth:nav.depth});
+        reelingWpIdx=navPath.length-1;
+        navPathWriteT=0;  // reseta throttle para próxima write de cabo disparar imediatamente
+        pushNavPath();
+      }
+      if(nav.mode==="diving" && prev==="moonpool"){
+        navPath=[]; lastPathPoint=null;  // nova descida: limpa caminho anterior
+        ref.child("navPath").set(null);
+      }
     }
+  });
+
+  // velocidade do recolhimento (configurada pelo guardião)
+  ref.child("reelingSpeed").on("value",snap=>{
+    const v=snap.val(); if(typeof v==="number"&&v>0) reelingSpeed=v;
+  });
+
+  // velocidade de navegação (configurada pelo guardião)
+  ref.child("navSpeed").on("value",snap=>{
+    const v=snap.val(); if(typeof v==="number"&&v>0) NAV_SPEED=v;
+  });
+
+  // escuta override do shutter (guardião ou monitor)
+  ref.child("shutter").on("value",snap=>{
+    const v=snap.val();
+    shutterOverride=(v==="force_open"||v==="force_closed")?v:"auto";
+  });
+
+  // entidades do mundo: peixes e criaturas renderizados como sprites 3D
+  let creatureWriteT=0;
+  ref.child("entities").on("value",snap=>{
+    fishEntities={}; creatureEntities={};
+    const val=snap.val()||{};
+    Object.entries(val).forEach(([id,ent])=>{
+      if(!ent) return;
+      if(ent.mode==="fish") fishEntities[id]=ent;
+      else if(ent.mode==="creature") creatureEntities[id]=ent;
+    });
   });
 
   // aplica o modo SEM animação (usado na carga inicial): mostra direto o estado certo
@@ -972,6 +1353,20 @@
 
     const read=(STATE.readout||"").trim();
     document.getElementById("hudread").innerHTML=read?`<span class="line">${esc(read)}</span>`:"";
+
+    // coral growth: flash preto 2s + red tint persistente
+    const newCoral = !!STATE.coralGrowth;
+    if(newCoral && !coralActive){
+      coralActive = true;
+      const fl = document.getElementById("coralFlash");
+      fl.style.opacity = "1"; fl.style.display = "block";
+      setTimeout(()=>{
+        fl.style.transition = "opacity 0.6s";
+        fl.style.opacity = "0";
+        setTimeout(()=>{ fl.style.display="none"; fl.style.transition=""; }, 650);
+      }, 2000);
+    }
+    if(!newCoral) coralActive = false;
   });
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 </script></body></html>

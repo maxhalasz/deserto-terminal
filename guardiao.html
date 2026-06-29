@@ -13,13 +13,20 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.5;padding:20px;min-height:100vh}
-  .top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:20px}
+  .top{display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;margin-bottom:10px}
   .top h1{font-size:15px;letter-spacing:.22em;font-weight:600}
   .top h1 span{color:var(--live)}
   .top .sess{font-size:11px;color:var(--ink-dim);letter-spacing:.12em}
 
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--line);margin-bottom:20px;max-width:840px}
+  .tab{cursor:pointer;padding:11px 22px;font-family:var(--font);font-size:11px;letter-spacing:.18em;color:var(--ink-dim);background:none;border:none;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--live);border-bottom-color:var(--live)}
+  .tabpanel{display:none}
+  .tabpanel.active{display:block}
+
   .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:18px;max-width:840px;margin-bottom:18px}
-  .card .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .card .hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px}
   .card .hd .name{font-size:13px;letter-spacing:.16em;color:var(--ink)}
   .card .hd .name b{color:var(--live)}
   .card .hd .name.dim b{color:var(--ink)}
@@ -33,9 +40,7 @@
   .sub-hd{font-size:10px;letter-spacing:.24em;color:var(--ink-dim);border-top:1px solid var(--line);padding-top:16px;margin:20px 0 12px;display:flex;justify-content:space-between;align-items:center}
   .sub-hd .clear-force{cursor:pointer;color:var(--warn);font-size:10px;border:1px solid var(--warn-dim);border-radius:3px;padding:3px 9px;background:transparent;letter-spacing:.1em}
   .sub-hd .clear-force:hover{background:var(--warn);color:var(--bg)}
-  .sub-hd .clear-force.hidden{display:none}
 
-  /* niveis */
   .lvls{display:flex;flex-direction:column;gap:8px}
   .row{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:10px 12px;transition:border-color .2s}
   .row.unlocked{border-color:var(--live-dim)}
@@ -52,8 +57,8 @@
   .btn.force{min-width:84px;text-align:center}
   .btn.force.is-on{color:var(--bg);background:var(--warn);border-color:var(--warn)}
   .btn.force:disabled{opacity:.3;cursor:not-allowed}
+  .view-btn.is-on,.mode-btn.is-on{color:var(--live);border-color:var(--live-dim)}
 
-  /* cameras */
   .cams{display:flex;flex-wrap:wrap;gap:8px}
   .cam{display:flex;flex-direction:column;gap:9px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:11px 12px;width:180px}
   .cam.on{border-color:var(--live-dim)}
@@ -66,7 +71,6 @@
   .cam .toggle:hover{border-color:var(--ink-dim);color:var(--ink)}
   .cam.on .toggle{color:var(--live);border-color:var(--live-dim)}
 
-  /* editor */
   .editor{display:flex;flex-direction:column;gap:10px}
   .editor .pickbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .editor input[type=text],.editor select,.editor textarea{background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:13px;padding:8px 10px}
@@ -96,8 +100,14 @@
   .footer{margin-top:18px;display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:11px;color:var(--ink-dim);letter-spacing:.06em}
   .footer .x{cursor:pointer;color:var(--danger);border:1px solid var(--line);border-radius:4px;padding:5px 11px;background:var(--panel)}
   .footer .x:hover{border-color:var(--danger)}
-  .urls{max-width:840px;font-size:11px;color:var(--ink-dim);line-height:1.8;letter-spacing:.04em}
+  .urls{max-width:840px;font-size:11px;color:var(--ink-dim);line-height:1.8;letter-spacing:.04em;margin-top:10px}
   .urls code{background:var(--panel);padding:2px 7px;border-radius:3px;color:var(--ink)}
+
+  #sonarCanvas{display:block;border:1px solid #152515;border-radius:4px;background:#060b06;cursor:crosshair}
+  .sonar-sidebar{display:flex;flex-direction:column;gap:12px;min-width:190px}
+  .sonar-sidebar .s-lbl{font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:4px}
+  .sonar-dot{display:inline-block;width:8px;height:8px;border-radius:50%;vertical-align:middle;margin-right:6px}
+  input[type=range].ent-spd{accent-color:var(--live-dim);height:3px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -107,143 +117,236 @@
     <div class="sess">sessão: <b id="sk">—</b></div>
   </div>
 
-  <!-- ESTACAO -->
-  <div class="card">
-    <div class="hd">
-      <div class="name"><b>NEUROSTAT</b> // Terminal de Estação</div>
-      <div class="power" id="power"><span class="led"></span><span id="powertxt">TERMINAL DESLIGADO</span></div>
-    </div>
-    <div class="hint">
-      Ligar acende o terminal dos jogadores. <b>Liberar</b> deixa o nível clicável pra eles explorarem sozinhos.
-      <b>Forçar</b> puxa a tela de todos pra aquele nível na hora (momento de cena) — clique de novo ou em "soltar foco" pra liberar.
-    </div>
-
-    <div class="lvls" id="lvls"></div>
-
-    <!-- cameras -->
-    <div class="sub-hd"><span>CÂMERAS — marque ON pra deixar acessível (jogador puxa, ~6s, 1min de cooldown)</span></div>
-    <div class="cams" id="cams"></div>
-
-    <div class="footer">
-      <span>Tudo o que você muda aqui aparece nos terminais na hora.</span>
-      <span class="x" id="reset">RESETAR ESTAÇÃO</span>
-    </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="estacao">ESTAÇÃO</button>
+    <button class="tab" data-tab="submarino">SUBMARINO</button>
+    <button class="tab" data-tab="dre">DRE</button>
   </div>
 
-  <!-- SUBMARINO -->
-  <div class="card">
-    <div class="hd">
-      <div class="name dim">SUBMERSÍVEL // <b>visor</b></div>
-      <div class="power" id="subpower"><span class="led"></span><span id="subpowertxt">VISOR DESLIGADO</span></div>
-    </div>
-    <div class="hint">
-      Ligar acende o visor dos jogadores. Escolha o <b>casco</b>, dispare <b>estados</b> do breu, marque a <b>direção</b> de onde a ameaça aparece,
-      e use a <b>leitura</b> pra escrever no HUD deles. O minimapa mostra pra onde cada investigador está olhando.
+  <!-- TAB: ESTAÇÃO -->
+  <div id="tab-estacao" class="tabpanel active">
+
+    <div class="card">
+      <div class="hd">
+        <div class="name"><b>NEUROSTAT</b> // Terminal de Estação</div>
+        <div class="power" id="power"><span class="led"></span><span id="powertxt">TERMINAL DESLIGADO</span></div>
+      </div>
+      <div class="hint">
+        Ligar acende o terminal dos jogadores. <b>Liberar</b> deixa o nível clicável pra eles explorarem sozinhos.
+        <b>Forçar</b> puxa a tela de todos pra aquele nível na hora (momento de cena).
+      </div>
+      <div class="lvls" id="lvls"></div>
+      <div class="sub-hd"><span>CÂMERAS — marque ON pra deixar acessível (jogador puxa, ~6s, 1min de cooldown)</span></div>
+      <div class="cams" id="cams"></div>
+      <div class="footer">
+        <span>Tudo o que você muda aqui aparece nos terminais na hora.</span>
+        <span class="x" id="reset">RESETAR ESTAÇÃO</span>
+      </div>
     </div>
 
-    <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
-      <!-- coluna controles -->
-      <div style="flex:1;min-width:300px;display:flex;flex-direction:column;gap:14px">
+    <div class="card">
+      <div class="hd"><div class="name dim">ARQUIVOS // <b>escrever ao vivo</b></div></div>
+      <div class="hint">
+        Escreva um dossiê e escolha o nível. Publicar só salva — ele <b>não</b> aparece pros jogadores até você marcar
+        <b>DISPONÍVEL</b> na lista de baixo.
+      </div>
+      <div class="editor">
+        <div class="pickbar">
+          <input type="text" id="docTitle" placeholder="Título do arquivo (ex: Incident Report 04-A)">
+          <select id="docLevel"></select>
+        </div>
+        <textarea id="docBody" placeholder="Corpo do dossiê.&#10;&#10;## cabeçalho de seção&#10;[[ texto ]] vira tarja de redigido&#10;*texto* vira ênfase&#10;Linha em branco separa parágrafos."></textarea>
+        <div class="tools">marcas: <code>## Cabeçalho</code> &nbsp; <code>[[ redigido ]]</code> &nbsp; <code>*ênfase*</code></div>
+        <div class="acts">
+          <button class="pub" id="publish">SALVAR ARQUIVO</button>
+          <button class="btn" id="clearForm">limpar campos</button>
+          <span class="saved" id="saved">✓ salvo</span>
+        </div>
+      </div>
+      <div class="sub-hd"><span>ARQUIVOS SALVOS — marque DISPONÍVEL pra liberar pros jogadores</span></div>
+      <div class="doclist" id="doclist"></div>
+    </div>
+
+  </div><!-- /tab-estacao -->
+
+  <!-- TAB: SUBMARINO -->
+  <div id="tab-submarino" class="tabpanel">
+
+    <!-- VISOR (sem radar — fundido no sonar abaixo) -->
+    <div class="card">
+      <div class="hd">
+        <div class="name dim">SUBMERSÍVEL // <b>visor</b></div>
+        <div class="power" id="subpower"><span class="led"></span><span id="subpowertxt">VISOR DESLIGADO</span></div>
+      </div>
+      <div class="hint">
+        Ligar acende o visor dos jogadores. Escolha o <b>casco</b>, modo de <b>percurso</b>,
+        escreva na <b>leitura</b>. A ameaça e o sonar estão no card abaixo.
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
         <!-- skin -->
-        <div>
-          <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">CASCO</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn skin" data-skin="old" style="flex:1">VELHO (Iron Lung)</button>
-            <button class="btn skin" data-skin="neurostat" style="flex:1">MODERNO (NeuroStat)</button>
+        <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">CASCO</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn skin" data-skin="old" style="flex:1">VELHO (Iron Lung)</button>
+              <button class="btn skin" data-skin="neurostat" style="flex:1">MODERNO (NeuroStat)</button>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+              <button class="btn" id="crackBtn" style="flex:1">⚠ RACHAR CASCO (velho)</button>
+              <span id="crackStat" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim);min-width:90px;text-align:center">intacto</span>
+            </div>
           </div>
-          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-            <button class="btn" id="crackBtn" style="flex:1">⚠ RACHAR CASCO (velho)</button>
-            <span id="crackStat" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim);min-width:90px;text-align:center">intacto</span>
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">PERCURSO / PILOTAGEM
+              <span style="color:#456;text-transform:none;letter-spacing:0"> — quem pilota são os jogadores</span></div>
+            <div id="submodes" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px"></div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:11px;color:var(--ink-dim)">
+              profundidade: <b id="navDepth" style="color:var(--live)">0</b> wu
+              <span id="navBeyond" style="color:var(--danger);display:none">· ALÉM DO CORAL</span>
+              <button class="btn" id="navSurface" style="margin-left:auto">zerar p/ superfície</button>
+            </div>
           </div>
-          <div style="font-size:10px;color:var(--ink-dim);margin-top:5px;letter-spacing:.04em;line-height:1.6">
-            Rachar é permanente — o visor do submarino velho fica danificado até você apertar de novo pra consertar.
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">DANO DO CASCO</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn" id="hullMinus" style="width:30px;font-size:15px;padding:2px 0">−</button>
+              <b id="hullDamageVal" style="color:var(--live);min-width:34px;text-align:center;font-size:17px">0</b>
+              <button class="btn" id="hullPlus" style="width:30px;font-size:15px;padding:2px 0">+</button>
+              <span style="color:var(--ink-dim);font-size:10px;margin-left:4px">peso:</span>
+              <input id="hullStep" type="number" min="1" max="99" value="5"
+                style="width:46px;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:12px;padding:3px 6px;border-radius:3px">
+              <button class="btn" id="hullReset" style="font-size:10px;color:var(--danger);margin-left:auto">zerar</button>
+            </div>
+            <div id="hullStatLbl" style="font-size:10px;color:var(--ink-dim);margin-top:5px;letter-spacing:.08em">INTACTO</div>
           </div>
-        </div>
-        <!-- pilotagem (modo de navegação) -->
-        <div>
-          <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">PERCURSO / PILOTAGEM
-            <span style="color:#456;text-transform:none;letter-spacing:0"> — quem pilota são os jogadores (WASD)</span></div>
-          <div id="submodes" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px"></div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:11px;color:var(--ink-dim)">
-            profundidade atual: <b id="navDepth" style="color:var(--live)">0</b> m
-            <span id="navBeyond" style="color:var(--danger);display:none">· ALÉM DO CORAL</span>
-            <button class="btn" id="navSurface" style="margin-left:auto">zerar p/ superfície</button>
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">VELOCIDADE DE NAVEGAÇÃO</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;color:var(--ink-dim)">lento</span>
+              <input id="navSpeedSlider" type="range" min="5" max="180" value="30"
+                style="flex:1;accent-color:var(--live-dim);cursor:pointer">
+              <span style="font-size:10px;color:var(--ink-dim)">rápido</span>
+              <b id="navSpeedVal" style="min-width:42px;color:var(--live);font-size:11px;text-align:right">30wu/s</b>
+            </div>
           </div>
-        </div>
-        <!-- ameaça no breu -->
-        <div>
-          <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">AMEAÇA NO BREU</div>
-          <div id="substates" style="display:grid;grid-template-columns:1fr 1fr;gap:7px"></div>
-        </div>
-        <!-- leitura livre -->
-        <div>
-          <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">LEITURA / LEGENDA (HUD)</div>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="subReadout" placeholder="ex: sonar — massa biológica, 40m, descendo"
-              style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:13px;padding:8px 10px">
-            <button class="btn" id="subReadClear">limpar</button>
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">VELOCIDADE DO RECOLHIMENTO</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;color:var(--ink-dim)">lento</span>
+              <input id="reelingSpeedSlider" type="range" min="20" max="220" value="80"
+                style="flex:1;accent-color:var(--live-dim);cursor:pointer">
+              <span style="font-size:10px;color:var(--ink-dim)">rápido</span>
+              <b id="reelingSpeedVal" style="min-width:42px;color:var(--live);font-size:11px;text-align:right">80wu/s</b>
+            </div>
           </div>
-        </div>
-        <!-- imagem -->
-        <div>
-          <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">IMAGEM DA AMEAÇA (PNG transparente, opcional)</div>
-          <div style="display:flex;gap:8px">
-            <input type="text" id="subImgUrl" placeholder="cole a URL de um PNG (deixe vazio = formas abstratas)"
-              style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:12px;padding:8px 10px">
-            <button class="btn" id="subImgSet">usar</button>
-            <button class="btn" id="subImgClear">tirar</button>
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">SHUTTER (visor do sub)</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn" id="shutterAuto" style="flex:1;font-size:10px">AUTO</button>
+              <button class="btn" id="shutterOpen" style="flex:1;font-size:10px;color:#7dff7d">FORÇAR ABRIR</button>
+              <button class="btn" id="shutterClose" style="flex:1;font-size:10px;color:var(--danger)">FORÇAR FECHAR</button>
+            </div>
+            <div id="shutterStatus" style="font-size:10px;color:var(--ink-dim);margin-top:5px;letter-spacing:.08em">modo: auto</div>
+          </div>
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">LEITURA / LEGENDA (HUD)</div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="subReadout" placeholder="ex: sonar — massa biológica, 40m, descendo"
+                style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:13px;padding:8px 10px">
+              <button class="btn" id="subReadClear">limpar</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">IMAGEM DA AMEAÇA (PNG, opcional)</div>
+            <div style="display:flex;gap:8px">
+              <input type="text" id="subImgUrl" placeholder="URL de um PNG transparente"
+                style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:12px;padding:8px 10px">
+              <button class="btn" id="subImgSet">usar</button>
+              <button class="btn" id="subImgClear">tirar</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">CORAL // AMBIENTE</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn" id="coralGrow" style="color:var(--danger)">CORAL: CRESCER</button>
+              <button class="btn" id="coralReset">CORAL: resetar</button>
+              <span id="coralStatus" style="font-size:10px;color:var(--ink-dim)">inativo</span>
+            </div>
           </div>
         </div>
       </div>
+      <div class="footer">
+        <span>Os jogadores só espiam o visor — você controla tudo.</span>
+        <span class="x" id="subreset">RESETAR SUBMARINO</span>
+      </div>
+    </div>
 
-      <!-- coluna minimapa -->
-      <div style="width:240px">
-        <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">DIREÇÃO DA AMEAÇA · clique no anel</div>
-        <div style="position:relative;width:220px;height:220px;margin:0 auto">
-          <canvas id="radar" width="220" height="220" style="cursor:crosshair"></canvas>
+    <!-- AMEAÇA + SONAR (fundidos) -->
+    <div class="card">
+      <div class="hd">
+        <div class="name dim">AMEAÇA // <b>sonar</b></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span id="sonarStatus" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim)">aguardando...</span>
+          <button id="viewGM" class="btn view-btn is-on" style="font-size:10px;padding:5px 12px">VISTA GM</button>
+          <button id="viewPlayer" class="btn view-btn" style="font-size:10px;padding:5px 12px">JOGADORES</button>
+          <button id="viewMap" class="btn view-btn" style="font-size:10px;padding:5px 12px;color:#44aacc">MAPA</button>
         </div>
-        <div style="font-size:10px;color:var(--ink-dim);text-align:center;margin-top:8px;letter-spacing:.08em">
-          setas = investigadores olhando · <span style="color:var(--danger)">vermelho</span> = ameaça
+      </div>
+      <div class="hint">
+        <b>Clique no canvas</b> ou <b>E+canvas</b> pra adicionar entidade; arraste pra reposicionar.
+        <b>Vista GM</b> mostra posição exata com cores. <b>Vista Jogadores</b> simula o sensor dos jogadores (blips verdes, 2s).
+        Sonar <b>heading-up</b>: ↑ FRENTE = direção do sub.
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
+
+        <div>
+          <canvas id="sonarCanvas" width="320" height="320"></canvas>
+          <div id="mapModeBar" style="display:none;gap:4px;margin-top:4px">
+            <button id="placeModeFish" class="btn is-on" style="flex:1;font-size:9px;color:#44aacc" onclick="mapPlaceMode='fish';document.getElementById('placeModeFish').classList.add('is-on');document.getElementById('placeModeCreature').classList.remove('is-on')">+ PEIXE</button>
+            <button id="placeModeCreature" class="btn" style="flex:1;font-size:9px;color:#ff4400" onclick="mapPlaceMode='creature';document.getElementById('placeModeCreature').classList.add('is-on');document.getElementById('placeModeFish').classList.remove('is-on')">+ CRIATURA</button>
+          </div>
         </div>
-        <button class="btn" id="threatClear" style="width:100%;margin-top:8px">tirar direção da ameaça</button>
+
+        <div class="sonar-sidebar">
+
+          <div>
+            <div class="s-lbl">ENTIDADES / AMEAÇAS</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+              <button class="btn" id="entAdd" style="flex:1;font-size:10px">+ ameaça</button>
+              <button class="btn" id="entFish" style="flex:1;font-size:10px;color:#44aacc">+ peixe</button>
+              <button class="btn" id="entClear" style="flex:1;font-size:10px;color:var(--danger)">limpar</button>
+            </div>
+            <div id="entityList" style="display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto;overflow-x:hidden"></div>
+          </div>
+
+          <div style="font-size:9px;color:var(--ink-dim);line-height:1.7">
+            E+canvas · clique · "+ nova" = criar<br>arrastar = mover
+          </div>
+
+          <div style="border-top:1px solid var(--line);padding-top:10px;font-size:10px;color:var(--ink-dim);line-height:2.1;letter-spacing:.02em">
+            <div style="letter-spacing:.12em;margin-bottom:4px">LEGENDA</div>
+            <div><span class="sonar-dot" style="background:#1eff60;box-shadow:0 0 3px #1eff60"></span>Sub (centro)</div>
+            <div><span class="sonar-dot" style="background:#00ff80;box-shadow:0 0 5px #00ff80"></span>Blip (jogadores)</div>
+            <div><span class="sonar-dot" style="background:#2f6f62;border-radius:2px"></span>Investigador (GM)</div>
+          </div>
+
+        </div>
       </div>
     </div>
 
-    <div class="footer">
-      <span>O visor é controlado quase todo por você. Os jogadores só espiam.</span>
-      <span class="x" id="subreset">RESETAR SUBMARINO</span>
-    </div>
-  </div>
+  </div><!-- /tab-submarino -->
 
-  <!-- ARQUIVOS -->
-  <div class="card">
-    <div class="hd"><div class="name dim">ARQUIVOS // <b>escrever ao vivo</b></div></div>
-    <div class="hint">
-      Escreva um dossiê e escolha o nível. Publicar só salva — ele <b>não</b> aparece pros jogadores até você marcar
-      <b>DISPONÍVEL</b> na lista de baixo. Assim você segura cada documento até a hora certa.
+  <!-- TAB: DRE -->
+  <div id="tab-dre" class="tabpanel">
+    <div class="card" style="opacity:.4;pointer-events:none">
+      <div class="hd"><div class="name dim">ARQUIVO DRE // <b>não inicializado</b></div></div>
+      <div class="hint">Terminal DRE não inicializado. Em desenvolvimento.</div>
     </div>
-
-    <div class="editor">
-      <div class="pickbar">
-        <input type="text" id="docTitle" placeholder="Título do arquivo (ex: Incident Report 04-A)">
-        <select id="docLevel"></select>
-      </div>
-      <textarea id="docBody" placeholder="Corpo do dossiê.&#10;&#10;## cabeçalho de seção&#10;[[ texto ]] vira tarja de redigido&#10;*texto* vira ênfase&#10;Linha em branco separa parágrafos."></textarea>
-      <div class="tools">marcas: <code>## Cabeçalho</code> &nbsp; <code>[[ redigido ]]</code> &nbsp; <code>*ênfase*</code> &nbsp; — linha em branco = novo parágrafo</div>
-      <div class="acts">
-        <button class="pub" id="publish">SALVAR ARQUIVO</button>
-        <button class="btn" id="clearForm">limpar campos</button>
-        <span class="saved" id="saved">✓ salvo</span>
-      </div>
-    </div>
-
-    <div class="sub-hd"><span>ARQUIVOS SALVOS — marque DISPONÍVEL pra liberar pros jogadores</span></div>
-    <div class="doclist" id="doclist"></div>
   </div>
 
   <div class="urls">
-    <div>jogadores abrem &rarr; <code>.../estacao.html</code></div>
-    <div>você (este painel) &rarr; <code>.../guardiao.html</code></div>
+    <div>jogadores &rarr; <code>.../estacao.html</code></div>
+    <div>guardião &rarr; <code>.../guardiao.html</code></div>
   </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -252,6 +355,21 @@
 <script>
   const CAM_COOLDOWN = 60000;
   document.getElementById("sk").textContent = SESSION_KEY;
+
+  // ---- sonar state ----
+  let sonarView = "gm";   // "gm" | "player"
+  let currentSubNav = { x: 0, depth: 200, heading: 0 };
+  let viewers = {};
+  let sonarScanT = 0;
+  // Entidades (ameaças coloridas)
+  let entities = {}, entityBlips = {};
+  let expandedEntities = new Set();
+  // Cabo: breadcrumbs do caminho do sub (navPath sincronizado do submarino)
+  let navPathData = [];
+  // Drag + hover no canvas
+  let dragEntityId = null, justDraggedEntity = false;
+  let mouseCanvasX = 160, mouseCanvasY = 160, mouseOverCanvas = false;
+  let entDragThrottle = 0;
 
   const LEVELS = [
     { id:"helipad",  tag:"L-07", name:"Helipad" },
@@ -270,60 +388,49 @@
   ];
 
   const ref = sessionRef.child("station");
-  const elLvls=document.getElementById("lvls");
-  const elCams=document.getElementById("cams");
+  const elLvls = document.getElementById("lvls");
+  const elCams = document.getElementById("cams");
 
-  // niveis
   LEVELS.forEach(l=>{
     const row=document.createElement("div");
     row.className="row"; row.dataset.id=l.id;
-    row.innerHTML=`
-      <div class="tag">${l.tag}</div>
-      <div class="nm">${l.name}</div>
+    row.innerHTML=`<div class="tag">${l.tag}</div><div class="nm">${l.name}</div>
       <button class="btn lock" data-act="lock">LIBERAR</button>
       <button class="btn force" data-act="force">FORÇAR</button>`;
     elLvls.appendChild(row);
   });
 
-  // editor: select de niveis
   const elDocLevel=document.getElementById("docLevel");
   LEVELS.forEach(l=>{const o=document.createElement("option");o.value=l.id;o.textContent=`${l.tag} · ${l.name}`;elDocLevel.appendChild(o);});
 
-  // cameras
   CAMERAS.forEach(c=>{
     const d=document.createElement("div");
     d.className="cam"; d.dataset.id=c.id;
-    d.innerHTML=`
-      <div class="cl">${c.label}</div>
-      <div class="cloc">${c.loc}</div>
-      <div class="cstat" data-stat>OFF</div>
-      <button class="toggle" data-id="${c.id}">LIGAR</button>`;
+    d.innerHTML=`<div class="cl">${c.label}</div><div class="cloc">${c.loc}</div>
+      <div class="cstat" data-stat>OFF</div><button class="toggle" data-id="${c.id}">LIGAR</button>`;
     elCams.appendChild(d);
   });
 
-  // ===== acoes =====
+  // ---- ações estação ----
   document.getElementById("power").addEventListener("click",()=>ref.child("online").transaction(v=>!v));
 
-  elLvls.addEventListener("click", e=>{
+  elLvls.addEventListener("click",e=>{
     const btn=e.target.closest("button"); if(!btn) return;
-    const id=btn.closest(".row").dataset.id;
-    const act=btn.dataset.act;
-    if(act==="lock"){ ref.child("unlocked/"+id).transaction(v=>v?null:true); }
-    if(act==="force"){ ref.child("force").transaction(v=> v===id?null:id ); }
+    const id=btn.closest(".row").dataset.id, act=btn.dataset.act;
+    if(act==="lock") ref.child("unlocked/"+id).transaction(v=>v?null:true);
+    if(act==="force") ref.child("force").transaction(v=>v===id?null:id);
   });
 
-  // camera: liga/desliga (toggle do "on"). Ligar zera o cooldown.
-  elCams.addEventListener("click", e=>{
+  elCams.addEventListener("click",e=>{
     const btn=e.target.closest(".toggle"); if(!btn) return;
     const id=btn.dataset.id;
     ref.child("cams/"+id).once("value").then(s=>{
       const c=s.val()||{};
-      if(c.on){ ref.child("cams/"+id).set({on:false}); }
-      else { ref.child("cams/"+id).set({on:true, pulledAt:0}); } // ON e pronto pra puxar
+      ref.child("cams/"+id).set(c.on?{on:false}:{on:true,pulledAt:0});
     });
   });
 
-  // ===== editor =====
+  // ---- editor ----
   const elTitle=document.getElementById("docTitle");
   const elBody=document.getElementById("docBody");
   const elSaved=document.getElementById("saved");
@@ -331,274 +438,757 @@
 
   document.getElementById("publish").addEventListener("click",()=>{
     const title=elTitle.value.trim(); if(!title){elTitle.focus();return;}
-    // preserva o estado 'available' se estiver editando
     const finish=(prevAvail)=>{
-      const payload={title, body:elBody.value, level:elDocLevel.value, at:Date.now(), available:!!prevAvail};
+      const payload={title,body:elBody.value,level:elDocLevel.value,at:Date.now(),available:!!prevAvail};
       const dest=editingKey?ref.child("files/"+editingKey):ref.child("files").push();
-      dest.set(payload);
-      editingKey=null;
+      dest.set(payload); editingKey=null;
       elSaved.classList.add("show"); setTimeout(()=>elSaved.classList.remove("show"),1600);
       elTitle.value=""; elBody.value="";
     };
-    if(editingKey){ ref.child("files/"+editingKey+"/available").once("value").then(s=>finish(s.val())); }
+    if(editingKey) ref.child("files/"+editingKey+"/available").once("value").then(s=>finish(s.val()));
     else finish(false);
   });
 
   document.getElementById("clearForm").addEventListener("click",()=>{elTitle.value="";elBody.value="";editingKey=null;});
 
   const elDocList=document.getElementById("doclist");
-  ref.child("files").on("value", snap=>{
-    const files=snap.val()||{}; const keys=Object.keys(files);
-    if(!keys.length){ elDocList.innerHTML=`<div style="color:var(--ink-dim);opacity:.5;font-size:12px">Nenhum arquivo salvo ainda.</div>`; return; }
+  ref.child("files").on("value",snap=>{
+    const files=snap.val()||{}, keys=Object.keys(files);
+    if(!keys.length){elDocList.innerHTML=`<div style="color:var(--ink-dim);opacity:.5;font-size:12px">Nenhum arquivo salvo ainda.</div>`;return;}
     keys.sort((a,b)=>(files[a].level||"").localeCompare(files[b].level||""));
     elDocList.innerHTML="";
     keys.forEach(k=>{
-      const f=files[k];
-      const lvlName=(LEVELS.find(l=>l.id===f.level)||{}).name||f.level||"—";
+      const f=files[k], lvlName=(LEVELS.find(l=>l.id===f.level)||{}).name||f.level||"—";
       const d=document.createElement("div");
       d.className="doc"+(f.available?" avail":"");
       d.innerHTML=`<span class="dt">${escapeHtml(f.title||"(sem título)")}</span>
-                   <span class="dl">${escapeHtml(lvlName)}</span>
-                   <button class="av" data-k="${k}">${f.available?"DISPONÍVEL":"oculto"}</button>
-                   <button class="edit" data-k="${k}">editar</button>
-                   <button class="del" data-k="${k}">apagar</button>`;
+        <span class="dl">${escapeHtml(lvlName)}</span>
+        <button class="av" data-k="${k}">${f.available?"DISPONÍVEL":"oculto"}</button>
+        <button class="edit" data-k="${k}">editar</button>
+        <button class="del" data-k="${k}">apagar</button>`;
       elDocList.appendChild(d);
     });
   });
 
-  elDocList.addEventListener("click", e=>{
+  elDocList.addEventListener("click",e=>{
     const k=e.target.dataset.k; if(!k) return;
-    if(e.target.classList.contains("av")){ ref.child("files/"+k+"/available").transaction(v=>!v); }
+    if(e.target.classList.contains("av")) ref.child("files/"+k+"/available").transaction(v=>!v);
     if(e.target.classList.contains("del")){
-      if(confirm("Apagar este arquivo? Some pros jogadores também.")) ref.child("files/"+k).remove();
+      if(confirm("Apagar este arquivo?")) ref.child("files/"+k).remove();
     }
     if(e.target.classList.contains("edit")){
       ref.child("files/"+k).once("value").then(s=>{
         const f=s.val(); if(!f) return;
         elTitle.value=f.title||""; elBody.value=f.body||""; elDocLevel.value=f.level||LEVELS[0].id;
         editingKey=k;
-        window.scrollTo({top:document.querySelector(".editor").offsetTop-40,behavior:"smooth"});
+        document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+        document.querySelectorAll(".tabpanel").forEach(p=>p.classList.remove("active"));
+        document.querySelector(".tab[data-tab='estacao']").classList.add("active");
+        document.getElementById("tab-estacao").classList.add("active");
+        setTimeout(()=>window.scrollTo({top:document.querySelector(".editor").offsetTop-40,behavior:"smooth"}),50);
       });
     }
   });
 
   document.getElementById("reset").addEventListener("click",()=>{
-    if(confirm("Resetar a Estação? Desliga, tranca níveis, solta foco e desliga câmeras. Mantém os arquivos salvos.")){
-      ref.child("online").set(false);
-      ref.child("unlocked").set({});
-      ref.child("force").set(null);
-      ref.child("cams").set({});
+    if(confirm("Resetar a Estação?")){
+      ref.child("online").set(false); ref.child("unlocked").set({});
+      ref.child("force").set(null); ref.child("cams").set({});
     }
   });
 
-  // ===== reflete estado no painel =====
-  ref.on("value", snap=>{
-    const s=snap.val()||{};
-    const online=!!s.online;
+  ref.on("value",snap=>{
+    const s=snap.val()||{}, online=!!s.online;
     const power=document.getElementById("power");
     power.classList.toggle("on",online);
     document.getElementById("powertxt").textContent=online?"TERMINAL LIGADO":"TERMINAL DESLIGADO";
-
-    const unlocked=s.unlocked||{};
-    const force=s.force||null;
+    const unlocked=s.unlocked||{}, force=s.force||null;
     document.querySelectorAll(".row").forEach(row=>{
-      const id=row.dataset.id;
-      const isUn=!!unlocked[id];
-      row.classList.toggle("unlocked",isUn);
-      row.classList.toggle("forced",force===id);
-      const lockBtn=row.querySelector(".lock");
-      lockBtn.textContent=isUn?"TRANCAR":"LIBERAR"; lockBtn.classList.toggle("is-on",isUn);
-      const forceBtn=row.querySelector(".force");
-      forceBtn.disabled=!isUn; // so força o que está liberado
-      forceBtn.classList.toggle("is-on",force===id);
-      forceBtn.textContent=force===id?"FORÇANDO":"FORÇAR";
+      const id=row.dataset.id, isUn=!!unlocked[id];
+      row.classList.toggle("unlocked",isUn); row.classList.toggle("forced",force===id);
+      const lb=row.querySelector(".lock"); lb.textContent=isUn?"TRANCAR":"LIBERAR"; lb.classList.toggle("is-on",isUn);
+      const fb=row.querySelector(".force"); fb.disabled=!isUn;
+      fb.classList.toggle("is-on",force===id); fb.textContent=force===id?"FORÇANDO":"FORÇAR";
     });
-
-    // botao global de soltar foco
     let cf=document.getElementById("clearForceBtn");
-    const camsHd=document.querySelectorAll(".sub-hd")[0];
     if(force){
       if(!cf){
-        cf=document.createElement("button");
-        cf.id="clearForceBtn"; cf.className="clear-force";
+        cf=document.createElement("button"); cf.id="clearForceBtn"; cf.className="clear-force";
         cf.textContent="✕ SOLTAR FOCO";
         cf.addEventListener("click",()=>ref.child("force").set(null));
-        document.querySelector(".lvls").parentNode.insertBefore(cf, document.querySelector(".lvls").nextSibling);
+        document.querySelector(".lvls").parentNode.insertBefore(cf,document.querySelector(".lvls").nextSibling);
       }
-    } else if(cf){ cf.remove(); }
-
-    // cameras
-    const cams=s.cams||{}; const now=Date.now();
+    } else if(cf) cf.remove();
+    const cams=s.cams||{}, now=Date.now();
     document.querySelectorAll(".cam").forEach(cam=>{
-      const id=cam.dataset.id; const c=cams[id]||{};
-      const isOn=!!c.on; const pulledAt=c.pulledAt||0;
-      const inCool=isOn && (now-pulledAt<CAM_COOLDOWN) && pulledAt>0;
+      const id=cam.dataset.id, c=cams[id]||{};
+      const isOn=!!c.on, pulledAt=c.pulledAt||0, inCool=isOn&&(now-pulledAt<CAM_COOLDOWN)&&pulledAt>0;
       cam.classList.toggle("on",isOn);
-      const stat=cam.querySelector("[data-stat]");
-      const toggle=cam.querySelector(".toggle");
+      const stat=cam.querySelector("[data-stat]"), toggle=cam.querySelector(".toggle");
       stat.classList.toggle("cool",inCool);
-      if(!isOn){ stat.textContent="OFF"; toggle.textContent="LIGAR"; }
-      else if(inCool){ const left=Math.ceil((CAM_COOLDOWN-(now-pulledAt))/1000); stat.textContent=`COOLDOWN ${left}s`; toggle.textContent="DESLIGAR"; }
-      else { stat.textContent="● ON / pronta"; toggle.textContent="DESLIGAR"; }
+      if(!isOn){stat.textContent="OFF";toggle.textContent="LIGAR";}
+      else if(inCool){stat.textContent=`COOLDOWN ${Math.ceil((CAM_COOLDOWN-(now-pulledAt))/1000)}s`;toggle.textContent="DESLIGAR";}
+      else{stat.textContent="● ON / pronta";toggle.textContent="DESLIGAR";}
     });
   });
-  // tick pro cooldown atualizar no painel
-  setInterval(()=>{ ref.child("cams").once("value").then(s=>{
-    const cams=s.val()||{}; const now=Date.now();
+
+  setInterval(()=>{ref.child("cams").once("value").then(s=>{
+    const cams=s.val()||{}, now=Date.now();
     document.querySelectorAll(".cam").forEach(cam=>{
-      const id=cam.dataset.id; const c=cams[id]||{};
+      const id=cam.dataset.id, c=cams[id]||{};
       if(!c.on) return;
-      const pulledAt=c.pulledAt||0;
-      const inCool=(now-pulledAt<CAM_COOLDOWN)&&pulledAt>0;
+      const pulledAt=c.pulledAt||0, inCool=(now-pulledAt<CAM_COOLDOWN)&&pulledAt>0;
       const stat=cam.querySelector("[data-stat]");
       stat.classList.toggle("cool",inCool);
-      if(inCool){ const left=Math.ceil((CAM_COOLDOWN-(now-pulledAt))/1000); stat.textContent=`COOLDOWN ${left}s`; }
-      else stat.textContent="● ON / pronta";
+      stat.textContent=inCool?`COOLDOWN ${Math.ceil((CAM_COOLDOWN-(now-pulledAt))/1000)}s`:"● ON / pronta";
     });
-  }); },1000);
+  });},1000);
 
   // =================== SUBMARINO ===================
-  const subRef = sessionRef.child("submarine");
-  // modos de pilotagem (controlam nav.mode)
+  const subRef=sessionRef.child("submarine");
   const SUB_MODES=[
-    {id:"moonpool", label:"Na moonpool"},
-    {id:"diving",   label:"Submersos"},
-    {id:"reeling",  label:"Puxar de volta"}
+    {id:"moonpool",label:"Na moonpool"},
+    {id:"diving",  label:"Submersos"},
+    {id:"reeling", label:"Puxar de volta"}
   ];
-  // estados de ameaça (controlam state)
-  const SUB_STATES=[
-    {id:"void",     label:"Nada"},
-    {id:"distant",  label:"Algo à distância"},
-    {id:"passing",  label:"Vulto no visor"},
-    {id:"close",    label:"Contato próximo"}
-  ];
-
-  // monta botoes de pilotagem
   const elSubModes=document.getElementById("submodes");
   SUB_MODES.forEach(s=>{
     const b=document.createElement("button");
     b.className="btn submode"; b.dataset.mode=s.id; b.textContent=s.label;
     elSubModes.appendChild(b);
   });
-  // monta botoes de ameaça
-  const elSubStates=document.getElementById("substates");
-  SUB_STATES.forEach(s=>{
-    const b=document.createElement("button");
-    b.className="btn substate"; b.dataset.state=s.id; b.textContent=s.label;
-    b.style.textAlign="left";
-    elSubStates.appendChild(b);
-  });
 
   document.getElementById("subpower").addEventListener("click",()=>subRef.child("online").transaction(v=>!v));
-
-  document.querySelectorAll(".skin").forEach(b=>{
-    b.addEventListener("click",()=>subRef.child("skin").set(b.dataset.skin));
-  });
+  document.querySelectorAll(".skin").forEach(b=>b.addEventListener("click",()=>subRef.child("skin").set(b.dataset.skin)));
   document.getElementById("crackBtn").addEventListener("click",()=>{
     subRef.child("cracked").once("value").then(s=>{
       const isCracked=!!s.val();
-      if(!isCracked){
-        if(confirm("Rachar o casco do submarino velho? Fica danificado permanentemente até você consertar aqui.")){
-          subRef.child("cracked").set(true);
-        }
-      } else { subRef.child("cracked").set(false); }
+      if(!isCracked){if(confirm("Rachar o casco?")) subRef.child("cracked").set(true);}
+      else subRef.child("cracked").set(false);
     });
   });
-  // pilotagem: muda nav.mode
-  elSubModes.addEventListener("click",e=>{
-    const b=e.target.closest(".submode"); if(!b) return;
-    subRef.child("nav/mode").set(b.dataset.mode);
-  });
-  // zerar profundidade pra superfície
-  document.getElementById("navSurface").addEventListener("click",()=>{
-    subRef.child("nav").update({x:0,depth:200,heading:0,mode:"moonpool"});
-  });
-  // ameaça: muda state
-  elSubStates.addEventListener("click",e=>{
-    const b=e.target.closest(".substate"); if(!b) return;
-    subRef.child("state").set(b.dataset.state);
+  // shutter override
+  const elShutterStatus=document.getElementById("shutterStatus");
+  const SHUTTER_LABELS={"auto":"modo: auto","force_open":"modo: FORÇADO ABERTO","force_closed":"modo: FORÇADO FECHADO"};
+  function setShutter(v){ subRef.child("shutter").set(v); elShutterStatus.textContent=SHUTTER_LABELS[v]||""; }
+  document.getElementById("shutterAuto").addEventListener("click",()=>setShutter("auto"));
+  document.getElementById("shutterOpen").addEventListener("click",()=>setShutter("force_open"));
+  document.getElementById("shutterClose").addEventListener("click",()=>setShutter("force_closed"));
+  subRef.child("shutter").on("value",snap=>{
+    const v=snap.val()||"auto";
+    elShutterStatus.textContent=SHUTTER_LABELS[v]||"modo: auto";
   });
 
-  // leitura livre
+  elSubModes.addEventListener("click",e=>{const b=e.target.closest(".submode");if(b) subRef.child("nav/mode").set(b.dataset.mode);});
+  document.getElementById("navSurface").addEventListener("click",()=>subRef.child("nav").update({x:0,depth:1000,heading:0,mode:"moonpool"}));
   const elSubReadout=document.getElementById("subReadout");
   elSubReadout.addEventListener("input",()=>subRef.child("readout").set(elSubReadout.value));
   document.getElementById("subReadClear").addEventListener("click",()=>{elSubReadout.value="";subRef.child("readout").set("");});
-
-  // imagem
-  document.getElementById("subImgSet").addEventListener("click",()=>{
-    const u=document.getElementById("subImgUrl").value.trim();
-    subRef.child("imgUrl").set(u||null);
+  document.getElementById("subImgSet").addEventListener("click",()=>subRef.child("imgUrl").set(document.getElementById("subImgUrl").value.trim()||null));
+  document.getElementById("subImgClear").addEventListener("click",()=>{document.getElementById("subImgUrl").value="";subRef.child("imgUrl").set(null);});
+  document.getElementById("coralGrow").addEventListener("click",()=>{
+    subRef.child("coralGrowth").set(true);
+    document.getElementById("coralStatus").textContent="ATIVO";
+    document.getElementById("coralStatus").style.color="var(--danger)";
   });
-  document.getElementById("subImgClear").addEventListener("click",()=>{
-    document.getElementById("subImgUrl").value=""; subRef.child("imgUrl").set(null);
+  document.getElementById("coralReset").addEventListener("click",()=>{
+    subRef.child("coralGrowth").set(false);
+    document.getElementById("coralStatus").textContent="inativo";
+    document.getElementById("coralStatus").style.color="var(--ink-dim)";
   });
-
   document.getElementById("subreset").addEventListener("click",()=>{
-    if(confirm("Resetar o submarino? Desliga o visor, zera profundidade/percurso, ameaça, direção, leitura e imagem.")){
-      subRef.update({online:false,state:"void",threatDir:null,readout:"",imgUrl:null,cracked:false});
-      subRef.child("nav").set({x:0,depth:200,heading:0,mode:"moonpool"});
+    if(confirm("Resetar o submarino?")){
+      subRef.update({online:false,readout:"",imgUrl:null,cracked:false,coralGrowth:false,entities:null});
+      subRef.child("nav").set({x:0,depth:1000,heading:0,mode:"moonpool"});
+      document.getElementById("coralStatus").textContent="inativo";
+      document.getElementById("coralStatus").style.color="var(--ink-dim)";
     }
   });
 
-  // ---- RADAR / minimapa ----
-  const radar=document.getElementById("radar");
-  const rctx=radar.getContext("2d");
-  const RC=110, RR=88; // centro e raio
-  let viewers={}, threatDir=null, subSkinNow="old";
+  // =================== SONAR UNIFICADO ===================
+  const sonarCanvas=document.getElementById("sonarCanvas");
+  const sctx=sonarCanvas.getContext("2d");
+  const S_W=320, S_H=320, S_CX=160, S_CY=160, S_RANGE=100, S_SCALE=1.6;
+  const UNITS_PER_M=10;
+  // ===== MAPA DO MUNDO (mesma grade do submarino/monitor) =====
+  const TILE=40, X_MIN_W=-400, GRID_COLS=21, GRID_ROWS=640;
+  const MAP_VIS_ABOVE=40, MAP_VIS_BELOW=40;
+  const MAP_CELL_W=15, MAP_CELL_H=4; // 15*21=315px, 4*80=320px — cabe no canvas 320×320
+  const MAP=(()=>{
+    const m=Array.from({length:GRID_ROWS},()=>new Uint8Array(GRID_COLS).fill(1));
+    const open=(r0,r1,c0,c1)=>{
+      for(let r=Math.max(0,r0);r<=Math.min(GRID_ROWS-1,r1);r++)
+        for(let c=Math.max(0,c0);c<=Math.min(GRID_COLS-1,c1);c++) m[r][c]=0;
+    };
+    open(25,29,9,11);
+    open(30,49,8,12);
+    open(50,74,8,12);
+    open(75,124,4,16);
+    open(115,130,13,19); open(130,160,14,19); open(155,200,13,18); open(197,207,11,18);
+    open(125,239,8,12);
+    open(240,280,7,15);
+    open(280,459,8,12);
+    open(460,472,7,13); open(473,508,9,11); open(509,589,8,12);
+    open(590,632,3,17);
+    open(100,130,3,6); open(130,180,2,6); open(175,192,2,9); open(185,225,4,7);
+    open(190,210,14,19); open(200,265,17,20); open(250,285,13,20); open(270,300,15,18);
+    return m;
+  })();
 
-  // clique no anel = define direcao da ameaca
-  radar.addEventListener("click",e=>{
-    const rect=radar.getBoundingClientRect();
-    const x=e.clientX-rect.left-RC, y=e.clientY-rect.top-RC;
-    let ang=Math.atan2(x,-y)*180/Math.PI; // 0 = topo (norte), horario
-    ang=(ang+360)%360;
-    subRef.child("threatDir").set(Math.round(ang));
-  });
-  document.getElementById("threatClear").addEventListener("click",()=>subRef.child("threatDir").set(null));
+  // Jitter suave baseado em tempo (bio-movimento contínuo)
+  function threatJitter(t) {
+    return {
+      dx: Math.sin(t*0.83)*0.9 + Math.sin(t*2.07)*0.5,
+      dy: Math.sin(t*1.13+1.2)*0.8 + Math.sin(t*0.67+2.4)*0.6
+    };
+  }
 
-  function drawRadar(){
-    rctx.clearRect(0,0,220,220);
-    // aneis
-    rctx.strokeStyle="#2a3035"; rctx.lineWidth=1;
-    [RR,RR*0.66,RR*0.33].forEach(r=>{rctx.beginPath();rctx.arc(RC,RC,r,0,7);rctx.stroke();});
-    // cruz
-    rctx.beginPath();rctx.moveTo(RC,RC-RR);rctx.lineTo(RC,RC+RR);rctx.moveTo(RC-RR,RC);rctx.lineTo(RC+RR,RC);rctx.stroke();
-    // N
-    rctx.fillStyle="#6a767d";rctx.font="9px monospace";rctx.textAlign="center";rctx.fillText("N",RC,RC-RR-4);
+  // Calcula posição de approach pela trajetória armazenada — funciona sem guardião aberto
+  function getApproachPos(ent, now) {
+    if(typeof ent.wx!=="number"||!ent.lastUpdateTime) return {wx:ent.wx||0,wd:ent.wd||0};
+    const elapsed=Math.max(0,(now-ent.lastUpdateTime)/1000);
+    const dx=(ent.tx||0)-ent.wx, dd=(ent.td||0)-ent.wd;
+    const dist=Math.hypot(dx,dd);
+    if(dist<1||!(ent.speed>0)) return {wx:ent.wx,wd:ent.wd};
+    const moved=Math.min(elapsed*ent.speed,dist);
+    return {wx:ent.wx+(dx/dist)*moved, wd:ent.wd+(dd/dist)*moved};
+  }
+  // Posição relativa ao sub: fixed usa dx/dy, approach usa trajetória calculada, fish usa wx/wd absoluto
+  function entDisplayPos(ent) {
+    if(ent.mode==="approach"&&typeof ent.wx==="number"){
+      const pos=getApproachPos(ent,Date.now());
+      return {dx:pos.wx-(currentSubNav.x||0), dy:pos.wd-(currentSubNav.depth||1000)};
+    }
+    if((ent.mode==="fish"||ent.mode==="creature")&&typeof ent.wx==="number"){
+      return {dx:ent.wx-(currentSubNav.x||0), dy:ent.wd-(currentSubNav.depth||1000)};
+    }
+    return {dx:ent.dx||0, dy:ent.dy||0};
+  }
 
-    // submersivel no centro
-    rctx.fillStyle="#62e0c4";
-    rctx.beginPath();rctx.arc(RC,RC,5,0,7);rctx.fill();
+  // Rotação heading-up: world-relative → display (sub aponta pra cima no canvas)
+  function rotByHdg(pos) {
+    if (!pos) return null;
+    const α = (currentSubNav.heading||0) * Math.PI / 180 - Math.PI;
+    const ca = Math.cos(α), sa = Math.sin(α);
+    return { dx: pos.dx*ca - pos.dy*sa, dy: pos.dx*sa + pos.dy*ca };
+  }
+  // Inversa: display (canvas) → world-relative
+  function unrotByHdg(rdx, rdy) {
+    const α = (currentSubNav.heading||0) * Math.PI / 180 - Math.PI;
+    const ca = Math.cos(α), sa = Math.sin(α);
+    return { dx: rdx*ca + rdy*sa, dy: -rdx*sa + rdy*ca };
+  }
 
-    // setas dos investigadores (heading)
-    const now=Date.now();
-    Object.keys(viewers).forEach((id,i)=>{
-      const v=viewers[id]; if(!v||now-(v.at||0)>12000) return; // some apos 12s sem reportar
+  // ---- helpers de desenho ----
+  function drawGrid() {
+    sctx.strokeStyle="#0d2010"; sctx.lineWidth=1;
+    [25,50,75,100].forEach(m=>{
+      sctx.beginPath(); sctx.arc(S_CX,S_CY,m*S_SCALE,0,Math.PI*2); sctx.stroke();
+    });
+    sctx.beginPath();
+    sctx.moveTo(S_CX,4); sctx.lineTo(S_CX,S_H-4);
+    sctx.moveTo(4,S_CY); sctx.lineTo(S_W-4,S_CY);
+    sctx.stroke();
+    sctx.fillStyle="#0e2a10"; sctx.font="8px monospace";
+    sctx.textAlign="left";
+    [25,50,75].forEach(m=>sctx.fillText(m+"m", S_CX+m*S_SCALE+2, S_CY-2));
+    sctx.fillStyle="#0e3018"; sctx.textAlign="center";
+    sctx.fillText("↑ FRENTE",S_CX,11); sctx.fillText("↓ TRÁS",S_CX,S_H-3);
+    sctx.textAlign="right"; sctx.fillText("DIR",S_W-3,S_CY-3);
+    sctx.textAlign="left";  sctx.fillText("ESQ",3,S_CY-3);
+  }
+
+  function drawSub() {
+    const sg=sctx.createRadialGradient(S_CX,S_CY,0,S_CX,S_CY,10);
+    sg.addColorStop(0,"rgba(30,255,96,.5)"); sg.addColorStop(1,"rgba(30,255,96,0)");
+    sctx.fillStyle=sg; sctx.beginPath(); sctx.arc(S_CX,S_CY,10,0,Math.PI*2); sctx.fill();
+    sctx.fillStyle="#1eff60"; sctx.beginPath(); sctx.arc(S_CX,S_CY,4,0,Math.PI*2); sctx.fill();
+  }
+
+  function drawGreenBlip(bx, by, alpha) {
+    if(bx<2||bx>S_W-2||by<2||by>S_H-2) return;
+    const g=sctx.createRadialGradient(bx,by,0,bx,by,16);
+    g.addColorStop(0,`rgba(0,255,100,${alpha*0.65})`); g.addColorStop(1,"rgba(0,255,100,0)");
+    sctx.fillStyle=g; sctx.beginPath(); sctx.arc(bx,by,16,0,Math.PI*2); sctx.fill();
+    sctx.fillStyle=`rgba(120,255,160,${alpha})`;
+    sctx.beginPath(); sctx.arc(bx,by,3,0,Math.PI*2); sctx.fill();
+  }
+
+  function drawColorBlip(bx, by, alpha, col) {
+    if(bx<2||bx>S_W-2||by<2||by>S_H-2) return;
+    const r=parseInt(col.slice(1,3),16), g=parseInt(col.slice(3,5),16), b=parseInt(col.slice(5,7),16);
+    const gr=sctx.createRadialGradient(bx,by,0,bx,by,18);
+    gr.addColorStop(0,`rgba(${r},${g},${b},${alpha*0.7})`); gr.addColorStop(1,`rgba(${r},${g},${b},0)`);
+    sctx.fillStyle=gr; sctx.beginPath(); sctx.arc(bx,by,18,0,Math.PI*2); sctx.fill();
+    sctx.fillStyle=`rgba(${Math.min(255,r+40)},${Math.min(255,g+40)},${Math.min(255,b+40)},${alpha})`;
+    sctx.beginPath(); sctx.arc(bx,by,4,0,Math.PI*2); sctx.fill();
+  }
+
+  const ENT_COLORS=["#d65a5a","#d6934a","#d6c44a","#4ab5d6","#7a4ad6","#d64ab5"];
+
+  // ---- Vista GM ----
+  function drawSonarGM() {
+    sctx.fillStyle="#060b06"; sctx.fillRect(0,0,S_W,S_H);
+    drawGrid();
+
+    // Investigadores
+    const now=Date.now(), VR=S_CX*0.82;
+    Object.values(viewers).forEach((v,i)=>{
+      if(!v||now-(v.at||0)>12000) return;
       const h=(v.heading||0)*Math.PI/180;
-      const dx=Math.sin(h), dy=-Math.cos(h);
-      rctx.strokeStyle="#62e0c4";rctx.fillStyle="#62e0c4";rctx.lineWidth=2;
-      rctx.globalAlpha=.85;
-      rctx.beginPath();rctx.moveTo(RC,RC);rctx.lineTo(RC+dx*RR*0.8,RC+dy*RR*0.8);rctx.stroke();
-      // ponta
-      rctx.beginPath();
-      rctx.arc(RC+dx*RR*0.8,RC+dy*RR*0.8,3,0,7);rctx.fill();
-      rctx.globalAlpha=1;
-      // rotulo
-      rctx.fillStyle="#7a8a8a";rctx.font="8px monospace";
-      rctx.fillText("INV "+(i+1), RC+dx*RR*0.92, RC+dy*RR*0.92);
+      const adx=Math.sin(h), ady=-Math.cos(h);
+      sctx.strokeStyle="#1a4a3a"; sctx.lineWidth=1.5; sctx.globalAlpha=0.55;
+      sctx.beginPath(); sctx.moveTo(S_CX,S_CY); sctx.lineTo(S_CX+adx*VR,S_CY+ady*VR); sctx.stroke();
+      sctx.fillStyle="#2f6f62"; sctx.globalAlpha=0.7;
+      sctx.beginPath(); sctx.arc(S_CX+adx*VR,S_CY+ady*VR,3,0,Math.PI*2); sctx.fill();
+      sctx.globalAlpha=0.5; sctx.fillStyle="#2a5a4a"; sctx.font="8px monospace"; sctx.textAlign="center";
+      sctx.fillText("I"+(i+1), S_CX+adx*(VR+10), S_CY+ady*(VR+10)+3);
+    });
+    sctx.globalAlpha=1;
+
+    // Entidades como blips coloridos pulsantes (peixes ficam no mapa, não no sonar)
+    const tsec=now/1000;
+    let entCount=0;
+    Object.entries(entities).forEach(([id,ent],idx)=>{
+      if(!ent||ent.mode==="fish") return;
+      const col=ent.color||"#d65a5a";
+      const vis=ent.visible!==false;
+      const pulse=0.65+0.35*Math.sin(tsec*3.14+idx);
+      const alpha=vis?pulse:pulse*0.28;
+      const pos=entDisplayPos(ent);
+      const rp=rotByHdg(pos);
+      const distM=Math.hypot(pos.dx,pos.dy)/UNITS_PER_M;
+      if(distM>S_RANGE){ entCount++; return; }
+      const bx=S_CX+rp.dx/UNITS_PER_M*S_SCALE, by=S_CY+rp.dy/UNITS_PER_M*S_SCALE;
+      // linha tracejada
+      sctx.setLineDash([3,4]);
+      sctx.strokeStyle=col; sctx.lineWidth=1; sctx.globalAlpha=alpha*0.35;
+      sctx.beginPath(); sctx.moveTo(S_CX,S_CY); sctx.lineTo(bx,by); sctx.stroke();
+      sctx.setLineDash([]); sctx.globalAlpha=1;
+      // blip colorido
+      drawColorBlip(bx,by,alpha,col);
+      // rótulo
+      sctx.globalAlpha=vis?0.9:0.38;
+      sctx.fillStyle=col; sctx.font="8px monospace";
+      sctx.textAlign=bx>S_CX?"left":"right";
+      const modeTag=ent.mode==="approach"?"↗":"·";
+      sctx.fillText(`E${entCount+1} ${modeTag} ${distM.toFixed(0)}m${vis?"":" [oculto]"}`, bx+(bx>S_CX?8:-8), by-7);
+      sctx.globalAlpha=1;
+      entCount++;
     });
 
-    // direcao da ameaca (vermelho)
-    if(threatDir!=null){
-      const a=threatDir*Math.PI/180;
-      const dx=Math.sin(a), dy=-Math.cos(a);
-      rctx.strokeStyle="#d65a5a";rctx.fillStyle="#d65a5a";rctx.lineWidth=2;
-      rctx.beginPath();rctx.moveTo(RC,RC);rctx.lineTo(RC+dx*RR,RC+dy*RR);rctx.stroke();
-      rctx.beginPath();rctx.arc(RC+dx*RR,RC+dy*RR,4,0,7);rctx.fill();
+    drawSub();
+
+    if(mouseOverCanvas && !entCount){
+      sctx.fillStyle="#152015"; sctx.font="9px monospace"; sctx.textAlign="center";
+      sctx.fillText("clique ou E+canvas = nova entidade", S_CX, S_H-4);
+    }
+
+    const el=document.getElementById("sonarStatus");
+    const vis=Object.values(entities).filter(e=>e&&e.visible!==false).length;
+    if(entCount){
+      el.textContent=`${entCount} entidade${entCount>1?"s":""} · ${vis} visív${vis===1?"el":"eis"}`;
+      el.style.color="var(--live)";
+    } else {
+      el.textContent="nenhuma entidade";
+      el.style.color="var(--ink-dim)";
     }
   }
 
-  // escuta estado do submarino pro painel
+  // ---- Vista Jogadores ----
+  function drawSonarPlayer() {
+    sctx.fillStyle="#060b06"; sctx.fillRect(0,0,S_W,S_H);
+
+    const ringAge=(Date.now()-sonarScanT)/2000;
+    if(ringAge<1){
+      sctx.strokeStyle=`rgba(0,200,80,${(1-ringAge)*0.45})`; sctx.lineWidth=1.5;
+      sctx.beginPath(); sctx.arc(S_CX,S_CY,ringAge*S_CX,0,Math.PI*2); sctx.stroke();
+    }
+
+    drawGrid();
+
+    const tnow=Date.now(), tsec=tnow/1000;
+    let entIdx=0;
+    Object.entries(entityBlips).forEach(([id,eb])=>{
+      if(!eb||!eb.pos) return;
+      const pulseAge=(tnow-eb.born)/2000;
+      const pa=Math.max(0.12, 1-pulseAge*0.85);
+      const j=threatJitter(tsec+entIdx*1.37);
+      const rp=rotByHdg(eb.pos);
+      // fora do alcance: não mostrar
+      const rawX=S_CX+(rp.dx+j.dx)/UNITS_PER_M*S_SCALE, rawY=S_CY+(rp.dy+j.dy)/UNITS_PER_M*S_SCALE;
+      if(rawX<4||rawX>S_W-4||rawY<4||rawY>S_H-4) return;
+      drawGreenBlip(rawX, rawY, pa);
+      entIdx++;
+    });
+
+    drawSub();
+
+    const el=document.getElementById("sonarStatus");
+    const n=Object.keys(entityBlips).length;
+    el.textContent=n?`${n} objeto${n>1?"s":""} em movimento`:"nenhum movimento";
+    el.style.color=n?"var(--live)":"var(--ink-dim)";
+  }
+
+  // ===== MAPA DO MUNDO no guardião: vista de cima, peixes clicáveis =====
+  function drawGuardMap(){
+    const W=S_W, H=S_H;
+    sctx.fillStyle='#070a0f'; sctx.fillRect(0,0,W,H);
+    const subDepth=currentSubNav.depth||1000;
+    const subX=currentSubNav.x||0;
+    const subRow=subDepth/TILE, subCol=(subX-X_MIN_W)/TILE;
+    const viewStart=subRow-MAP_VIS_ABOVE;
+    const rStart=Math.floor(viewStart), rEnd=Math.ceil(viewStart+MAP_VIS_ABOVE+MAP_VIS_BELOW);
+    for(let r=Math.max(0,rStart);r<=Math.min(GRID_ROWS-1,rEnd);r++){
+      const py=(r-viewStart)*MAP_CELL_H;
+      for(let c=0;c<GRID_COLS;c++){
+        const px=c*MAP_CELL_W;
+        const isOpen=MAP[r]&&MAP[r][c]===0;
+        sctx.fillStyle=isOpen?'#04111e':'#030609';
+        sctx.fillRect(px,py,MAP_CELL_W-1,MAP_CELL_H);
+      }
+    }
+    // marcadores de profundidade
+    sctx.font='7px monospace'; sctx.textAlign='left';
+    for(let md=0;md<=2600;md+=100){
+      const r=(md*UNITS_PER_M)/TILE;
+      const py=(r-viewStart)*MAP_CELL_H;
+      if(py<-6||py>H+6) continue;
+      sctx.strokeStyle=md%200===0?'rgba(0,100,160,.4)':'rgba(0,60,100,.15)';
+      sctx.lineWidth=1;
+      sctx.beginPath(); sctx.moveTo(0,py); sctx.lineTo(W,py); sctx.stroke();
+      if(md%200===0){ sctx.fillStyle='rgba(0,130,190,.7)'; sctx.fillText(md+'m',2,py-1); }
+    }
+    // cabo (corda do submarino)
+    if(navPathData.length>0){
+      const moonPx=((0)-X_MIN_W)/TILE*MAP_CELL_W;
+      const moonPy=(1000/TILE-viewStart)*MAP_CELL_H;
+      sctx.save();
+      sctx.strokeStyle='rgba(100,170,255,0.35)';
+      sctx.lineWidth=1.5; sctx.setLineDash([3,3]);
+      sctx.beginPath(); sctx.moveTo(moonPx,moonPy);
+      navPathData.forEach(pt=>{
+        sctx.lineTo(((pt.x||0)-X_MIN_W)/TILE*MAP_CELL_W, ((pt.depth||0)/TILE-viewStart)*MAP_CELL_H);
+      });
+      sctx.lineTo(subCol*MAP_CELL_W,(subRow-viewStart)*MAP_CELL_H);
+      sctx.stroke(); sctx.setLineDash([]); sctx.restore();
+    }
+    // peixes
+    Object.entries(entities).forEach(([id,ent])=>{
+      if(!ent||ent.mode!=="fish") return;
+      const r=(ent.wd||0)/TILE, c=((ent.wx||0)-X_MIN_W)/TILE;
+      const px=c*MAP_CELL_W, py=(r-viewStart)*MAP_CELL_H;
+      if(py<-8||py>H+8) return;
+      const vis=ent.visible!==false;
+      sctx.globalAlpha=vis?1:0.35;
+      sctx.fillStyle='#44aacc';
+      sctx.beginPath(); sctx.arc(px,py,4,0,Math.PI*2); sctx.fill();
+      sctx.fillStyle='#88ddee'; sctx.font='8px monospace'; sctx.textAlign='left';
+      sctx.fillText('P',px+6,py+3);
+      sctx.globalAlpha=1;
+    });
+    // sub
+    const sx=subCol*MAP_CELL_W, sy=(subRow-viewStart)*MAP_CELL_H;
+    const pulse=0.65+0.35*Math.sin(Date.now()/500);
+    const gr=sctx.createRadialGradient(sx,sy,0,sx,sy,12);
+    gr.addColorStop(0,`rgba(76,143,200,${0.5*pulse})`); gr.addColorStop(1,'rgba(76,143,200,0)');
+    sctx.fillStyle=gr; sctx.beginPath(); sctx.arc(sx,sy,12,0,Math.PI*2); sctx.fill();
+    const hRad=(currentSubNav.heading||0)*Math.PI/180;
+    sctx.strokeStyle='#4c8fc8'; sctx.lineWidth=1.5;
+    sctx.beginPath(); sctx.moveTo(sx,sy); sctx.lineTo(sx+Math.sin(hRad)*10,sy+Math.cos(hRad)*12); sctx.stroke();
+    sctx.fillStyle='#4c8fc8'; sctx.beginPath(); sctx.arc(sx,sy,3,0,Math.PI*2); sctx.fill();
+    // rodapé
+    // criaturas no mapa
+    Object.entries(entities).forEach(([id,ent])=>{
+      if(!ent||ent.mode!=="creature") return;
+      const r=(ent.wd||0)/TILE, c=((ent.wx||0)-X_MIN_W)/TILE;
+      const px=c*MAP_CELL_W, py=(r-viewStart)*MAP_CELL_H;
+      if(py<-8||py>H+8) return;
+      const vis=ent.visible!==false;
+      const pulse=0.55+0.45*Math.sin(Date.now()/400);
+      sctx.globalAlpha=vis?(ent.chasing?pulse:0.7):0.3;
+      sctx.fillStyle=ent.chasing?'#ff4400':'#cc2200';
+      sctx.beginPath(); sctx.arc(px,py,5,0,Math.PI*2); sctx.fill();
+      sctx.fillStyle='#ff8866'; sctx.font='8px monospace'; sctx.textAlign='left';
+      sctx.fillText('C',px+7,py+3);
+      sctx.globalAlpha=1;
+    });
+    const depthM=Math.round(subDepth/UNITS_PER_M);
+    const fishCount=Object.values(entities).filter(e=>e&&e.mode==="fish").length;
+    const crtCount=Object.values(entities).filter(e=>e&&e.mode==="creature").length;
+    sctx.fillStyle='rgba(0,130,190,.6)'; sctx.font='8px monospace'; sctx.textAlign='center';
+    sctx.fillText(`${depthM}m · ${fishCount}P · ${crtCount}C`, W/2, H-3);
+    sctx.fillStyle='rgba(68,170,204,.5)'; sctx.textAlign='center';
+    sctx.fillText(`clique: ${mapPlaceMode==="creature"?"CRIATURA":"PEIXE"}`, W/2, H-13);
+  }
+
+  let mapPlaceMode="fish";
+
+  function drawSonar() {
+    if(sonarView==="gm") drawSonarGM();
+    else if(sonarView==="map") drawGuardMap();
+    else drawSonarPlayer();
+  }
+
+  // Tick do sensor: atualiza entityBlips a cada 2s (entidades visíveis, exceto peixes)
+  function sonarTick() {
+    const t=Date.now();
+    Object.entries(entities).forEach(([id,ent])=>{
+      if(!ent||ent.visible===false||ent.mode==="fish"){ delete entityBlips[id]; return; }
+      const pos=entDisplayPos(ent);
+      entityBlips[id]={ pos:{...pos}, born:t };
+    });
+    Object.keys(entityBlips).forEach(id=>{ if(!entities[id]||entities[id].visible===false||entities[id].mode==="fish") delete entityBlips[id]; });
+    sonarScanT=Date.now();
+  }
+
+  setInterval(sonarTick,2000);
+  setInterval(drawSonar,100); // 10fps — suficiente pro anel + jitter
+  sonarTick(); drawSonar();
+
+  // ---- Click no canvas: adiciona entidade (bloqueia se foi drag) ----
+  sonarCanvas.addEventListener("click",e=>{
+    if(justDraggedEntity){ justDraggedEntity=false; return; }
+    const rect=sonarCanvas.getBoundingClientRect();
+    const px=e.clientX-rect.left, py=e.clientY-rect.top;
+    // no modo MAPA: clique coloca peixe no mundo nas coordenadas do tile
+    if(sonarView==="map"){
+      const subRow=(currentSubNav.depth||1000)/TILE;
+      const viewStart=subRow-MAP_VIS_ABOVE;
+      const wx=X_MIN_W+(px/MAP_CELL_W)*TILE;
+      const wd=(py/MAP_CELL_H+viewStart)*TILE;
+      if(mapPlaceMode==="creature") addCreatureEntity(wx,wd);
+      else addFishEntity(wx,wd);
+      return;
+    }
+    if(entityAtCanvas(mouseCanvasX,mouseCanvasY)) return;
+    const wr=unrotByHdg((px-S_CX)/S_SCALE*UNITS_PER_M,(py-S_CY)/S_SCALE*UNITS_PER_M);
+    addEntity(wr.dx, wr.dy);
+  });
+
+  // ---- Drag de entidades + hover + tecla E ----
+  function getCanvasXY(e){ const r=sonarCanvas.getBoundingClientRect(); return {px:e.clientX-r.left,py:e.clientY-r.top}; }
+  function entityAtCanvas(px,py){
+    if(sonarView==="map") return null; // no map mode não há drag pelo sonar
+    let best=null, bestD=14;
+    Object.entries(entities).forEach(([id,ent])=>{
+      if(!ent||ent.mode==="fish") return; // peixes ficam no mapa
+      const pos=entDisplayPos(ent);
+      const rp=rotByHdg(pos);
+      const d=Math.hypot(px-(S_CX+rp.dx/UNITS_PER_M*S_SCALE),py-(S_CY+rp.dy/UNITS_PER_M*S_SCALE));
+      if(d<bestD){bestD=d;best=id;}
+    });
+    return best;
+  }
+  sonarCanvas.addEventListener("mouseenter",()=>mouseOverCanvas=true);
+  sonarCanvas.addEventListener("mouseleave",()=>{ mouseOverCanvas=false; dragEntityId=null; });
+  sonarCanvas.addEventListener("mousedown",e=>{ const {px,py}=getCanvasXY(e); dragEntityId=entityAtCanvas(px,py); });
+  sonarCanvas.addEventListener("mouseup",()=>{ dragEntityId=null; });
+  sonarCanvas.addEventListener("mousemove",e=>{
+    const {px,py}=getCanvasXY(e);
+    mouseCanvasX=px; mouseCanvasY=py;
+    if(dragEntityId!==null && entities[dragEntityId]){
+      justDraggedEntity=true;
+      const wr=unrotByHdg((px-S_CX)/S_SCALE*UNITS_PER_M,(py-S_CY)/S_SCALE*UNITS_PER_M);
+      const ent=entities[dragEntityId];
+      let patch;
+      if(ent.mode==="approach"){
+        const wx=(currentSubNav.x||0)+wr.dx, wd=(currentSubNav.depth||1000)+wr.dy;
+        entities[dragEntityId]=Object.assign({},ent,{wx,wd}); patch={wx,wd};
+      } else {
+        entities[dragEntityId]=Object.assign({},ent,{dx:wr.dx,dy:wr.dy}); patch={dx:wr.dx,dy:wr.dy};
+      }
+      const n=Date.now();
+      if(n-entDragThrottle>80){ entDragThrottle=n; subRef.child("entities/"+dragEntityId).update(patch); }
+    }
+  });
+  function addEntity(dx, dy) {
+    const id="e"+Date.now().toString(36);
+    const col=ENT_COLORS[Object.keys(entities).length % ENT_COLORS.length];
+    const ent={dx,dy,visible:true,color:col,mode:"fixed",speed:0};
+    entities[id]=ent;
+    subRef.child("entities/"+id).set(ent);
+    expandedEntities.add(id);
+    renderEntityList();
+  }
+
+  function addFishEntity(wx, wd) {
+    const id="f"+Date.now().toString(36);
+    const ent={mode:"fish",wx,wd,visible:true,color:"#44aacc",fishPhase:Math.random()*Math.PI*2};
+    entities[id]=ent;
+    subRef.child("entities/"+id).set(ent);
+    expandedEntities.add(id);
+    renderEntityList();
+  }
+
+  function addCreatureEntity(wx, wd) {
+    const id="c"+Date.now().toString(36);
+    const ent={mode:"creature",wx,wd,visible:true,speed:20,chasing:false,color:"#ff4400"};
+    entities[id]=ent;
+    subRef.child("entities/"+id).set(ent);
+    expandedEntities.add(id);
+    renderEntityList();
+  }
+
+  function renderEntityList() {
+    const list=document.getElementById("entityList"); if(!list) return;
+    const ids=Object.keys(entities).filter(id=>entities[id]);
+    if(!ids.length){
+      list.innerHTML='<div style="font-size:10px;color:var(--ink-dim);padding:4px 2px;line-height:1.6">Sem entidades.<br>Clique no canvas para criar.</div>';
+      return;
+    }
+    list.innerHTML=ids.map((id,i)=>{
+      const ent=entities[id];
+      const col=ent.color||"#d65a5a";
+      const vis=ent.visible!==false;
+      const mode=ent.mode||"fixed";
+      const isFish=mode==="fish";
+      const isCreature=mode==="creature";
+      const spd=typeof ent.speed==="number"?ent.speed:0;
+      const pos=entDisplayPos(ent);
+      const dist=Math.hypot(pos.dx,pos.dy);
+      const open=expandedEntities.has(id);
+      const modeTag=isFish?" · peixe":isCreature?" · criatura":mode==="approach"?" · ↗":"";
+      const cardCol=isCreature?"#ff440044":col+"44";
+      return `<div style="border:1px solid ${cardCol};border-radius:4px;padding:5px 7px;background:#0a100a;font-size:10px">
+        <div style="display:flex;align-items:center;gap:6px;cursor:pointer" data-toggle="${id}">
+          <span style="width:8px;height:8px;border-radius:${isCreature?"2":"50%"};background:${col};flex-shrink:0;opacity:${vis?1:0.4};box-shadow:0 0 5px ${col}88"></span>
+          <span style="flex:1;color:${vis?"var(--ink)":"var(--ink-dim)"}">E${i+1} · ${dist.toFixed(0)}m${vis?"":" · oculto"}${modeTag}${isCreature&&ent.chasing?" ⚠":""}</span>
+          <span style="color:var(--ink-dim)">${open?"▴":"▾"}</span>
+        </div>
+        <div id="ent-body-${id}" style="display:${open?"flex":"none"};flex-direction:column;gap:5px;margin-top:6px;padding-top:6px;border-top:1px solid #1a2a1a">
+          <div style="display:flex;gap:4px">
+            <button class="btn ent-vis-btn" data-id="${id}" data-val="true" style="flex:1;font-size:9px${vis?";color:var(--live);border-color:var(--live-dim)":""}">VISÍVEL</button>
+            <button class="btn ent-vis-btn" data-id="${id}" data-val="false" style="flex:1;font-size:9px${!vis?";color:var(--ink-dim);border-color:var(--ink-dim)":""}">OCULTO</button>
+          </div>
+          ${isFish
+            ?`<div style="font-size:9px;color:#44aacc;padding:2px 0">PEIXE — sprite 3D</div>`
+            :isCreature
+            ?`<div style="font-size:9px;color:#ff4400;padding:2px 0">CRIATURA — perseguição 3D</div>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input type="range" class="ent-spd" data-id="${id}" min="5" max="120" step="1" value="${spd}" style="flex:1">
+                <span id="sv-${id}" style="font-size:9px;color:var(--ink-dim);min-width:50px">${spd} wu/s</span>
+              </div>
+              <button class="btn ent-chase-btn" data-id="${id}" style="font-size:9px;width:100%;${ent.chasing?"color:#ff4400;border-color:#ff4400":""}">
+                ${ent.chasing?"⚠ PARAR PERSEGUIÇÃO":"PERSEGUIR"}
+              </button>`
+            :`<div style="display:flex;gap:4px;flex-wrap:wrap">
+                ${ENT_COLORS.map(c=>`<button class="btn ent-col-btn" data-id="${id}" data-c="${c}" style="width:18px;height:18px;padding:0;background:${c};border-radius:50%;border:2px solid ${col===c?"#fff":"transparent"};min-width:0"></button>`).join("")}
+              </div>
+              <div style="display:flex;gap:4px">
+                <button class="btn ent-mode-btn" data-id="${id}" data-m="fixed" style="flex:1;font-size:9px${mode==="fixed"?";color:var(--live);border-color:var(--live-dim)":""}">FIXO</button>
+                <button class="btn ent-mode-btn" data-id="${id}" data-m="approach" style="flex:1;font-size:9px${mode==="approach"?";color:var(--live);border-color:var(--live-dim)":""}">APROX.</button>
+              </div>
+              ${mode==="approach"?`<div style="display:flex;align-items:center;gap:6px">
+                <input type="range" class="ent-spd" data-id="${id}" min="0" max="200" step="1" value="${spd}" style="flex:1">
+                <span id="sv-${id}" style="font-size:9px;color:var(--ink-dim);min-width:42px">${spd} wu/s</span>
+              </div>`:""}`
+          }
+          <button class="btn ent-rm" data-id="${id}" style="font-size:9px;color:var(--danger);margin-top:2px">remover</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  // Event delegation para ações na lista de entidades
+  document.getElementById("entityList").addEventListener("click",e=>{
+    const tog=e.target.closest("[data-toggle]");
+    if(tog){ const id=tog.dataset.toggle; if(expandedEntities.has(id)){expandedEntities.delete(id);}else{expandedEntities.add(id);} renderEntityList(); return; }
+    const vb=e.target.closest(".ent-vis-btn");
+    if(vb){ const id=vb.dataset.id; const vis=vb.dataset.val==="true"; entities[id]=Object.assign({},entities[id],{visible:vis}); subRef.child("entities/"+id+"/visible").set(vis); renderEntityList(); return; }
+    const cb=e.target.closest(".ent-col-btn");
+    if(cb){ const id=cb.dataset.id; const col=cb.dataset.c; entities[id]=Object.assign({},entities[id],{color:col}); subRef.child("entities/"+id+"/color").set(col); renderEntityList(); return; }
+    const mb=e.target.closest(".ent-mode-btn");
+    if(mb){
+      const id=mb.dataset.id, m=mb.dataset.m, ent=entities[id]; if(!ent) return;
+      const upd=Object.assign({},ent,{mode:m});
+      if(m==="approach"){ const now=Date.now(); upd.wx=(currentSubNav.x||0)+(ent.dx||0); upd.wd=(currentSubNav.depth||1000)+(ent.dy||0); upd.tx=currentSubNav.x||0; upd.td=currentSubNav.depth||1000; upd.lastUpdateTime=now; }
+      else { upd.dx=typeof ent.wx==="number"?ent.wx-(currentSubNav.x||0):(ent.dx||0); upd.dy=typeof ent.wd==="number"?ent.wd-(currentSubNav.depth||1000):(ent.dy||0); }
+      entities[id]=upd; subRef.child("entities/"+id).set(upd); renderEntityList(); return;
+    }
+    const ch=e.target.closest(".ent-chase-btn");
+    if(ch){ const id=ch.dataset.id; const ent=entities[id]; if(!ent) return; const chasing=!ent.chasing; entities[id]={...ent,chasing}; subRef.child("entities/"+id+"/chasing").set(chasing); renderEntityList(); return; }
+    const rm=e.target.closest(".ent-rm");
+    if(rm){ const id=rm.dataset.id; delete entities[id]; delete entityBlips[id]; expandedEntities.delete(id); subRef.child("entities/"+id).set(null); renderEntityList(); return; }
+  });
+  document.getElementById("entityList").addEventListener("input",e=>{
+    const sl=e.target.closest(".ent-spd"); if(!sl) return;
+    const id=sl.dataset.id, spd=parseInt(sl.value);
+    const sv=document.getElementById("sv-"+id); if(sv) sv.textContent=spd+" wu/s";
+    const ent=entities[id]; if(!ent) return;
+    const snap=(ent.mode==="approach"&&typeof ent.wx==="number")?getApproachPos(ent,Date.now()):null;
+    const patch=snap?{speed:spd,wx:snap.wx,wd:snap.wd,lastUpdateTime:Date.now()}:{speed:spd};
+    entities[id]=Object.assign({},ent,patch);
+    subRef.child("entities/"+id).update(patch);
+  });
+
+  // Refresh de trajetória a cada 4s: snapshot da posição calculada + alvo atualizado.
+  // Entidades continuam se movendo em TODOS os clientes sem ninguém no guardião aberto.
+  setInterval(()=>{
+    const now=Date.now();
+    const updates={};
+    Object.entries(entities).forEach(([id,ent])=>{
+      if(!ent||ent.mode!=="approach"||typeof ent.wx!=="number") return;
+      const pos=getApproachPos(ent,now);
+      const patch={wx:pos.wx,wd:pos.wd,tx:currentSubNav.x||0,td:currentSubNav.depth||1000,lastUpdateTime:now};
+      entities[id]=Object.assign({},ent,patch);
+      Object.entries(patch).forEach(([k,v])=>{updates["entities/"+id+"/"+k]=v;});
+    });
+    if(Object.keys(updates).length) subRef.update(updates);
+  },4000);
+
+  document.addEventListener("keydown",e=>{
+    if(e.code==="KeyE" && mouseOverCanvas){
+      e.preventDefault();
+      if(sonarView==="map"){
+        const subRow=(currentSubNav.depth||1000)/TILE;
+        const viewStart=subRow-MAP_VIS_ABOVE;
+        const wx=X_MIN_W+(mouseCanvasX/MAP_CELL_W)*TILE;
+        const wd=(mouseCanvasY/MAP_CELL_H+viewStart)*TILE;
+        addFishEntity(wx,wd);
+      } else {
+        const wr=unrotByHdg((mouseCanvasX-S_CX)/S_SCALE*UNITS_PER_M,(mouseCanvasY-S_CY)/S_SCALE*UNITS_PER_M);
+        addEntity(wr.dx, wr.dy);
+      }
+    }
+  });
+
+  // ---- Controles de modo/vista ----
+  function setView(v){
+    sonarView=v;
+    document.getElementById("viewGM").classList.toggle("is-on",v==="gm");
+    document.getElementById("viewPlayer").classList.toggle("is-on",v==="player");
+    document.getElementById("viewMap").classList.toggle("is-on",v==="map");
+    document.getElementById("mapModeBar").style.display=v==="map"?"flex":"none";
+  }
+  document.getElementById("viewGM").addEventListener("click",()=>setView("gm"));
+  document.getElementById("viewPlayer").addEventListener("click",()=>setView("player"));
+  document.getElementById("viewMap").addEventListener("click",()=>setView("map"));
+
+  document.getElementById("entAdd").addEventListener("click",()=>{
+    const hdgRad=(currentSubNav.heading||0)*Math.PI/180;
+    addEntity(Math.sin(hdgRad)*500, Math.cos(hdgRad)*500);
+  });
+  document.getElementById("entFish").addEventListener("click",()=>{
+    // abre o MAPA para colocar no lugar certo; ou coloca à frente do sub se já no mapa
+    if(sonarView!=="map"){
+      sonarView="map";
+      document.getElementById("viewMap").classList.add("is-on");
+      document.getElementById("viewGM").classList.remove("is-on");
+      document.getElementById("viewPlayer").classList.remove("is-on");
+    } else {
+      const hdgRad=(currentSubNav.heading||0)*Math.PI/180;
+      const wx=(currentSubNav.x||0)+Math.sin(hdgRad)*300;
+      const wd=(currentSubNav.depth||1000)+Math.cos(hdgRad)*300;
+      addFishEntity(wx,wd);
+    }
+  });
+  document.getElementById("entClear").addEventListener("click",()=>{
+    subRef.child("entities").set(null);
+    entities={}; entityBlips={}; renderEntityList();
+  });
+
+  // ---- Listener Firebase do submarino ----
   subRef.on("value",snap=>{
     const s=snap.val()||{};
     const online=!!s.online;
@@ -606,52 +1196,122 @@
     p.classList.toggle("on",online);
     document.getElementById("subpowertxt").textContent=online?"VISOR LIGADO":"VISOR DESLIGADO";
 
-    subSkinNow=s.skin||"old";
+    const skin=s.skin||"old";
     document.querySelectorAll(".skin").forEach(b=>{
-      const on=b.dataset.skin===subSkinNow;
-      b.style.borderColor=on?"var(--live-dim)":"";
-      b.style.color=on?"var(--live)":"";
+      const on=b.dataset.skin===skin;
+      b.style.borderColor=on?"var(--live-dim)":""; b.style.color=on?"var(--live)":"";
     });
-    // estado de rachadura
     const cracked=!!s.cracked;
-    const crackBtn=document.getElementById("crackBtn");
-    const crackStat=document.getElementById("crackStat");
-    if(crackBtn){
-      crackBtn.textContent = cracked ? "✓ CONSERTAR CASCO" : "⚠ RACHAR CASCO (velho)";
-      crackBtn.style.borderColor = cracked ? "var(--danger)" : "";
-      crackBtn.style.color = cracked ? "var(--danger)" : "";
-      crackStat.textContent = cracked ? "RACHADO" : "intacto";
-      crackStat.style.color = cracked ? "var(--danger)" : "var(--ink-dim)";
+    const cb=document.getElementById("crackBtn"), cs=document.getElementById("crackStat");
+    if(cb){
+      cb.textContent=cracked?"✓ CONSERTAR CASCO":"⚠ RACHAR CASCO (velho)";
+      cb.style.borderColor=cracked?"var(--danger)":""; cb.style.color=cracked?"var(--danger)":"";
+      cs.textContent=cracked?"RACHADO":"intacto"; cs.style.color=cracked?"var(--danger)":"var(--ink-dim)";
     }
-    document.querySelectorAll(".substate").forEach(b=>{
-      const on=b.dataset.state===(s.state||"void");
-      b.style.borderColor=on?"var(--live-dim)":"";
-      b.style.color=on?"var(--live)":"";
-    });
-    // pilotagem: highlight do modo atual + profundidade ao vivo
+
     const navmode=(s.nav&&s.nav.mode)||"moonpool";
     document.querySelectorAll(".submode").forEach(b=>{
       const on=b.dataset.mode===navmode;
-      b.style.borderColor=on?"var(--live-dim)":"";
-      b.style.color=on?"var(--live)":"";
+      b.style.borderColor=on?"var(--live-dim)":""; b.style.color=on?"var(--live)":"";
     });
     const depth=(s.nav&&s.nav.depth)||0;
-    const nd=document.getElementById("navDepth");
-    if(nd) nd.textContent=Math.round(depth);
-    const nb=document.getElementById("navBeyond");
-    if(nb) nb.style.display = depth>600 ? "inline" : "none";
+    const nd=document.getElementById("navDepth"); if(nd) nd.textContent=Math.round(depth);
+    const nb=document.getElementById("navBeyond"); if(nb) nb.style.display=depth>600?"inline":"none";
 
-    if(document.activeElement!==elSubReadout){ elSubReadout.value=s.readout||""; }
-    threatDir = (s.threatDir!=null)?s.threatDir:null;
-    drawRadar();
+    if(document.activeElement!==elSubReadout) elSubReadout.value=s.readout||"";
+
+    currentSubNav = s.nav || {x:0,depth:1000,heading:0};
+
+    // Entidades: mescla Firebase com estado local (preserva wx/wd de aproximação)
+    const remote=s.entities||{};
+    const merged={};
+    Object.entries(remote).forEach(([id,ent])=>{
+      if(!ent) return;
+      const local=entities[id];
+      if(local&&ent.mode==="approach"&&typeof local.wx==="number"){
+        merged[id]=Object.assign({},ent,{wx:local.wx,wd:local.wd});
+      } else { merged[id]=ent; }
+    });
+    const prevIds=new Set(Object.keys(entities));
+    entities=merged;
+    Object.keys(entityBlips).forEach(id=>{ if(!entities[id]||entities[id].visible===false) delete entityBlips[id]; });
+    // Só re-renderiza a lista se os IDs mudaram
+    const newIds=Object.keys(entities);
+    if(prevIds.size!==newIds.length||newIds.some(id=>!prevIds.has(id))) renderEntityList();
+
   });
 
-  // escuta viewers (presenca dos jogadores)
-  subRef.child("viewers").on("value",snap=>{
-    viewers=snap.val()||{};
-    drawRadar();
+  subRef.child("viewers").on("value",snap=>{viewers=snap.val()||{};});
+  subRef.child("navPath").on("value",snap=>{
+    const v=snap.val(); navPathData=v?Object.values(v):[];
   });
-  setInterval(drawRadar,1000); // atualiza setas/expira
+
+  // ---- Velocidade de navegação ----
+  const elNavSpd=document.getElementById("navSpeedSlider");
+  const elNavSpdVal=document.getElementById("navSpeedVal");
+  elNavSpd.addEventListener("input",()=>{
+    const v=parseInt(elNavSpd.value)||30;
+    elNavSpdVal.textContent=v+"wu/s";
+    subRef.child("navSpeed").set(v);
+  });
+  subRef.child("navSpeed").on("value",s=>{
+    const v=s.val()||30;
+    elNavSpd.value=v;
+    elNavSpdVal.textContent=v+"wu/s";
+  });
+
+  // ---- Velocidade do recolhimento ----
+  const elReelingSpd=document.getElementById("reelingSpeedSlider");
+  const elReelingSpdVal=document.getElementById("reelingSpeedVal");
+  elReelingSpd.addEventListener("input",()=>{
+    const v=parseInt(elReelingSpd.value)||80;
+    elReelingSpdVal.textContent=v+"wu/s";
+    subRef.child("reelingSpeed").set(v);
+  });
+  subRef.child("reelingSpeed").on("value",s=>{
+    const v=s.val()||80;
+    elReelingSpd.value=v;
+    elReelingSpdVal.textContent=v+"wu/s";
+  });
+
+  // ---- Dano do Casco ----
+  let localHullDamage=0;
+  const HULL_WARN=20, HULL_CRIT=30;
+  function hullLabel(dmg){
+    if(dmg>=HULL_CRIT) return ["PERIGO IMEDIATO","var(--danger)"];
+    if(dmg>=HULL_WARN) return ["DANIFICADO","var(--live-dim)"];
+    return ["INTACTO","var(--ink-dim)"];
+  }
+  function syncHullUI(dmg){
+    const el=document.getElementById("hullDamageVal"); if(el) el.textContent=dmg;
+    const sl=document.getElementById("hullStatLbl");
+    if(sl){ const [txt,col]=hullLabel(dmg); sl.textContent=txt; sl.style.color=col; }
+  }
+  function setHullDamage(v){
+    localHullDamage=Math.max(0,v);
+    subRef.child("hullDamage").set(localHullDamage);
+    syncHullUI(localHullDamage);
+  }
+  subRef.child("hullDamage").on("value",s=>{
+    localHullDamage=s.val()||0; syncHullUI(localHullDamage);
+  });
+  document.getElementById("hullPlus").addEventListener("click",()=>{
+    setHullDamage(localHullDamage+(parseInt(document.getElementById("hullStep").value)||5));
+  });
+  document.getElementById("hullMinus").addEventListener("click",()=>{
+    setHullDamage(localHullDamage-(parseInt(document.getElementById("hullStep").value)||5));
+  });
+  document.getElementById("hullReset").addEventListener("click",()=>setHullDamage(0));
+
+  // =================== ABAS ===================
+  document.querySelectorAll(".tab").forEach(tab=>{
+    tab.addEventListener("click",()=>{
+      document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+      document.querySelectorAll(".tabpanel").forEach(p=>p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("tab-"+tab.dataset.tab).classList.add("active");
+    });
+  });
 
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 </script>
