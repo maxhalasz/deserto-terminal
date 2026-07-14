@@ -63,6 +63,18 @@
     70%{opacity:.7}71%{opacity:.25}73%{opacity:.7}74%{opacity:.12}76%{opacity:.7}
     100%{opacity:.7}
   }
+  @keyframes jshake{
+    0%,100%{transform:translate(0,0) rotate(0deg)}
+    10%{transform:translate(-5px,-3px) rotate(-.6deg)}
+    20%{transform:translate(6px,4px) rotate(.6deg)}
+    30%{transform:translate(-6px,-2px) rotate(-.4deg)}
+    40%{transform:translate(5px,3px) rotate(.4deg)}
+    50%{transform:translate(-4px,-4px) rotate(-.25deg)}
+    60%{transform:translate(4px,2px) rotate(.25deg)}
+    70%{transform:translate(-5px,3px) rotate(-.15deg)}
+    80%{transform:translate(5px,-2px) rotate(.15deg)}
+    90%{transform:translate(-2px,2px) rotate(0deg)}
+  }
 
   /* blur global da VISÃO (na frente de tudo — casco + visor). Focar reduz. */
   #visionBlur{position:absolute;inset:0;z-index:7;pointer-events:none;backdrop-filter:blur(1.5px);transition:backdrop-filter .35s ease}
@@ -228,15 +240,17 @@
         const cell=ox.getImageData(cx,cy,FISH_FW,FISH_FH);
         const pd=cell.data;
         let x0=FISH_FW,x1=0,y0=FISH_FH,y1=0;
-        for(let y=0;y<FISH_FH;y++) for(let x=0;x<FISH_FW;x++){
-          if(pd[(y*FISH_FW+x)*4+3]>8){
+        // MARGIN: ignora os últimos pixels de cada borda para evitar sangramento do sprite vizinho
+        const MARGIN=6;
+        for(let y=MARGIN;y<FISH_FH-MARGIN;y++) for(let x=MARGIN;x<FISH_FW-MARGIN;x++){
+          if(pd[(y*FISH_FW+x)*4+3]>15){
             if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
           }
         }
         if(x0>x1){ const e=document.createElement('canvas');e.width=1;e.height=1;return e; }
-        const PAD=2;
-        x0=Math.max(0,x0-PAD); y0=Math.max(0,y0-PAD);
-        x1=Math.min(FISH_FW-1,x1+PAD); y1=Math.min(FISH_FH-1,y1+PAD);
+        const PAD=1;
+        x0=Math.max(MARGIN,x0-PAD); y0=Math.max(MARGIN,y0-PAD);
+        x1=Math.min(FISH_FW-1-MARGIN,x1+PAD); y1=Math.min(FISH_FH-1-MARGIN,y1+PAD);
         const fw=x1-x0+1, fh=y1-y0+1;
         const cv=document.createElement('canvas'); cv.width=fw; cv.height=fh;
         cv.getContext('2d').drawImage(oc,cx+x0,cy+y0,fw,fh,0,0,fw,fh);
@@ -633,8 +647,10 @@
 
       if(dfFrames.length){
         // ---- Rotação estilo Doom ----
-        const facing=ent._facing||0;
         const viewAngle=Math.atan2(nav.x-(ent.wx||0), nav.depth-(ent.wd||nav.depth));
+        // chase: criatura sempre vira para o sub → facing = viewAngle → relDeg = 0 (de frente)
+        const chasing=ent.behavior==='chase'||ent.chasing;
+        const facing=chasing?viewAngle:(ent._facing||0);
         let relDeg=((viewAngle-facing)*180/Math.PI+360)%360;
         const flipX=relDeg>180;
         if(flipX) relDeg=360-relDeg;
@@ -1239,13 +1255,17 @@
           const spd=entSpd*dt;
           vx=(dx/dist)*spd; vd=(dd/dist)*spd;
         }
-        // jumpscare ao chegar muito perto
-        if(dist<80&&now-jumpscareT>10000){
+        // jumpscare ao chegar muito perto (bloqueado na moonpool)
+        if(dist<80&&now-jumpscareT>10000&&nav.mode!=="moonpool"){
           jumpscareT=now;
           const jf=document.getElementById("jflash");
           jf.style.display="block"; jf.style.transition="none"; jf.style.opacity="1";
           setTimeout(()=>{jf.style.transition="opacity 0.9s ease";jf.style.opacity="0";
             setTimeout(()=>{jf.style.display="none";jf.style.transition="none";},1000);},80);
+          const sub=document.getElementById("sub");
+          sub.style.animation="none"; sub.offsetHeight;
+          sub.style.animation="jshake 0.55s ease-in-out";
+          sub.addEventListener("animationend",()=>{sub.style.animation="";},{once:true});
           wallHitCount+=10;
           ref.child("hullDamage").set(wallHitCount);
         }

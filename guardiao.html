@@ -303,7 +303,7 @@
             <button class="btn" id="mapZoomReset" style="flex:1;font-size:9px">ZOOM</button>
             <button class="btn" id="mapZoomIn" style="font-size:13px;padding:3px 10px">+</button>
             <div style="width:1px;height:16px;background:var(--line);margin:0 3px"></div>
-            <button class="btn" id="placeModeBtn" style="font-size:9px;color:#44aacc;min-width:90px;text-align:center">+ PEIXE</button>
+            <div style="font-size:8px;color:var(--ink-dim);letter-spacing:.06em;padding:3px 6px;text-align:center;min-width:90px;line-height:1.4">CLK: <span style="color:#44aacc">PEIXE</span><br>E: <span style="color:#ff4400">CRIATURA</span></div>
           </div>
         </div>
 
@@ -782,8 +782,8 @@
     const crtCount=Object.values(entities).filter(e=>e&&e.mode==='creature').length;
     mctx.fillStyle='rgba(0,130,190,.65)'; mctx.font='8px monospace'; mctx.textAlign='left';
     mctx.fillText(`${depthM}m  BRG ${String(hdg).padStart(3,'0')}  ×${mapZoom.toFixed(1)}  P:${fishCount} C:${crtCount}`,4,M_H-4);
-    mctx.fillStyle=mapPlaceMode==='creature'?'#ff4400':'#44aacc'; mctx.textAlign='right';
-    mctx.fillText(mapPlaceMode==='creature'?'+ CRIATURA':'+ PEIXE',M_W-4,M_H-4);
+    mctx.fillStyle='rgba(80,80,80,.55)'; mctx.textAlign='right';
+    mctx.fillText('CLK:PEIXE  E:CRIATURA',M_W-4,M_H-4);
 
     const el=document.getElementById('mapStatus');
     if(el) el.textContent=`${fishCount}P · ${crtCount}C`;
@@ -799,14 +799,6 @@
   document.getElementById('mapZoomIn').addEventListener('click',()=>{mapZoom=Math.min(5.0,mapZoom*1.35);});
   document.getElementById('mapZoomOut').addEventListener('click',()=>{mapZoom=Math.max(0.3,mapZoom/1.35);});
   document.getElementById('mapZoomReset').addEventListener('click',()=>{mapZoom=1.0;});
-
-  // ---- Modo de spawn ----
-  document.getElementById('placeModeBtn').addEventListener('click',()=>{
-    mapPlaceMode=mapPlaceMode==='fish'?'creature':'fish';
-    const btn=document.getElementById('placeModeBtn');
-    btn.textContent=mapPlaceMode==='creature'?'+ CRIATURA':'+ PEIXE';
-    btn.style.color=mapPlaceMode==='creature'?'#ff4400':'#44aacc';
-  });
 
   // ---- Interação com o canvas ----
   mapCanvas.addEventListener('mouseenter',()=>{mouseOverCanvas=true;});
@@ -840,8 +832,7 @@
       selectedEntityId=hit; renderSelectedPanel(); renderEntityList();
     } else {
       const {wx,wd}=mapPxToWorld(px,py);
-      if(mapPlaceMode==='creature') addDeadFishEntity(wx,wd);
-      else addFishEntity(wx,wd);
+      addFishEntity(wx,wd);
     }
   });
 
@@ -961,8 +952,7 @@
     if(e.code==='KeyE'&&mouseOverCanvas){
       e.preventDefault();
       const {wx,wd}=mapPxToWorld(mouseMapX,mouseMapY);
-      if(mapPlaceMode==='creature') addDeadFishEntity(wx,wd);
-      else addFishEntity(wx,wd);
+      addDeadFishEntity(wx,wd);
     }
   });
 
