@@ -103,11 +103,9 @@
   .urls{max-width:840px;font-size:11px;color:var(--ink-dim);line-height:1.8;letter-spacing:.04em;margin-top:10px}
   .urls code{background:var(--panel);padding:2px 7px;border-radius:3px;color:var(--ink)}
 
-  #sonarCanvas{display:block;border:1px solid #152515;border-radius:4px;background:#060b06;cursor:crosshair}
-  .sonar-sidebar{display:flex;flex-direction:column;gap:12px;min-width:190px}
+  #mapCanvas{display:block;border:1px solid #152515;border-radius:4px;background:#060b06;cursor:crosshair}
+  .sonar-sidebar{display:flex;flex-direction:column;gap:0;min-width:200px;max-width:220px}
   .sonar-sidebar .s-lbl{font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:4px}
-  .sonar-dot{display:inline-block;width:8px;height:8px;border-radius:50%;vertical-align:middle;margin-right:6px}
-  input[type=range].ent-spd{accent-color:var(--live-dim);height:3px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -229,21 +227,19 @@
           <div>
             <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">VELOCIDADE DE NAVEGAÇÃO</div>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--ink-dim)">lento</span>
-              <input id="navSpeedSlider" type="range" min="5" max="180" value="30"
-                style="flex:1;accent-color:var(--live-dim);cursor:pointer">
-              <span style="font-size:10px;color:var(--ink-dim)">rápido</span>
-              <b id="navSpeedVal" style="min-width:42px;color:var(--live);font-size:11px;text-align:right">30wu/s</b>
+              <input type="number" id="navSpeedInput" min="5" max="500" value="30"
+                style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:13px;padding:5px 8px;border-radius:3px">
+              <span style="font-size:10px;color:var(--ink-dim)">wu/s</span>
+              <button class="btn" id="navSpeedReset" style="font-size:10px">↺ 30</button>
             </div>
           </div>
           <div>
             <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">VELOCIDADE DO RECOLHIMENTO</div>
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:10px;color:var(--ink-dim)">lento</span>
-              <input id="reelingSpeedSlider" type="range" min="20" max="220" value="80"
-                style="flex:1;accent-color:var(--live-dim);cursor:pointer">
-              <span style="font-size:10px;color:var(--ink-dim)">rápido</span>
-              <b id="reelingSpeedVal" style="min-width:42px;color:var(--live);font-size:11px;text-align:right">80wu/s</b>
+              <input type="number" id="reelingSpeedInput" min="10" max="500" value="80"
+                style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:13px;padding:5px 8px;border-radius:3px">
+              <span style="font-size:10px;color:var(--ink-dim)">wu/s</span>
+              <button class="btn" id="reelingSpeedReset" style="font-size:10px">↺ 80</button>
             </div>
           </div>
           <div>
@@ -288,63 +284,53 @@
       </div>
     </div>
 
-    <!-- AMEAÇA + SONAR (fundidos) -->
+    <!-- MAPA DO MUNDO + ENTIDADES -->
     <div class="card">
       <div class="hd">
-        <div class="name dim">AMEAÇA // <b>sonar</b></div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span id="sonarStatus" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim)">aguardando...</span>
-          <button id="viewGM" class="btn view-btn is-on" style="font-size:10px;padding:5px 12px">VISTA GM</button>
-          <button id="viewPlayer" class="btn view-btn" style="font-size:10px;padding:5px 12px">JOGADORES</button>
-          <button id="viewMap" class="btn view-btn" style="font-size:10px;padding:5px 12px;color:#44aacc">MAPA</button>
-        </div>
+        <div class="name dim">MAPA // <b>mundo</b></div>
+        <span id="mapStatus" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim)"></span>
       </div>
       <div class="hint">
-        <b>Clique no canvas</b> ou <b>E+canvas</b> pra adicionar entidade; arraste pra reposicionar.
-        <b>Vista GM</b> mostra posição exata com cores. <b>Vista Jogadores</b> simula o sensor dos jogadores (blips verdes, 2s).
-        Sonar <b>heading-up</b>: ↑ FRENTE = direção do sub.
+        Clique em tile livre para spawnar. Clique em entidade para selecionar e controlar. Arraste para reposicionar.
+        <b>E+canvas</b> spawna no cursor. Scroll para zoom.
       </div>
       <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">
 
         <div>
-          <canvas id="sonarCanvas" width="320" height="320"></canvas>
-          <div id="mapModeBar" style="display:none;gap:4px;margin-top:4px">
-            <button id="placeModeFish" class="btn is-on" style="flex:1;font-size:9px;color:#44aacc" onclick="mapPlaceMode='fish';document.getElementById('placeModeFish').classList.add('is-on');document.getElementById('placeModeCreature').classList.remove('is-on')">+ PEIXE</button>
-            <button id="placeModeCreature" class="btn" style="flex:1;font-size:9px;color:#ff4400" onclick="mapPlaceMode='creature';document.getElementById('placeModeCreature').classList.add('is-on');document.getElementById('placeModeFish').classList.remove('is-on')">+ CRIATURA</button>
+          <canvas id="mapCanvas" width="380" height="380"></canvas>
+          <div style="display:flex;gap:4px;margin-top:4px;align-items:center">
+            <button class="btn" id="mapZoomOut" style="font-size:13px;padding:3px 10px">−</button>
+            <button class="btn" id="mapZoomReset" style="flex:1;font-size:9px">ZOOM</button>
+            <button class="btn" id="mapZoomIn" style="font-size:13px;padding:3px 10px">+</button>
+            <div style="width:1px;height:16px;background:var(--line);margin:0 3px"></div>
+            <button class="btn" id="placeModeBtn" style="font-size:9px;color:#44aacc;min-width:90px;text-align:center">+ PEIXE</button>
           </div>
         </div>
 
         <div class="sonar-sidebar">
 
+          <!-- SELECIONADO -->
           <div>
-            <div class="s-lbl">ENTIDADES / AMEAÇAS</div>
-            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
-              <button class="btn" id="entAdd" style="flex:1;font-size:10px">+ ameaça</button>
-              <button class="btn" id="entFish" style="flex:1;font-size:10px;color:#44aacc">+ peixe</button>
-              <button class="btn" id="entClear" style="flex:1;font-size:10px;color:var(--danger)">limpar</button>
-            </div>
-            <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
-              <button class="btn" id="entDeadFish" style="flex:1;font-size:10px;color:#c86030">+ peixe morto</button>
-              <button class="btn" id="entDeadFishClear" style="font-size:10px;color:var(--danger);padding:4px 10px">remover</button>
-            </div>
-            <div id="creatureBehBox" style="display:none;gap:5px;margin-bottom:8px;flex-wrap:wrap">
-              <div style="font-size:9px;color:var(--ink-dim);width:100%;letter-spacing:.1em;margin-bottom:2px">COMPORTAMENTO</div>
-              <button class="beh-btn btn" data-beh="wander" style="flex:1;font-size:9px">PASSEAR</button>
-              <button class="beh-btn btn" data-beh="stalk" style="flex:1;font-size:9px;color:var(--warn)">STALKAR</button>
-              <button class="beh-btn btn" data-beh="chase" style="flex:1;font-size:9px;color:var(--danger)">PERSEGUIR</button>
-            </div>
-            <div id="entityList" style="display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto;overflow-x:hidden"></div>
+            <div class="s-lbl">SELECIONADO</div>
+            <div id="selectedControls" style="color:var(--ink-dim);font-size:10px;padding:2px 0;min-height:18px">nenhuma entidade selecionada</div>
           </div>
 
-          <div style="font-size:9px;color:var(--ink-dim);line-height:1.7">
-            E+canvas · clique · "+ nova" = criar<br>arrastar = mover
+          <!-- LISTA -->
+          <div style="margin-top:12px">
+            <div class="s-lbl">ENTIDADES</div>
+            <div id="entityList" style="display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;overflow-x:hidden"></div>
           </div>
 
-          <div style="border-top:1px solid var(--line);padding-top:10px;font-size:10px;color:var(--ink-dim);line-height:2.1;letter-spacing:.02em">
-            <div style="letter-spacing:.12em;margin-bottom:4px">LEGENDA</div>
-            <div><span class="sonar-dot" style="background:#1eff60;box-shadow:0 0 3px #1eff60"></span>Sub (centro)</div>
-            <div><span class="sonar-dot" style="background:#00ff80;box-shadow:0 0 5px #00ff80"></span>Blip (jogadores)</div>
-            <div><span class="sonar-dot" style="background:#2f6f62;border-radius:2px"></span>Investigador (GM)</div>
+          <!-- LIMPEZA -->
+          <div style="margin-top:12px">
+            <div class="s-lbl">LIMPEZA</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="display:flex;gap:4px">
+                <button class="btn" id="entFishClear" style="flex:1;font-size:9px">limpar peixes</button>
+                <button class="btn" id="entDeadFishClear" style="flex:1;font-size:9px">limpar criaturas</button>
+              </div>
+              <button class="btn" id="entClear" style="font-size:9px;color:var(--danger)">limpar tudo</button>
+            </div>
           </div>
 
         </div>
@@ -373,20 +359,11 @@
   const CAM_COOLDOWN = 60000;
   document.getElementById("sk").textContent = SESSION_KEY;
 
-  // ---- sonar state ----
-  let sonarView = "gm";   // "gm" | "player"
-  let currentSubNav = { x: 0, depth: 200, heading: 0 };
+  // ---- estado global ----
+  let currentSubNav = { x: 0, depth: 1000, heading: 0 };
   let viewers = {};
-  let sonarScanT = 0;
-  // Entidades (ameaças coloridas)
-  let entities = {}, entityBlips = {};
-  let expandedEntities = new Set();
-  // Cabo: breadcrumbs do caminho do sub (navPath sincronizado do submarino)
+  let entities = {};
   let navPathData = [];
-  // Drag + hover no canvas
-  let dragEntityId = null, justDraggedEntity = false;
-  let mouseCanvasX = 160, mouseCanvasY = 160, mouseOverCanvas = false;
-  let entDragThrottle = 0;
 
   const LEVELS = [
     { id:"helipad",  tag:"L-07", name:"Helipad" },
@@ -647,16 +624,12 @@
     }
   });
 
-  // =================== SONAR UNIFICADO ===================
-  const sonarCanvas=document.getElementById("sonarCanvas");
-  const sctx=sonarCanvas.getContext("2d");
-  const S_W=320, S_H=320, S_CX=160, S_CY=160, S_RANGE=100, S_SCALE=1.6;
+  // =================== MAPA DO MUNDO ===================
+  const mapCanvas=document.getElementById("mapCanvas");
+  const mctx=mapCanvas.getContext("2d");
+  const M_W=380, M_H=380;
   const UNITS_PER_M=10;
-  // ===== MAPA DO MUNDO (mesma grade do submarino/monitor) =====
   const TILE=40, X_MIN_W=-400, GRID_COLS=21, GRID_ROWS=640;
-  const MAP_VIS_ABOVE=120, MAP_VIS_BELOW=120;  // 3× o monitor (player vê 40+40)
-  const MAP_CELL_W=15;
-  const MAP_CELL_H=S_H/(MAP_VIS_ABOVE+MAP_VIS_BELOW); // ~1.33px por linha de tile
   const MAP=(()=>{
     const m=Array.from({length:GRID_ROWS},()=>new Uint8Array(GRID_COLS).fill(1));
     const open=(r0,r1,c0,c1)=>{
@@ -678,598 +651,324 @@
     return m;
   })();
 
-  // Jitter suave baseado em tempo (bio-movimento contínuo)
-  function threatJitter(t) {
-    return {
-      dx: Math.sin(t*0.83)*0.9 + Math.sin(t*2.07)*0.5,
-      dy: Math.sin(t*1.13+1.2)*0.8 + Math.sin(t*0.67+2.4)*0.6
-    };
-  }
+  // ---- Coordenadas mapa ----
+  let mapZoom=1.0, mapPlaceMode="fish", selectedEntityId=null;
+  let dragEntityId=null, dragJustMoved=false, dragThrottle=0;
+  let mouseMapX=0, mouseMapY=0, mouseOverCanvas=false;
+  let deadFishId=null;
 
-  // Calcula posição de approach pela trajetória armazenada — funciona sem guardião aberto
-  function getApproachPos(ent, now) {
-    if(typeof ent.wx!=="number"||!ent.lastUpdateTime) return {wx:ent.wx||0,wd:ent.wd||0};
-    const elapsed=Math.max(0,(now-ent.lastUpdateTime)/1000);
-    const dx=(ent.tx||0)-ent.wx, dd=(ent.td||0)-ent.wd;
-    const dist=Math.hypot(dx,dd);
-    if(dist<1||!(ent.speed>0)) return {wx:ent.wx,wd:ent.wd};
-    const moved=Math.min(elapsed*ent.speed,dist);
-    return {wx:ent.wx+(dx/dist)*moved, wd:ent.wd+(dd/dist)*moved};
-  }
-  // Posição relativa ao sub: fixed usa dx/dy, approach usa trajetória calculada, fish usa wx/wd absoluto
-  function entDisplayPos(ent) {
-    if(ent.mode==="approach"&&typeof ent.wx==="number"){
-      const pos=getApproachPos(ent,Date.now());
-      return {dx:pos.wx-(currentSubNav.x||0), dy:pos.wd-(currentSubNav.depth||1000)};
-    }
-    if((ent.mode==="fish"||ent.mode==="creature")&&typeof ent.wx==="number"){
-      return {dx:ent.wx-(currentSubNav.x||0), dy:ent.wd-(currentSubNav.depth||1000)};
-    }
-    return {dx:ent.dx||0, dy:ent.dy||0};
-  }
-
-  // Rotação heading-up: world-relative → display (sub aponta pra cima no canvas)
-  function rotByHdg(pos) {
-    if (!pos) return null;
-    const α = (currentSubNav.heading||0) * Math.PI / 180 - Math.PI;
-    const ca = Math.cos(α), sa = Math.sin(α);
-    return { dx: pos.dx*ca - pos.dy*sa, dy: pos.dx*sa + pos.dy*ca };
-  }
-  // Inversa: display (canvas) → world-relative
-  function unrotByHdg(rdx, rdy) {
-    const α = (currentSubNav.heading||0) * Math.PI / 180 - Math.PI;
-    const ca = Math.cos(α), sa = Math.sin(α);
-    return { dx: rdx*ca + rdy*sa, dy: -rdx*sa + rdy*ca };
-  }
-
-  // ---- helpers de desenho ----
-  function drawGrid() {
-    sctx.strokeStyle="#0d2010"; sctx.lineWidth=1;
-    [25,50,75,100].forEach(m=>{
-      sctx.beginPath(); sctx.arc(S_CX,S_CY,m*S_SCALE,0,Math.PI*2); sctx.stroke();
-    });
-    sctx.beginPath();
-    sctx.moveTo(S_CX,4); sctx.lineTo(S_CX,S_H-4);
-    sctx.moveTo(4,S_CY); sctx.lineTo(S_W-4,S_CY);
-    sctx.stroke();
-    sctx.fillStyle="#0e2a10"; sctx.font="8px monospace";
-    sctx.textAlign="left";
-    [25,50,75].forEach(m=>sctx.fillText(m+"m", S_CX+m*S_SCALE+2, S_CY-2));
-    sctx.fillStyle="#0e3018"; sctx.textAlign="center";
-    sctx.fillText("↑ FRENTE",S_CX,11); sctx.fillText("↓ TRÁS",S_CX,S_H-3);
-    sctx.textAlign="right"; sctx.fillText("DIR",S_W-3,S_CY-3);
-    sctx.textAlign="left";  sctx.fillText("ESQ",3,S_CY-3);
-  }
-
-  function drawSub() {
-    const sg=sctx.createRadialGradient(S_CX,S_CY,0,S_CX,S_CY,10);
-    sg.addColorStop(0,"rgba(30,255,96,.5)"); sg.addColorStop(1,"rgba(30,255,96,0)");
-    sctx.fillStyle=sg; sctx.beginPath(); sctx.arc(S_CX,S_CY,10,0,Math.PI*2); sctx.fill();
-    sctx.fillStyle="#1eff60"; sctx.beginPath(); sctx.arc(S_CX,S_CY,4,0,Math.PI*2); sctx.fill();
-  }
-
-  function drawGreenBlip(bx, by, alpha) {
-    if(bx<2||bx>S_W-2||by<2||by>S_H-2) return;
-    const g=sctx.createRadialGradient(bx,by,0,bx,by,16);
-    g.addColorStop(0,`rgba(0,255,100,${alpha*0.65})`); g.addColorStop(1,"rgba(0,255,100,0)");
-    sctx.fillStyle=g; sctx.beginPath(); sctx.arc(bx,by,16,0,Math.PI*2); sctx.fill();
-    sctx.fillStyle=`rgba(120,255,160,${alpha})`;
-    sctx.beginPath(); sctx.arc(bx,by,3,0,Math.PI*2); sctx.fill();
-  }
-
-  function drawColorBlip(bx, by, alpha, col) {
-    if(bx<2||bx>S_W-2||by<2||by>S_H-2) return;
-    const r=parseInt(col.slice(1,3),16), g=parseInt(col.slice(3,5),16), b=parseInt(col.slice(5,7),16);
-    const gr=sctx.createRadialGradient(bx,by,0,bx,by,18);
-    gr.addColorStop(0,`rgba(${r},${g},${b},${alpha*0.7})`); gr.addColorStop(1,`rgba(${r},${g},${b},0)`);
-    sctx.fillStyle=gr; sctx.beginPath(); sctx.arc(bx,by,18,0,Math.PI*2); sctx.fill();
-    sctx.fillStyle=`rgba(${Math.min(255,r+40)},${Math.min(255,g+40)},${Math.min(255,b+40)},${alpha})`;
-    sctx.beginPath(); sctx.arc(bx,by,4,0,Math.PI*2); sctx.fill();
-  }
-
-  const ENT_COLORS=["#d65a5a","#d6934a","#d6c44a","#4ab5d6","#7a4ad6","#d64ab5"];
-
-  // ---- Vista GM ----
-  function drawSonarGM() {
-    sctx.fillStyle="#060b06"; sctx.fillRect(0,0,S_W,S_H);
-    drawGrid();
-
-    // Investigadores
-    const now=Date.now(), VR=S_CX*0.82;
-    Object.values(viewers).forEach((v,i)=>{
-      if(!v||now-(v.at||0)>12000) return;
-      const h=(v.heading||0)*Math.PI/180;
-      const adx=Math.sin(h), ady=-Math.cos(h);
-      sctx.strokeStyle="#1a4a3a"; sctx.lineWidth=1.5; sctx.globalAlpha=0.55;
-      sctx.beginPath(); sctx.moveTo(S_CX,S_CY); sctx.lineTo(S_CX+adx*VR,S_CY+ady*VR); sctx.stroke();
-      sctx.fillStyle="#2f6f62"; sctx.globalAlpha=0.7;
-      sctx.beginPath(); sctx.arc(S_CX+adx*VR,S_CY+ady*VR,3,0,Math.PI*2); sctx.fill();
-      sctx.globalAlpha=0.5; sctx.fillStyle="#2a5a4a"; sctx.font="8px monospace"; sctx.textAlign="center";
-      sctx.fillText("I"+(i+1), S_CX+adx*(VR+10), S_CY+ady*(VR+10)+3);
-    });
-    sctx.globalAlpha=1;
-
-    // Entidades como blips coloridos pulsantes (peixes ficam no mapa, não no sonar)
-    const tsec=now/1000;
-    let entCount=0;
-    Object.entries(entities).forEach(([id,ent],idx)=>{
-      if(!ent||ent.mode==="fish") return;
-      const col=ent.color||"#d65a5a";
-      const vis=ent.visible!==false;
-      const pulse=0.65+0.35*Math.sin(tsec*3.14+idx);
-      const alpha=vis?pulse:pulse*0.28;
-      const pos=entDisplayPos(ent);
-      const rp=rotByHdg(pos);
-      const distM=Math.hypot(pos.dx,pos.dy)/UNITS_PER_M;
-      if(distM>S_RANGE){ entCount++; return; }
-      const bx=S_CX+rp.dx/UNITS_PER_M*S_SCALE, by=S_CY+rp.dy/UNITS_PER_M*S_SCALE;
-      // linha tracejada
-      sctx.setLineDash([3,4]);
-      sctx.strokeStyle=col; sctx.lineWidth=1; sctx.globalAlpha=alpha*0.35;
-      sctx.beginPath(); sctx.moveTo(S_CX,S_CY); sctx.lineTo(bx,by); sctx.stroke();
-      sctx.setLineDash([]); sctx.globalAlpha=1;
-      // blip colorido
-      drawColorBlip(bx,by,alpha,col);
-      // rótulo
-      sctx.globalAlpha=vis?0.9:0.38;
-      sctx.fillStyle=col; sctx.font="8px monospace";
-      sctx.textAlign=bx>S_CX?"left":"right";
-      const modeTag=ent.mode==="approach"?"↗":"·";
-      sctx.fillText(`E${entCount+1} ${modeTag} ${distM.toFixed(0)}m${vis?"":" [oculto]"}`, bx+(bx>S_CX?8:-8), by-7);
-      sctx.globalAlpha=1;
-      entCount++;
-    });
-
-    drawSub();
-
-    if(mouseOverCanvas && !entCount){
-      sctx.fillStyle="#152015"; sctx.font="9px monospace"; sctx.textAlign="center";
-      sctx.fillText("clique ou E+canvas = nova entidade", S_CX, S_H-4);
-    }
-
-    const el=document.getElementById("sonarStatus");
-    const vis=Object.values(entities).filter(e=>e&&e.visible!==false).length;
-    if(entCount){
-      el.textContent=`${entCount} entidade${entCount>1?"s":""} · ${vis} visív${vis===1?"el":"eis"}`;
-      el.style.color="var(--live)";
-    } else {
-      el.textContent="nenhuma entidade";
-      el.style.color="var(--ink-dim)";
-    }
-  }
-
-  // ---- Vista Jogadores ----
-  function drawSonarPlayer() {
-    sctx.fillStyle="#060b06"; sctx.fillRect(0,0,S_W,S_H);
-
-    const ringAge=(Date.now()-sonarScanT)/2000;
-    if(ringAge<1){
-      sctx.strokeStyle=`rgba(0,200,80,${(1-ringAge)*0.45})`; sctx.lineWidth=1.5;
-      sctx.beginPath(); sctx.arc(S_CX,S_CY,ringAge*S_CX,0,Math.PI*2); sctx.stroke();
-    }
-
-    drawGrid();
-
-    const tnow=Date.now(), tsec=tnow/1000;
-    let entIdx=0;
-    Object.entries(entityBlips).forEach(([id,eb])=>{
-      if(!eb||!eb.pos) return;
-      const pulseAge=(tnow-eb.born)/2000;
-      const pa=Math.max(0.12, 1-pulseAge*0.85);
-      const j=threatJitter(tsec+entIdx*1.37);
-      const rp=rotByHdg(eb.pos);
-      // fora do alcance: não mostrar
-      const rawX=S_CX+(rp.dx+j.dx)/UNITS_PER_M*S_SCALE, rawY=S_CY+(rp.dy+j.dy)/UNITS_PER_M*S_SCALE;
-      if(rawX<4||rawX>S_W-4||rawY<4||rawY>S_H-4) return;
-      drawGreenBlip(rawX, rawY, pa);
-      entIdx++;
-    });
-
-    drawSub();
-
-    const el=document.getElementById("sonarStatus");
-    const n=Object.keys(entityBlips).length;
-    el.textContent=n?`${n} objeto${n>1?"s":""} em movimento`:"nenhum movimento";
-    el.style.color=n?"var(--live)":"var(--ink-dim)";
-  }
-
-  // ===== MAPA DO MUNDO no guardião: vista de cima, peixes clicáveis =====
-  function drawGuardMap(){
-    const W=S_W, H=S_H;
-    sctx.fillStyle='#070a0f'; sctx.fillRect(0,0,W,H);
-    const subDepth=currentSubNav.depth||1000;
-    const subX=currentSubNav.x||0;
+  function getMapMetrics(){
+    const visRows=Math.round(120/mapZoom);
+    const cellH=M_H/(visRows*2), cellW=M_W/GRID_COLS;
+    const subDepth=currentSubNav.depth||1000, subX=currentSubNav.x||0;
     const subRow=subDepth/TILE, subCol=(subX-X_MIN_W)/TILE;
-    const viewStart=subRow-MAP_VIS_ABOVE;
-    const rStart=Math.floor(viewStart), rEnd=Math.ceil(viewStart+MAP_VIS_ABOVE+MAP_VIS_BELOW);
-    for(let r=Math.max(0,rStart);r<=Math.min(GRID_ROWS-1,rEnd);r++){
-      const py=(r-viewStart)*MAP_CELL_H;
-      for(let c=0;c<GRID_COLS;c++){
-        const px=c*MAP_CELL_W;
-        const isOpen=MAP[r]&&MAP[r][c]===0;
-        sctx.fillStyle=isOpen?'#04111e':'#030609';
-        sctx.fillRect(px,py,MAP_CELL_W-1,MAP_CELL_H);
-      }
-    }
-    // marcadores de profundidade
-    sctx.font='7px monospace'; sctx.textAlign='left';
-    for(let md=0;md<=2600;md+=100){
-      const r=(md*UNITS_PER_M)/TILE;
-      const py=(r-viewStart)*MAP_CELL_H;
-      if(py<-6||py>H+6) continue;
-      sctx.strokeStyle=md%200===0?'rgba(0,100,160,.4)':'rgba(0,60,100,.15)';
-      sctx.lineWidth=1;
-      sctx.beginPath(); sctx.moveTo(0,py); sctx.lineTo(W,py); sctx.stroke();
-      if(md%200===0){ sctx.fillStyle='rgba(0,130,190,.7)'; sctx.fillText(md+'m',2,py-1); }
-    }
-    // cabo (corda do submarino)
-    if(navPathData.length>0){
-      const moonPx=((0)-X_MIN_W)/TILE*MAP_CELL_W;
-      const moonPy=(1000/TILE-viewStart)*MAP_CELL_H;
-      sctx.save();
-      sctx.strokeStyle='rgba(100,170,255,0.35)';
-      sctx.lineWidth=1.5; sctx.setLineDash([3,3]);
-      sctx.beginPath(); sctx.moveTo(moonPx,moonPy);
-      navPathData.forEach(pt=>{
-        sctx.lineTo(((pt.x||0)-X_MIN_W)/TILE*MAP_CELL_W, ((pt.depth||0)/TILE-viewStart)*MAP_CELL_H);
-      });
-      sctx.lineTo(subCol*MAP_CELL_W,(subRow-viewStart)*MAP_CELL_H);
-      sctx.stroke(); sctx.setLineDash([]); sctx.restore();
-    }
-    // peixes
-    Object.entries(entities).forEach(([id,ent])=>{
-      if(!ent||ent.mode!=="fish") return;
-      const r=(ent.wd||0)/TILE, c=((ent.wx||0)-X_MIN_W)/TILE;
-      const px=c*MAP_CELL_W, py=(r-viewStart)*MAP_CELL_H;
-      if(py<-8||py>H+8) return;
-      const vis=ent.visible!==false;
-      sctx.globalAlpha=vis?1:0.35;
-      sctx.fillStyle='#44aacc';
-      sctx.beginPath(); sctx.arc(px,py,4,0,Math.PI*2); sctx.fill();
-      sctx.fillStyle='#88ddee'; sctx.font='8px monospace'; sctx.textAlign='left';
-      sctx.fillText('P',px+6,py+3);
-      sctx.globalAlpha=1;
-    });
-    // sub
-    const sx=subCol*MAP_CELL_W, sy=(subRow-viewStart)*MAP_CELL_H;
-    const pulse=0.65+0.35*Math.sin(Date.now()/500);
-    const gr=sctx.createRadialGradient(sx,sy,0,sx,sy,12);
-    gr.addColorStop(0,`rgba(76,143,200,${0.5*pulse})`); gr.addColorStop(1,'rgba(76,143,200,0)');
-    sctx.fillStyle=gr; sctx.beginPath(); sctx.arc(sx,sy,12,0,Math.PI*2); sctx.fill();
-    const hRad=(currentSubNav.heading||0)*Math.PI/180;
-    sctx.strokeStyle='#4c8fc8'; sctx.lineWidth=1.5;
-    sctx.beginPath(); sctx.moveTo(sx,sy); sctx.lineTo(sx+Math.sin(hRad)*10,sy+Math.cos(hRad)*12); sctx.stroke();
-    sctx.fillStyle='#4c8fc8'; sctx.beginPath(); sctx.arc(sx,sy,3,0,Math.PI*2); sctx.fill();
-    // rodapé
-    // criaturas no mapa
-    Object.entries(entities).forEach(([id,ent])=>{
-      if(!ent||ent.mode!=="creature") return;
-      const r=(ent.wd||0)/TILE, c=((ent.wx||0)-X_MIN_W)/TILE;
-      const px=c*MAP_CELL_W, py=(r-viewStart)*MAP_CELL_H;
-      if(py<-8||py>H+8) return;
-      const vis=ent.visible!==false;
-      const pulse=0.55+0.45*Math.sin(Date.now()/400);
-      sctx.globalAlpha=vis?(ent.chasing?pulse:0.7):0.3;
-      sctx.fillStyle=ent.chasing?'#ff4400':'#cc2200';
-      sctx.beginPath(); sctx.arc(px,py,5,0,Math.PI*2); sctx.fill();
-      sctx.fillStyle='#ff8866'; sctx.font='8px monospace'; sctx.textAlign='left';
-      sctx.fillText('C',px+7,py+3);
-      sctx.globalAlpha=1;
-    });
-    const depthM=Math.round(subDepth/UNITS_PER_M);
-    const fishCount=Object.values(entities).filter(e=>e&&e.mode==="fish").length;
-    const crtCount=Object.values(entities).filter(e=>e&&e.mode==="creature").length;
-    sctx.fillStyle='rgba(0,130,190,.6)'; sctx.font='8px monospace'; sctx.textAlign='center';
-    sctx.fillText(`${depthM}m · ${fishCount}P · ${crtCount}C`, W/2, H-3);
-    sctx.fillStyle='rgba(68,170,204,.5)'; sctx.textAlign='center';
-    sctx.fillText(`clique: ${mapPlaceMode==="creature"?"CRIATURA":"PEIXE"}`, W/2, H-13);
+    const viewStart=subRow-visRows;
+    return {visRows,cellH,cellW,subRow,subCol,viewStart,subPX:subCol*cellW,subPY:(subRow-viewStart)*cellH};
   }
-
-  let mapPlaceMode="fish";
-
-  function drawSonar() {
-    if(sonarView==="gm") drawSonarGM();
-    else if(sonarView==="map") drawGuardMap();
-    else drawSonarPlayer();
+  function worldToMapPx(wx,wd){
+    const {cellW,cellH,viewStart}=getMapMetrics();
+    return {px:((wx-X_MIN_W)/TILE)*cellW, py:(wd/TILE-viewStart)*cellH};
   }
-
-  // Tick do sensor: atualiza entityBlips a cada 2s (entidades visíveis, exceto peixes)
-  function sonarTick() {
-    const t=Date.now();
-    Object.entries(entities).forEach(([id,ent])=>{
-      if(!ent||ent.visible===false||ent.mode==="fish"){ delete entityBlips[id]; return; }
-      const pos=entDisplayPos(ent);
-      entityBlips[id]={ pos:{...pos}, born:t };
-    });
-    Object.keys(entityBlips).forEach(id=>{ if(!entities[id]||entities[id].visible===false||entities[id].mode==="fish") delete entityBlips[id]; });
-    sonarScanT=Date.now();
+  function mapPxToWorld(px,py){
+    const {cellW,cellH,viewStart}=getMapMetrics();
+    return {wx:X_MIN_W+(px/cellW)*TILE, wd:(py/cellH+viewStart)*TILE};
   }
-
-  setInterval(sonarTick,2000);
-  setInterval(drawSonar,100); // 10fps — suficiente pro anel + jitter
-  sonarTick(); drawSonar();
-
-  // ---- Click no canvas: adiciona entidade (bloqueia se foi drag) ----
-  sonarCanvas.addEventListener("click",e=>{
-    if(justDraggedEntity){ justDraggedEntity=false; return; }
-    const rect=sonarCanvas.getBoundingClientRect();
-    const px=e.clientX-rect.left, py=e.clientY-rect.top;
-    // no modo MAPA: clique coloca peixe no mundo nas coordenadas do tile
-    if(sonarView==="map"){
-      const subRow=(currentSubNav.depth||1000)/TILE;
-      const viewStart=subRow-MAP_VIS_ABOVE;
-      const wx=X_MIN_W+(px/MAP_CELL_W)*TILE;
-      const wd=(py/MAP_CELL_H+viewStart)*TILE;
-      if(mapPlaceMode==="creature") addCreatureEntity(wx,wd);
-      else addFishEntity(wx,wd);
-      return;
-    }
-    if(entityAtCanvas(mouseCanvasX,mouseCanvasY)) return;
-    const wr=unrotByHdg((px-S_CX)/S_SCALE*UNITS_PER_M,(py-S_CY)/S_SCALE*UNITS_PER_M);
-    addEntity(wr.dx, wr.dy);
-  });
-
-  // ---- Drag de entidades + hover + tecla E ----
-  function getCanvasXY(e){ const r=sonarCanvas.getBoundingClientRect(); return {px:e.clientX-r.left,py:e.clientY-r.top}; }
-  function entityAtCanvas(px,py){
-    if(sonarView==="map") return null; // no map mode não há drag pelo sonar
-    let best=null, bestD=14;
+  function entityAtMapPx(px,py){
+    let best=null, bestD=12;
     Object.entries(entities).forEach(([id,ent])=>{
-      if(!ent||ent.mode==="fish") return; // peixes ficam no mapa
-      const pos=entDisplayPos(ent);
-      const rp=rotByHdg(pos);
-      const d=Math.hypot(px-(S_CX+rp.dx/UNITS_PER_M*S_SCALE),py-(S_CY+rp.dy/UNITS_PER_M*S_SCALE));
+      if(!ent) return;
+      const {px:ex,py:ey}=worldToMapPx(ent.wx||0,ent.wd||1000);
+      const d=Math.hypot(px-ex,py-ey);
       if(d<bestD){bestD=d;best=id;}
     });
     return best;
   }
-  sonarCanvas.addEventListener("mouseenter",()=>mouseOverCanvas=true);
-  sonarCanvas.addEventListener("mouseleave",()=>{ mouseOverCanvas=false; dragEntityId=null; });
-  sonarCanvas.addEventListener("mousedown",e=>{ const {px,py}=getCanvasXY(e); dragEntityId=entityAtCanvas(px,py); });
-  sonarCanvas.addEventListener("mouseup",()=>{ dragEntityId=null; });
-  sonarCanvas.addEventListener("mousemove",e=>{
-    const {px,py}=getCanvasXY(e);
-    mouseCanvasX=px; mouseCanvasY=py;
-    if(dragEntityId!==null && entities[dragEntityId]){
-      justDraggedEntity=true;
-      const wr=unrotByHdg((px-S_CX)/S_SCALE*UNITS_PER_M,(py-S_CY)/S_SCALE*UNITS_PER_M);
-      const ent=entities[dragEntityId];
-      let patch;
-      if(ent.mode==="approach"){
-        const wx=(currentSubNav.x||0)+wr.dx, wd=(currentSubNav.depth||1000)+wr.dy;
-        entities[dragEntityId]=Object.assign({},ent,{wx,wd}); patch={wx,wd};
-      } else {
-        entities[dragEntityId]=Object.assign({},ent,{dx:wr.dx,dy:wr.dy}); patch={dx:wr.dx,dy:wr.dy};
+
+  // ---- Desenho do mapa ----
+  function drawMap(){
+    const {visRows,cellH,cellW,viewStart,subPX,subPY}=getMapMetrics();
+    mctx.fillStyle='#070a0f'; mctx.fillRect(0,0,M_W,M_H);
+
+    // Tiles
+    const rStart=Math.max(0,Math.floor(viewStart));
+    const rEnd=Math.min(GRID_ROWS-1,Math.ceil(viewStart+visRows*2));
+    for(let r=rStart;r<=rEnd;r++){
+      const py=(r-viewStart)*cellH;
+      for(let c=0;c<GRID_COLS;c++){
+        mctx.fillStyle=MAP[r]&&MAP[r][c]===0?'#04111e':'#030609';
+        mctx.fillRect(c*cellW,py,cellW-0.5,cellH);
       }
-      const n=Date.now();
-      if(n-entDragThrottle>80){ entDragThrottle=n; subRef.child("entities/"+dragEntityId).update(patch); }
+    }
+
+    // Linhas de profundidade
+    mctx.font='7px monospace'; mctx.textAlign='left';
+    for(let md=0;md<=2600;md+=100){
+      const r=(md*UNITS_PER_M)/TILE, py=(r-viewStart)*cellH;
+      if(py<-6||py>M_H+6) continue;
+      const major=(md%500===0);
+      mctx.strokeStyle=major?'rgba(0,100,160,.5)':'rgba(0,60,100,.2)';
+      mctx.lineWidth=major?1:0.5;
+      mctx.beginPath(); mctx.moveTo(0,py); mctx.lineTo(M_W,py); mctx.stroke();
+      if(major){ mctx.fillStyle='rgba(0,130,190,.7)'; mctx.fillText(md+'m',2,py-2); }
+    }
+
+    // Cabo
+    if(navPathData.length>0){
+      const moon=worldToMapPx(0,1000);
+      mctx.save(); mctx.strokeStyle='rgba(100,170,255,0.4)'; mctx.lineWidth=1.5; mctx.setLineDash([3,3]);
+      mctx.beginPath(); mctx.moveTo(moon.px,moon.py);
+      navPathData.forEach(pt=>{ const {px,py}=worldToMapPx(pt.x||0,pt.depth||0); mctx.lineTo(px,py); });
+      mctx.lineTo(subPX,subPY);
+      mctx.stroke(); mctx.setLineDash([]); mctx.restore();
+    }
+
+    // Peixes
+    Object.entries(entities).forEach(([id,ent])=>{
+      if(!ent||ent.mode!=='fish') return;
+      const {px,py}=worldToMapPx(ent.wx||0,ent.wd||0);
+      if(py<-8||py>M_H+8) return;
+      const vis=ent.visible!==false, sel=(id===selectedEntityId);
+      mctx.globalAlpha=vis?1:0.35;
+      if(sel){ mctx.strokeStyle='#88eeff'; mctx.lineWidth=2; mctx.beginPath(); mctx.arc(px,py,8,0,Math.PI*2); mctx.stroke(); }
+      mctx.fillStyle=sel?'#88eeff':'#44aacc';
+      mctx.beginPath(); mctx.arc(px,py,4,0,Math.PI*2); mctx.fill();
+      mctx.globalAlpha=1;
+    });
+
+    // Criaturas
+    Object.entries(entities).forEach(([id,ent])=>{
+      if(!ent||ent.mode!=='creature') return;
+      const {px,py}=worldToMapPx(ent.wx||0,ent.wd||0);
+      if(py<-8||py>M_H+8) return;
+      const vis=ent.visible!==false, sel=(id===selectedEntityId);
+      const beh=ent.behavior||'wander';
+      const pulse=0.5+0.5*Math.sin(Date.now()/400);
+      mctx.globalAlpha=vis?(beh==='chase'?pulse:0.8):0.3;
+      if(sel){ mctx.strokeStyle='#ff8866'; mctx.lineWidth=2; mctx.beginPath(); mctx.arc(px,py,9,0,Math.PI*2); mctx.stroke(); }
+      mctx.fillStyle=beh==='chase'?'#ff4400':beh==='stalk'?'#d8a24a':'#cc2200';
+      mctx.beginPath(); mctx.arc(px,py,5,0,Math.PI*2); mctx.fill();
+      mctx.globalAlpha=1;
+    });
+
+    // Sub: cone FOV + heading
+    const hRad=(currentSubNav.heading||0)*Math.PI/180;
+    const FOV_HALF=39*Math.PI/180, coneLen=55;
+    mctx.save();
+    mctx.fillStyle='rgba(76,143,200,0.1)';
+    mctx.beginPath();
+    mctx.moveTo(subPX,subPY);
+    mctx.lineTo(subPX+Math.sin(hRad-FOV_HALF)*coneLen,subPY+Math.cos(hRad-FOV_HALF)*coneLen);
+    mctx.lineTo(subPX+Math.sin(hRad+FOV_HALF)*coneLen,subPY+Math.cos(hRad+FOV_HALF)*coneLen);
+    mctx.closePath(); mctx.fill();
+    mctx.strokeStyle='rgba(76,143,200,0.22)'; mctx.lineWidth=0.8;
+    mctx.beginPath();
+    mctx.moveTo(subPX+Math.sin(hRad-FOV_HALF)*coneLen,subPY+Math.cos(hRad-FOV_HALF)*coneLen);
+    mctx.lineTo(subPX,subPY);
+    mctx.lineTo(subPX+Math.sin(hRad+FOV_HALF)*coneLen,subPY+Math.cos(hRad+FOV_HALF)*coneLen);
+    mctx.stroke(); mctx.restore();
+
+    const pulse2=0.65+0.35*Math.sin(Date.now()/500);
+    const gr=mctx.createRadialGradient(subPX,subPY,0,subPX,subPY,12);
+    gr.addColorStop(0,`rgba(76,143,200,${0.5*pulse2})`); gr.addColorStop(1,'rgba(76,143,200,0)');
+    mctx.fillStyle=gr; mctx.beginPath(); mctx.arc(subPX,subPY,12,0,Math.PI*2); mctx.fill();
+    mctx.strokeStyle='#4c8fc8'; mctx.lineWidth=2;
+    mctx.beginPath(); mctx.moveTo(subPX,subPY); mctx.lineTo(subPX+Math.sin(hRad)*18,subPY+Math.cos(hRad)*18); mctx.stroke();
+    mctx.fillStyle='#4c8fc8'; mctx.beginPath(); mctx.arc(subPX,subPY,3,0,Math.PI*2); mctx.fill();
+
+    // HUD
+    const depthM=Math.round((currentSubNav.depth||1000)/UNITS_PER_M);
+    const hdg=Math.round(currentSubNav.heading||0);
+    const fishCount=Object.values(entities).filter(e=>e&&e.mode==='fish').length;
+    const crtCount=Object.values(entities).filter(e=>e&&e.mode==='creature').length;
+    mctx.fillStyle='rgba(0,130,190,.65)'; mctx.font='8px monospace'; mctx.textAlign='left';
+    mctx.fillText(`${depthM}m  BRG ${String(hdg).padStart(3,'0')}  ×${mapZoom.toFixed(1)}  P:${fishCount} C:${crtCount}`,4,M_H-4);
+    mctx.fillStyle=mapPlaceMode==='creature'?'#ff4400':'#44aacc'; mctx.textAlign='right';
+    mctx.fillText(mapPlaceMode==='creature'?'+ CRIATURA':'+ PEIXE',M_W-4,M_H-4);
+
+    const el=document.getElementById('mapStatus');
+    if(el) el.textContent=`${fishCount}P · ${crtCount}C`;
+  }
+
+  setInterval(drawMap,100);
+
+  // ---- Zoom ----
+  mapCanvas.addEventListener('wheel',e=>{
+    e.preventDefault();
+    mapZoom=Math.max(0.3,Math.min(5.0,mapZoom+(e.deltaY<0?0.15:-0.15)));
+  },{passive:false});
+  document.getElementById('mapZoomIn').addEventListener('click',()=>{mapZoom=Math.min(5.0,mapZoom*1.35);});
+  document.getElementById('mapZoomOut').addEventListener('click',()=>{mapZoom=Math.max(0.3,mapZoom/1.35);});
+  document.getElementById('mapZoomReset').addEventListener('click',()=>{mapZoom=1.0;});
+
+  // ---- Modo de spawn ----
+  document.getElementById('placeModeBtn').addEventListener('click',()=>{
+    mapPlaceMode=mapPlaceMode==='fish'?'creature':'fish';
+    const btn=document.getElementById('placeModeBtn');
+    btn.textContent=mapPlaceMode==='creature'?'+ CRIATURA':'+ PEIXE';
+    btn.style.color=mapPlaceMode==='creature'?'#ff4400':'#44aacc';
+  });
+
+  // ---- Interação com o canvas ----
+  mapCanvas.addEventListener('mouseenter',()=>{mouseOverCanvas=true;});
+  mapCanvas.addEventListener('mouseleave',()=>{mouseOverCanvas=false; dragEntityId=null;});
+  mapCanvas.addEventListener('mousedown',e=>{
+    const r=mapCanvas.getBoundingClientRect();
+    const px=e.clientX-r.left, py=e.clientY-r.top;
+    const hit=entityAtMapPx(px,py);
+    dragJustMoved=false;
+    if(hit){ dragEntityId=hit; selectedEntityId=hit; renderSelectedPanel(); renderEntityList(); }
+    else dragEntityId=null;
+  });
+  mapCanvas.addEventListener('mousemove',e=>{
+    const r=mapCanvas.getBoundingClientRect();
+    mouseMapX=e.clientX-r.left; mouseMapY=e.clientY-r.top;
+    if(!dragEntityId||!entities[dragEntityId]) return;
+    dragJustMoved=true;
+    const {wx,wd}=mapPxToWorld(mouseMapX,mouseMapY);
+    entities[dragEntityId]={...entities[dragEntityId],wx,wd};
+    const now=Date.now();
+    if(now-dragThrottle>80){ dragThrottle=now; subRef.child('entities/'+dragEntityId).update({wx,wd}); }
+  });
+  mapCanvas.addEventListener('mouseup',e=>{
+    const wasDragging=dragJustMoved;
+    dragEntityId=null; dragJustMoved=false;
+    if(wasDragging) return;
+    const r=mapCanvas.getBoundingClientRect();
+    const px=e.clientX-r.left, py=e.clientY-r.top;
+    const hit=entityAtMapPx(px,py);
+    if(hit){
+      selectedEntityId=hit; renderSelectedPanel(); renderEntityList();
+    } else {
+      const {wx,wd}=mapPxToWorld(px,py);
+      if(mapPlaceMode==='creature') addDeadFishEntity(wx,wd);
+      else addFishEntity(wx,wd);
     }
   });
-  function addEntity(dx, dy) {
-    const id="e"+Date.now().toString(36);
-    const col=ENT_COLORS[Object.keys(entities).length % ENT_COLORS.length];
-    const ent={dx,dy,visible:true,color:col,mode:"fixed",speed:0};
-    entities[id]=ent;
-    subRef.child("entities/"+id).set(ent);
-    expandedEntities.add(id);
-    renderEntityList();
-  }
 
-  function addFishEntity(wx, wd) {
-    const id="f"+Date.now().toString(36);
-    const ent={mode:"fish",wx,wd,visible:true,color:"#44aacc",fishPhase:Math.random()*Math.PI*2};
-    entities[id]=ent;
-    subRef.child("entities/"+id).set(ent);
-    expandedEntities.add(id);
-    renderEntityList();
-  }
-
-  function addCreatureEntity(wx, wd) {
-    const id="c"+Date.now().toString(36);
-    const ent={mode:"creature",wx,wd,visible:true,speed:20,chasing:false,color:"#ff4400"};
-    entities[id]=ent;
-    subRef.child("entities/"+id).set(ent);
-    expandedEntities.add(id);
-    renderEntityList();
-  }
-
-  function renderEntityList() {
-    const list=document.getElementById("entityList"); if(!list) return;
-    const ids=Object.keys(entities).filter(id=>entities[id]);
-    if(!ids.length){
-      list.innerHTML='<div style="font-size:10px;color:var(--ink-dim);padding:4px 2px;line-height:1.6">Sem entidades.<br>Clique no canvas para criar.</div>';
+  // ---- Painel SELECIONADO ----
+  function renderSelectedPanel(){
+    const el=document.getElementById('selectedControls'); if(!el) return;
+    const id=selectedEntityId;
+    if(!id||!entities[id]){
+      el.innerHTML='<div style="font-size:10px;color:var(--ink-dim);padding:2px 0">nenhuma entidade selecionada</div>';
       return;
     }
+    const ent=entities[id];
+    const vis=ent.visible!==false;
+    if(ent.mode==='fish'){
+      el.innerHTML=`<div style="font-size:9px;color:#44aacc;letter-spacing:.1em;margin-bottom:5px">PEIXE</div>
+        <div style="display:flex;gap:4px;margin-bottom:5px">
+          <button class="btn sel-vis" data-v="true" style="flex:1;font-size:9px${vis?';color:var(--live);border-color:var(--live-dim)':''}">VISÍVEL</button>
+          <button class="btn sel-vis" data-v="false" style="flex:1;font-size:9px${!vis?';color:var(--ink-dim);border-color:var(--ink-dim)':''}">OCULTO</button>
+        </div>
+        <button class="btn sel-rm" style="font-size:9px;color:var(--danger);width:100%">remover</button>`;
+    } else if(ent.mode==='creature'){
+      const beh=ent.behavior||'wander';
+      const spd=typeof ent.speed==='number'?ent.speed:20;
+      el.innerHTML=`<div style="font-size:9px;color:#ff4400;letter-spacing:.1em;margin-bottom:5px">CRIATURA</div>
+        <div style="display:flex;gap:4px;margin-bottom:5px">
+          <button class="btn sel-vis" data-v="true" style="flex:1;font-size:9px${vis?';color:var(--live);border-color:var(--live-dim)':''}">VISÍVEL</button>
+          <button class="btn sel-vis" data-v="false" style="flex:1;font-size:9px${!vis?';color:var(--ink-dim);border-color:var(--ink-dim)':''}">OCULTO</button>
+        </div>
+        <div style="font-size:9px;color:var(--ink-dim);letter-spacing:.08em;margin-bottom:3px">VELOCIDADE (wu/s)</div>
+        <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px">
+          <input type="number" id="sel-spd" min="1" max="300" value="${spd}" style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:12px;padding:4px 6px;border-radius:3px">
+          <button class="btn sel-spd-reset" style="font-size:9px">↺ 20</button>
+        </div>
+        <div style="font-size:9px;color:var(--ink-dim);letter-spacing:.08em;margin-bottom:3px">COMPORTAMENTO</div>
+        <div style="display:flex;gap:4px;margin-bottom:5px">
+          <button class="btn sel-beh" data-b="wander" style="flex:1;font-size:9px${beh==='wander'?';color:var(--live);border-color:var(--live-dim)':''}">PASSEAR</button>
+          <button class="btn sel-beh" data-b="stalk" style="flex:1;font-size:9px${beh==='stalk'?';color:var(--warn);border-color:var(--warn-dim)':''}">STALKAR</button>
+          <button class="btn sel-beh" data-b="chase" style="flex:1;font-size:9px${beh==='chase'?';color:var(--danger);border-color:var(--danger)':''}">PERSEGUIR</button>
+        </div>
+        <button class="btn sel-rm" style="font-size:9px;color:var(--danger);width:100%">remover</button>`;
+    }
+  }
+  document.getElementById('selectedControls').addEventListener('click',e=>{
+    const id=selectedEntityId; if(!id||!entities[id]) return;
+    const vb=e.target.closest('.sel-vis');
+    if(vb){ const vis=vb.dataset.v==='true'; entities[id]={...entities[id],visible:vis}; subRef.child('entities/'+id+'/visible').set(vis); renderSelectedPanel(); return; }
+    const bh=e.target.closest('.sel-beh');
+    if(bh){ const beh=bh.dataset.b,chasing=(beh==='chase'); entities[id]={...entities[id],behavior:beh,chasing}; subRef.child('entities/'+id).update({behavior:beh,chasing}); renderSelectedPanel(); renderEntityList(); return; }
+    const rs=e.target.closest('.sel-spd-reset');
+    if(rs){ const inp=document.getElementById('sel-spd'); if(inp) inp.value=20; entities[id]={...entities[id],speed:20}; subRef.child('entities/'+id+'/speed').set(20); renderSelectedPanel(); return; }
+    const rm=e.target.closest('.sel-rm');
+    if(rm){ subRef.child('entities/'+id).set(null); delete entities[id]; if(deadFishId===id) deadFishId=null; selectedEntityId=null; renderSelectedPanel(); renderEntityList(); return; }
+  });
+  document.getElementById('selectedControls').addEventListener('change',e=>{
+    const id=selectedEntityId; if(!id||!entities[id]) return;
+    if(e.target.id==='sel-spd'){ const spd=Math.max(1,Math.min(300,parseInt(e.target.value)||20)); e.target.value=spd; entities[id]={...entities[id],speed:spd}; subRef.child('entities/'+id+'/speed').set(spd); }
+  });
+
+  // ---- Lista compacta de entidades ----
+  function renderEntityList(){
+    const list=document.getElementById('entityList'); if(!list) return;
+    const ids=Object.keys(entities).filter(id=>entities[id]);
+    if(!ids.length){ list.innerHTML='<div style="font-size:10px;color:var(--ink-dim);opacity:.5;padding:2px">Sem entidades.</div>'; return; }
     list.innerHTML=ids.map((id,i)=>{
       const ent=entities[id];
-      const col=ent.color||"#d65a5a";
-      const vis=ent.visible!==false;
-      const mode=ent.mode||"fixed";
-      const isFish=mode==="fish";
-      const isCreature=mode==="creature";
-      const spd=typeof ent.speed==="number"?ent.speed:0;
-      const pos=entDisplayPos(ent);
-      const dist=Math.hypot(pos.dx,pos.dy);
-      const open=expandedEntities.has(id);
-      const modeTag=isFish?" · peixe":isCreature?" · criatura":mode==="approach"?" · ↗":"";
-      const cardCol=isCreature?"#ff440044":col+"44";
-      return `<div style="border:1px solid ${cardCol};border-radius:4px;padding:5px 7px;background:#0a100a;font-size:10px">
-        <div style="display:flex;align-items:center;gap:6px;cursor:pointer" data-toggle="${id}">
-          <span style="width:8px;height:8px;border-radius:${isCreature?"2":"50%"};background:${col};flex-shrink:0;opacity:${vis?1:0.4};box-shadow:0 0 5px ${col}88"></span>
-          <span style="flex:1;color:${vis?"var(--ink)":"var(--ink-dim)"}">E${i+1} · ${dist.toFixed(0)}m${vis?"":" · oculto"}${modeTag}${isCreature&&ent.chasing?" ⚠":""}</span>
-          <span style="color:var(--ink-dim)">${open?"▴":"▾"}</span>
-        </div>
-        <div id="ent-body-${id}" style="display:${open?"flex":"none"};flex-direction:column;gap:5px;margin-top:6px;padding-top:6px;border-top:1px solid #1a2a1a">
-          <div style="display:flex;gap:4px">
-            <button class="btn ent-vis-btn" data-id="${id}" data-val="true" style="flex:1;font-size:9px${vis?";color:var(--live);border-color:var(--live-dim)":""}">VISÍVEL</button>
-            <button class="btn ent-vis-btn" data-id="${id}" data-val="false" style="flex:1;font-size:9px${!vis?";color:var(--ink-dim);border-color:var(--ink-dim)":""}">OCULTO</button>
-          </div>
-          ${isFish
-            ?`<div style="font-size:9px;color:#44aacc;padding:2px 0">PEIXE — sprite 3D</div>`
-            :isCreature
-            ?`<div style="font-size:9px;color:#ff4400;padding:2px 0">CRIATURA — perseguição 3D</div>
-              <div style="display:flex;align-items:center;gap:6px">
-                <input type="range" class="ent-spd" data-id="${id}" min="5" max="120" step="1" value="${spd}" style="flex:1">
-                <span id="sv-${id}" style="font-size:9px;color:var(--ink-dim);min-width:50px">${spd} wu/s</span>
-              </div>
-              <button class="btn ent-chase-btn" data-id="${id}" style="font-size:9px;width:100%;${ent.chasing?"color:#ff4400;border-color:#ff4400":""}">
-                ${ent.chasing?"⚠ PARAR PERSEGUIÇÃO":"PERSEGUIR"}
-              </button>`
-            :`<div style="display:flex;gap:4px;flex-wrap:wrap">
-                ${ENT_COLORS.map(c=>`<button class="btn ent-col-btn" data-id="${id}" data-c="${c}" style="width:18px;height:18px;padding:0;background:${c};border-radius:50%;border:2px solid ${col===c?"#fff":"transparent"};min-width:0"></button>`).join("")}
-              </div>
-              <div style="display:flex;gap:4px">
-                <button class="btn ent-mode-btn" data-id="${id}" data-m="fixed" style="flex:1;font-size:9px${mode==="fixed"?";color:var(--live);border-color:var(--live-dim)":""}">FIXO</button>
-                <button class="btn ent-mode-btn" data-id="${id}" data-m="approach" style="flex:1;font-size:9px${mode==="approach"?";color:var(--live);border-color:var(--live-dim)":""}">APROX.</button>
-              </div>
-              ${mode==="approach"?`<div style="display:flex;align-items:center;gap:6px">
-                <input type="range" class="ent-spd" data-id="${id}" min="0" max="200" step="1" value="${spd}" style="flex:1">
-                <span id="sv-${id}" style="font-size:9px;color:var(--ink-dim);min-width:42px">${spd} wu/s</span>
-              </div>`:""}`
-          }
-          <button class="btn ent-rm" data-id="${id}" style="font-size:9px;color:var(--danger);margin-top:2px">remover</button>
-        </div>
+      const vis=ent.visible!==false, sel=(id===selectedEntityId);
+      const mode=ent.mode||'fixed';
+      const col=mode==='creature'?'#ff4400':mode==='fish'?'#44aacc':'#d65a5a';
+      const lbl=mode==='creature'?`C · ${ent.behavior||'wander'}`:mode==='fish'?'P':'A';
+      return `<div style="display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:3px;cursor:pointer;background:${sel?'rgba(76,143,200,0.08)':'transparent'};border:1px solid ${sel?'rgba(76,143,200,0.25)':'transparent'}" data-sel="${id}">
+        <span style="width:6px;height:6px;border-radius:${mode==='creature'?'2px':'50%'};background:${col};flex-shrink:0;opacity:${vis?1:0.35}"></span>
+        <span style="flex:1;font-size:10px;color:${sel?'var(--ink)':'var(--ink-dim)'}">${lbl}</span>
       </div>`;
-    }).join("");
+    }).join('');
+  }
+  document.getElementById('entityList').addEventListener('click',e=>{
+    const s=e.target.closest('[data-sel]');
+    if(s){ selectedEntityId=s.dataset.sel; renderSelectedPanel(); renderEntityList(); }
+  });
+
+  // ---- Adicionar entidades ----
+  function addFishEntity(wx,wd){
+    const id='f'+Date.now().toString(36);
+    const ent={mode:'fish',wx,wd,visible:true,color:'#44aacc',fishPhase:Math.random()*Math.PI*2};
+    entities[id]=ent; subRef.child('entities/'+id).set(ent);
+    selectedEntityId=id; renderSelectedPanel(); renderEntityList();
+  }
+  function addDeadFishEntity(wx,wd){
+    if(deadFishId){ subRef.child('entities/'+deadFishId).remove(); delete entities[deadFishId]; }
+    const id='df'+Date.now().toString(36);
+    const ent={mode:'creature',wx,wd,visible:true,speed:20,behavior:'wander',chasing:false,color:'#c86030'};
+    deadFishId=id; entities[id]=ent; subRef.child('entities/'+id).set(ent);
+    selectedEntityId=id; renderSelectedPanel(); renderEntityList();
   }
 
-  // Event delegation para ações na lista de entidades
-  document.getElementById("entityList").addEventListener("click",e=>{
-    const tog=e.target.closest("[data-toggle]");
-    if(tog){ const id=tog.dataset.toggle; if(expandedEntities.has(id)){expandedEntities.delete(id);}else{expandedEntities.add(id);} renderEntityList(); return; }
-    const vb=e.target.closest(".ent-vis-btn");
-    if(vb){ const id=vb.dataset.id; const vis=vb.dataset.val==="true"; entities[id]=Object.assign({},entities[id],{visible:vis}); subRef.child("entities/"+id+"/visible").set(vis); renderEntityList(); return; }
-    const cb=e.target.closest(".ent-col-btn");
-    if(cb){ const id=cb.dataset.id; const col=cb.dataset.c; entities[id]=Object.assign({},entities[id],{color:col}); subRef.child("entities/"+id+"/color").set(col); renderEntityList(); return; }
-    const mb=e.target.closest(".ent-mode-btn");
-    if(mb){
-      const id=mb.dataset.id, m=mb.dataset.m, ent=entities[id]; if(!ent) return;
-      const upd=Object.assign({},ent,{mode:m});
-      if(m==="approach"){ const now=Date.now(); upd.wx=(currentSubNav.x||0)+(ent.dx||0); upd.wd=(currentSubNav.depth||1000)+(ent.dy||0); upd.tx=currentSubNav.x||0; upd.td=currentSubNav.depth||1000; upd.lastUpdateTime=now; }
-      else { upd.dx=typeof ent.wx==="number"?ent.wx-(currentSubNav.x||0):(ent.dx||0); upd.dy=typeof ent.wd==="number"?ent.wd-(currentSubNav.depth||1000):(ent.dy||0); }
-      entities[id]=upd; subRef.child("entities/"+id).set(upd); renderEntityList(); return;
-    }
-    const ch=e.target.closest(".ent-chase-btn");
-    if(ch){ const id=ch.dataset.id; const ent=entities[id]; if(!ent) return; const chasing=!ent.chasing; entities[id]={...ent,chasing}; subRef.child("entities/"+id+"/chasing").set(chasing); renderEntityList(); return; }
-    const rm=e.target.closest(".ent-rm");
-    if(rm){ const id=rm.dataset.id; delete entities[id]; delete entityBlips[id]; expandedEntities.delete(id); subRef.child("entities/"+id).set(null); renderEntityList(); return; }
+  // ---- Limpeza ----
+  document.getElementById('entFishClear').addEventListener('click',()=>{
+    Object.keys(entities).filter(id=>entities[id]&&entities[id].mode==='fish').forEach(id=>{
+      subRef.child('entities/'+id).set(null); delete entities[id];
+      if(selectedEntityId===id){ selectedEntityId=null; renderSelectedPanel(); }
+    }); renderEntityList();
   });
-  document.getElementById("entityList").addEventListener("input",e=>{
-    const sl=e.target.closest(".ent-spd"); if(!sl) return;
-    const id=sl.dataset.id, spd=parseInt(sl.value);
-    const sv=document.getElementById("sv-"+id); if(sv) sv.textContent=spd+" wu/s";
-    const ent=entities[id]; if(!ent) return;
-    const snap=(ent.mode==="approach"&&typeof ent.wx==="number")?getApproachPos(ent,Date.now()):null;
-    const patch=snap?{speed:spd,wx:snap.wx,wd:snap.wd,lastUpdateTime:Date.now()}:{speed:spd};
-    entities[id]=Object.assign({},ent,patch);
-    subRef.child("entities/"+id).update(patch);
+  document.getElementById('entDeadFishClear').addEventListener('click',()=>{
+    Object.keys(entities).filter(id=>entities[id]&&entities[id].mode==='creature').forEach(id=>{
+      subRef.child('entities/'+id).set(null); delete entities[id];
+      if(selectedEntityId===id){ selectedEntityId=null; renderSelectedPanel(); }
+      if(deadFishId===id) deadFishId=null;
+    }); renderEntityList();
+  });
+  document.getElementById('entClear').addEventListener('click',()=>{
+    subRef.child('entities').set(null); entities={}; deadFishId=null; selectedEntityId=null;
+    renderSelectedPanel(); renderEntityList();
   });
 
-  // Refresh de trajetória a cada 4s: snapshot da posição calculada + alvo atualizado.
-  // Entidades continuam se movendo em TODOS os clientes sem ninguém no guardião aberto.
-  setInterval(()=>{
-    const now=Date.now();
-    const updates={};
-    Object.entries(entities).forEach(([id,ent])=>{
-      if(!ent||ent.mode!=="approach"||typeof ent.wx!=="number") return;
-      const pos=getApproachPos(ent,now);
-      const patch={wx:pos.wx,wd:pos.wd,tx:currentSubNav.x||0,td:currentSubNav.depth||1000,lastUpdateTime:now};
-      entities[id]=Object.assign({},ent,patch);
-      Object.entries(patch).forEach(([k,v])=>{updates["entities/"+id+"/"+k]=v;});
-    });
-    if(Object.keys(updates).length) subRef.update(updates);
-  },4000);
-
-  document.addEventListener("keydown",e=>{
-    if(e.code==="KeyE" && mouseOverCanvas){
+  // ---- Tecla E + canvas ----
+  document.addEventListener('keydown',e=>{
+    if(e.code==='KeyE'&&mouseOverCanvas){
       e.preventDefault();
-      if(sonarView==="map"){
-        const subRow=(currentSubNav.depth||1000)/TILE;
-        const viewStart=subRow-MAP_VIS_ABOVE;
-        const wx=X_MIN_W+(mouseCanvasX/MAP_CELL_W)*TILE;
-        const wd=(mouseCanvasY/MAP_CELL_H+viewStart)*TILE;
-        addFishEntity(wx,wd);
-      } else {
-        const wr=unrotByHdg((mouseCanvasX-S_CX)/S_SCALE*UNITS_PER_M,(mouseCanvasY-S_CY)/S_SCALE*UNITS_PER_M);
-        addEntity(wr.dx, wr.dy);
-      }
+      const {wx,wd}=mapPxToWorld(mouseMapX,mouseMapY);
+      if(mapPlaceMode==='creature') addDeadFishEntity(wx,wd);
+      else addFishEntity(wx,wd);
     }
   });
 
-  // ---- Controles de modo/vista ----
-  function setView(v){
-    sonarView=v;
-    document.getElementById("viewGM").classList.toggle("is-on",v==="gm");
-    document.getElementById("viewPlayer").classList.toggle("is-on",v==="player");
-    document.getElementById("viewMap").classList.toggle("is-on",v==="map");
-    document.getElementById("mapModeBar").style.display=v==="map"?"flex":"none";
-  }
-  document.getElementById("viewGM").addEventListener("click",()=>setView("gm"));
-  document.getElementById("viewPlayer").addEventListener("click",()=>setView("player"));
-  document.getElementById("viewMap").addEventListener("click",()=>setView("map"));
 
-  document.getElementById("entAdd").addEventListener("click",()=>{
-    const hdgRad=(currentSubNav.heading||0)*Math.PI/180;
-    addEntity(Math.sin(hdgRad)*500, Math.cos(hdgRad)*500);
-  });
-  document.getElementById("entFish").addEventListener("click",()=>{
-    // abre o MAPA para colocar no lugar certo; ou coloca à frente do sub se já no mapa
-    if(sonarView!=="map"){
-      sonarView="map";
-      document.getElementById("viewMap").classList.add("is-on");
-      document.getElementById("viewGM").classList.remove("is-on");
-      document.getElementById("viewPlayer").classList.remove("is-on");
-    } else {
-      const hdgRad=(currentSubNav.heading||0)*Math.PI/180;
-      const wx=(currentSubNav.x||0)+Math.sin(hdgRad)*300;
-      const wd=(currentSubNav.depth||1000)+Math.cos(hdgRad)*300;
-      addFishEntity(wx,wd);
-    }
-  });
-  document.getElementById("entClear").addEventListener("click",()=>{
-    subRef.child("entities").set(null);
-    entities={}; entityBlips={}; renderEntityList();
-  });
 
-  // ---- Peixe Morto (criatura grande) ----
-  let deadFishId=null;
-  function addDeadFishEntity(wx, wd){
-    if(deadFishId) subRef.child("entities/"+deadFishId).remove();
-    const id="df"+Date.now().toString(36);
-    const ent={mode:"creature",wx,wd,visible:true,speed:20,behavior:"wander",chasing:false,color:"#c86030"};
-    deadFishId=id;
-    entities[id]=ent;
-    subRef.child("entities/"+id).set(ent);
-    expandedEntities.add(id);
-    renderEntityList();
-    document.getElementById("creatureBehBox").style.display="flex";
-  }
-  document.getElementById("entDeadFish").addEventListener("click",()=>{
-    const hdgRad=(currentSubNav.heading||0)*Math.PI/180;
-    const wx=(currentSubNav.x||0)+Math.sin(hdgRad)*500;
-    const wd=(currentSubNav.depth||2000)+Math.cos(hdgRad)*500;
-    addDeadFishEntity(wx, wd);
-  });
-  document.getElementById("entDeadFishClear").addEventListener("click",()=>{
-    if(deadFishId){
-      subRef.child("entities/"+deadFishId).remove();
-      delete entities[deadFishId]; deadFishId=null;
-      document.getElementById("creatureBehBox").style.display="none";
-      renderEntityList();
-    }
-  });
-  document.querySelectorAll(".beh-btn").forEach(btn=>{
-    btn.addEventListener("click",()=>{
-      if(!deadFishId) return;
-      const beh=btn.dataset.beh;
-      const chasing=(beh==="chase");
-      subRef.child("entities/"+deadFishId).update({behavior:beh,chasing});
-      if(entities[deadFishId]) entities[deadFishId]={...entities[deadFishId],behavior:beh,chasing};
-      document.querySelectorAll(".beh-btn").forEach(b=>{ b.style.borderColor=""; b.style.color=""; });
-      const colors={wander:"var(--live)",stalk:"var(--warn)",chase:"var(--danger)"};
-      btn.style.borderColor=colors[beh]||""; btn.style.color=colors[beh]||"";
-    });
-  });
+
 
   // ---- Listener Firebase do submarino ----
   subRef.on("value",snap=>{
@@ -1322,12 +1021,9 @@
         merged[id]=Object.assign({},ent,{wx:local.wx,wd:local.wd});
       } else { merged[id]=ent; }
     });
-    const prevIds=new Set(Object.keys(entities));
     entities=merged;
-    Object.keys(entityBlips).forEach(id=>{ if(!entities[id]||entities[id].visible===false) delete entityBlips[id]; });
-    // Só re-renderiza a lista se os IDs mudaram
-    const newIds=Object.keys(entities);
-    if(prevIds.size!==newIds.length||newIds.some(id=>!prevIds.has(id))) renderEntityList();
+    if(selectedEntityId&&!entities[selectedEntityId]){ selectedEntityId=null; renderSelectedPanel(); }
+    renderEntityList();
 
   });
 
@@ -1337,31 +1033,31 @@
   });
 
   // ---- Velocidade de navegação ----
-  const elNavSpd=document.getElementById("navSpeedSlider");
-  const elNavSpdVal=document.getElementById("navSpeedVal");
-  elNavSpd.addEventListener("input",()=>{
-    const v=parseInt(elNavSpd.value)||30;
-    elNavSpdVal.textContent=v+"wu/s";
+  const elNavSpd=document.getElementById("navSpeedInput");
+  elNavSpd.addEventListener("change",()=>{
+    const v=Math.max(5,parseInt(elNavSpd.value)||30); elNavSpd.value=v;
     subRef.child("navSpeed").set(v);
+  });
+  document.getElementById("navSpeedReset").addEventListener("click",()=>{
+    elNavSpd.value=30; subRef.child("navSpeed").set(30);
   });
   subRef.child("navSpeed").on("value",s=>{
     const v=s.val()||30;
-    elNavSpd.value=v;
-    elNavSpdVal.textContent=v+"wu/s";
+    if(document.activeElement!==elNavSpd) elNavSpd.value=v;
   });
 
   // ---- Velocidade do recolhimento ----
-  const elReelingSpd=document.getElementById("reelingSpeedSlider");
-  const elReelingSpdVal=document.getElementById("reelingSpeedVal");
-  elReelingSpd.addEventListener("input",()=>{
-    const v=parseInt(elReelingSpd.value)||80;
-    elReelingSpdVal.textContent=v+"wu/s";
+  const elReelingSpd=document.getElementById("reelingSpeedInput");
+  elReelingSpd.addEventListener("change",()=>{
+    const v=Math.max(10,parseInt(elReelingSpd.value)||80); elReelingSpd.value=v;
     subRef.child("reelingSpeed").set(v);
+  });
+  document.getElementById("reelingSpeedReset").addEventListener("click",()=>{
+    elReelingSpd.value=80; subRef.child("reelingSpeed").set(80);
   });
   subRef.child("reelingSpeed").on("value",s=>{
     const v=s.val()||80;
-    elReelingSpd.value=v;
-    elReelingSpdVal.textContent=v+"wu/s";
+    if(document.activeElement!==elReelingSpd) elReelingSpd.value=v;
   });
 
   // ---- Dano do Casco ----
