@@ -654,8 +654,8 @@
         let relDeg=((viewAngle-facing)*180/Math.PI+360)%360;
         const flipX=relDeg>180;
         if(flipX) relDeg=360-relDeg;
-        // 5 linhas para 0°,45°,90°,135°,180°
-        const rotRow=Math.min(4, Math.round(relDeg/45));
+        // spritesheet: row 0 = lado, row 4 = de frente (invertido do padrão Doom)
+        const rotRow=4-Math.min(4, Math.round(relDeg/45));
         const animCol=Math.floor(t/4)%DF_COLS;
         const fIdx=rotRow*DF_COLS+animCol;
         const frames=flipX?dfFramesFlip:dfFrames;
@@ -1256,7 +1256,7 @@
           vx=(dx/dist)*spd; vd=(dd/dist)*spd;
         }
         // jumpscare ao chegar muito perto (bloqueado na moonpool)
-        if(dist<80&&now-jumpscareT>10000&&nav.mode!=="moonpool"){
+        if(dist<80&&now-jumpscareT>jumpscareCD&&nav.mode!=="moonpool"){
           jumpscareT=now;
           const jf=document.getElementById("jflash");
           jf.style.display="block"; jf.style.transition="none"; jf.style.opacity="1";
@@ -1491,6 +1491,11 @@
     const v=snap.val(); if(typeof v==="number"&&v>0) NAV_SPEED=v;
   });
 
+  // cooldown do jumpscare (configurado pelo guardião)
+  ref.child("jumpscareCD").on("value",snap=>{
+    const v=snap.val(); if(typeof v==="number"&&v>=0) jumpscareCD=v;
+  });
+
   // blackout: GM apaga a tela para reposicionar visuais
   ref.child("blackout").on("value",snap=>{
     document.getElementById("blackout").style.opacity=snap.val()?"1":"0";
@@ -1503,7 +1508,7 @@
   });
 
   // entidades do mundo: peixes e criaturas renderizados como sprites 3D
-  let creatureWriteT=0, jumpscareT=0;
+  let creatureWriteT=0, jumpscareT=0, jumpscareCD=10000;
   let creatureWanderTargets={}, creatureWanderPhase={};
   let dfFramesFlip=[];  // frames espelhados horizontalmente para rotação Doom
   ref.child("entities").on("value",snap=>{

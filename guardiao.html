@@ -243,6 +243,15 @@
             </div>
           </div>
           <div>
+            <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">COOLDOWN JUMPSCARE</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" id="jsCDInput" min="0" max="600000" value="10000"
+                style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:inherit;font-size:13px;padding:5px 8px;border-radius:3px">
+              <span style="font-size:10px;color:var(--ink-dim)">ms</span>
+              <button class="btn" id="jsCDReset" style="font-size:10px">↺ 10s</button>
+            </div>
+          </div>
+          <div>
             <div style="font-size:10px;letter-spacing:.16em;color:var(--ink-dim);margin-bottom:7px">SHUTTER (visor do sub)</div>
             <div style="display:flex;gap:6px">
               <button class="btn" id="shutterAuto" style="flex:1;font-size:10px">AUTO</button>
@@ -1060,6 +1069,19 @@
   subRef.child("reelingSpeed").on("value",s=>{
     const v=s.val()||80;
     if(document.activeElement!==elReelingSpd) elReelingSpd.value=v;
+  });
+
+  // ---- Cooldown do jumpscare ----
+  const elJsCD=document.getElementById("jsCDInput");
+  elJsCD.addEventListener("change",()=>{
+    const v=Math.max(0,parseInt(elJsCD.value)||10000); elJsCD.value=v;
+    subRef.child("jumpscareCD").set(v);
+  });
+  document.getElementById("jsCDReset").addEventListener("click",()=>{
+    elJsCD.value=10000; subRef.child("jumpscareCD").set(10000);
+  });
+  subRef.child("jumpscareCD").on("value",s=>{
+    const v=s.val(); if(typeof v==="number"&&document.activeElement!==elJsCD) elJsCD.value=v;
   });
 
   // ---- Dano do Casco ----
