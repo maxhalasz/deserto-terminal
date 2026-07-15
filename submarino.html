@@ -555,14 +555,14 @@
     const tY=dirX_*rx + dirY_*rd;
     return {tX, tY, rx, rd};
   }
-  function billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_, screenX, tY, projH, projW, fCanvas){
+  function billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_, screenX, tY, projH, projW, fCanvas, alpha=1){
     const y0=h/2-projH/2;
     const x0=screenX-projW/2, x1=screenX+projW/2;
     if(x1<0||x0>w) return;
     const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
     if(fog<0.05) return;
     const fw=fCanvas.width, fh=fCanvas.height;
-    x.save(); x.globalAlpha=Math.min(0.92,fog);
+    x.save(); x.globalAlpha=Math.min(0.92,fog)*alpha;
     const sx0=Math.max(0,Math.floor(x0)), sx1=Math.min(w-1,Math.ceil(x1));
     let seg=-1;
     const flush=(end)=>{
@@ -574,6 +574,23 @@
     for(let sx=sx0;sx<=sx1;sx++){
       const col=Math.min(COLS_-1,Math.floor(sx/colW_));
       if(tY<zBuf[col]){ if(seg<0) seg=sx; } else flush(sx);
+    }
+    flush(sx1+1); x.restore();
+  }
+  // overlay preto clipeado ao z-buffer: dissolve a criatura no breu em vez de fade transparente
+  function billboardDarken(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW){
+    const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
+    const dark=1-fog; if(dark<0.02) return;
+    const y0=h/2-projH/2;
+    const x0=screenX-projW/2, x1=screenX+projW/2;
+    if(x1<0||x0>w) return;
+    const sx0=Math.max(0,Math.floor(x0)), sx1=Math.min(w-1,Math.ceil(x1));
+    x.save(); x.globalAlpha=dark; x.fillStyle='#000';
+    let seg=-1;
+    const flush=(end)=>{if(seg<0)return; x.fillRect(seg,y0,end-seg,projH); seg=-1;};
+    for(let sx=sx0;sx<=sx1;sx++){
+      const col=Math.min(COLS_-1,Math.floor(sx/colW_));
+      if(tY<zBuf[col]){if(seg<0)seg=sx;} else flush(sx);
     }
     flush(sx1+1); x.restore();
   }
@@ -656,14 +673,22 @@
         if(flipX) relDeg=360-relDeg;
         // spritesheet: row 0 = lado, row 4 = de frente (invertido do padrão Doom)
         const rotRow=4-Math.min(4, Math.round(relDeg/45));
-        const animCol=Math.floor(t/4)%DF_COLS;
-        const fIdx=rotRow*DF_COLS+animCol;
+        // boomerang: ping-pong 0→1→2→3→4→3→2→1→0→... com cross-fade entre frames
+        const PING=(DF_COLS-1)*2;
+        const fi=(t*0.12)%PING;
+        const fi0=Math.floor(fi), fi1=(fi0+1)%PING;
+        const blend=fi-fi0;
         const frames=flipX?dfFramesFlip:dfFrames;
-        const frame=frames[Math.min(frames.length-1,fIdx)];
+        const animCol0=fi0<DF_COLS?fi0:PING-fi0;
+        const animCol1=fi1<DF_COLS?fi1:PING-fi1;
+        const frame0=frames[Math.min(frames.length-1,rotRow*DF_COLS+animCol0)];
+        const frame1=frames[Math.min(frames.length-1,rotRow*DF_COLS+animCol1)];
 
         const projH=Math.min(h*3.5, WALLH_*3.2/tY);
-        const projW=projH*(frame.width/frame.height);
-        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame);
+        const projW=projH*(frame0.width/frame0.height);
+        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame0,1-blend);
+        if(blend>0.02) billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame1,blend);
+        billboardDarken(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW);
       } else {
         // fallback procedural
         const projH=Math.min(h*1.2, WALLH_*0.7/tY);
@@ -697,13 +722,16 @@
     // ===== ILUMINAÇÃO AMBIENTE: decai com a profundidade. clara a 200m, escurece ao fundo.
     const depthN = Math.max(0, Math.min(1, (depth-START_DEPTH)/(MAX_DEPTH-START_DEPTH)));
     const ambLight = 1 - depthN*0.8;            // 1 (200m) -> 0.2 (fundo)
+    // colisão: flicker da luz — oscilação não mecânica com dois senos
+    const flickerMod = collisionFlicker * (0.5 + 0.28*Math.sin(t*0.38) + 0.12*Math.sin(t*0.91));
+    const effectiveAmb = ambLight * (1 - Math.max(0,flickerMod));
     const beyond = depth>CORAL_DEPTH;
     // fundo do breu: tom esverdeado/frio; a 200m bem mais claro, escurecendo com a profundidade
     const baseTop = beyond ? [26,44,40] : [34,58,64];
-    const tb = baseTop.map(c=>Math.round(c*(0.25+ambLight*0.95)));
+    const tb = baseTop.map(c=>Math.round(c*(0.25+effectiveAmb*0.95)));
     const g=x.createRadialGradient(w/2,h*0.45,8,w/2,h*0.5,Math.max(w,h)*0.75);
     g.addColorStop(0, `rgb(${tb[0]},${tb[1]},${tb[2]})`);
-    g.addColorStop(1, beyond ? `rgb(${Math.round(4*(0.3+ambLight))},${Math.round(8*(0.3+ambLight))},${Math.round(7*(0.3+ambLight))})` : `rgb(${Math.round(6*(0.3+ambLight))},${Math.round(12*(0.3+ambLight))},${Math.round(14*(0.3+ambLight))})`);
+    g.addColorStop(1, beyond ? `rgb(${Math.round(4*(0.3+effectiveAmb))},${Math.round(8*(0.3+effectiveAmb))},${Math.round(7*(0.3+effectiveAmb))})` : `rgb(${Math.round(6*(0.3+effectiveAmb))},${Math.round(12*(0.3+effectiveAmb))},${Math.round(14*(0.3+effectiveAmb))})`);
     x.fillStyle=g;x.fillRect(0,0,w,h);
 
     // manchas de fundo derivando atrás das paredes (sky area)
@@ -920,9 +948,10 @@
       x.save();x.globalCompositeOperation="screen";
       const bx=beamX*w,by=beamY*h;
       const R=Math.min(w,h)*0.62;
+      const beamAl=1-collisionFlicker*0.65;
       const bg=x.createRadialGradient(bx,by,5,bx,by,R);
-      if(isOld){bg.addColorStop(0,"rgba(210,180,100,.24)");bg.addColorStop(.4,"rgba(150,120,55,.08)");}
-      else{bg.addColorStop(0,"rgba(160,205,210,.24)");bg.addColorStop(.4,"rgba(120,165,170,.08)");}
+      if(isOld){bg.addColorStop(0,`rgba(210,180,100,${(0.24*beamAl).toFixed(3)})`);bg.addColorStop(.4,`rgba(150,120,55,${(0.08*beamAl).toFixed(3)})`);}
+      else{bg.addColorStop(0,`rgba(160,205,210,${(0.24*beamAl).toFixed(3)})`);bg.addColorStop(.4,`rgba(120,165,170,${(0.08*beamAl).toFixed(3)})`);}
       bg.addColorStop(1,"transparent");
       x.fillStyle=bg;x.beginPath();x.arc(bx,by,R,0,6.28);x.fill();
       x.restore();
@@ -944,6 +973,17 @@
     // red tint persistente quando o coral cresce
     if(coralActive){
       x.save(); x.fillStyle="rgba(110,0,0,0.28)"; x.fillRect(0,0,w,h); x.restore();
+    }
+
+    // grab ativo: criatura agarrou o sub
+    if(grabbedBy){
+      const pulse=0.6+0.38*Math.abs(Math.sin(t*0.25));
+      x.save();
+      x.font=`bold ${Math.round(h*0.027)}px monospace`;
+      x.fillStyle=`rgba(255,35,15,${pulse.toFixed(3)})`;
+      x.textAlign='center'; x.textBaseline='middle';
+      x.fillText('■ SYSTEM OVERRIDE', w/2, h*0.76);
+      x.restore();
     }
 
     // FOCO: blur de base sempre leve, focar reduz quase a zero (na frente de tudo)
@@ -1118,73 +1158,86 @@
   let NAV_SPEED=30; const TURN=52; // unidades/s e graus/s
   function navLoop(now){
     const dt=Math.min((now-lastT)/1000, 0.05); lastT=now;
+    collisionFlicker = Math.max(0, collisionFlicker - dt*0.85);
+    const isGrabbed = !!(grabbedBy && grabTarget && nav.mode==='diving');
 
     if(nav.mode==="diving"){
-      // virar com A/D (gira o submarino)
-      let turn=0;
-      if(keys["KeyA"]||keys["ArrowLeft"]) turn-=1;
-      if(keys["KeyD"]||keys["ArrowRight"]) turn+=1;
-      if(turn){ nav.heading=(nav.heading+turn*TURN*dt+360)%360; pushNav(); }
+      if(isGrabbed){
+        // criatura agarrou o sub: controle bloqueado, arrastado pelo guardião
+        const gdx=grabTarget.x-nav.x, gdd=grabTarget.depth-nav.depth;
+        const gdist=Math.hypot(gdx,gdd);
+        if(gdist>20){
+          nav.x+=gdx/gdist*NAV_SPEED*0.55*dt;
+          nav.depth=Math.max(STATION_TOP,Math.min(MAX_DEPTH,nav.depth+gdd/gdist*NAV_SPEED*0.55*dt));
+          pushNav();
+        }
+      } else {
+        // virar com A/D (gira o submarino)
+        let turn=0;
+        if(keys["KeyA"]||keys["ArrowLeft"]) turn-=1;
+        if(keys["KeyD"]||keys["ArrowRight"]) turn+=1;
+        if(turn){ nav.heading=(nav.heading+turn*TURN*dt+360)%360; pushNav(); }
 
-      // mover: W pra frente na direção que olha, S ré (movimento livre Iron Lung)
-      let drive=0;
-      if(keys["KeyW"]||keys["ArrowUp"]) drive+=1;
-      if(keys["KeyS"]||keys["ArrowDown"]) drive-=1;
-      if(drive!==0){
-        const rad=nav.heading*Math.PI/180;
-        // plano de cima: heading 0 = descer (+depth), 90 = +x (direita)
-        const stepX = Math.sin(rad)*NAV_SPEED*dt*drive;
-        const stepD = Math.cos(rad)*NAV_SPEED*dt*drive;
+        // mover: W pra frente na direção que olha, S ré (movimento livre Iron Lung)
+        let drive=0;
+        if(keys["KeyW"]||keys["ArrowUp"]) drive+=1;
+        if(keys["KeyS"]||keys["ArrowDown"]) drive-=1;
+        if(drive!==0){
+          const rad=nav.heading*Math.PI/180;
+          // plano de cima: heading 0 = descer (+depth), 90 = +x (direita)
+          const stepX = Math.sin(rad)*NAV_SPEED*dt*drive;
+          const stepD = Math.cos(rad)*NAV_SPEED*dt*drive;
 
-        // limite de profundidade: pode subir até o topo da estação (lá a parede/pilares barram).
-        // o fundo é MAX_DEPTH. assim a estrutura da petroleira fica visível acima do início.
-        let nd = nav.depth + stepD;
-        nd = Math.max(STATION_TOP, Math.min(MAX_DEPTH, nd));
+          // limite de profundidade: pode subir até o topo da estação (lá a parede/pilares barram).
+          // o fundo é MAX_DEPTH. assim a estrutura da petroleira fica visível acima do início.
+          let nd = nav.depth + stepD;
+          nd = Math.max(STATION_TOP, Math.min(MAX_DEPTH, nd));
 
-        // colisão lateral checada NA profundidade de destino, eixo X separado:
-        // tenta mover X; se sair do corredor, encosta na parede (desliza, não trava tudo).
-        let nx = nav.x + stepX;
-        let hitWall=false;
-        // colisão com o grid: margem lateral da hitbox do sub
-        const R=22;
-        if(isWall(nx,nd)||isWall(nx-R,nd)||isWall(nx+R,nd)){
-          if(!isWall(nav.x,nd)&&!isWall(nav.x-R,nd)&&!isWall(nav.x+R,nd)){
-            nx=nav.x; hitWall=true;          // desliza em depth
-          } else if(!isWall(nx,nav.depth)&&!isWall(nx-R,nav.depth)&&!isWall(nx+R,nav.depth)){
-            nd=nav.depth; hitWall=true;      // desliza em X
-          } else {
-            nx=nav.x; nd=nav.depth; hitWall=true;
+          // colisão lateral checada NA profundidade de destino, eixo X separado:
+          // tenta mover X; se sair do corredor, encosta na parede (desliza, não trava tudo).
+          let nx = nav.x + stepX;
+          let hitWall=false;
+          // colisão com o grid: margem lateral da hitbox do sub
+          const R=22;
+          if(isWall(nx,nd)||isWall(nx-R,nd)||isWall(nx+R,nd)){
+            if(!isWall(nav.x,nd)&&!isWall(nav.x-R,nd)&&!isWall(nav.x+R,nd)){
+              nx=nav.x; hitWall=true;          // desliza em depth
+            } else if(!isWall(nx,nav.depth)&&!isWall(nx-R,nav.depth)&&!isWall(nx+R,nav.depth)){
+              nd=nav.depth; hitWall=true;      // desliza em X
+            } else {
+              nx=nav.x; nd=nav.depth; hitWall=true;
+            }
           }
-        }
-        // pilares decorativos da estação (sobrepostos ao grid)
-        if(isPillar(nx, nd)){
-          if(!isPillar(nav.x, nd)){ nx=nav.x; hitWall=true; }
-          else if(!isPillar(nx, nav.depth)){ nd=nav.depth; hitWall=true; }
-          else { nx=nav.x; nd=nav.depth; hitWall=true; }
-        }
-        if(isStationBackWall(nd) && !isStationBackWall(nav.depth)){
-          nd=nav.depth; hitWall=true;
-        }
+          // pilares decorativos da estação (sobrepostos ao grid)
+          if(isPillar(nx, nd)){
+            if(!isPillar(nav.x, nd)){ nx=nav.x; hitWall=true; }
+            else if(!isPillar(nx, nav.depth)){ nd=nav.depth; hitWall=true; }
+            else { nx=nav.x; nd=nav.depth; hitWall=true; }
+          }
+          if(isStationBackWall(nd) && !isStationBackWall(nav.depth)){
+            nd=nav.depth; hitWall=true;
+          }
 
-        // aplica: a profundidade sempre avança (dentro dos limites), o X desliza preso à parede
-        nav.x = nx;
-        nav.depth = nd;
-        pushNav();
+          // aplica: a profundidade sempre avança (dentro dos limites), o X desliza preso à parede
+          nav.x = nx;
+          nav.depth = nd;
+          pushNav();
 
-        // breadcrumb: registra ponto do caminho a cada 60wu de movimento
-        if(!lastPathPoint) lastPathPoint={x:nav.x,depth:nav.depth};
-        if(Math.hypot(nav.x-lastPathPoint.x,nav.depth-lastPathPoint.depth)>60){
-          navPath.push({x:nav.x,depth:nav.depth});
-          lastPathPoint={x:nav.x,depth:nav.depth};
-          // sync throttled (3s) — guardião/monitor desenham o cabo no mapa
-          if(now-navPathWriteT>3000){ navPathWriteT=now; pushNavPath(); }
-        }
+          // breadcrumb: registra ponto do caminho a cada 60wu de movimento
+          if(!lastPathPoint) lastPathPoint={x:nav.x,depth:nav.depth};
+          if(Math.hypot(nav.x-lastPathPoint.x,nav.depth-lastPathPoint.depth)>60){
+            navPath.push({x:nav.x,depth:nav.depth});
+            lastPathPoint={x:nav.x,depth:nav.depth};
+            // sync throttled (3s) — guardião/monitor desenham o cabo no mapa
+            if(now-navPathWriteT>3000){ navPathWriteT=now; pushNavPath(); }
+          }
 
-        // só sinaliza impacto quando DE FATO raspa a parede lateral (não nos limites de profundidade)
-        if(hitWall && Math.abs(stepX)>0.5 && now-lastWallHit>450){
-          lastWallHit=now; elWallHit.classList.remove("hit"); void elWallHit.offsetWidth; elWallHit.classList.add("hit");
-          wallHitCount++;
-          ref.child("hullDamage").set(wallHitCount);
+          // só sinaliza impacto quando DE FATO raspa a parede lateral (não nos limites de profundidade)
+          if(hitWall && Math.abs(stepX)>0.5 && now-lastWallHit>450){
+            lastWallHit=now; elWallHit.classList.remove("hit"); void elWallHit.offsetWidth; elWallHit.classList.add("hit");
+            wallHitCount++;
+            ref.child("hullDamage").set(wallHitCount);
+          }
         }
       }
     }
@@ -1251,23 +1304,51 @@
       let vx=0, vd=0;
 
       if(beh==="chase"||ent.chasing){
-        if(dist>8){
-          const spd=entSpd*dt;
-          vx=(dx/dist)*spd; vd=(dd/dist)*spd;
+        const attackMode=ent.attackMode||'collision';
+        const aggrDist=typeof ent.aggressionDist==='number'&&ent.aggressionDist>0?ent.aggressionDist:300;
+        const phase=ent._attackPhase||null;
+
+        // grab ativo: criatura está fixada no sub, segue sua posição
+        if(attackMode==='grab'&&grabbedBy===id){
+          creatureEntities[id]={...ent,wx:nav.x,wd:nav.depth,_facing:Math.atan2(dx,dd)};
+          return;
         }
-        // jumpscare ao chegar muito perto (bloqueado na moonpool)
-        if(dist<80&&now-jumpscareT>jumpscareCD&&nav.mode!=="moonpool"){
-          jumpscareT=now;
-          const jf=document.getElementById("jflash");
-          jf.style.display="block"; jf.style.transition="none"; jf.style.opacity="1";
-          setTimeout(()=>{jf.style.transition="opacity 0.9s ease";jf.style.opacity="0";
-            setTimeout(()=>{jf.style.display="none";jf.style.transition="none";},1000);},80);
-          const sub=document.getElementById("sub");
-          sub.style.animation="none"; sub.offsetHeight;
-          sub.style.animation="jshake 0.55s ease-in-out";
-          sub.addEventListener("animationend",()=>{sub.style.animation="";},{once:true});
-          wallHitCount+=10;
-          ref.child("hullDamage").set(wallHitCount);
+
+        if(phase===null){
+          if(dist>8){ const spd=entSpd*dt; vx=(dx/dist)*spd; vd=(dd/dist)*spd; }
+          // gatilho de ataque ao se aproximar (bloqueado na moonpool e no cooldown)
+          if(dist<140&&nav.mode!=="moonpool"&&now-jumpscareT>jumpscareCD){
+            jumpscareT=now; collisionFlicker=1.0;
+            const jf=document.getElementById("jflash");
+            jf.style.display="block"; jf.style.transition="none"; jf.style.opacity="1";
+            setTimeout(()=>{jf.style.transition="opacity 0.9s ease";jf.style.opacity="0";
+              setTimeout(()=>{jf.style.display="none";jf.style.transition="none";},1000);},80);
+            const sub_=document.getElementById("sub");
+            sub_.style.animation="none"; sub_.offsetHeight;
+            sub_.style.animation="jshake 0.55s ease-in-out";
+            sub_.addEventListener("animationend",()=>{sub_.style.animation="";},{once:true});
+            wallHitCount+=10; ref.child("hullDamage").set(wallHitCount);
+            if(attackMode==='grab'){
+              ref.child('grabbedBy').set(id);
+            } else {
+              // colisão: lança a criatura em frente (passa pelo sub, continua por aggrDist)
+              creatureEntities[id]={...ent,_attackPhase:'charging',
+                _chargeDir:{x:dx/dist,d:dd/dist},_chargeTraveled:0};
+            }
+          }
+        } else if(phase==='charging'){
+          // carga: ignora perseguição, avança na direção do impacto a alta velocidade
+          const chSpd=entSpd*2.5*dt;
+          vx=(ent._chargeDir?.x||0)*chSpd; vd=(ent._chargeDir?.d||0)*chSpd;
+          const traveled=(ent._chargeTraveled||0)+Math.hypot(vx,vd);
+          creatureEntities[id]={...creatureEntities[id],_chargeTraveled:traveled};
+          if(traveled>=aggrDist)
+            creatureEntities[id]={...creatureEntities[id],_attackPhase:'recovering',_recoverT:now};
+        } else if(phase==='recovering'){
+          // pausa antes de retomar perseguição
+          if(now-(ent._recoverT||now)>1500)
+            creatureEntities[id]={...creatureEntities[id],_attackPhase:null};
+          // vx=vd=0: criatura para
         }
       } else if(beh==="stalk"){
         // mantém zona morta 280-440wu; navega pelas paredes com steerMove
@@ -1331,7 +1412,7 @@
       const newFacing=(beh==="chase"||ent.chasing)
         ? Math.atan2(dx,dd)
         : (Math.hypot(mvx,mvd)>0.01?Math.atan2(mvx,mvd):(ent._facing||0));
-      creatureEntities[id]={...ent,wx:moved.x,wd:moved.d,_facing:newFacing};
+      creatureEntities[id]={...creatureEntities[id],wx:moved.x,wd:moved.d,_facing:newFacing};
     });
     if(now-creatureWriteT>200){
       creatureWriteT=now;
@@ -1495,6 +1576,9 @@
   ref.child("jumpscareCD").on("value",snap=>{
     const v=snap.val(); if(typeof v==="number"&&v>=0) jumpscareCD=v;
   });
+  // grab: criatura agarrou o sub (guardião controla)
+  ref.child("grabbedBy").on("value",snap=>{ grabbedBy=snap.val()||null; });
+  ref.child("grabTarget").on("value",snap=>{ grabTarget=snap.val()||null; });
 
   // blackout: GM apaga a tela para reposicionar visuais
   ref.child("blackout").on("value",snap=>{
@@ -1509,6 +1593,8 @@
 
   // entidades do mundo: peixes e criaturas renderizados como sprites 3D
   let creatureWriteT=0, jumpscareT=0, jumpscareCD=10000;
+  let collisionFlicker=0;
+  let grabbedBy=null, grabTarget=null;
   let creatureWanderTargets={}, creatureWanderPhase={};
   let dfFramesFlip=[];  // frames espelhados horizontalmente para rotação Doom
   ref.child("entities").on("value",snap=>{
@@ -1520,8 +1606,10 @@
       if(ent.mode==="fish") fishEntities[id]=ent;
       else if(ent.mode==="creature"){
         const prev=prevCreatures[id];
-        // preserva _facing e posição local — AI corre neste cliente, Firebase só sincroniza
-        creatureEntities[id]=prev?{...ent,_facing:prev._facing,wx:prev.wx,wd:prev.wd}:ent;
+        // preserva estado local — AI corre neste cliente, Firebase só sincroniza posição
+        creatureEntities[id]=prev?{...ent,_facing:prev._facing,wx:prev.wx,wd:prev.wd,
+          _attackPhase:prev._attackPhase,_chargeDir:prev._chargeDir,
+          _chargeTraveled:prev._chargeTraveled,_recoverT:prev._recoverT}:ent;
       }
     });
   });
