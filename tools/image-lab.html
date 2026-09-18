@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Image Lab — O Deserto</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<script src="vendor/fabric.min.js"></script>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#15171b;color:#c7cdd6;font:13px/1.4 -apple-system,Segoe UI,Arial,sans-serif}
+  body{display:flex;height:100vh;overflow:hidden}
+
+  #side{width:340px;flex:0 0 340px;background:#1b1e24;border-right:1px solid #2b2f38;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+  #side h1{font-size:15px;color:#e8ebf0;margin:0 0 2px}
+  #side .sub{color:#767c88;font-size:11px;margin-bottom:4px}
+  fieldset{border:1px solid #2b2f38;border-radius:6px;margin:0;padding:10px 12px 12px}
+  legend{color:#9ea6b3;font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding:0 6px}
+  label{display:block;margin:8px 0 3px;color:#9ea6b3;font-size:11.5px}
+  input[type=range]{width:100%}
+  select{width:100%;background:#0f1115;border:1px solid #333844;color:#dfe3ea;border-radius:4px;padding:6px 8px;font:12.5px 'Segoe UI',sans-serif}
+  .rangeval{float:right;color:#6d93c9;font-variant-numeric:tabular-nums}
+  button{cursor:pointer;border:1px solid #3a4050;background:#262b34;color:#dbe0e8;border-radius:5px;padding:8px 10px;font-size:12px;width:100%;margin-top:6px}
+  button:hover{background:#323947}
+  button.primary{background:#2c4a72;border-color:#3d6293}
+  button.primary:hover{background:#35588a}
+  button.danger{border-color:#6a3030;color:#e0a0a0}
+  .presetRow{display:flex;flex-wrap:wrap;gap:5px}
+  .presetRow button{width:auto;flex:1 1 calc(50% - 5px);font-size:10.5px;padding:6px 4px;margin-top:0}
+  .hint{color:#5b6170;font-size:10.5px;margin-top:2px}
+  .filterRow{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-top:1px solid #23262d}
+  .filterHead{display:flex;justify-content:space-between;align-items:center}
+  .filterHead b{font-size:11.5px;color:#c7cdd6}
+  .filterHead button{width:auto;margin:0;padding:2px 7px;font-size:10.5px}
+
+  #dropZone{border:2px dashed #333844;border-radius:8px;padding:26px 10px;text-align:center;color:#767c88;font-size:12px;cursor:pointer}
+  #dropZone.drag{border-color:#3d6293;color:#c7cdd6;background:#1c2636}
+
+  #layerList{display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto}
+  .layerRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11.5px}
+  .layerRow:hover{border-color:#333844}
+  .layerRow.active{border-color:#3d6293;background:#1c2636}
+  .layerRow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .layerRow button{width:auto;margin:0;padding:2px 6px;font-size:11px}
+
+  #main{flex:1;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:22px;gap:10px;
+    background:
+      linear-gradient(45deg,#202329 25%,transparent 25%,transparent 75%,#202329 75%),
+      linear-gradient(45deg,#202329 25%,#191b20 25%,#191b20 75%,#202329 75%);
+    background-size:20px 20px;background-position:0 0,10px 10px}
+  .zoomrow{display:flex;gap:6px;align-items:center;color:#767c88;font-size:11px}
+  .zoomrow button{width:auto;margin:0;padding:4px 9px}
+  #canvasWrap{box-shadow:0 20px 60px rgba(0,0,0,.6);background:repeating-conic-gradient(#2a2d34 0% 25%, #202329 0% 50%) 50% / 24px 24px}
+</style>
+</head>
+<body>
+
+<div id="side">
+  <div>
+    <h1>IMAGE LAB</h1>
+    <div class="sub">O Deserto — laboratório de efeitos pra qualquer foto: atmosfera, referência, textura de prop. Ferramenta independente do gerador de documentos.</div>
+  </div>
+
+  <fieldset>
+    <legend>Imagem</legend>
+    <div id="dropZone">Arraste uma foto aqui<br>ou clique pra escolher um arquivo</div>
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+  </fieldset>
+
+  <fieldset>
+    <legend>Camadas</legend>
+    <div id="layerList"></div>
+    <div class="hint">Seleciona uma pra editar os filtros dela. Arraste outra foto pra adicionar mais uma camada.</div>
+  </fieldset>
+
+  <fieldset id="filterFieldset" style="display:none">
+    <legend>Filtros</legend>
+    <div id="filterPanelHost"></div>
+    <button id="btnDelete" class="danger">Excluir esta camada</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Exportar</legend>
+    <label>Multiplicador de resolução</label>
+    <select id="exportScale">
+      <option value="1">1× (tela)</option>
+      <option value="2" selected>2× (impressão)</option>
+      <option value="3">3× (bem grande)</option>
+    </select>
+    <button id="btnExport" class="primary">⭳ Baixar PNG</button>
+  </fieldset>
+</div>
+
+<div id="main">
+  <div class="zoomrow">
+    <span>Zoom:</span>
+    <button data-z="0.4">40%</button>
+    <button data-z="0.6">60%</button>
+    <button data-z="0.85">85%</button>
+    <button data-z="1">100%</button>
+  </div>
+  <div id="canvasWrap">
+    <canvas id="labCanvas"></canvas>
+  </div>
+</div>
+
+<script src="filters.js"></script>
+<script src="filter-panel.js"></script>
+<script src="image-lab.js"></script>
+</body>
+</html>
