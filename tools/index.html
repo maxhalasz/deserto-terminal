@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Ferramentas do Mestre</title>
+<style>
+  :root{--bg:#151516;--panel:#1d1e20;--line:#2c2d30;--ink:#e7e7ea;--dim:#8b8d93;--accent:#7fb0ff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,Segoe UI,Roboto,Arial,sans-serif;
+    padding:40px 24px}
+  .wrap{max-width:760px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;margin:0 0 6px}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 22px;line-height:1.6}
+
+  .cards{display:grid;grid-template-columns:1fr;gap:12px}
+  a.card{display:block;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:16px 18px;text-decoration:none;color:var(--ink);transition:border-color .15s}
+  a.card:hover{border-color:var(--accent)}
+  .card .row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .card h2{font-size:15px;font-weight:600;margin:0}
+  .card .repo{font-size:11px;color:var(--dim);font-family:monospace;white-space:nowrap}
+  .card p{margin:6px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5}
+
+  .note{margin-top:26px;font-size:12px;color:var(--dim);line-height:1.6;border-top:1px solid var(--line);
+    padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Ferramentas do Mestre</h1>
+  <p class="sub">Ferramentas de preparo &mdash; documentos, imagens, áudio. Não são acessadas pelos
+    jogadores. Cada uma tem um link de volta pra cá.</p>
+
+  <div class="cards">
+    <a class="card" href="props-generator.html">
+      <div class="row"><h2>Props Generator</h2><span class="repo">deserto-terminal</span></div>
+      <p>Jornal, relatório, bilhete manuscrito, dossiê redigido, etiqueta &mdash; monta o documento
+        inteiro em cima de um canvas editável (Fabric.js) com texturas, manchas, dobras e carimbo.</p>
+    </a>
+    <a class="card" href="image-lab.html">
+      <div class="row"><h2>Image Lab</h2><span class="repo">deserto-terminal</span></div>
+      <p>Solta uma foto, empilha filtros (VHS, aberração cromática, meio-tom, grão, distorção de
+        lente&hellip;) com os mesmos presets do Props Generator, exporta.</p>
+    </a>
+    <a class="card" href="https://maxhalasz.github.io/anchorpoint/tools/voice-lab.html">
+      <div class="row"><h2>Voice Lab</h2><span class="repo">anchorpoint</span></div>
+      <p>Editor geral de áudio: empilha camadas antes/durante/depois de uma gravação &mdash; fita
+        cassete, estática, rádio, interferência, room tone, vento, cues, risers, swells, reverb,
+        disfarce de voz, velocidade de fita &mdash; ouve tudo ao vivo, exporta &#0046;wav.</p>
+    </a>
+  </div>
+
+  <p class="note">Hospedado com o resto do repositório &mdash; sem servidor local, sem
+    <code>file://</code>. O Voice Lab mora no repo do AnchorPoint (é uma ferramenta geral, não
+    específica de uma campanha), os outros dois aqui no deserto-terminal.</p>
+</div>
+</body>
+</html>
