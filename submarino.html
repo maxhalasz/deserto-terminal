@@ -57,27 +57,49 @@
   #flickerLight{position:absolute;left:0;right:0;top:-10%;height:60%;z-index:5;pointer-events:none;opacity:0;
     background:radial-gradient(ellipse 70% 100% at 50% 0%, rgba(180,150,90,.22) 0%, transparent 65%)}
   #sub.old #flickerLight{opacity:1;animation:flick 4s linear infinite}
+  /* NeuroStat: luz fria — o flicker só liga quando o guardião define flickerRate */
+  #sub.modern #flickerLight{background:radial-gradient(ellipse 70% 100% at 50% 0%, rgba(120,180,215,.20) 0%, transparent 65%)}
   @keyframes flick{
     0%{opacity:.7}3%{opacity:.15}5%{opacity:.6}7%{opacity:.2}8%{opacity:.75}
     40%{opacity:.7}42%{opacity:.1}43%{opacity:.65}
     70%{opacity:.7}71%{opacity:.25}73%{opacity:.7}74%{opacity:.12}76%{opacity:.7}
     100%{opacity:.7}
   }
+  /* tranco de colisão com parede: leve zoom (vista aproxima) + tremor curto —
+     bem mais fraco que o jshake da criatura */
+  @keyframes wallhit{
+    0%{transform:scale(1) translate(0,0)}
+    16%{transform:scale(1.016) translate(-2px,1px)}
+    38%{transform:scale(1.008) translate(2px,-1px)}
+    62%{transform:scale(1.003) translate(-1px,1px)}
+    100%{transform:scale(1) translate(0,0)}
+  }
+  #sub.wallhit{animation:wallhit .38s ease-out}
   @keyframes jshake{
-    0%,100%{transform:translate(0,0) rotate(0deg)}
-    10%{transform:translate(-5px,-3px) rotate(-.6deg)}
-    20%{transform:translate(6px,4px) rotate(.6deg)}
-    30%{transform:translate(-6px,-2px) rotate(-.4deg)}
-    40%{transform:translate(5px,3px) rotate(.4deg)}
-    50%{transform:translate(-4px,-4px) rotate(-.25deg)}
-    60%{transform:translate(4px,2px) rotate(.25deg)}
-    70%{transform:translate(-5px,3px) rotate(-.15deg)}
-    80%{transform:translate(5px,-2px) rotate(.15deg)}
-    90%{transform:translate(-2px,2px) rotate(0deg)}
+    0%{transform:translate(0,0) rotate(0deg) scale(1)}
+    6%{transform:translate(-12px,-7px) rotate(-1.6deg) scale(1.035)}
+    14%{transform:translate(13px,8px) rotate(1.5deg) scale(1.03)}
+    24%{transform:translate(-11px,-5px) rotate(-1.2deg) scale(1.022)}
+    34%{transform:translate(10px,6px) rotate(1.0deg) scale(1.015)}
+    46%{transform:translate(-8px,-6px) rotate(-.7deg) scale(1.01)}
+    58%{transform:translate(7px,4px) rotate(.5deg) scale(1.006)}
+    70%{transform:translate(-6px,4px) rotate(-.35deg) scale(1.003)}
+    82%{transform:translate(5px,-3px) rotate(.2deg) scale(1.001)}
+    92%{transform:translate(-2px,2px) rotate(-.1deg) scale(1)}
+    100%{transform:translate(0,0) rotate(0deg) scale(1)}
   }
 
   /* blur global da VISÃO (na frente de tudo — casco + visor). Focar reduz. */
-  #visionBlur{position:absolute;inset:0;z-index:7;pointer-events:none;backdrop-filter:blur(1.5px);transition:backdrop-filter .35s ease}
+  #visionBlur{position:absolute;inset:0;z-index:7;pointer-events:none;backdrop-filter:blur(1.5px)}
+  /* bafo no vidro: condensação da RESPIRAÇÃO, concentrada embaixo (altura da boca).
+     opacity dirigida pelo ciclo de respiração no draw() — calma quase invisível,
+     ofegante embaça de verdade */
+  #breathFog{position:absolute;inset:0;z-index:3;pointer-events:none;opacity:0;
+    background:radial-gradient(ellipse 95% 75% at 50% 80%, rgba(200,220,228,.55), rgba(180,200,210,.20) 55%, transparent 78%)}
+  /* rachadura no VIDRO do visor (guardião dispara; desenhada procedural no canvas) */
+  #glassCrackCv{position:absolute;inset:0;width:100%;height:100%;z-index:3;pointer-events:none;display:none}
+  /* SYSTEM OVERRIDE: fora do visor, no painel de controle */
+  #sysOverride{position:absolute;bottom:18vh;left:0;right:0;text-align:center;z-index:9;pointer-events:none;opacity:0;font-size:11px;letter-spacing:.3em;color:#ff2800;text-shadow:0 0 16px rgba(255,40,0,.9)}
 
   /* HUD */
   #hud{position:absolute;inset:0;z-index:8;pointer-events:none}
@@ -157,6 +179,8 @@
       <div id="glassCurve"></div>
       <div id="glassReflect"></div>
       <div id="viewportVignette"></div>
+    <div id="breathFog"></div>
+    <canvas id="glassCrackCv"></canvas>
       <img id="shutter" src="img/shutter.png" alt="">
       <div id="coralFlash"></div>
     </div>
@@ -185,24 +209,28 @@
       </div>
     </div>
 
-    <div class="hint-drag" id="hintdrag">WASD pilot · drag look · SPACE focus · CTRL light</div>
+    <div class="hint-drag" id="hintdrag">WASD pilota · CTRL liga a lanterna</div>
+    <div id="sysOverride">■ SYSTEM OVERRIDE</div>
     <div id="ctrls">
       <div class="cbtn" id="btnLight">LIGHT: OFF</div>
-      <div class="cbtn" id="btnFocus">HOLD TO FOCUS</div>
     </div>
   </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
+var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
+  if(!_authUser) return;
+  _unsubAuth();
   // ====== posicao do visor em cada casco (fração da imagem) ======
   // medido das imagens reais
   const HULLS = {
     old_intact:        { src:"img/old_intact.png",        vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
     old_cracked:       { src:"img/old_cracked.png",       vis:{cx:0.499, cy:0.488, w:0.197, h:0.363} },
     neurostat:         { src:"img/neurostat.png",          vis:{cx:0.499, cy:0.456, w:0.246, h:0.338} },
-    neurostat_cracked: { src:"img/neurostat_cracked.png", vis:{cx:0.499, cy:0.456, w:0.246, h:0.338} }
+    neurostat_cracked: { src:"img/neurostat_cracked.png", vis:{cx:0.500, cy:0.457, w:0.245, h:0.335} }
   };
   const MOONPOOL_SRC = "img/moonpool.png";
 
@@ -294,6 +322,37 @@
         fc.drawImage(cv,0,0);
         dfFramesFlip.push(flip);
       });
+      applyBackFrames();
+    };
+  }
+  // sheet dedicado DE COSTAS (4ª linha do asset "Criatura de tras"):
+  // substitui a row 0 (relDeg 180° = vista por trás) do spritesheet principal
+  let _backStrip=null;
+  function applyBackFrames(){
+    if(!_backStrip||!dfFrames.length) return;
+    for(let c=0;c<DF_COLS&&c<_backStrip.length;c++){
+      dfFrames[c]=_backStrip[c];
+      const flip=document.createElement('canvas');
+      flip.width=_backStrip[c].width; flip.height=_backStrip[c].height;
+      const fc=flip.getContext('2d');
+      fc.translate(flip.width,0); fc.scale(-1,1);
+      fc.drawImage(_backStrip[c],0,0);
+      dfFramesFlip[c]=flip;
+    }
+  }
+  {
+    const bimg=new Image();
+    bimg.src='img/creature_back.png';
+    bimg.onload=()=>{
+      const fw=Math.floor(bimg.naturalWidth/DF_COLS), fh=bimg.naturalHeight;
+      _backStrip=[];
+      for(let c=0;c<DF_COLS;c++){
+        const cv=document.createElement('canvas');
+        cv.width=fw; cv.height=fh;
+        cv.getContext('2d').drawImage(bimg,c*fw,0,fw,fh,0,0,fw,fh);
+        _backStrip.push(cv);
+      }
+      applyBackFrames();
     };
   }
 
@@ -304,104 +363,278 @@
   const UNITS_PER_M=10;
   const MAX_DEPTH=25600, CORAL_DEPTH=6000, START_DEPTH=2000;
   const TILE=40;              // lado de um tile em wu (1 tile = 4 metros)
-  const X_MIN_W=-400;         // X mínimo do mundo (col 0)
-  const GRID_COLS=21;         // 21 cols × 40wu = 840wu de largura total
   const GRID_ROWS=640;        // 640 rows × 40wu = 25600wu = 2560m de profundidade
+  // dimensões HORIZONTAIS dinâmicas: o editor de mapa do guardião pode expandir
+  let X_MIN_W=-400;           // X mínimo do mundo (col 0)
+  let GRID_COLS=21;           // nº de colunas atual
+  let COL_OFFSET=0;           // colunas adicionadas à ESQUERDA do grid original
   // MAP[row][col]: 0=água navegável, 1=rocha/parede
-  const MAP=(()=>{
+  // MUNDO DEFAULT: retângulos de água. O guardião pode EDITAR o mapa: as edições
+  // (ops open/close) chegam via Firebase (worldMap) e são aplicadas POR CIMA.
+  // col(X=0) = floor((0-(-400))/40) = 10. Corredor central = cols 9-11.
+  const DEFAULT_OPEN=[
+    [25,29,9,11],     // canal da moonpool (100-116m)
+    [30,49,8,12],     // estrutura da estação (120-196m)
+    [50,74,8,12],     // canyon de entrada (200-296m)
+    [75,124,4,16],    // grande área de bifurcação (300-496m)
+    // saída 1: brocas (direita, ~800m)
+    [115,130,13,19],[130,160,14,19],[155,200,13,18],[197,207,11,18],
+    // saída 2: fenda/caverna (centro-esquerda, ~2364m)
+    [125,239,8,12],[240,280,7,15],[280,459,8,12],[460,472,7,13],
+    [473,508,9,11],   // a queda (1892-2032m, sentido único)
+    [509,589,8,12],[590,632,3,17], // descida pós-queda + caverna do hive-mind
+    // saída 3: placeholder esquerda
+    [100,130,3,6],[130,180,2,6],[175,192,2,9],[185,225,4,7],
+    // saída 4: placeholder direita profunda
+    [190,210,14,19],[200,265,17,20],[250,285,13,20],[270,300,15,18]
+  ];
+  // regiões de CAVERNA default (valor 2): moldura da caverna do hive-mind
+  const DEFAULT_CAVE=[[585,639,1,19]];
+  function buildMap(ops){
     const m=Array.from({length:GRID_ROWS},()=>new Uint8Array(GRID_COLS).fill(1));
-    const open=(r0,r1,c0,c1)=>{
+    const paint=(r0,r1,c0,c1,v)=>{
       for(let r=Math.max(0,r0);r<=Math.min(GRID_ROWS-1,r1);r++)
-        for(let c=Math.max(0,c0);c<=Math.min(GRID_COLS-1,c1);c++) m[r][c]=0;
+        for(let c=Math.max(0,c0);c<=Math.min(GRID_COLS-1,c1);c++) m[r][c]=v;
     };
-    // col(X=0) = floor((0-(-400))/40) = 10. Corredor central = cols 9-11.
-
-    // CANAL DA MOONPOOL (rows 25-29, 100-116m): estreito, transição
-    open(25,29,9,11);
-    // ESTRUTURA DA ESTAÇÃO (rows 30-49, 120-196m): pilares por isPillar()
-    open(30,49,8,12);
-    // CANYON DE ENTRADA (rows 50-74, 200-296m)
-    open(50,74,8,12);
-
-    // GRANDE ÁREA DE BIFURCAÇÃO (rows 75-124, 300-496m): caverna aberta c/ 4 saídas
-    open(75,124,4,16);
-
-    // ===== SAÍDA 1: BROCAS (direita, ~800m) =====
-    // Caminho médio; descida lenta; brocas enormes no fim
-    open(115,130,13,19);  // junção com grande área
-    open(130,160,14,19);  // descida inicial direita (520-640m)
-    open(155,200,13,18);  // volta levemente pro centro, continua (620-800m)
-    open(197,207,11,18);  // câmara das brocas (788-828m, 8 cols = 32m)
-
-    // ===== SAÍDA 2: FENDA / CAVERNA (centro-esquerda, ~2364m) =====
-    // Percurso longo; partes planas; queda irreversível a 1892m
-    open(125,239,8,12);   // descida regular (500-956m)
-    // Primeira zona plana (rows 240-280, 960-1120m): espaço amplo pra RP
-    open(240,280,7,15);
-    // Segunda descida (rows 280-459, 1120-1836m)
-    open(280,459,8,12);
-    // Plataforma pré-queda (rows 460-472, 1840-1888m)
-    open(460,472,7,13);
-    // A QUEDA (rows 473-508, 1892-2032m — 143m, sentido único para baixo):
-    // o "puxar de volta" percorre esses rows subindo sem restrição
-    open(473,508,9,11);
-    // Descida pós-queda até caverna (rows 509-589, 2036-2356m)
-    open(509,589,8,12);
-    // CAVERNA do hive-mind (rows 590-632, 2360-2528m): espaço enorme
-    open(590,632,3,17);
-
-    // ===== SAÍDA 3: PLACEHOLDER — esquerda, experimental =====
-    open(100,130,3,6);    // junção da grande área
-    open(130,180,2,6);    // corredor esquerdo
-    open(175,192,2,9);    // câmara estranha de chegada
-    open(185,225,4,7);    // poço experimental
-
-    // ===== SAÍDA 4: PLACEHOLDER — direita profunda, experimental =====
-    open(190,210,14,19);  // junção com saída 1
-    open(200,265,17,20);  // corredor lateral direito
-    open(250,285,13,20);  // câmara grande (geometria experimental)
-    open(270,300,15,18);  // saída da câmara
-
+    // o default é definido no grid ORIGINAL: desloca por COL_OFFSET quando o
+    // mapa foi expandido à esquerda. Ops já vêm no sistema de colunas atual.
+    // moldura de CAVERNA (tipo 2) ao redor da caverna do hive-mind, pintada
+    // ANTES da água: as paredes remanescentes ali ficam com textura de caverna
+    for(const [r0,r1,c0,c1] of DEFAULT_CAVE) paint(r0,r1,c0+COL_OFFSET,c1+COL_OFFSET,2);
+    for(const [r0,r1,c0,c1] of DEFAULT_OPEN) paint(r0,r1,c0+COL_OFFSET,c1+COL_OFFSET,0);
+    for(const o of (ops||[])) paint(o.r0,o.r1,o.c0,o.c1,o.op==='close'?1:o.op==='cave'?2:0);
     return m;
-  })();
+  }
+  let MAP=buildMap([]);
 
   // Lookup de parede no grid (ponto do mundo → tile)
-  function isWall(wx,depth){
+  // valores: 0=água · 1=rocha do canyon · 2=rocha de CAVERNA (textura própria)
+  function tileValueAt(wx,depth){
     const col=Math.floor((wx-X_MIN_W)/TILE);
     const row=Math.floor(depth/TILE);
-    if(row<0||row>=GRID_ROWS||col<0||col>=GRID_COLS) return true;
-    return MAP[row][col]!==0;
+    if(row<0||row>=GRID_ROWS||col<0||col>=GRID_COLS) return 1;
+    return MAP[row][col];
   }
+  function isWall(wx,depth){ return tileValueAt(wx,depth)!==0; }
 
-  // Estrutura da petroleira acima do START_DEPTH (pilares decorativos + parede de fundo)
-  const STATION_TOP=1200, STATION_PILLARS_LO=1500, STATION_PILLARS_HI=1950;
-  function isPillar(x, depth){
-    if(depth>STATION_PILLARS_HI || depth<STATION_PILLARS_LO) return false;
-    const cx=0, hw=80; // corredor da estação fixo centrado em X=0
-    const halfGap=hw*0.45, pillarR=hw*0.28;
-    return (Math.abs(x-(cx-halfGap))<pillarR || Math.abs(x-(cx+halfGap))<pillarR);
-  }
+  // ===== ESTRUTURA DA PETROLEIRA (declarativa) =====
+  // Laje/parede de fundo da estação logo acima do limite de subida do sub.
+  const STATION_TOP=1550;      // topo da laje (155m)
+  const MIN_DIVE_DEPTH=1700;   // limite de subida: o sub não passa dos 170m
+  let SPAWN={x:0, depth:2450}; // ponto de spawn: definido pelo MAPA (editor do guardião)
   function isStationBackWall(depth){
     return depth>=STATION_TOP && depth<STATION_TOP+100;
+  }
+  // PILARES: lista declarativa {x, top, bot, r}. O futuro editor de mapa só
+  // precisa empurrar mais entradas aqui — render e colisão leem desta lista.
+  // Os dois pilares-perna da plataforma nascem na base da laje (1650) e
+  // ancoram na encosta a 235m. Sólidos e texturizados do início ao fim.
+  const DEFAULT_PILLARS=[
+    {x:-36, top:1650, bot:2350, r:22},
+    {x: 36, top:1650, bot:2350, r:22},
+  ];
+  let PILLARS=DEFAULT_PILLARS.slice(); // o editor de mapa pode substituir (worldMap.pillars)
+  function pillarAt(px, depth){
+    for(let i=0;i<PILLARS.length;i++){
+      const P=PILLARS[i];
+      if(depth>=P.top && depth<=P.bot && Math.abs(px-P.x)<P.r) return P;
+    }
+    return null;
+  }
+  function isPillar(px, depth){ return pillarAt(px,depth)!==null; }
+  // hitbox do SUB contra pilares: raio próprio, maior que o das paredes (26)
+  const SUB_PILLAR_R=30;
+  function pillarBlocked(px,pd){
+    const R=SUB_PILLAR_R;
+    return !!(pillarAt(px,pd)||pillarAt(px-R,pd)||pillarAt(px+R,pd)||pillarAt(px,pd-R)||pillarAt(px,pd+R));
   }
 
   // ====== navegação compartilhada ======
   // estado autoritativo: submarine/nav = { x, depth, heading, mode }
   // x = posição lateral no corredor; depth = profundidade; heading = pra onde aponta (0=descer)
-  let nav={x:0, depth:START_DEPTH, heading:0, mode:"moonpool"};
+  let nav={x:SPAWN.x, depth:SPAWN.depth, heading:0, mode:"moonpool"};
   let navReady=false;
   const keys={};
-  let lastWallHit=0, wallHitCount=0;
-  let navPath=[], lastPathPoint=null, reelingSpeed=80;
-  let reelingPath=[], reelingWpIdx=-1;  // reelingPath = caminho esticado calculado ao iniciar reeling
-  let navPathWriteT=0;
-  function pushNavPath(){
-    // sync do navPath para Firebase: guardião e monitor desenham o cabo
-    ref.child("navPath").set(navPath.length ? navPath : null);
+  let lastWallHit=0, wallHitCount=0, lastWallShake=0;
+  // suspensão do veículo: trancos de terreno (mola+amortecedor) enquanto se move
+  let shkX=0,shkY=0,shkVX=0,shkVY=0,nextJoltT=0,_shkPX=null,_shkPD=null,_shkPH=null;
+  let rollA=0,rollV=0;                 // tombo (graus) — investida da criatura
+  let struggleAmt=0,_struggleSyncT=0;  // luta dos players durante o grab (0-100)
+  let lastNoiseT=0,lastNoiseX=0,lastNoiseD=0; // batida na parede: "som" que a criatura ouve
+  let subSpeedNow=0; // velocidade real do sub (wu/s) — stealth: parado = discreto
+  let reelingSpeed=80;
+  let grabReelSlow=50; // % de redução do guincho com a criatura agarrada (guardião)
+  // ===== CORDA (umbilical): simulação de corda ESTICADA em tempo real =====
+  // A corda é SEMPRE uma sequência de segmentos retos: âncora (moonpool) →
+  // quinas de parede onde ela DOBRA (wrap) → sub. Quando o sub se move e o
+  // segmento desdobra (o pivô anterior volta a ver o sub), o pivô some (unwrap).
+  // Margem fina (6wu — corda, não submarino): sem cantos fantasmas.
+  let ropePivots=[], ropeSyncT=0;
+  let ropeState='slack';        // 'slack' = paga/largada no leito · 'taut' = tensionada
+  let slackPath=[], _slackLast=null; // trajeto real percorrido (a corda frouxa deita nele)
+  const ROPE_MARGIN=6;
+  let _reelStuckT=0,_reelBest=1e9,_reelSteerBias=1; // anti-prisão do puxão
+  function ropeAnchor(){ return {x:SPAWN.x, depth:1000}; }
+  function ropeLOS(x1,d1,x2,d2,margin){
+    const M=margin||ROPE_MARGIN;
+    const dist=Math.hypot(x2-x1,d2-d1);
+    if(dist<1) return true;
+    const steps=Math.max(2,Math.ceil(dist/(TILE*0.30)));
+    const nx=-(d2-d1)/dist*M, nd=(x2-x1)/dist*M;
+    for(let i=1;i<steps;i++){
+      const t=i/steps;
+      const cx=x1+(x2-x1)*t, cd=d1+(d2-d1)*t;
+      if(isWall(cx,cd)||isWall(cx+nx,cd+nd)||isWall(cx-nx,cd-nd)) return false;
+    }
+    return true;
+  }
+  // acha a QUINA onde a corda dobra: marcha fina do pivô ao sub até bater na
+  // parede; candidatos = os 4 cantos do tile atingido (com folga diagonal);
+  // vence o canto visível pelo pivô mais próximo da linha da corda
+  function ropeFindCorner(px,pd){
+    const dx=nav.x-px, dd=nav.depth-pd;
+    const L=Math.hypot(dx,dd); if(L<2) return null;
+    const ux=dx/L, ud=dd/L;
+    let hx=0, hd=0, hit=false;
+    for(let s=2;s<L;s+=2){
+      const cx=px+ux*s, cd=pd+ud*s;
+      if(isWall(cx,cd)){ hx=cx; hd=cd; hit=true; break; }
+    }
+    if(!hit) return null;
+    const tc=Math.floor((hx-X_MIN_W)/TILE), tr=Math.floor(hd/TILE);
+    const OF=9, cands=[];
+    for(const [qx0,qd0,sx,sd] of [
+      [X_MIN_W+tc*TILE,     tr*TILE,     -1,-1],
+      [X_MIN_W+(tc+1)*TILE, tr*TILE,      1,-1],
+      [X_MIN_W+tc*TILE,     (tr+1)*TILE, -1, 1],
+      [X_MIN_W+(tc+1)*TILE, (tr+1)*TILE,  1, 1],
+    ]){
+      const qx=qx0+sx*OF, qd=qd0+sd*OF;
+      if(isWall(qx,qd)) continue;
+      if(!ropeLOS(px,pd,qx,qd)) continue;
+      const t=(qx-px)*ux+(qd-pd)*ud;
+      const lx=px+ux*t, ld=pd+ud*t;
+      cands.push({x:qx,depth:qd,score:Math.hypot(qx-lx,qd-ld)});
+    }
+    if(!cands.length) return null;
+    cands.sort((a,b)=>a.score-b.score);
+    // pula candidato colado no pivô atual (evita travar repetindo a mesma quina)
+    for(const cd2 of cands){
+      if(Math.hypot(cd2.x-px,cd2.depth-pd)>=6) return {x:cd2.x,depth:cd2.depth};
+    }
+    return null;
+  }
+  function ropeUpdate(){
+    if(!ropePivots.length) ropePivots=[ropeAnchor()];
+    // UNWRAP: enquanto o penúltimo pivô vê o sub, o último desdobra
+    let g1=0;
+    while(ropePivots.length>1&&g1++<10){
+      const prev=ropePivots[ropePivots.length-2];
+      if(ropeLOS(prev.x,prev.depth,nav.x,nav.depth)) ropePivots.pop();
+      else break;
+    }
+    // WRAP: o último pivô não vê o sub → a corda dobra em quinas novas.
+    // Numa parede reta em ângulo raso ela deita em vários pivôs colineares
+    // (como corda de verdade) — o guard alto deixa convergir no mesmo frame.
+    let g2=0;
+    while(g2++<10&&ropePivots.length<48){
+      const last=ropePivots[ropePivots.length-1];
+      if(ropeLOS(last.x,last.depth,nav.x,nav.depth)) break;
+      const corner=ropeFindCorner(last.x,last.depth);
+      if(!corner) break;
+      ropePivots.push(corner);
+    }
+  }
+  // sync do estado da corda pro guardião/monitor: {state, pts}
+  function ropeSync(){
+    const nw=performance.now();
+    if(nw-ropeSyncT<700) return;
+    ropeSyncT=nw;
+    let pts;
+    if(ropeState==='taut'){
+      pts=ropePivots.concat([{x:Math.round(nav.x),depth:Math.round(nav.depth)}]);
+    } else {
+      // slack: trajeto percorrido, decimado se longo
+      const step=slackPath.length>240?Math.ceil(slackPath.length/240):1;
+      pts=[ropeAnchor()];
+      for(let i=0;i<slackPath.length;i+=step) pts.push(slackPath[i]);
+      pts.push({x:Math.round(nav.x),depth:Math.round(nav.depth)});
+    }
+    ref.child("rope").set({state:ropeState,pts});
+  }
+  // corda PAGA: registra o trajeto (a frouxa deita no caminho real percorrido)
+  function slackFeed(){
+    if(!_slackLast){ _slackLast={x:nav.x,depth:nav.depth}; return; }
+    if(Math.hypot(nav.x-_slackLast.x,nav.depth-_slackLast.depth)>30){
+      slackPath.push({x:Math.round(nav.x),depth:Math.round(nav.depth)});
+      _slackLast={x:nav.x,depth:nav.depth};
+      if(slackPath.length>900) slackPath.splice(0,slackPath.length-900);
+    }
+  }
+  // TENSIONAR: o guincho puxa — a frouxa vira esticada. Replay do trajeto real
+  // pela simulação de quinas: os pivôs finais são as quinas onde a corda
+  // tensionada de fato dobra (contorna cantos sem prender).
+  function tautenRope(){
+    ropePivots=[ropeAnchor()];
+    const saveX=nav.x, saveD=nav.depth;
+    for(const p of slackPath){
+      nav.x=p.x; nav.depth=p.depth;
+      ropeUpdate();
+    }
+    nav.x=saveX; nav.depth=saveD;
+    ropeUpdate();
+    ropeState='taut';
+    ropeSyncT=0; ropeSync();
+  }
+  // ponto de PUXÃO: o mais distante ao longo da corda alcançável em linha reta
+  // com FOLGA DE SUBMARINO (26wu) — corta a curva por dentro, nunca prende na quina
+  // WAYPOINT SEGURO: empurra um ponto pra longe das paredes por REPULSÃO
+  // (8 raios; cada parede próxima empurra). Converge pra folga de 34wu em
+  // espaço aberto e pro CENTRO do vão quando o corredor é mais estreito que
+  // a folga (as repulsões opostas se cancelam no meio).
+  function reelSafePoint(px,pd){
+    let cx2=px, cd2=pd;
+    const SAFE=34;
+    for(let it2=0;it2<8;it2++){
+      let vx=0, vd=0, worst=SAFE;
+      for(let k=0;k<8;k++){
+        const ax=Math.sin(k*0.7854), ad=Math.cos(k*0.7854);
+        let hitS=SAFE;
+        for(let s=4;s<=SAFE;s+=5){ if(isWall(cx2+ax*s,cd2+ad*s)){ hitS=s; break; } }
+        if(hitS<SAFE){ const push=SAFE-hitS; vx-=ax*push; vd-=ad*push; if(hitS<worst) worst=hitS; }
+      }
+      if(worst>=SAFE) break;           // folga plena: pronto
+      const vl=Math.hypot(vx,vd);
+      if(vl<0.5) break;                // repulsões canceladas: centro do vão
+      const step=Math.min(6,vl*0.5);
+      const nx2=cx2+vx/vl*step, nd2=cd2+vd/vl*step;
+      if(isWall(nx2,nd2)) break;       // nunca entra em parede
+      cx2=nx2; cd2=nd2;
+    }
+    return {x:cx2,depth:cd2};
+  }
+  function reelTarget(){
+    // folga 34wu (> hitbox 26): o caminho puxado passa LONGE das quinas.
+    // Sem candidato, relaxa a folga em cascata — melhor mirar um pivô DISTANTE
+    // com folga apertada (direção diagonal, contorna) do que o colado na quina.
+    // O pivô escolhido vira um WAYPOINT SEGURO: afastado das paredes (ou no
+    // centro do vão se ele for apertado) — o sub não raspa mais nos cantos.
+    for(const M of [34,22,14]){
+      for(let i=0;i<ropePivots.length;i++){
+        const p=ropePivots[i];
+        if(ropeLOS(nav.x,nav.depth,p.x,p.depth,M)) return reelSafePoint(p.x,p.depth);
+      }
+    }
+    const lp=ropePivots[ropePivots.length-1]||ropeAnchor();
+    return reelSafePoint(lp.x,lp.depth);
   }
 
-  let heading=0, lightMode=false, lightOn=false, focusing=false;
-  let beamX=0.5, beamY=0.5, focusAmt=0;
+  let heading=0, lightMode=false, lightOn=false;
+  let beamX=0.5, beamY=0.5;
+  // RESPIRAÇÃO: embaça o vidro no ritmo do fôlego do piloto.
+  // recentHits sobe com dano (jumpscare/colisão/investida) e decai em ~20s —
+  // machucado = ofegante = vidro mais embaçado, mais vezes por minuto.
+  let breathPhase=0, recentHits=0;
   let STATE={};
   let imgEl=null, imgReady=false;
   let curHull=null;
@@ -490,8 +723,29 @@
   // particulas
   // partículas suspensas "na cena": sx,sy = posição base na tela (0..1); pz = profundidade
   // na cena (0 longe .. 1 perto). o movimento do sub as translada (ver drawParticles).
+  // neve marinha em ESPAÇO DE MUNDO: cada mote tem posição fixa no mapa e é
+  // projetada com a MESMA câmera dos sprites — passa, cresce e some com
+  // perspectiva real conforme o sub se move (qualquer eixo, grab incluído)
   const motes=[];
-  for(let i=0;i<110;i++)motes.push({sx:Math.random(),sy:Math.random(),pz:Math.random(),r:Math.random()*1.6+.4,ph:Math.random()*6.28});
+  for(let i=0;i<80;i++){
+    const big=Math.random()<0.25;
+    motes.push({
+      wx:0, wd:-1, // wd<0 = ainda não posicionada (respawn na 1ª frame)
+      oy:(Math.random()-0.5)*1.7,
+      r:big?(1.5+Math.random()*1.2):(0.6+Math.random()*0.8),
+      soft:big,
+      a:big?(0.10+Math.random()*0.08):(0.14+Math.random()*0.16),
+      ph:Math.random()*6.28
+    });
+  }
+  function moteRespawn(m,ahead){
+    const hdgR=nav.heading*Math.PI/180;
+    const fwd=ahead?(30+Math.random()*150):(5+Math.random()*185);
+    const lat=(Math.random()-0.5)*260;
+    m.wx=nav.x+Math.sin(hdgR)*fwd+Math.cos(hdgR)*lat;
+    m.wd=nav.depth+Math.cos(hdgR)*fwd-Math.sin(hdgR)*lat;
+    m.oy=(Math.random()-0.5)*1.7;
+  }
   // PLÂNCTON: partículas suspensas FIXAS no espaço do mundo (x lateral, profundidade, altura).
   // só ficam visíveis onde a lanterna ilumina — como sujeira/plâncton brilhando no facho.
   // distribuídas num volume ao redor do submarino; recicladas quando ficam pra trás.
@@ -507,41 +761,46 @@
   // move e desenha as partículas suspensas conforme o movimento REAL do submarino.
   // eixos: depth = vertical do mundo (descer faz partículas DESCEREM na tela e vice-versa);
   // avanço no plano + giro = deslizamento horizontal. movimento leve, não dominam a tela.
-  let _pLastD=null, _pLastX=null, _pLastH=null;
   function drawParticles(w,h,depth){
-    const dDepth = depth - (_pLastD ?? depth);
-    const dX     = nav.x  - (_pLastX ?? nav.x);
-    let dHead    = nav.heading - (_pLastH ?? nav.heading);
-    if(dHead>180)dHead-=360; if(dHead<-180)dHead+=360;
-    _pLastD=depth; _pLastX=nav.x; _pLastH=nav.heading;
-    const hdg=nav.heading*Math.PI/180;
-    // decompõe movimento em câmera-space:
-    // fwdMove = componente na direção do olhar (radial na tela)
-    // rightMove = componente lateral da câmera (deslizamento horizontal na tela)
-    const fwdMove  =  dX*Math.sin(hdg) + dDepth*Math.cos(hdg);
-    const rightMove=  dX*Math.cos(hdg) - dDepth*Math.sin(hdg);
+    const hdgR=nav.heading*Math.PI/180;
+    const dirX=Math.sin(hdgR), dirY=Math.cos(hdgR);
+    const invDet=1.0/Math.tan(Math.PI*78/360);
+    // luz ambiente encolhe alpha no fundo; visível SEM lanterna, brilha mais sob o facho
+    const dn_=Math.max(0,Math.min(1,(depth-START_DEPTH)/(MAX_DEPTH-START_DEPTH)));
+    const pAmb=0.40+(1-dn_*0.8)*0.60;
+    const bxw=beamX*w, byh=beamY*h, litR=Math.min(w,h)*0.6;
     for(const m of motes){
-      // escoamento radial ao avançar
-      m.pz += Math.abs(fwdMove)*0.010;
-      if(m.pz>1) m.pz-=1;
-      const spread=0.4+m.pz*0.7;
-      let px=(m.sx-0.5)*w*spread + w/2;
-      let py=(m.sy-0.5)*h*spread + h/2;
-      // corrente ambiente: turbulência suave mesmo com o sub parado
-      const ambX=Math.sin(t*0.018+m.ph*2.1)*0.28+Math.cos(t*0.011+m.ph*1.3)*0.13;
-      const ambY=Math.cos(t*0.014+m.ph*1.7)*0.22+Math.sin(t*0.009+m.ph*0.9)*0.10;
-      // acumuladores com leve atrito (evita deriva infinita)
-      m.scrollX=(m.scrollX||0)*0.97 - rightMove*2.8 - dHead*3.5 + ambX;
-      m.scrollY=(m.scrollY||0)*0.97 - dDepth*3.0 + ambY;
-      px += m.scrollX;
-      py += m.scrollY;
-      px=((px%w)+w)%w;
-      py=((py%h)+h)%h;
-      const sz=m.r*(0.7+m.pz*0.5);
-      const tw=0.5+0.5*Math.sin(t*0.05+m.ph);
-      x.globalAlpha=(0.06+m.pz*0.24)*(0.5+tw*0.5);
-      x.fillStyle="rgba(180,210,215,.7)";
-      x.beginPath();x.arc(px,py,sz,0,6.28);x.fill();
+      if(m.wd<0) moteRespawn(m,false); // primeira frame: espalha por todo o range
+      // deriva própria: afunda devagar + vagueia lateralmente no mundo
+      m.oy+=0.0006+Math.sin(t*0.011+m.ph)*0.0002;
+      if(m.oy>0.95) m.oy=-0.95;
+      m.wx+=Math.sin(t*0.009+m.ph*2.3)*0.03;
+      const {tX,tY}=billboardTransform(m.wx,m.wd,hdgR,invDet,dirX,dirY);
+      if(tY<=3||tY>200){ moteRespawn(m,true); continue; }
+      const sx2=w/2*(1+tX/tY);
+      if(sx2<-30||sx2>w+30){ moteRespawn(m,true); continue; }
+      const scale=Math.min(2.6,40/tY);
+      const py=h/2+m.oy*(h*0.42)*scale;
+      if(py<-20||py>h+20) continue;
+      // fade PERTO da tela (sem bolhas gigantes) + fade na distância
+      const nearFade=Math.max(0,Math.min(1,(tY-4)/9));
+      const farFade=Math.max(0,1-tY/190);
+      let lit=0;
+      if(lightOn){ const db=Math.hypot(sx2-bxw,py-byh); lit=Math.max(0,1-db/litR); }
+      const tw=0.6+0.4*Math.sin(t*0.045+m.ph*3);
+      const alpha=(m.a*pAmb+lit*lit*0.30)*tw*nearFade*farFade;
+      if(alpha<0.012) continue;
+      const sz=Math.max(0.4,m.r*scale);
+      x.globalAlpha=Math.min(0.5,alpha);
+      if(m.soft){
+        x.fillStyle="rgba(175,205,215,.45)";
+        x.beginPath();x.arc(sx2,py,sz*1.9,0,6.28);x.fill();
+        x.fillStyle="rgba(205,228,235,.9)";
+        x.beginPath();x.arc(sx2,py,sz*0.75,0,6.28);x.fill();
+      } else {
+        x.fillStyle="rgba(195,218,225,.9)";
+        x.beginPath();x.arc(sx2,py,sz*0.6,0,6.28);x.fill();
+      }
     }
     x.globalAlpha=1;
   }
@@ -555,8 +814,8 @@
     const tY=dirX_*rx + dirY_*rd;
     return {tX, tY, rx, rd};
   }
-  function billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_, screenX, tY, projH, projW, fCanvas, alpha=1){
-    const y0=h/2-projH/2;
+  function billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_, screenX, tY, projH, projW, fCanvas, alpha=1, yTopO=null){
+    const y0=yTopO!==null?yTopO:h/2-projH/2;
     const x0=screenX-projW/2, x1=screenX+projW/2;
     if(x1<0||x0>w) return;
     const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
@@ -577,24 +836,6 @@
     }
     flush(sx1+1); x.restore();
   }
-  // overlay preto clipeado ao z-buffer: dissolve a criatura no breu em vez de fade transparente
-  function billboardDarken(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW){
-    const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
-    const dark=1-fog; if(dark<0.02) return;
-    const y0=h/2-projH/2;
-    const x0=screenX-projW/2, x1=screenX+projW/2;
-    if(x1<0||x0>w) return;
-    const sx0=Math.max(0,Math.floor(x0)), sx1=Math.min(w-1,Math.ceil(x1));
-    x.save(); x.globalAlpha=dark; x.fillStyle='#000';
-    let seg=-1;
-    const flush=(end)=>{if(seg<0)return; x.fillRect(seg,y0,end-seg,projH); seg=-1;};
-    for(let sx=sx0;sx<=sx1;sx++){
-      const col=Math.min(COLS_-1,Math.floor(sx/colW_));
-      if(tY<zBuf[col]){if(seg<0)seg=sx;} else flush(sx);
-    }
-    flush(sx1+1); x.restore();
-  }
-
   function drawFishSprites(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_){
     if(!fishFrames.length) return;
     const ents=Object.values(fishEntities).filter(e=>e&&e.visible!==false);
@@ -636,7 +877,11 @@
       const relAngle=((viewAngle-fishHdgRad)*(180/Math.PI)+720)%360;
       const fIdx=Math.round(relAngle/45)%8;
 
-      billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,fishFrames[fIdx]);
+      const fishBR=Math.min(w,h)*0.62;
+      const fishLit=lightOn?Math.max(0,1-Math.hypot(screenX-beamX*w,h*0.5-beamY*h)/fishBR):0;
+      const fishAmb=Math.max(0.05,1-Math.max(0,Math.min(1,(nav.depth-START_DEPTH)/(MAX_DEPTH-START_DEPTH)))*0.8);
+      const fishAlpha=Math.min(1,fishAmb*0.65+fishLit*0.4);
+      billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,fishFrames[fIdx],fishAlpha);
     }
   }
 
@@ -656,26 +901,55 @@
     ents.sort(([,a],[,b])=>Math.hypot((b.wx||0)-nav.x,(b.wd||0)-nav.depth)-Math.hypot((a.wx||0)-nav.x,(a.wd||0)-nav.depth));
 
     for(const [id,ent] of ents){
+      // criatura agarrada é renderizada como overlay em drawGrabOverlay — ignorar aqui
+      if(grabbedBy===id) continue;
+
       const {tX,tY}=billboardTransform(ent.wx||0,ent.wd||nav.depth,hdg,invDet,dirX,dirY);
       if(tY<=0.5) continue;
       const screenX=w/2*(1+tX/tY);
+
+      // BIOLUMINESCÊNCIA: ponto de luz que aparece antes da forma (SOMA approach)
+      // visível até 500wu de distância, pulsa lentamente
+      const biolumPhase=(id.charCodeAt(0)*1.37)%(Math.PI*2);
+      const biolumPulse=0.35+0.65*Math.abs(Math.sin(t*0.038+biolumPhase));
+      // alcance maior que os pontos ambientes (ela anuncia de longe) + oclusão SUAVE:
+      // fade temporal em vez de sumir num frame (o pop denunciava que era a criatura)
+      const gcol=Math.max(0,Math.min(COLS_-1,Math.floor(screenX/colW_)));
+      const occluded=tY>=zBuf[gcol]+12;
+      const gv=(creatureGlowVis[id]===undefined?1:creatureGlowVis[id]);
+      creatureGlowVis[id]=gv+((occluded?0:1)-gv)*0.09;
+      const glowAlpha=Math.max(0,(1-tY/850)*biolumPulse*0.82)*creatureGlowVis[id];
+      if(glowAlpha>0.01){
+        // verde IGUAL à bioluminescência ambiente — a criatura se disfarça entre elas
+        const glowR=Math.min(h*0.20,110/Math.max(1,tY*0.08));
+        const gr2=x.createRadialGradient(screenX,h/2,0,screenX,h/2,glowR*3.8);
+        gr2.addColorStop(0,`rgba(90,255,155,${(glowAlpha*0.65).toFixed(3)})`);
+        gr2.addColorStop(0.35,`rgba(35,190,90,${(glowAlpha*0.18).toFixed(3)})`);
+        gr2.addColorStop(1,'transparent');
+        x.save(); x.fillStyle=gr2; x.beginPath(); x.arc(screenX,h/2,glowR*3.8,0,6.28); x.fill(); x.restore();
+      }
+
       const fog=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.9)));
-      if(fog<0.05) continue;
+      if(fog<0.02) continue;
 
       if(dfFrames.length){
-        // ---- Rotação estilo Doom ----
+        // ILUMINAÇÃO 3 CAMADAS (SOMA): distância + biolum + lanterna
+        const cAmb=Math.max(0.05,1-Math.max(0,Math.min(1,(nav.depth-START_DEPTH)/(MAX_DEPTH-START_DEPTH)))*0.8);
+        const distVis=Math.max(0,Math.min(1,(250-tY)/100)); // 1 se perto, 0 se longe
+        const cBR_=Math.min(w,h)*0.60;
+        const cLit=lightOn?Math.max(0,1-Math.hypot(screenX-beamX*w,h*0.5-beamY*h)/cBR_):0;
+        const lightFactor=Math.min(1, cAmb*0.07 + distVis*0.72 + cLit*cLit*0.92);
+
+        // rotação Doom — o facing vem da IA (que só encara quando VÊ o sub;
+        // cega/procurando olha pra onde anda). O render não força nada.
         const viewAngle=Math.atan2(nav.x-(ent.wx||0), nav.depth-(ent.wd||nav.depth));
-        // chase: criatura sempre vira para o sub → facing = viewAngle → relDeg = 0 (de frente)
-        const chasing=ent.behavior==='chase'||ent.chasing;
-        const facing=chasing?viewAngle:(ent._facing||0);
+        const facing=(ent._facing!==undefined)?ent._facing:viewAngle;
         let relDeg=((viewAngle-facing)*180/Math.PI+360)%360;
         const flipX=relDeg>180;
         if(flipX) relDeg=360-relDeg;
-        // spritesheet: row 0 = lado, row 4 = de frente (invertido do padrão Doom)
-        const rotRow=4-Math.min(4, Math.round(relDeg/45));
-        // boomerang: ping-pong 0→1→2→3→4→3→2→1→0→... com cross-fade entre frames
+        const rotRow=4-Math.min(4,Math.round(relDeg/45));
         const PING=(DF_COLS-1)*2;
-        const fi=(t*0.12)%PING;
+        const fi=(t*0.055)%PING;
         const fi0=Math.floor(fi), fi1=(fi0+1)%PING;
         const blend=fi-fi0;
         const frames=flipX?dfFramesFlip:dfFrames;
@@ -683,12 +957,10 @@
         const animCol1=fi1<DF_COLS?fi1:PING-fi1;
         const frame0=frames[Math.min(frames.length-1,rotRow*DF_COLS+animCol0)];
         const frame1=frames[Math.min(frames.length-1,rotRow*DF_COLS+animCol1)];
-
-        const projH=Math.min(h*3.5, WALLH_*3.2/tY);
+        const projH=Math.min(h*3.5,WALLH_*3.2/tY);
         const projW=projH*(frame0.width/frame0.height);
-        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame0,1-blend);
-        if(blend>0.02) billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame1,blend);
-        billboardDarken(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW);
+        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame0,lightFactor*(1-blend));
+        if(blend>0.02) billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,frame1,lightFactor*blend);
       } else {
         // fallback procedural
         const projH=Math.min(h*1.2, WALLH_*0.7/tY);
@@ -709,6 +981,440 @@
     }
   }
 
+  // pontos de bioluminescência ambiente: organismos fixos no canyon abaixo do coral
+  const BIOLUM_PTS=(()=>{
+    const pts=[]; let s=23;
+    const rng=()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+    for(let i=0;i<60;i++){
+      pts.push({wx:(rng()-0.5)*320, wd:CORAL_DEPTH+rng()*(MAX_DEPTH*0.62-CORAL_DEPTH), ph:rng()*6.28, spd:0.016+rng()*0.014});
+    }
+    return pts;
+  })();
+
+  // ===== TEXTURAS TILEÁVEIS (canvas + ImageData) =====
+  // Arquitetura pronta pra spritesheet: pra usar arte real no futuro, basta desenhar
+  // o PNG num canvas 256×256 e substituir {cnv, px} — o pipeline de render é idêntico.
+  const TEX_SIZE=256, TEX_MASK=255, TEX_SHIFT=8;
+  function makeTexture(kind){
+    const cnv=document.createElement('canvas'); cnv.width=cnv.height=TEX_SIZE;
+    const c2=cnv.getContext('2d');
+    const img=c2.createImageData(TEX_SIZE,TEX_SIZE);
+    const px=new Uint32Array(img.data.buffer);
+    // value noise tileável: lattice com índices modulares
+    const L=32, lat=new Float32Array(L*L);
+    let seed=kind==='wall'?7:kind==='floor'?13:29;
+    const rng=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
+    for(let i=0;i<L*L;i++) lat[i]=rng();
+    function vnoise(u,v,cells){
+      const gu=u*cells, gv=v*cells;
+      const iu=Math.floor(gu), iv=Math.floor(gv);
+      const fu=gu-iu, fv=gv-iv;
+      const su=fu*fu*(3-2*fu), sv=fv*fv*(3-2*fv);
+      const i0=iu%cells, i1=(iu+1)%cells, j0=iv%cells, j1=(iv+1)%cells;
+      const a=lat[j0*L+i0], b=lat[j0*L+i1], c=lat[j1*L+i0], d=lat[j1*L+i1];
+      const top=a+(b-a)*su;
+      return top+((c+(d-c)*su)-top)*sv;
+    }
+    for(let y=0;y<TEX_SIZE;y++){
+      const v=y/TEX_SIZE;
+      for(let xx=0;xx<TEX_SIZE;xx++){
+        const u=xx/TEX_SIZE;
+        const n=vnoise(u,v,8)*0.55+vnoise(u,v,16)*0.28+vnoise(u,v,32)*0.17;
+        let lum;
+        if(kind==='wall'){
+          // estratos horizontais + fraturas escuras
+          const strata=0.78+0.22*Math.sin(v*6.28*3.0+n*4.0);
+          const crack=vnoise((u*4)%1,v,16)>0.82?0.55:1.0;
+          lum=(52+n*150)*strata*crack;
+        } else if(kind==='floor'){
+          // leito ROCHOSO: fraturas escuras + manchas — mesmo caráter das paredes
+          const crackF=vnoise((u*3)%1,(v*3)%1,16)>0.78?0.52:1.0;
+          const patch=0.70+0.30*vnoise(u,v,8);
+          lum=(34+n*118)*crackF*patch;
+        } else if(kind==='cave'){
+          // caverna: blocos musgosos + gotejamento vertical
+          const drip=0.80+0.20*Math.sin(u*6.28*7+n*3);
+          const moss=vnoise((u*2)%1,(v*2)%1,16)>0.70?1.18:1.0;
+          lum=(40+n*120)*drip*moss;
+        } else {
+          // pilar: AÇO — painéis verticais, linhas de solda horizontais, riscos claros
+          const rib=0.80+0.20*Math.abs(Math.sin(u*6.28*6));
+          const seam=(y&63)<3?0.55:1.0;
+          const scratch=vnoise((u*8)%1,v,32)>0.86?1.30:1.0;
+          lum=(112+n*58)*rib*seam*scratch;
+        }
+        lum=Math.max(14,Math.min(235,lum));
+        // tints: pilar frio metálico; caverna esverdeada; rocha quase neutra
+        const cRk=kind==='pillar'?0.90:kind==='cave'?0.88:1.00;
+        const cGk=kind==='pillar'?0.97:kind==='cave'?1.00:0.96;
+        const cBk=kind==='pillar'?1.06:kind==='cave'?0.86:0.90;
+        px[y*TEX_SIZE+xx]=(255<<24)|(((lum*cBk)|0)<<16)|(((lum*cGk)|0)<<8)|((lum*cRk)|0);
+      }
+    }
+    c2.putImageData(img,0,0);
+    return {cnv, px, w:TEX_SIZE, h:TEX_SIZE};
+  }
+  // ===== DOIS SETS: IMAGENS (PNGs reais, default) e PROCEDURAIS (fallback/opção) =====
+  // O guardião troca ao vivo via Firebase (texMode). Imagem que falhar ao carregar
+  // cai no procedural. Variantes: escolha determinística por posição no mundo
+  // (mesmo lugar = mesma variante sempre, sem flicker).
+  const TEXSETS={
+    proc:{
+      wall:[makeTexture('wall')],
+      floor:[makeTexture('floor')],
+      pillar:[makeTexture('pillar')],
+      cave:[makeTexture('cave')]
+    },
+    img:{ wall:[], floor:[], pillar:[], cave:[] }
+  };
+  let texMode='img';
+  const TEXR={wall:TEXSETS.proc.wall,floor:TEXSETS.proc.floor,pillar:TEXSETS.proc.pillar,cave:TEXSETS.proc.cave};
+  function rebuildTexR(){
+    for(const k of ['wall','floor','pillar','cave']){
+      const arr=(TEXSETS[texMode][k]||[]).filter(Boolean);
+      TEXR[k]=arr.length?arr:TEXSETS.proc[k];
+    }
+  }
+  const TEX_FILES={
+    wall:['img/tex_canyon.png'],
+    pillar:['img/tex_pillar_0.png','img/tex_pillar_1.png','img/tex_pillar_2.png'],
+    floor:['img/tex_floor_0.png','img/tex_floor_1.png','img/tex_floor_2.png','img/tex_floor_3.png'],
+    cave:['img/tex_cave_0.png','img/tex_cave_1.png','img/tex_cave_2.png']
+  };
+  Object.entries(TEX_FILES).forEach(([kind,files])=>{
+    files.forEach((src,i)=>{
+      const im=new Image();
+      im.onload=()=>{
+        const cnv=document.createElement('canvas'); cnv.width=cnv.height=TEX_SIZE;
+        const c2=cnv.getContext('2d');
+        c2.drawImage(im,0,0,TEX_SIZE,TEX_SIZE);
+        const imgd=c2.getImageData(0,0,TEX_SIZE,TEX_SIZE);
+        if(kind==='pillar'){
+          // concreto mais BRANCO: gain + lift — destaca da rocha em volta
+          const d=imgd.data;
+          for(let p=0;p<d.length;p+=4){
+            d[p]=Math.min(255,d[p]*1.32+10);
+            d[p+1]=Math.min(255,d[p+1]*1.32+10);
+            d[p+2]=Math.min(255,d[p+2]*1.32+10);
+          }
+          c2.putImageData(imgd,0,0);
+        }
+        const px=new Uint32Array(imgd.data.buffer);
+        TEXSETS.img[kind][i]={cnv,px,w:TEX_SIZE,h:TEX_SIZE};
+        rebuildTexR();
+      };
+      im.src=src;
+    });
+  });
+  // variante determinística por posição (hash de coordenadas de bloco)
+  function texVar(arr,a,b){
+    if(arr.length===1) return arr[0];
+    let h=((a|0)*73856093)^((b|0)*19349663); h=(h^(h>>>13))>>>0;
+    return arr[h%arr.length];
+  }
+
+  // ===== ITENS DO MUNDO (postes, geradores, brocas — colocados pelo Guardião) =====
+  // Registry EXTENSÍVEL: item novo = célula em ITEM_CELLS (medida na sheet) +
+  // entrada em ITEM_DEFS (altura, colisão, luz, regra de ângulo). Nada mais.
+  const ITEM_CELLS={
+    lamp_wall:[110,70,129,322], lamp_diag:[403,70,112,322],
+    lamp_front:[741,70,88,321], lamp_side:[1006,84,143,306],
+    gen_a:[56,463,228,159], gen_b:[651,443,232,180],
+    drill_a:[105,677,97,324], drill_b:[720,675,77,318]
+  };
+  const ITEM_DEFS={
+    lamp:    { hFrac:0.85, colR:8,  kind:'lamp3', light:{cRange:300,cPow:1.8,dRange:120,dPow:0.55}, headFrac:0.10 },
+    walllamp:{ hFrac:0.78, colR:6,  kind:'wall1', light:{cRange:270,cPow:1.6,dRange:105,dPow:0.48}, headFrac:0.14 },
+    gen:     { hFrac:0.40, colR:14, kind:'two', cells:['gen_a','gen_b'] },
+    drill:   { hFrac:2.0,  colR:14, kind:'two', cells:['drill_a','drill_b'] }
+  };
+  const ITEM_SPR={dirty:{},clean:{}}, ITEM_SPR_F={dirty:{},clean:{}};
+  ['dirty','clean'].forEach(st=>{
+    const im=new Image();
+    im.onload=()=>{
+      for(const [nm,[sx,sy,sw,sh]] of Object.entries(ITEM_CELLS)){
+        const c=document.createElement('canvas'); c.width=sw; c.height=sh;
+        c.getContext('2d').drawImage(im,sx,sy,sw,sh,0,0,sw,sh);
+        ITEM_SPR[st][nm]=c;
+        const f=document.createElement('canvas'); f.width=sw; f.height=sh;
+        const fc=f.getContext('2d'); fc.translate(sw,0); fc.scale(-1,1); fc.drawImage(c,0,0);
+        ITEM_SPR_F[st][nm]=f;
+      }
+    };
+    im.src='img/items_'+st+'.png';
+  });
+  let worldItems={}, worldItemsArr=[];
+  function itemBlocked(px,pd){
+    for(let i=0;i<worldItemsArr.length;i++){
+      const it=worldItemsArr[i], def=ITEM_DEFS[it.type];
+      if(!def) continue;
+      const R=def.colR+9, dx=px-it.x, dd=pd-it.depth;
+      if(dx*dx+dd*dd<R*R) return true;
+    }
+    return false;
+  }
+  // Doom rotation dos itens: sem sprite de costas (canon: jogadores não veem por trás)
+  function itemCellFor(it,def){
+    const viewAngle=Math.atan2(nav.x-it.x, nav.depth-it.depth)*180/Math.PI;
+    const rel=(((viewAngle-(it.rot||0))%360)+360)%360;
+    if(def.kind==='wall1') return {nm:'lamp_wall',flip:rel>180};
+    if(def.kind==='two'){
+      const oct=Math.round(rel/90)%4;
+      return {nm:def.cells[oct%2],flip:oct===3};
+    }
+    const oct=Math.round(rel/45)%8;
+    const nm=['lamp_front','lamp_diag','lamp_side','lamp_diag','lamp_front','lamp_diag','lamp_side','lamp_diag'][oct];
+    // diagonal e lado foram DESENHADOS em convenções opostas: cada um tem sua tabela
+    const FLIPS=[false,true,false,true,false,false,true,false];
+    return {nm,flip:FLIPS[oct]};
+  }
+  function drawItemSprites(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_){
+    if(!worldItemsArr.length||!ITEM_SPR.dirty.lamp_front) return;
+    const hdg=nav.heading*Math.PI/180;
+    const dirX=Math.sin(hdg), dirY=Math.cos(hdg);
+    const invDet=1.0/Math.tan(Math.PI*78/360);
+    const list=[];
+    for(const it of worldItemsArr){
+      const {tX,tY}=billboardTransform(it.x,it.depth,hdg,invDet,dirX,dirY);
+      // alcance ESTENDIDO (2.5×): o core das lâmpadas surge GRADUAL na distância
+      // (o sprite em si se corta sozinho pelo próprio fog bem antes)
+      if(tY>0.5&&tY<VIS_WALL_*2.5) list.push({it,tX,tY});
+    }
+    list.sort((a,b)=>b.tY-a.tY);
+    const depthN2=Math.max(0,Math.min(1,(nav.depth-START_DEPTH)/(MAX_DEPTH-START_DEPTH)));
+    const amb=Math.max(0.06,1-depthN2*0.8);
+    // canvas temp reutilizado: no escuro o item ESCURECE, não fica translúcido
+    if(!drawItemSprites._tc) drawItemSprites._tc=document.createElement('canvas');
+    const tc=drawItemSprites._tc, tcx=tc.getContext('2d');
+    for(const {it,tX,tY} of list){
+      const def=ITEM_DEFS[it.type]; if(!def) continue;
+      const st=it.clean?'clean':'dirty';
+      const {nm,flip}=itemCellFor(it,def);
+      const spr=(flip?ITEM_SPR_F:ITEM_SPR)[st][nm]; if(!spr) continue;
+      const screenX=w/2*(1+tX/tY);
+      const wallPx=WALLH_/tY;
+      const projH=wallPx*def.hFrac;
+      const projW=projH*(spr.width/spr.height);
+      if(screenX+projW/2<0||screenX-projW/2>w) continue;
+      const yBase=h/2+wallPx/2;            // assenta na base da parede (chão)
+      const yTop=yBase-projH;
+      // lanterna: distância ao ponto MAIS PRÓXIMO do retângulo do sprite (itens
+      // baixos como o gerador ficam longe do centro da tela — o clamp acerta)
+      const bpx=beamX*w, bpy=beamY*h;
+      const qx=Math.max(screenX-projW/2,Math.min(bpx,screenX+projW/2));
+      const qy=Math.max(yTop,Math.min(bpy,yTop+projH));
+      const litRaw=lightOn?Math.max(0,1-Math.hypot(qx-bpx,qy-bpy)/(Math.min(w,h)*0.62)):0;
+      const lit=litRaw*Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.75)));
+      const lampOn=def.light&&!it.off;
+      const selfL=lampOn?(it.clean?0.88:0.52):0; // lâmpada acesa se auto-ilumina
+      if(tY<VIS_WALL_*1.05){ // o sprite em si só dentro do alcance de visão
+        const dk=Math.max(0.10,Math.min(1,Math.max(selfL,amb*0.9+lit*0.8)));
+        let sprd=spr;
+        if(dk<0.985){
+          if(tc.width!==spr.width||tc.height!==spr.height){ tc.width=spr.width; tc.height=spr.height; }
+          else tcx.clearRect(0,0,tc.width,tc.height);
+          tcx.globalCompositeOperation='source-over';
+          tcx.drawImage(spr,0,0);
+          tcx.globalCompositeOperation='source-atop';
+          tcx.fillStyle='rgba(0,0,0,'+(1-dk).toFixed(3)+')';
+          tcx.fillRect(0,0,tc.width,tc.height);
+          sprd=tc;
+        }
+        billboardDraw(w,h,zBuf,COLS_,colW_,WALLH_,VIS_WALL_,screenX,tY,projH,projW,sprd,1,yTop);
+        // MASSA ESCURA pairando sobre a broca (e sombreando a região)
+        if(it.type==='drill'){
+          const colD=Math.max(0,Math.min(COLS_-1,Math.floor(screenX/colW_)));
+          if(zBuf[colD]>VIS_WALL_*1.4||tY<zBuf[colD]+10){
+            const fogM=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*0.95)));
+            if(fogM>0.03){
+              const mr=projW*1.6;
+              const my=yTop-mr*0.35;
+              const g3=x.createRadialGradient(screenX,my,0,screenX,my,mr*1.7);
+              g3.addColorStop(0,`rgba(0,0,0,${(0.62*fogM).toFixed(3)})`);
+              g3.addColorStop(0.55,`rgba(0,0,0,${(0.30*fogM).toFixed(3)})`);
+              g3.addColorStop(1,'transparent');
+              x.fillStyle=g3; x.beginPath(); x.arc(screenX,my,mr*1.7,0,6.28); x.fill();
+            }
+          }
+        }
+      }
+      // luz do painel: CORE que fura a névoa de longe + CORONA em degradê largo
+      if(lampOn){
+        const col=Math.max(0,Math.min(COLS_-1,Math.floor(screenX/colW_)));
+        // parede de escuridão (zbuf "livre") não oclui; rocha de verdade sim
+        if(zBuf[col]>VIS_WALL_*1.4||tY<zBuf[col]+10){
+          const hy=yTop+projH*def.headFrac;
+          const flick=it.clean?1:(0.72+0.28*Math.sin(t*0.21+(it.x||0)));
+          // CORE: farol na escuridão — visível bem além do alcance das paredes
+          const farFade=Math.max(0,1-tY/(VIS_WALL_*2.3));
+          const coreA=(it.clean?0.85:0.30)*flick*Math.pow(farFade,1.35);
+          if(coreA>0.02){
+            const coreR=Math.max(2.5,projH*0.10);
+            const cCol=it.clean?'235,245,255':'240,205,130';
+            const gc=x.createRadialGradient(screenX,hy,0,screenX,hy,coreR*3);
+            gc.addColorStop(0,`rgba(${cCol},${coreA.toFixed(3)})`);
+            gc.addColorStop(0.35,`rgba(${cCol},${(coreA*0.35).toFixed(3)})`);
+            gc.addColorStop(1,'transparent');
+            x.save(); x.globalCompositeOperation='screen'; x.fillStyle=gc;
+            x.beginPath(); x.arc(screenX,hy,coreR*3,0,6.28); x.fill(); x.restore();
+          }
+          // CORONA: luz espalhada na água banha a região em volta em degradê
+          // (fade estendido: encolhe suave conforme se afasta, não corta)
+          const fogC=Math.max(0,Math.min(1,1-tY/(VIS_WALL_*1.55)));
+          const corA=(it.clean?0.45:0.13)*flick*fogC;
+          if(corA>0.015){
+            const corR=Math.max(14,projH*(it.clean?2.4:1.2));
+            const wCol=it.clean?'150,200,245':'190,150,70';
+            const g2=x.createRadialGradient(screenX,hy,0,screenX,hy,corR);
+            g2.addColorStop(0,`rgba(${wCol},${corA.toFixed(3)})`);
+            g2.addColorStop(0.4,`rgba(${wCol},${(corA*0.45).toFixed(3)})`);
+            g2.addColorStop(1,'transparent');
+            x.save(); x.globalCompositeOperation='screen'; x.fillStyle=g2;
+            x.beginPath(); x.arc(screenX,hy,corR,0,6.28); x.fill(); x.restore();
+          }
+        }
+      }
+    }
+  }
+
+  let grabStartT=0;
+  // flinch do STRUGGLE: surtos de luta sacodem a criatura agarrada na tela
+  let grabFlinchX=0,grabFlinchY=0,grabFlinchVX=0,grabFlinchVY=0,nextFlinchT=0;
+  // canvas offscreen do chão: putImageData ignora o transform de DPR do contexto
+  // principal — renderiza aqui e blita com drawImage (que respeita o transform)
+  let floorCnv=null, floorCtx=null, floorImgC=null;
+  // proximidade da superfície mirada (0=longe, 1=perto), suavizada — controla o feixe
+  let aimNearSm=0;
+
+  // paleta de cor por profundidade: azul-teal raso → azul oceânico → verde-preto abissal (Subnautica)
+  function depthRGB(dn){
+    const s=[[0.00,13,35,45],[0.10,8,25,37],[0.28,5,15,25],[0.55,2,9,15],[0.80,2,6,9],[1.00,1,5,4]];
+    let i=0; while(i<s.length-1&&s[i+1][0]<=dn)i++;
+    if(i>=s.length-1)return[s[i][1],s[i][2],s[i][3]];
+    const f=(dn-s[i][0])/(s[i+1][0]-s[i][0]);
+    return[s[i][1]+(s[i+1][1]-s[i][1])*f, s[i][2]+(s[i+1][2]-s[i][2])*f, s[i][3]+(s[i+1][3]-s[i][3])*f];
+  }
+
+  // overlay screen-space quando criatura agarrou o sub: a CARA gruda no visor.
+  // O frame da spritesheet tem muito padding transparente — mede o bbox real
+  // por alpha uma vez (união da row 4) e escala a criatura pra ESTOURAR o visor.
+  let _grabTrim=null;
+  function computeGrabTrim(){
+    const f0=dfFrames[Math.min(dfFrames.length-1,4*DF_COLS)];
+    const c=document.createElement('canvas');
+    c.width=f0.width; c.height=f0.height;
+    const cc=c.getContext('2d',{willReadFrequently:true});
+    let x0=f0.width,y0=f0.height,x1=0,y1=0;
+    for(let col=0;col<DF_COLS;col++){
+      const fr=dfFrames[Math.min(dfFrames.length-1,4*DF_COLS+col)];
+      cc.clearRect(0,0,c.width,c.height);
+      cc.drawImage(fr,0,0);
+      const d=cc.getImageData(0,0,c.width,c.height).data;
+      for(let y=0;y<c.height;y++)for(let xx=0;xx<c.width;xx++){
+        if(d[(y*c.width+xx)*4+3]>25){
+          if(xx<x0)x0=xx; if(xx>x1)x1=xx;
+          if(y<y0)y0=y; if(y>y1)y1=y;
+        }
+      }
+    }
+    _grabTrim=x1>x0?{x:x0,y:y0,w:x1-x0,h:y1-y0}:{x:0,y:0,w:f0.width,h:f0.height};
+  }
+  function drawGrabOverlay(w,h){
+    if(!grabbedBy||!dfFrames.length) return;
+    if(!_grabTrim) computeGrabTrim();
+    const elapsed=(performance.now()-grabStartT)/1000;
+    const appear=Math.min(1,elapsed*2.2);
+    if(appear<0.02) return;
+    // agarrada, ela NÃO nada: alterna só entre a pose 100% frontal (col 0)
+    // e a vizinha (col 1), com crossfade lento — segurando, não circulando
+    const gph=(t*0.026)%2;
+    const blend=gph<1?gph:2-gph; // 0→1→0 (ping-pong suave)
+    const frameA=dfFrames[Math.min(dfFrames.length-1,4*DF_COLS)];
+    const frameB=dfFrames[Math.min(dfFrames.length-1,4*DF_COLS+1)];
+    const breathe=1+0.045*Math.sin(t*0.06);
+    // a LUTA dos players chacoalha a criatura na tela (struggleAmt 0-100)
+    const stg=1+struggleAmt*0.012;
+    const shX=(Math.sin(t*0.31+1.7)*4+Math.cos(t*0.73+0.3)*2.5)*stg;
+    const shY=(Math.cos(t*0.26+0.9)*3+Math.sin(t*0.57)*1.8)*stg;
+    // FLINCH: surtos de luta DESLOCAM a criatura com um safanão — ela escorrega
+    // alguns pixels, encolhe um tico (perdeu aderência) e reagarra com a mola
+    const nowMs=performance.now();
+    if(struggleAmt>3&&nowMs>=nextFlinchT){
+      nextFlinchT=nowMs+Math.max(350,950-struggleAmt*5);
+      grabFlinchVX+=(Math.random()<0.5?-1:1)*(45+struggleAmt*1.3);
+      grabFlinchVY+=(Math.random()-0.5)*(30+struggleAmt*0.8);
+    }
+    const fdt=0.016, FK=110, FD=8;
+    grabFlinchVX+=(-grabFlinchX*FK-grabFlinchVX*FD)*fdt; grabFlinchX+=grabFlinchVX*fdt;
+    grabFlinchVY+=(-grabFlinchY*FK-grabFlinchVY*FD)*fdt; grabFlinchY+=grabFlinchVY*fdt;
+    const slipK=1-Math.min(0.07,Math.abs(grabFlinchX)*0.0018);
+    // bbox real escalada pra estourar as bordas; entra crescendo (vem pro vidro)
+    const gw=w*2.10*breathe*slipK*(0.62+0.38*appear);
+    const gh2=gw*(_grabTrim.h/_grabTrim.w);
+    const cx2=w/2+shX+grabFlinchX, cy2=h*0.54+shY+grabFlinchY;
+    const baseAl=Math.min(1,appear*1.15)*0.97;
+    x.save();
+    x.globalAlpha=baseAl*(1-blend);
+    x.drawImage(frameA,_grabTrim.x,_grabTrim.y,_grabTrim.w,_grabTrim.h,
+      cx2-gw/2, cy2-gh2/2, gw, gh2);
+    if(blend>0.02){
+      x.globalAlpha=baseAl*blend;
+      x.drawImage(frameB,_grabTrim.x,_grabTrim.y,_grabTrim.w,_grabTrim.h,
+        cx2-gw/2, cy2-gh2/2, gw, gh2);
+    }
+    x.restore();
+  }
+
+  // faróis DUPLOS indo PRA FRENTE: cada feixe é um cone que CONVERGE no ponto de
+  // mira (perspectiva — afunila e morre na distância, não abre na tela), com
+  // gradiente ao longo do eixo e um DISCO elíptico onde a luz atinge a superfície.
+  function drawFlashlight(w,h,isOld_,beamAl_){
+    if(!lightOn) return;
+    const tx=beamX*w, ty=beamY*h;
+    const br=isOld_?235:132, bgc=isOld_?202:218, bb=isOld_?122:240;
+    const near=aimNearSm; // 1 = mirando superfície perto; 0 = mirando o breu
+    x.save(); x.globalCompositeOperation='screen';
+    // DOIS faróis bem separados nos cantos do casco
+    const orgs=[[w*0.02,h*1.16,1.0],[w*0.98,h*1.16,1.0]];
+    const N=5;
+    // perto: feixe GROSSO e definido; longe: fino e difuso
+    const baseW=w*(0.10+0.09*near), tipW=w*(0.006+0.095*near);
+    const alphaK=(0.60+0.85*near)*beamAl_;
+    const fadeEnd=0.26+0.50*near; // perto: o brilho segue firme até quase o alvo
+    for(const [ox,oy,mult] of orgs){
+      const dxb=tx-ox, dyb=ty-oy;
+      const L=Math.hypot(dxb,dyb)||1;
+      const nx=-dyb/L, ny=dxb/L; // perpendicular ao eixo do feixe
+      for(let k=0;k<N;k++){
+        const f=k/(N-1);
+        const bwid=baseW*(1-f*0.72), twid=tipW*(1-f*0.5);
+        const al=(0.020+f*f*0.055)*alphaK*mult;
+        const g=x.createLinearGradient(ox,oy,tx,ty);
+        g.addColorStop(0,`rgba(${br},${bgc},${bb},${(al*0.55).toFixed(3)})`);
+        g.addColorStop(fadeEnd,`rgba(${br},${bgc},${bb},${al.toFixed(3)})`);
+        g.addColorStop(1,'rgba(0,0,0,0)');
+        x.fillStyle=g;
+        x.beginPath();
+        x.moveTo(ox+nx*bwid, oy+ny*bwid);
+        x.lineTo(tx+nx*twid, ty+ny*twid);
+        x.lineTo(tx-nx*twid, ty-ny*twid);
+        x.lineTo(ox-nx*bwid, oy-ny*bwid);
+        x.closePath(); x.fill();
+      }
+    }
+    // disco do facho: perto = menor, mais forte e nítido; longe = maior, fraco e difuso
+    const hot=(0.08+0.20*near)*beamAl_;
+    const rx_=w*(0.085+0.19*(1-near));
+    const coreStop=0.22+0.42*near;
+    const gh=x.createRadialGradient(tx,ty,0,tx,ty,rx_);
+    gh.addColorStop(0,`rgba(${br},${bgc},${bb},${hot.toFixed(3)})`);
+    gh.addColorStop(coreStop,`rgba(${br},${bgc},${bb},${(hot*0.55).toFixed(3)})`);
+    gh.addColorStop(1,'rgba(0,0,0,0)');
+    x.save(); x.translate(tx,ty); x.scale(1,0.62); x.translate(-tx,-ty);
+    x.fillStyle=gh; x.beginPath(); x.arc(tx,ty,rx_,0,6.28); x.fill(); x.restore();
+    x.restore();
+  }
+
   let t=0;
   function draw(){
     t+=1;
@@ -726,16 +1432,17 @@
     const flickerMod = collisionFlicker * (0.5 + 0.28*Math.sin(t*0.38) + 0.12*Math.sin(t*0.91));
     const effectiveAmb = ambLight * (1 - Math.max(0,flickerMod));
     const beyond = depth>CORAL_DEPTH;
-    // fundo do breu: tom esverdeado/frio; a 200m bem mais claro, escurecendo com a profundidade
-    const baseTop = beyond ? [26,44,40] : [34,58,64];
-    const tb = baseTop.map(c=>Math.round(c*(0.25+effectiveAmb*0.95)));
-    const g=x.createRadialGradient(w/2,h*0.45,8,w/2,h*0.5,Math.max(w,h)*0.75);
-    g.addColorStop(0, `rgb(${tb[0]},${tb[1]},${tb[2]})`);
-    g.addColorStop(1, beyond ? `rgb(${Math.round(4*(0.3+effectiveAmb))},${Math.round(8*(0.3+effectiveAmb))},${Math.round(7*(0.3+effectiveAmb))})` : `rgb(${Math.round(6*(0.3+effectiveAmb))},${Math.round(12*(0.3+effectiveAmb))},${Math.round(14*(0.3+effectiveAmb))})`);
-    x.fillStyle=g;x.fillRect(0,0,w,h);
-
-    // manchas de fundo derivando atrás das paredes (sky area)
-    if(mode==="diving"||mode==="reeling") drawBlobs(w,h,nav.heading,ambLight,beyond);
+    // COR DA ÁGUA nesta profundidade: alvo ÚNICO de fog — fundo, paredes e chão
+    // dissolvem TODOS nesta mesma cor. Nada some em preto na frente de água clara.
+    const [cr,cg_,cb_]=depthRGB(depthN);
+    const ambSc=0.16+effectiveAmb*0.84;
+    const waterR=cr*ambSc, waterG=cg_*ambSc, waterB=cb_*ambSc;
+    // fundo = a própria água: levemente mais clara acima (luz desce da superfície/plataforma)
+    const bgGrad=x.createLinearGradient(0,0,0,h);
+    bgGrad.addColorStop(0,`rgb(${waterR*1.30|0},${waterG*1.30|0},${waterB*1.30|0})`);
+    bgGrad.addColorStop(0.45,`rgb(${waterR|0},${waterG|0},${waterB|0})`);
+    bgGrad.addColorStop(1,`rgb(${waterR|0},${waterG|0},${waterB|0})`);
+    x.fillStyle=bgGrad; x.fillRect(0,0,w,h);
 
     // ===== RAYCASTER: corredor coerente (paredes = margens do canyon) =====
     // o sub está em (nav.x, nav.depth) olhando p/ heading. as duas margens do corredor
@@ -762,133 +1469,294 @@
       const planeMag=Math.tan(FOV/2);
       const planeX=Math.cos(hdg)*planeMag, planeY=-Math.sin(hdg)*planeMag;  // plano de câmera
       const posX=nav.x, posY=depth;                            // posição no mundo
-      const ROWH=3;                                            // resolução vertical (blocos de 3px)
-      const COLN=Math.max(40, Math.floor(w/8));                // resolução horizontal do chão
-      const cstep=w/COLN;
-
-      // textura de rocha: ruído quebrado nas coords do mundo (sem listras alinhadas)
-      function rockShade(wx,wy){
-        const n = Math.sin(wx*0.21+wy*0.13)*Math.sin(wy*0.17-wx*0.09)
-                + 0.5*Math.sin(wx*0.41-wy*0.37)
-                + 0.4*Math.sin((wx+wy)*0.29);
-        return Math.max(0,Math.min(1,(n+1.9)/3.8));
+      const hh=h*0.5;
+      // alcance de visão em wu: paredes E chão dissolvem na cor da água nesta distância
+      const VIS_WALL = Math.max(180, 320 - depthN*140);
+      const WALL_SIGHT = VIS_WALL*0.9;
+      // lâmpadas colocadas pelo GM iluminam o mundo DE VERDADE: coleta as ativas
+      const liveL=[];
+      for(const it of worldItemsArr){
+        const defL=ITEM_DEFS[it.type];
+        if(!defL||!defL.light||it.off) continue; // GM pode DESLIGAR a luz do poste
+        const rng=it.clean?defL.light.cRange:defL.light.dRange;
+        const pw=it.clean?defL.light.cPow:defL.light.dPow;
+        const ddx=it.x-nav.x, ddd=it.depth-nav.depth;
+        if(ddx*ddx+ddd*ddd<(VIS_WALL+rng)*(VIS_WALL+rng)) liveL.push({wx:it.x,wd:it.depth,rng,pw});
       }
+      const nLL=liveL.length;
+      // MASSAS ESCURAS: brocas e pilares projetam sombra no chão em volta
+      // (como se algo pairasse acima deles)
+      const darkS=[];
+      for(const it of worldItemsArr){
+        if(it.type!=='drill') continue;
+        const ddx=it.x-nav.x, ddd=it.depth-nav.depth;
+        if(ddx*ddx+ddd*ddd<(VIS_WALL+130)*(VIS_WALL+130)) darkS.push({wx:it.x,wd:it.depth,rng:120,pw:0.62,seg:null});
+      }
+      for(const P of PILLARS){
+        const nearD=Math.max(P.top,Math.min(nav.depth,P.bot));
+        const ddx=P.x-nav.x, ddd=nearD-nav.depth;
+        if(ddx*ddx+ddd*ddd<(VIS_WALL+170)*(VIS_WALL+170)) darkS.push({wx:P.x,wd:0,rng:160,pw:0.72,seg:{top:P.top,bot:P.bot}});
+      }
+      const nDS=darkS.length;
 
-      // CHÃO (sempre) via floor casting (técnica lodev). escurece com a distância (breu).
-      const GRID=10;   // grid em metros (depois de dividir por UNITS_PER_M)
-      const SIGHT=40;
-      for(let y=Math.floor(horizon)+1; y<h; y+=ROWH){
-        const p = y - horizon;
-        const rowDist = (h*0.5) / p;
-        const vis = Math.max(0, Math.min(1, 1 - rowDist/SIGHT));
-        const vis2 = vis*vis;
-        if(vis2<=0.01) continue;
-        const wx0 = posX + rowDist*(dirX - planeX);
-        const wy0 = posY + rowDist*(dirY - planeY);
-        const wx1 = posX + rowDist*(dirX + planeX);
-        const wy1 = posY + rowDist*(dirY + planeY);
-        for(let cxi=0; cxi<COLN; cxi++){
-          const t2=cxi/COLN;
-          const wx=wx0+(wx1-wx0)*t2, wy=wy0+(wy1-wy0)*t2;
-          const mx=wx/UNITS_PER_M, my=wy/UNITS_PER_M; // converte para metros
-          const sh=rockShade(mx,my);
-          const gx=Math.abs(((mx%GRID)+GRID)%GRID - GRID/2);
-          const gy=Math.abs(((my%GRID)+GRID)%GRID - GRID/2);
-          const onLine = Math.min(gx,gy) < 0.7;
-          let base = (22 + sh*30) * vis2 * (0.45+ambLight*0.7);
-          if(onLine) base += 12*vis2*(0.45+ambLight*0.7);
-          let r,g,b;
-          if(isOld){ r=(base*1.0)|0; g=(base*0.86)|0; b=(base*0.6)|0; }
-          else { r=(base*0.85)|0; g=(base*0.97)|0; b=(base*1.04)|0; }
-          x.fillStyle=`rgb(${r},${g},${b})`;
-          x.fillRect(cxi*cstep, y, cstep+1, ROWH+1);
+      // ---- CHÃO via floor casting (lodev), SEM teto (canon: o teto foi descartado) ----
+      // rowDist = posZ/p em WORLD UNITS (posZ = WALLH/2): o chão encontra a base das
+      // paredes exatamente, e dissolve na cor da água na MESMA distância (WALL_SIGHT).
+      const posZ=WALLH*0.5;
+      const hI=Math.floor(h), wI=Math.max(2,Math.floor(w));
+      const floorStart=Math.max(Math.floor(hh)+1, Math.ceil(hh+posZ/WALL_SIGHT));
+      const floorH=hI-floorStart;
+      if(floorH>0){
+        // offscreen SEM transform: putImageData ignora o DPR do contexto principal.
+        // buffer alocado no tamanho máximo (h/2) — sem realloc quando floorH varia.
+        const maxFH=Math.ceil(hI*0.5)+2;
+        if(!floorCnv||floorCnv.width!==wI||floorCnv.height<maxFH){
+          floorCnv=document.createElement('canvas');
+          floorCnv.width=wI; floorCnv.height=maxFH;
+          floorCtx=floorCnv.getContext('2d');
+          floorImgC=floorCtx.createImageData(wI,maxFH);
         }
+        const fBuf=new Uint32Array(floorImgC.data.buffer);
+        // pre-fill opaco com a cor da água: linhas distantes = água, sem emenda com o fundo
+        const pkR=waterR|0, pkG=waterG|0, pkB=waterB|0;
+        fBuf.fill((255<<24)|(pkB<<16)|(pkG<<8)|pkR,0,floorH*wI);
+        const spotR_=Math.min(wI,hI)*0.55;
+        const bxw=beamX*wI, byh=beamY*h;
+        const lvBase=0.34+effectiveAmb*0.72;
+        // tint marrom-ACINZENTADO como as paredes, um tom mais claro
+        const fTr=isOld?1.02:0.92, fTg=isOld?0.95:0.89, fTb=isOld?0.82:0.80;
+        for(let y=floorStart;y<hI;y++){
+          const p=y-hh;
+          const rowDist=posZ/p;
+          const fogF=Math.max(0,Math.min(1,1-rowDist/WALL_SIGHT));
+          if(fogF<=0.004) continue;
+          const fogFK=fogF*Math.sqrt(fogF), wMixF=1-fogFK;
+          const fsx=rowDist*(dirX-planeX)+posX, fsy=rowDist*(dirY-planeY)+posY;
+          const fex=rowDist*(dirX+planeX)+posX, fey=rowDist*(dirY+planeY)+posY;
+          const fstx=(fex-fsx)/wI, fsty=(fey-fsy)/wI;
+          let flX=fsx, flY=fsy;
+          const fi0=(y-floorStart)*wI;
+          const fArr=TEXR.floor, fN=fArr.length;
+          for(let sx=0;sx<wI;sx++){
+            // amostra da TEXTURA do chão por coords de mundo (1.6 texel/wu → tile=16m);
+            // variante determinística por bloco de textura (dá vida sem flicker)
+            const txx=(flX*1.6)|0, tyy=(flY*1.6)|0;
+            let fpx;
+            if(fN===1) fpx=fArr[0].px;
+            else{
+              let hv=((txx>>8)*73856093)^((tyy>>8)*19349663);
+              hv=(hv^(hv>>>13))>>>0;
+              fpx=fArr[hv%fN].px;
+            }
+            const tc=fpx[((tyy&TEX_MASK)<<TEX_SHIFT)|(txx&TEX_MASK)];
+            const spotI=lightOn?Math.max(0,1-Math.hypot(sx-bxw,y-byh)/spotR_):0;
+            let addL=0;
+            for(let li=0;li<nLL;li++){
+              const L=liveL[li], lxd=flX-L.wx, lyd=flY-L.wd;
+              const d2=lxd*lxd+lyd*lyd;
+              if(d2<L.rng*L.rng){ const q=1-Math.sqrt(d2)/L.rng; addL+=L.pw*q*q; }
+            }
+            // sombra das massas (brocas/pilares) escurece o chão em volta
+            let dkS=0;
+            for(let di=0;di<nDS;di++){
+              const D=darkS[di];
+              const dyv=D.seg?(flY<D.seg.top?D.seg.top-flY:flY>D.seg.bot?flY-D.seg.bot:0):(flY-D.wd);
+              const dxv=flX-D.wx;
+              const d2=dxv*dxv+dyv*dyv;
+              if(d2<D.rng*D.rng){ const q=1-Math.sqrt(d2)/D.rng; dkS+=D.pw*q; }
+            }
+            // a luz da lâmpada FURA parcialmente o fog do observador: a mancha
+            // iluminada no chão faz degradê com a distância em vez de sumir
+            const kt=((lvBase+spotI*0.95*fogF)*fogFK+addL*(0.30+0.70*fogFK))*(1-Math.min(0.8,dkS));
+            const r=Math.min(255,(tc&255)*kt*fTr+waterR*wMixF)|0;
+            const g=Math.min(255,((tc>>>8)&255)*kt*fTg+waterG*wMixF)|0;
+            const b=Math.min(255,((tc>>>16)&255)*kt*fTb+waterB*wMixF)|0;
+            fBuf[fi0+sx]=(255<<24)|(b<<16)|(g<<8)|r;
+            flX+=fstx; flY+=fsty;
+          }
+        }
+        floorCtx.putImageData(floorImgC,0,0,0,0,wI,floorH);
+        // drawImage respeita o transform de DPR — o chão cai exatamente onde deve
+        x.drawImage(floorCnv,0,0,wI,floorH,0,floorStart,wI,floorH);
       }
 
       // ---- PAREDES (raycasting) ----
-      // parede de escuridão: 320wu (32m) no início, encolhe para 180wu (18m) no fundo.
-      // depthN já calculado acima (0 em START_DEPTH, 1 em MAX_DEPTH).
-      const VIS_WALL = Math.max(180, 320 - depthN*140);
-      const WALL_SIGHT = VIS_WALL*0.9;
       // zbuffer: distância perpendicular de cada coluna (para sprite depth test)
       const zBuffer = new Float32Array(COLS).fill(MAXD);
-      // direção de cada raio: varre de -FOV/2 a +FOV/2 em torno do heading.
       for(let i=0;i<COLS;i++){
-        const a = hdg + (i/(COLS-1) - 0.5)*FOV;   // ângulo absoluto do raio
-        const camAng = (i/(COLS-1)-0.5)*FOV;       // ângulo relativo (p/ corrigir fish-eye)
-        const dx=Math.sin(a), dd=Math.cos(a);      // passo lateral / profundidade
-        // marcha o raio até bater em algo: margem do corredor, parede de fundo, pilar, ou escuridão.
-        let rx=nav.x, rd=nav.depth, dist=0, hitSide=0, hitKind="wall";
+        const a = hdg + (i/(COLS-1) - 0.5)*FOV;
+        const camAng = (i/(COLS-1)-0.5)*FOV;
+        const dx=Math.sin(a), dd=Math.cos(a);
+        let rx=nav.x, rd=nav.depth, dist=0, hitSide=0, hitKind="wall", hitPillar=null;
         for(let s=STEP;s<=MAXD;s+=STEP){
           rx=nav.x+dx*s; rd=nav.depth+dd*s;
-          // parede sólida no FUNDO do canyon
           if(rd>=MAX_DEPTH){ dist=s; hitSide=0; hitKind="floor_end"; break; }
-          // parede de fundo da estrutura da petroleira (atrás dos pilares)
           if(isStationBackWall(rd)){ dist=s; hitSide=0; hitKind="station_wall"; break; }
-          // PILARES grossos da petroleira perto do começo (fonte única: isPillar)
-          if(isPillar(rx,rd)){ dist=s; hitSide=0; hitKind="pillar"; break; }
-          if(isWall(rx,rd)){ dist=s; hitSide=dx<0?-1:1; break; }
-          // nada bateu ainda: ao atingir a distância máxima de visão, vira PAREDE DE ESCURIDÃO
+          const hp=pillarAt(rx,rd);
+          if(hp){ dist=s; hitSide=0; hitKind="pillar"; hitPillar=hp; break; }
+          const tv=tileValueAt(rx,rd);
+          if(tv){ dist=s; hitSide=dx<0?-1:1; hitKind=tv===2?"cave":"wall"; break; }
           if(s>=VIS_WALL){ dist=s; hitSide=0; hitKind="dark"; break; }
         }
-        if(!dist) continue;  // (não deve ocorrer — a escuridão sempre fecha)
-        // corrige distorção fish-eye: distância perpendicular
+        if(!dist) continue;
+        // refina o hit por BISSECÇÃO: o march de 5wu penetra até 5wu na parede com
+        // erro aleatório por coluna — o texU herdava esse ruído (rasgado visível nas
+        // faces vistas de frente). 5 iterações → erro ~0.16wu; a distância precisa
+        // também estabiliza a altura projetada (paredes não "respiram" ao girar).
+        if(hitKind!=="dark"&&dist>STEP){
+          let lo=dist-STEP, hi=dist;
+          for(let bi=0;bi<5;bi++){
+            const mid=(lo+hi)*0.5;
+            const mx=nav.x+dx*mid, md=nav.depth+dd*mid;
+            const solid=hitKind==="pillar"?!!pillarAt(mx,md)
+              :hitKind==="station_wall"?isStationBackWall(md)
+              :hitKind==="floor_end"?md>=MAX_DEPTH
+              :tileValueAt(mx,md)!==0;
+            if(solid) hi=mid; else lo=mid;
+          }
+          dist=hi; rx=nav.x+dx*hi; rd=nav.depth+dd*hi;
+        }
         const perp=Math.max(8, dist*Math.cos(camAng));
-        zBuffer[i]=perp;
+        // a parede de ESCURIDÃO não é sólida: não deve ocluir o core das lâmpadas
+        // (sprites/biolum já se cortam sozinhos pelo próprio fog antes dela)
+        zBuffer[i]=hitKind==="dark"?MAXD:perp;
+        // além do alcance: a rocha já dissolveu 100% na água — não desenha NADA
+        // (o fundo é a cor da água; a "escuridão" acontece por igualdade de cor)
+        if(hitKind==="dark") continue;
         const colX=(i+0.5)*colW;
-        // PAREDE DE ESCURIDÃO: parede preta sólida na distância máxima de visão, com a MESMA
-        // altura projetada de uma parede do corredor naquela distância (fecha o corredor ao fundo).
-        // é escuridão ABSOLUTA — a lanterna não a alcança (preto puro), pra não parecer parede.
-        if(hitKind==="dark"){
-          const shD=Math.min(h*1.4, WALLH/perp);
-          const y0d=h/2 - shD/2, y1d=h/2 + shD/2;
-          x.fillStyle="#000";
-          x.fillRect(colX-colW/2-0.5, y0d, colW+1, y1d-y0d);
-          continue;
-        }
-        // altura da tira (perto = alta)
         const sh2=Math.min(h*1.4, WALLH/perp);
-        const y0=h/2 - sh2/2, y1=h/2 + sh2/2;
-        // sombreamento por distância: visão limitada, longe some no breu (mesmo princípio do chão)
+        // pilares da petroleira SOBEM 3× a altura da parede (estrutura, não rocha)
+        const pTall=hitKind==="pillar"?3:1;
+        const y0=h/2 - sh2/2 - (pTall-1)*sh2, y1=h/2 + sh2/2;
         const fog=Math.max(0, Math.min(1, 1 - dist/WALL_SIGHT));
-        const fog2=fog*fog;     // queda acentuada
-        // textura: faixa de rocha que rola verticalmente com a profundidade + ruído por coluna
-        const wallU = (hitSide<0 ? rd : rd*1.0);
-        const tex = 0.5 + 0.5*Math.sin(wallU*0.18 + i*0.4) * Math.sin(wallU*0.05+ i*0.13);
-        // luz do facho: clareia a coluna se o facho aponta perto dela (x e y)
-        let lit=0;
-        if(lightOn){
-          const bxw=beamX*w, byh=beamY*h;
-          lit=Math.max(0,1-Math.abs(bxw-colX)/(w*0.42))*Math.max(0,1-Math.abs(byh-h/2)/(h*0.6));
+        const fogK=fog*Math.sqrt(fog);
+        // facho nas paredes: ângulo do raio vs ângulo do cursor (camera space), atenua longe
+        const beamAngH=(beamX-0.5)*FOV;
+        const angDiffH=Math.abs(camAng-beamAngH);
+        const litH=lightOn?Math.max(0,Math.min(1,(Math.PI/5-angDiffH)/(Math.PI/5-Math.PI/14))):0;
+        const litV=lightOn?Math.max(0,1-Math.abs(beamY-0.5)*2.5):0;
+        const lit=litH*litV*fog;
+        let addW=0;
+        for(let li=0;li<nLL;li++){
+          const L=liveL[li], lxd=rx-L.wx, lyd=rd-L.wd;
+          const d2=lxd*lxd+lyd*lyd;
+          if(d2<L.rng*L.rng){ const q=1-Math.sqrt(d2)/L.rng; addW+=L.pw*q*q; }
         }
-        // cor base cinza; margem esquerda levemente mais escura (sombreamento direcional).
-        // a base (luz ambiente) decai com a profundidade; o termo da lanterna (lit) NÃO.
-        const sideShade = hitSide<0 ? 0.82 : 1.0;
-        let base = ((16 + tex*26)*sideShade*fog2*(0.4+ambLight*0.75) + lit*fog*(isOld?70:90));
-        base=Math.min(190,base);
-        let r,g,b;
-        if(hitKind==="pillar"){
-          // pilares da estação: metálico, mais frio e liso (estrutura, não rocha)
-          const pb=Math.min(200,(30+tex*18)*fog2+lit*fog*95);
-          r=pb*0.82|0; g=pb*0.88|0; b=pb*0.96|0;
-        } else if(hitKind==="floor_end" || hitKind==="station_wall"){
-          // parede de rocha maciça mais escura (fundo do canyon ou fundo da estação)
-          const fb=Math.min(170,(14+tex*20)*fog2+lit*fog*(isOld?60:78));
-          if(isOld){ r=fb*0.95|0; g=fb*0.85|0; b=fb*0.66|0; } else { r=fb*0.88|0; g=fb*0.96|0; b=fb*1.0|0; }
-        } else if(isOld){ r=base*1.0|0; g=base*0.9|0; b=base*0.72|0; }   // luz quente do velho
-        else { r=base*0.92|0; g=base*1.0|0; b=base*1.06|0; }      // luz fria neurostat
-        x.fillStyle=`rgb(${r},${g},${b})`;
-        x.fillRect(colX-colW/2-0.5, y0, colW+1, y1-y0);
-        // linha de sombra no topo/base da parede (junção com o breu)
-        x.fillStyle=`rgba(0,0,0,${(0.3*fog+0.2).toFixed(2)})`;
-        x.fillRect(colX-colW/2-0.5, y0, colW+1, Math.max(1,sh2*0.06));
-        x.fillRect(colX-colW/2-0.5, y1-Math.max(1,sh2*0.06), colW+1, Math.max(1,sh2*0.06));
+        const sideShade=hitSide<0?0.84:1.0;
+        // ---- TIRA DE TEXTURA ----
+        // U = (rx+rd): coordenada DIAGONAL do mundo — nunca constante em nenhuma face.
+        // Pilar: U = offset lateral DENTRO do pilar (preserva o shading cilíndrico da
+        // textura) e variante fixa por pilar. Cave/wall: variante por bloco de 4×4
+        // tiles (troca a cada 16m — o fog esconde a emenda).
+        let texObj, texU;
+        if(hitKind==="pillar"&&hitPillar){
+          texObj=texVar(TEXR.pillar,hitPillar.x|0,hitPillar.top|0);
+          // A face é decidida pela GEOMETRIA do ponto de hit (estável por coluna),
+          // NUNCA pelo ângulo do raio — com FOV de 78°, colunas vizinhas da tela
+          // classificariam a mesma face de formas diferentes (mapeamento misturado).
+          const dSide=hitPillar.r-Math.abs(rx-hitPillar.x);      // fundura na face leste/oeste
+          const dCap=Math.min(rd-hitPillar.top,hitPillar.bot-rd); // fundura na face norte/sul
+          if(dSide<=dCap){
+            // face LESTE/OESTE: U desliza pela profundidade na MESMA densidade das
+            // paredes (1.7 texel/wu) — colunas vizinhas ficam contíguas na textura
+            texU=(((rd*1.7)|0)%TEX_SIZE+TEX_SIZE)%TEX_SIZE;
+          } else {
+            // face NORTE/SUL: offset lateral — o shading cilíndrico lê como cilindro
+            texU=Math.max(0,Math.min(TEX_SIZE-1,((rx-(hitPillar.x-hitPillar.r))/(2*hitPillar.r))*TEX_SIZE))|0;
+          }
+        } else {
+          const arr=hitKind==="cave"?TEXR.cave:TEXR.wall;
+          texObj=texVar(arr,Math.floor(rd/(TILE*4)),Math.floor((rx-X_MIN_W)/(TILE*4)));
+          texU=(((((rx+rd)*1.7)|0)%TEX_SIZE)+TEX_SIZE)%TEX_SIZE;
+        }
+        const xL=colX-colW/2-0.5, wW=colW+1, hS=y1-y0;
+        x.imageSmoothingEnabled=false; // nearest: nitidez PS2 nas tiras
+        if(pTall>1){
+          // textura REPETIDA em segmentos (não esticada) na coluna alta
+          for(let seg2=0;seg2<pTall;seg2++)
+            x.drawImage(texObj.cnv, texU, 0, 1, TEX_SIZE, xL, y1-sh2*(seg2+1), wW, sh2);
+        } else {
+          x.drawImage(texObj.cnv, texU, 0, 1, TEX_SIZE, xL, y0, wW, hS);
+        }
+        x.imageSmoothingEnabled=true;
+        // escurecimento ambiente: rocha no breu é escura; o facho recupera a cor.
+        // pilar recebe luz base maior — concreto claro se destaca da rocha
+        const ambBase=hitKind==="pillar"?(0.46+ambLight*0.58):(0.24+ambLight*0.60);
+        const ambF=Math.max(0,Math.min(1,ambBase*sideShade+lit*0.72+addW*1.15));
+        if(ambF<0.995){ x.fillStyle=`rgba(0,0,0,${(1-ambF).toFixed(3)})`; x.fillRect(xL,y0,wW,hS); }
+        // fog: dissolve na cor da água pela DISTÂNCIA — mas parede banhada por
+        // lâmpada RESISTE ao fog (a região iluminada é visível de mais longe)
+        const pres=Math.min(1,fogK+addW*0.35);
+        if(pres<0.995){ x.fillStyle=`rgba(${waterR|0},${waterG|0},${waterB|0},${(1-pres).toFixed(3)})`; x.fillRect(xL,y0,wW,hS); }
+        // brilho do facho por cima (luz espalhada na água em frente à rocha)
+        if(lit>0.05){
+          x.save(); x.globalCompositeOperation='screen';
+          x.fillStyle=isOld?`rgba(185,148,82,${(lit*0.28).toFixed(3)})`:`rgba(105,175,200,${(lit*0.30).toFixed(3)})`;
+          x.fillRect(xL,y0,wW,hS); x.restore();
+        }
+        // sombra sutil nas arestas topo/base — some junto com a rocha
+        if(pres>0.12){
+          x.fillStyle=`rgba(0,0,0,${(0.22*pres).toFixed(2)})`;
+          x.fillRect(xL, y0, wW, Math.max(1,sh2*0.05));
+          x.fillRect(xL, y1-Math.max(1,sh2*0.05), wW, Math.max(1,sh2*0.05));
+        }
+        // MASSA ESCURA no alto do pilar: algo paira lá em cima, engolindo a estrutura
+        if(pTall>1&&pres>0.05){
+          const gT=x.createLinearGradient(0,y0,0,y0+sh2*1.4);
+          gT.addColorStop(0,`rgba(0,0,0,${(0.85*pres).toFixed(3)})`);
+          gT.addColorStop(0.55,`rgba(0,0,0,${(0.40*pres).toFixed(3)})`);
+          gT.addColorStop(1,'rgba(0,0,0,0)');
+          x.fillStyle=gT; x.fillRect(xL,y0,wW,sh2*1.4);
+        }
       }
-      // sprites billboard no mundo (depth test pelo zbuffer)
+      // distância da superfície mirada: o feixe engrossa perto, afina e borra longe.
+      // normalização por 55% do alcance + sqrt: range dinâmico visível em uso normal
+      {
+        const iAim=Math.max(0,Math.min(COLS-1,Math.round(beamX*(COLS-1))));
+        let dAim=zBuffer[iAim];
+        if(beamY*h>hh+1){ const pAim=beamY*h-hh; dAim=Math.min(dAim,posZ/pAim); }
+        const tgt=Math.sqrt(Math.max(0,Math.min(1,1-dAim/(WALL_SIGHT*0.55))));
+        aimNearSm+=(tgt-aimNearSm)*0.15;
+      }
+      // sprites billboard no mundo (depth test pelo zbuffer) — itens são cenário, vão antes
       if(mode==="diving"||mode==="reeling"){
+        drawItemSprites(w,h,zBuffer,COLS,colW,WALLH,VIS_WALL);
         drawFishSprites(w,h,zBuffer,COLS,colW,WALLH,VIS_WALL);
         drawCreatureSprites(w,h,zBuffer,COLS,colW,WALLH,VIS_WALL);
       }
+      // BIOLUMINESCÊNCIA AMBIENTE: pontos de luz vivos abaixo do coral (organismos do canyon)
+      if(beyond){
+        const invDetB=1.0/Math.tan(Math.PI*78/360);
+        for(const bp of BIOLUM_PTS){
+          const {tX,tY}=billboardTransform(bp.wx,bp.wd,hdg,invDetB,dirX,dirY);
+          if(tY<=0.3||tY>VIS_WALL*1.15) continue;
+          const sx=w/2*(1+tX/tY);
+          if(sx<-w*0.15||sx>w*1.15) continue;
+          // depth-test: não brilha através de rocha
+          const bcol=Math.max(0,Math.min(COLS-1,Math.floor(sx/colW)));
+          if(tY>=zBuffer[bcol]+12) continue;
+          const pulse=0.4+0.6*Math.abs(Math.sin(t*bp.spd+bp.ph));
+          const fade=Math.max(0,(1-tY/(VIS_WALL*0.80))*pulse);
+          if(fade<0.015) continue;
+          const gr=Math.max(3,18/tY*38);
+          const gc=x.createRadialGradient(sx,hh,0,sx,hh,gr*4.5);
+          gc.addColorStop(0,`rgba(90,255,155,${(fade*0.82).toFixed(3)})`);
+          gc.addColorStop(0.28,`rgba(35,190,90,${(fade*0.28).toFixed(3)})`);
+          gc.addColorStop(1,'transparent');
+          x.save(); x.fillStyle=gc; x.beginPath(); x.arc(sx,hh,gr*4.5,0,6.28); x.fill(); x.restore();
+        }
+      }
+      // luz da plataforma vindo de cima: glow vertical quando próximo da superfície
+      if(depth<5000){
+        const ga=Math.max(0,1-depth/5000)*effectiveAmb;
+        const tg=x.createLinearGradient(0,0,0,h*0.38);
+        if(isOld){tg.addColorStop(0,`rgba(165,130,55,${(ga*0.14).toFixed(3)})`);}
+        else{tg.addColorStop(0,`rgba(65,150,200,${(ga*0.17).toFixed(3)})`);}
+        tg.addColorStop(1,'transparent');
+        x.fillStyle=tg; x.fillRect(0,0,w,h*0.38);
+      }
+      // grab overlay: criatura colada no visor (após tudo no mundo)
+      drawGrabOverlay(w,h);
     }
 
     // ===== PARTICULAS suspensas (sobre as paredes): reagem ao movimento real do sub.
@@ -943,53 +1811,48 @@
       }
     }
 
-    // FACHO
-    if(lightOn){
-      x.save();x.globalCompositeOperation="screen";
-      const bx=beamX*w,by=beamY*h;
-      const R=Math.min(w,h)*0.62;
-      const beamAl=1-collisionFlicker*0.65;
-      const bg=x.createRadialGradient(bx,by,5,bx,by,R);
-      if(isOld){bg.addColorStop(0,`rgba(210,180,100,${(0.24*beamAl).toFixed(3)})`);bg.addColorStop(.4,`rgba(150,120,55,${(0.08*beamAl).toFixed(3)})`);}
-      else{bg.addColorStop(0,`rgba(160,205,210,${(0.24*beamAl).toFixed(3)})`);bg.addColorStop(.4,`rgba(120,165,170,${(0.08*beamAl).toFixed(3)})`);}
-      bg.addColorStop(1,"transparent");
-      x.fillStyle=bg;x.beginPath();x.arc(bx,by,R,0,6.28);x.fill();
-      x.restore();
-    }
-    // névoa radial de distância: escurece bordas simulando dificuldade de ver longe em todas as direções
+    // FACHO como cone direcional (não blob circular)
+    const beamAl_=1-collisionFlicker*0.65;
+    drawFlashlight(w,h,isOld,beamAl_);
+
+    // névoa de profundidade: escurece bordas do visor conforme desce
     if(mode==="diving"||mode==="reeling"){
-      const fs=0.28+depthN*0.32;
-      const fg=x.createRadialGradient(w/2,h/2,w*0.06,w/2,h*0.52,w*0.7);
-      fg.addColorStop(0,'rgba(0,0,0,0)');
-      fg.addColorStop(0.5,`rgba(0,0,0,${(fs*0.28).toFixed(3)})`);
-      fg.addColorStop(1,`rgba(0,0,0,${fs.toFixed(3)})`);
-      x.fillStyle=fg; x.fillRect(0,0,w,h);
+      const fs=0.22+depthN*0.30;
+      const fgV=x.createRadialGradient(w/2,h/2,w*0.08,w/2,h*0.52,w*0.72);
+      fgV.addColorStop(0,'rgba(0,0,0,0)');
+      fgV.addColorStop(0.5,`rgba(0,0,0,${(fs*0.25).toFixed(3)})`);
+      fgV.addColorStop(1,`rgba(0,0,0,${fs.toFixed(3)})`);
+      x.fillStyle=fgV; x.fillRect(0,0,w,h);
     }
 
     // reflexo do vidro reage à luz: mais brilho quando o facho está aceso
-    const gr=document.getElementById("glassReflect");
-    if(gr) gr.style.opacity = lightOn ? "0.8" : "0.5";
+    const grEl=document.getElementById("glassReflect");
+    if(grEl) grEl.style.opacity = lightOn ? "0.8" : "0.5";
 
     // red tint persistente quando o coral cresce
     if(coralActive){
       x.save(); x.fillStyle="rgba(110,0,0,0.28)"; x.fillRect(0,0,w,h); x.restore();
     }
 
-    // grab ativo: criatura agarrou o sub
-    if(grabbedBy){
-      const pulse=0.6+0.38*Math.abs(Math.sin(t*0.25));
-      x.save();
-      x.font=`bold ${Math.round(h*0.027)}px monospace`;
-      x.fillStyle=`rgba(255,35,15,${pulse.toFixed(3)})`;
-      x.textAlign='center'; x.textBaseline='middle';
-      x.fillText('■ SYSTEM OVERRIDE', w/2, h*0.76);
-      x.restore();
-    }
+    // SYSTEM OVERRIDE: painel de controle, não no visor
+    {const so=document.getElementById('sysOverride');
+    if(so) so.style.opacity=grabbedBy?(0.25+0.75*Math.abs(Math.sin(t*0.07))).toFixed(3):'0';}
 
-    // FOCO: blur de base sempre leve, focar reduz quase a zero (na frente de tudo)
-    focusAmt += ((focusing?1:0)-focusAmt)*0.1;
-    const baseBlur = 1.5 - focusAmt*1.35; // 1.5 normal -> 0.15 focado
-    document.getElementById("visionBlur").style.backdropFilter=`blur(${baseBlur.toFixed(2)}px)`;
+    // ===== RESPIRAÇÃO: o vidro embaça na EXPIRAÇÃO (umidade do ar) =====
+    // calma: ciclo de ~4s, embaço quase imperceptível. Dano recente acelera o
+    // fôlego (até ~1.1s/ciclo) e o bafo passa a comprometer a visão de verdade.
+    recentHits*=0.9994; // decai: meia-vida ~20s a 60fps
+    const breathRate=0.25+Math.min(0.65,recentHits*0.065);
+    breathPhase+=breathRate/60;
+    const exhale=Math.max(0,Math.sin(breathPhase*6.2832)); // metade do ciclo = expira
+    const stressF=Math.min(1,recentHits*0.11);
+    const fogA=exhale*exhale*(0.06+stressF*0.38);
+    const bfEl=document.getElementById('breathFog');
+    if(bfEl) bfEl.style.opacity=fogA.toFixed(3);
+    // na INSPIRAÇÃO o vidro fica quase límpido (0.2px) — nitidez ocasional real;
+    // o embaço vive só no pico da expiração
+    const blurPx=0.2+exhale*(0.9+stressF*1.6);
+    document.getElementById("visionBlur").style.backdropFilter=`blur(${blurPx.toFixed(2)}px)`;
 
     requestAnimationFrame(draw);
   }
@@ -1021,7 +1884,7 @@
     const bubbles=[]; for(let i=0;i<50;i++)bubbles.push({x:Math.random(),y:Math.random(),r:Math.random()*3+1,v:Math.random()*0.5+0.3});
     let st=0;
     const SPEED=0.0022;   // ~7.5s, transição mais longa e fluida
-    const MOON_DEPTH=1000, DIVE_DEPTH=START_DEPTH;  // 100m wu=1000, submerso wu=2000
+    const MOON_DEPTH=1000, DIVE_DEPTH=SPAWN.depth;  // 100m wu=1000, spawn definido pelo mapa
     diveAnim=setInterval(()=>{
       p+=SPEED; st++;
       // anima o depth junto: descendo 100->200, subindo 200->100
@@ -1031,6 +1894,7 @@
         p=1; clearInterval(diveAnim); diveAnim=null;
         splashCv.style.display="none"; splashActive=false;
         nav.depth = ascending ? MOON_DEPTH : DIVE_DEPTH;
+        if(!ascending) nav.x=SPAWN.x; // pousa no X do spawn definido pelo mapa
         // moonpool já saiu de vista: descendo mostra o breu; subindo mantém a moonpool
         elMoon.style.display = ascending ? "block" : "none";
         if(ascending) positionMoon();
@@ -1130,28 +1994,97 @@
     }
     return true;
   }
-
-  // Calcula o caminho esticado (taut) do sub até o início do navPath.
-  // String pulling: começa do sub, pula para o waypoint mais longe com LOS,
-  // repete até chegar em navPath[0]. Resultado = array shallow→deep (ordem Firebase).
-  function computeTautPath(){
-    if(!navPath.length) return [];
-    let px=nav.x, pd=nav.depth;
-    let i=navPath.length-1;
-    const pivots=[];
-    while(i>=0){
-      let tgt=i;
-      for(let j=i-1;j>=0;j--){
-        if(lineOfSight(px,pd,navPath[j].x,navPath[j].depth)) tgt=j;
-        else break;
-      }
-      pivots.push(navPath[tgt]);
-      px=navPath[tgt].x; pd=navPath[tgt].depth;
-      i=tgt-1;
+  // versão LARGA: exige folga de 30wu perpendicular ao segmento — atalhos do
+  // string-pulling nunca raspam quinas (usada no arrasto do grab e no stalk)
+  function lineOfSightWide(x1,d1,x2,d2){
+    const dist=Math.hypot(x2-x1,d2-d1);
+    if(dist<1) return true;
+    const nx=-(d2-d1)/dist, nd=(x2-x1)/dist;
+    const steps=Math.max(2,Math.ceil(dist/(TILE*0.4)));
+    for(let i=1;i<steps;i++){
+      const t=i/steps;
+      const cx=x1+(x2-x1)*t, cd=d1+(d2-d1)*t;
+      if(isWall(cx,cd)||isWall(cx+nx*30,cd+nd*30)||isWall(cx-nx*30,cd-nd*30)) return false;
     }
-    pivots.reverse(); // deixa shallow (moonpool) primeiro, igual ao navPath
-    return pivots;
+    return true;
   }
+
+  // tile navegável COM FOLGA: ele e os 8 vizinhos são água (borda conta como parede)
+  function tileClear(r,c){
+    if(!MAP[r]||MAP[r][c]!==0) return false;
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      const rr=r+dr, cc=c+dc;
+      if(rr<0||rr>=GRID_ROWS||cc<0||cc>=GRID_COLS) return false;
+      if(MAP[rr][cc]!==0) return false;
+    }
+    return true;
+  }
+
+  // BFS no grid: encontra caminho livre de (startX,startD) a (endX,endD).
+  // clearance=true: só atravessa tiles com folga das paredes (destino é isento)
+  function bfsPath(startX,startD,endX,endD,clearance){
+    const clampR=r=>Math.max(0,Math.min(GRID_ROWS-1,r));
+    const clampC=c=>Math.max(0,Math.min(GRID_COLS-1,c));
+    const r0=clampR(Math.floor(startD/TILE)), c0=clampC(Math.floor((startX-X_MIN_W)/TILE));
+    const r1=clampR(Math.floor(endD/TILE)),   c1=clampC(Math.floor((endX-X_MIN_W)/TILE));
+    if(r0===r1&&c0===c1) return [{x:X_MIN_W+c1*TILE+TILE/2,depth:r1*TILE+TILE/2}];
+    const key=(r,c)=>r*GRID_COLS+c;
+    const parent=new Map([[key(r0,c0),null]]);
+    const queue=[[r0,c0]];
+    const DIRS=[[0,1],[0,-1],[1,0],[-1,0]];
+    let found=false;
+    outer: while(queue.length>0){
+      const [r,c]=queue.shift();
+      for(const [dr,dc] of DIRS){
+        const nr=clampR(r+dr), nc=clampC(c+dc);
+        if(!MAP[nr]||MAP[nr][nc]!==0) continue;
+        if(clearance&&!(nr===r1&&nc===c1)&&!tileClear(nr,nc)) continue;
+        const k=key(nr,nc);
+        if(parent.has(k)) continue;
+        parent.set(k,key(r,c));
+        if(nr===r1&&nc===c1){found=true;break outer;}
+        queue.push([nr,nc]);
+      }
+    }
+    if(!found) return null;
+    const path=[];
+    let k=key(r1,c1);
+    while(k!==null){
+      const r=Math.floor(k/GRID_COLS), c=k%GRID_COLS;
+      path.unshift({x:X_MIN_W+c*TILE+TILE/2,depth:r*TILE+TILE/2});
+      k=parent.get(k)??null;
+    }
+    return path;
+  }
+
+  // string-pulling: elimina waypoints onde há linha de visão direta ao próximo
+  function smoothBfsPath(path){
+    if(!path||path.length<=2) return path;
+    const out=[path[0]];
+    let i=0;
+    while(i<path.length-1){
+      let j=path.length-1;
+      while(j>i+1&&!lineOfSight(path[i].x,path[i].depth,path[j].x,path[j].depth)) j--;
+      out.push(path[j]);
+      i=j;
+    }
+    return out;
+  }
+  // string-pulling com folga (usa lineOfSightWide — atalhos não raspam paredes)
+  function smoothBfsPathW(path){
+    if(!path||path.length<=2) return path;
+    const out=[path[0]];
+    let i=0;
+    while(i<path.length-1){
+      let j=path.length-1;
+      while(j>i+1&&!lineOfSightWide(path[i].x,path[i].depth,path[j].x,path[j].depth)) j--;
+      out.push(path[j]);
+      i=j;
+    }
+    return out;
+  }
+
+  // (o caminho do cabo agora é a simulação de corda esticada — ropePivots)
 
   // loop de simulação local (~60fps): movimento livre Iron Lung em 2D
   let lastT=performance.now();
@@ -1159,17 +2092,47 @@
   function navLoop(now){
     const dt=Math.min((now-lastT)/1000, 0.05); lastT=now;
     collisionFlicker = Math.max(0, collisionFlicker - dt*0.85);
-    const isGrabbed = !!(grabbedBy && grabTarget && nav.mode==='diving');
+    // AGARRADO = WASD travado SEMPRE, com ou sem alvo de arrasto definido.
+    // (antes exigia grabTarget — entre o grab e o guardião clicar o alvo,
+    //  o jogador em movimento continuava dirigindo)
+    const isGrabbed = !!(grabbedBy && nav.mode==='diving');
 
     if(nav.mode==="diving"){
       if(isGrabbed){
-        // criatura agarrou o sub: controle bloqueado, arrastado pelo guardião
-        const gdx=grabTarget.x-nav.x, gdd=grabTarget.depth-nav.depth;
-        const gdist=Math.hypot(gdx,gdd);
-        if(gdist>20){
-          nav.x+=gdx/gdist*NAV_SPEED*0.55*dt;
-          nav.depth=Math.max(STATION_TOP,Math.min(MAX_DEPTH,nav.depth+gdd/gdist*NAV_SPEED*0.55*dt));
-          pushNav();
+        // STRUGGLE: o WASD travado vira LUTA — enche a barra no painel do guardião
+        // (~12s de luta contínua pra encher; decai devagar quando param)
+        const fighting=keys["KeyW"]||keys["KeyA"]||keys["KeyS"]||keys["KeyD"]
+          ||keys["ArrowUp"]||keys["ArrowDown"]||keys["ArrowLeft"]||keys["ArrowRight"];
+        struggleAmt=Math.max(0,Math.min(100,struggleAmt+(fighting?dt*8.3:-dt*2)));
+        if(now-_struggleSyncT>500){ _struggleSyncT=now; ref.child('struggle').set(Math.round(struggleAmt)); }
+        // sub preso: só se move se o guardião definiu um alvo (arrasto por BFS)
+        if(grabTarget){
+          if(!grabPath){
+            // caminho com FOLGA das paredes; se não existir, cai pro caminho justo
+            let raw=bfsPath(nav.x,nav.depth,grabTarget.x,grabTarget.depth,true);
+            if(!raw) raw=bfsPath(nav.x,nav.depth,grabTarget.x,grabTarget.depth);
+            grabPath=raw?smoothBfsPathW(raw):null;
+            grabWpIdx=0;
+          }
+          if(grabPath&&grabWpIdx<grabPath.length){
+            const wp=grabPath[grabWpIdx];
+            const gdx=wp.x-nav.x, gdd=wp.depth-nav.depth;
+            const gdist=Math.hypot(gdx,gdd);
+            if(gdist<TILE*0.65){
+              grabWpIdx++;
+            } else {
+              const spd=NAV_SPEED*0.55*dt;
+              let nx=nav.x+gdx/gdist*spd;
+              let nd=Math.max(MIN_DIVE_DEPTH,Math.min(MAX_DEPTH,nav.depth+gdd/gdist*spd));
+              const R=26;
+              if(isWall(nx,nd)||isWall(nx-R,nd)||isWall(nx+R,nd)||pillarBlocked(nx,nd)||itemBlocked(nx,nd)){
+                if(!isWall(nav.x,nd)&&!isWall(nav.x-R,nd)&&!isWall(nav.x+R,nd)&&!pillarBlocked(nav.x,nd)&&!itemBlocked(nav.x,nd)) nx=nav.x;
+                else if(!isWall(nx,nav.depth)&&!isWall(nx-R,nav.depth)&&!isWall(nx+R,nav.depth)&&!pillarBlocked(nx,nav.depth)&&!itemBlocked(nx,nav.depth)) nd=nav.depth;
+                else {nx=nav.x;nd=nav.depth;}
+              }
+              nav.x=nx; nav.depth=nd; pushNav();
+            }
+          }
         }
       } else {
         // virar com A/D (gira o submarino)
@@ -1188,30 +2151,30 @@
           const stepX = Math.sin(rad)*NAV_SPEED*dt*drive;
           const stepD = Math.cos(rad)*NAV_SPEED*dt*drive;
 
-          // limite de profundidade: pode subir até o topo da estação (lá a parede/pilares barram).
-          // o fundo é MAX_DEPTH. assim a estrutura da petroleira fica visível acima do início.
+          // limite de subida: MIN_DIVE_DEPTH (170m) — dá pra ver a laje e os pilares
+          // da petroleira logo acima, mas não vagar até a superfície. Fundo = MAX_DEPTH.
           let nd = nav.depth + stepD;
-          nd = Math.max(STATION_TOP, Math.min(MAX_DEPTH, nd));
+          nd = Math.max(MIN_DIVE_DEPTH, Math.min(MAX_DEPTH, nd));
 
-          // colisão lateral checada NA profundidade de destino, eixo X separado:
-          // tenta mover X; se sair do corredor, encosta na parede (desliza, não trava tudo).
+          // colisão com hitbox SIMÉTRICA: raio R nos DOIS eixos (antes o eixo de
+          // profundidade só checava o centro — o nariz penetrava paredes norte/sul)
           let nx = nav.x + stepX;
           let hitWall=false;
-          // colisão com o grid: margem lateral da hitbox do sub
-          const R=22;
-          if(isWall(nx,nd)||isWall(nx-R,nd)||isWall(nx+R,nd)){
-            if(!isWall(nav.x,nd)&&!isWall(nav.x-R,nd)&&!isWall(nav.x+R,nd)){
+          const R=26;
+          const blocked=(px,pd)=>isWall(px,pd)||isWall(px-R,pd)||isWall(px+R,pd)||isWall(px,pd-R)||isWall(px,pd+R);
+          if(blocked(nx,nd)){
+            if(!blocked(nav.x,nd)){
               nx=nav.x; hitWall=true;          // desliza em depth
-            } else if(!isWall(nx,nav.depth)&&!isWall(nx-R,nav.depth)&&!isWall(nx+R,nav.depth)){
+            } else if(!blocked(nx,nav.depth)){
               nd=nav.depth; hitWall=true;      // desliza em X
             } else {
               nx=nav.x; nd=nav.depth; hitWall=true;
             }
           }
-          // pilares decorativos da estação (sobrepostos ao grid)
-          if(isPillar(nx, nd)){
-            if(!isPillar(nav.x, nd)){ nx=nav.x; hitWall=true; }
-            else if(!isPillar(nx, nav.depth)){ nd=nav.depth; hitWall=true; }
+          // pilares (sobrepostos ao grid) — hitbox com raio próprio
+          if(pillarBlocked(nx, nd)||itemBlocked(nx, nd)){
+            if(!pillarBlocked(nav.x, nd)&&!itemBlocked(nav.x, nd)){ nx=nav.x; hitWall=true; }
+            else if(!pillarBlocked(nx, nav.depth)&&!itemBlocked(nx, nav.depth)){ nd=nav.depth; hitWall=true; }
             else { nx=nav.x; nd=nav.depth; hitWall=true; }
           }
           if(isStationBackWall(nd) && !isStationBackWall(nav.depth)){
@@ -1223,52 +2186,98 @@
           nav.depth = nd;
           pushNav();
 
-          // breadcrumb: registra ponto do caminho a cada 60wu de movimento
-          if(!lastPathPoint) lastPathPoint={x:nav.x,depth:nav.depth};
-          if(Math.hypot(nav.x-lastPathPoint.x,nav.depth-lastPathPoint.depth)>60){
-            navPath.push({x:nav.x,depth:nav.depth});
-            lastPathPoint={x:nav.x,depth:nav.depth};
-            // sync throttled (3s) — guardião/monitor desenham o cabo no mapa
-            if(now-navPathWriteT>3000){ navPathWriteT=now; pushNavPath(); }
-          }
-
           // só sinaliza impacto quando DE FATO raspa a parede lateral (não nos limites de profundidade)
           if(hitWall && Math.abs(stepX)>0.5 && now-lastWallHit>450){
             lastWallHit=now; elWallHit.classList.remove("hit"); void elWallHit.offsetWidth; elWallHit.classList.add("hit");
             wallHitCount++;
             ref.child("hullDamage").set(wallHitCount);
           }
+          // tranco físico: o sub INTEIRO treme e a vista dá um leve zoom (qualquer eixo)
+          if(hitWall && now-lastWallShake>520){
+            lastWallShake=now;
+            const subEl=document.getElementById('sub');
+            subEl.classList.remove('wallhit'); void subEl.offsetWidth; subEl.classList.add('wallhit');
+            // o som do impacto viaja: a criatura ganha uma dica da região do sub
+            lastNoiseT=now; lastNoiseX=nav.x; lastNoiseD=nav.depth;
+            recentHits+=0.25; // raspar na parede quase não mexe no fôlego
+          }
         }
       }
     }
     else if(nav.mode==="reeling"){
-      if(reelingWpIdx<0){
-        // todos os pivôs consumidos: centraliza e sobe à profundidade inicial
-        nav.x+=(0-nav.x)*Math.min(1,dt*3);
-        nav.depth=Math.max(START_DEPTH,nav.depth-reelingSpeed*dt);
-        pushNav();
-        if(nav.depth<=START_DEPTH){ nav.x=0; nav.mode="moonpool"; pushNav(); }
-      } else {
-        const target=reelingPath[reelingWpIdx];
-        const dx=target.x-nav.x, dd=target.depth-nav.depth;
-        const dist=Math.hypot(dx,dd);
-        if(dist<25){
-          reelingWpIdx--;
-          // poda o cabo: remove o pivô chegado
-          ref.child("navPath").set(reelingWpIdx>=0?reelingPath.slice(0,reelingWpIdx+1):null);
+      // GIRAR é permitido (só girar — quem puxa é a corda), MAS NÃO durante o grab
+      let rturn=0;
+      if(keys["KeyA"]||keys["ArrowLeft"]) rturn-=1;
+      if(keys["KeyD"]||keys["ArrowRight"]) rturn+=1;
+      if(rturn&&!grabbedBy){ nav.heading=(nav.heading+rturn*TURN*dt+360)%360; }
+      // puxa pro ponto mais distante da corda alcançável com FOLGA GENEROSA (34wu)
+      const rtgt=reelTarget();
+      const rdx=rtgt.x-nav.x, rdd=rtgt.depth-nav.depth;
+      const rdist=Math.hypot(rdx,rdd);
+      // criatura agarrada: o guincho sofre — redução configurável pelo guardião
+      const rspd=reelingSpeed*(grabbedBy?Math.max(0,1-grabReelSlow/100):1)*dt;
+      if(rdist>4&&rspd>0.001){
+        const R=26;
+        const blockedR=(px,pd)=>isWall(px,pd)||isWall(px-R,pd)||isWall(px+R,pd)
+          ||isWall(px,pd-R)||isWall(px,pd+R)||pillarBlocked(px,pd)||itemBlocked(px,pd);
+        const ux=rdx/rdist, ud=rdd/rdist;
+        // STEERING: se o passo direto colide, gira o vetor e contorna a quina.
+        // Vai até ±90°: com alvo quase VERTICAL e parede horizontal no caminho
+        // (caso norte/sul), o único passo livre é o deslize lateral puro.
+        // Preso mesmo assim (alvo atrás da parede)? MODO DESESPERO: o leque
+        // abre até ±150° COM PERSISTÊNCIA DE LADO (bias) — o sub compromete
+        // com um lado do contorno (U-turn) em vez de quicar entre os dois.
+        let nx=nav.x, nd=nav.depth, movedOk=false;
+        const MAGS=[0.35,0.7,1.05,1.35,1.57,1.83,2.09,2.35,2.62];
+        let fan;
+        if(_reelStuckT>0.25){
+          fan=[0];
+          for(const m of MAGS) fan.push(_reelSteerBias*m);
+          for(const m of MAGS) fan.push(-_reelSteerBias*m);
         } else {
-          // move com collision detection — não trava em parede
-          const R=22, stepX=(dx/dist)*reelingSpeed*dt, stepD=(dd/dist)*reelingSpeed*dt;
-          let nx=nav.x+stepX, nd=nav.depth+stepD;
-          if(isWall(nx,nd)||isWall(nx-R,nd)||isWall(nx+R,nd)||isPillar(nx,nd)){
-            if(!isWall(nav.x,nd)&&!isWall(nav.x-R,nd)&&!isWall(nav.x+R,nd)&&!isPillar(nav.x,nd)) nx=nav.x;
-            else if(!isWall(nx,nav.depth)&&!isWall(nx-R,nav.depth)&&!isWall(nx+R,nav.depth)&&!isPillar(nx,nav.depth)) nd=nav.depth;
-            else { nx=nav.x; nd=nav.depth; }
+          fan=[0,0.35,-0.35,0.7,-0.7,1.05,-1.05,1.35,-1.35,1.57,-1.57];
+        }
+        for(const a of fan){
+          const ca=Math.cos(a), sa=Math.sin(a);
+          const tx3=nav.x+(ux*ca-ud*sa)*rspd;
+          const td3=Math.max(1000,nav.depth+(ux*sa+ud*ca)*rspd);
+          if(!blockedR(tx3,td3)){
+            nx=tx3; nd=td3; movedOk=true;
+            if(_reelStuckT>0.25&&a!==0) _reelSteerBias=a>0?1:-1;
+            break;
           }
-          nav.x=nx; nav.depth=nd;
-          pushNav();
+        }
+        if(!movedOk){
+          // fallback: deslize por eixo
+          const tx3=nav.x+ux*rspd, td3=nav.depth+ud*rspd;
+          if(!blockedR(nav.x,td3)) nd=td3;
+          else if(!blockedR(tx3,nav.depth)) nx=tx3;
+        }
+        nav.x=nx; nav.depth=nd;
+        // ANTI-PRISÃO: pivô encravado numa quina que a hitbox não alcança e o
+        // unwrap não solta → o sub OSCILA raspando sem se aproximar de verdade
+        // (a oscilação nunca bate o MÍNIMO HISTÓRICO de distância). Nesse caso
+        // a corda ESCORREGA ao redor da quina: o pivô DESLIZA em direção ao sub
+        // (preserva o caminho, só relaxa a dobra) até destravar. Nunca prende.
+        const newDist=Math.hypot(rtgt.x-nav.x,rtgt.depth-nav.depth);
+        if(newDist<_reelBest-2.5){ _reelBest=newDist; _reelStuckT=0; }
+        else _reelStuckT+=dt;
+        if(_reelStuckT>0.55&&ropePivots.length>1){
+          const lp=ropePivots[ropePivots.length-1];
+          const dl=Math.hypot(nav.x-lp.x,nav.depth-lp.depth);
+          if(dl<10) ropePivots.pop();
+          else { lp.x+=(nav.x-lp.x)/dl*12; lp.depth+=(nav.depth-lp.depth)/dl*12; }
+          _reelStuckT=0; _reelBest=1e9;
         }
       }
+      else if(rdist<=4&&ropePivots.length>1){
+        // chegou na quina: ela cumpriu o papel — o puxão passa pro pivô anterior
+        ropePivots.pop();
+        _reelStuckT=0; _reelBest=1e9;
+      }
+      pushNav();
+      // só resta a âncora e chegou à profundidade do spawn: emerge
+      if(ropePivots.length<=1&&nav.depth<=SPAWN.depth){ nav.x=SPAWN.x; nav.mode="moonpool"; pushNav(); }
     }
 
     // blast shutter: fecha a 1000m (10000wu); pode ser forçado via Firebase
@@ -1300,12 +2309,57 @@
       const dx=nav.x-ewx, dd=nav.depth-ewd;
       const dist=Math.hypot(dx,dd);
       const beh=ent.behavior||"wander";
-      const entSpd=typeof ent.speed==="number"&&ent.speed>0?ent.speed:20;
+      const entSpd=typeof ent.speed==="number"&&ent.speed>0?ent.speed:50;
       let vx=0, vd=0;
+
+      // ===== INVESTIDA (botão one-shot do guardião) — roda em QUALQUER comportamento =====
+      // sequência: rasante a 7× por uma lateral (nunca atrás) → impacto/tombo →
+      // se afasta em diagonal frontal → volta ao que estava fazendo antes
+      if(ent._swipePhase){
+        const sp=ent._swipePhase;
+        if(!sp.stageT) sp.stageT=now;
+        const tgt=sp.stage===0?sp.p1:sp.stage===1?sp.p2:sp.away;
+        const dtx=tgt.x-ewx, dtd=tgt.d-ewd;
+        const tdist=Math.hypot(dtx,dtd);
+        const spd=entSpd*(sp.stage===2?3:7)*dt;
+        // timeout: se um estágio empacar (alvo bloqueado), avança em vez de
+        // esfregar na parede pra sempre
+        const stuck=now-sp.stageT>2600;
+        if(tdist<Math.max(20,spd*1.5)||stuck){
+          if(sp.stage<2) creatureEntities[id]={...ent,_swipePhase:{...sp,stage:sp.stage+1,stageT:now}};
+          else creatureEntities[id]={...ent,_swipePhase:null}; // fim: retoma o comportamento
+        } else { vx=dtx/tdist*spd; vd=dtd/tdist*spd; }
+        // impacto rasante: o sub TOMBA pro lado da passada (uma vez)
+        if(!sp.hit&&sp.stage<2&&dist<80){
+          creatureEntities[id]={...creatureEntities[id],_swipePhase:{...(creatureEntities[id]._swipePhase||sp),hit:true}};
+          collisionFlicker=0.6;
+          recentHits+=1.5;
+          wallHitCount+=6; ref.child("hullDamage").set(wallHitCount);
+          rollV+=sp.side*45;
+          shkVX+=sp.side*55;
+        }
+        const movedSw=steerMove(ewx,ewd,vx,vd);
+        creatureEntities[id]={...creatureEntities[id],wx:movedSw.x,wd:movedSw.d,
+          _facing:(Math.hypot(vx,vd)>0.01?Math.atan2(vx,vd):(ent._facing||0))};
+        return;
+      }
+      if(ent.swipeCmd&&ent.swipeCmd>(ent._swipeAck||0)&&grabbedBy!==id){
+        const hdgR=nav.heading*Math.PI/180;
+        const fwdX=Math.sin(hdgR), fwdD=Math.cos(hdgR);
+        const latX=Math.cos(hdgR), latD=-Math.sin(hdgR);
+        const side=Math.random()<0.5?-1:1;
+        // pontos SEMPRE em água navegável — nunca dentro de rocha (prendia a fase)
+        const p1=nearestWater(nav.x+fwdX*180+latX*side*70, nav.depth+fwdD*180+latD*side*70);
+        const p2=nearestWater(nav.x+fwdX*10+latX*side*70,  nav.depth+fwdD*10+latD*side*70);
+        const away=nearestWater(nav.x+fwdX*250+latX*side*450, nav.depth+fwdD*250+latD*side*450);
+        creatureEntities[id]={...ent,_swipeAck:ent.swipeCmd,_swipePhase:{stage:0,side,p1,p2,away,hit:false,stageT:now}};
+        ref.child('entities/'+id+'/_swipeAck').set(ent.swipeCmd);
+        return;
+      }
 
       if(beh==="chase"||ent.chasing){
         const attackMode=ent.attackMode||'collision';
-        const aggrDist=typeof ent.aggressionDist==='number'&&ent.aggressionDist>0?ent.aggressionDist:300;
+        const postCollisionDist=typeof ent.postCollisionDist==='number'&&ent.postCollisionDist>0?ent.postCollisionDist:300;
         const phase=ent._attackPhase||null;
 
         // grab ativo: criatura está fixada no sub, segue sua posição
@@ -1315,34 +2369,170 @@
         }
 
         if(phase===null){
-          if(dist>8){ const spd=entSpd*dt; vx=(dx/dist)*spd; vd=(dd/dist)*spd; }
-          // gatilho de ataque ao se aproximar (bloqueado na moonpool e no cooldown)
-          if(dist<140&&nav.mode!=="moonpool"&&now-jumpscareT>jumpscareCD){
-            jumpscareT=now; collisionFlicker=1.0;
+          // ===== CAÇA POR LAST-SEEN: ela só sabe onde o sub está se O VÊ =====
+          // Visão: alcance configurável (default 550wu — mais que os ~300 dos
+          // players, mas o fog vale pra ela também) + linha de visão real (rocha
+          // bloqueia). Estados: hunt (vendo) → last (vai ao último ponto visto)
+          // → search (procura em raio crescente, re-centrando em cada canto).
+          const sightBase=typeof ent.sightRange==='number'&&ent.sightRange>0?ent.sightRange:550;
+          // TRÊS MODOS DE VISÃO (guardião):
+          //  full    = visão COMPLETA, sempre (esconder parado não ajuda)
+          //  partial = fortemente limitada: 30% movendo, 8% parado — o modo do STEALTH
+          //  blind   = zero: vive de SOM (last heard) e das dicas
+          const subMoving=subSpeedNow>6;
+          const vMode=ent.visionMode||(ent.blind?'blind':'full');
+          const effSight=vMode==='blind'?0
+            :vMode==='partial'?sightBase*(subMoving?0.30:0.08)
+            :sightBase;
+          let hu=creatureHuntState[id];
+          if(!hu) hu=creatureHuntState[id]={mode:'hunt',lastSeen:{x:nav.x,d:nav.depth},path:null,wpIdx:0,calcT:0,goal:null,goalPos:null,searchR:220};
+          const sees=effSight>0&&dist<effSight&&lineOfSight(ewx,ewd,nav.x,nav.depth);
+          hu._sees=sees; // o facing do render usa: ela só ENCARA o sub quando o vê
+          if(sees){
+            hu.mode='hunt'; hu.lastSeen={x:nav.x,d:nav.depth}; hu.searchR=220;
+            hu.hintR=650; hu.nextHintT=0; // reencontrou: o cerco reseta
+          } else {
+            // OUVIU o casco bater na parede (o impacto viaja ~140m): last HEARD preciso
+            if(lastNoiseT>(hu.noiseT||0)){
+              hu.noiseT=lastNoiseT;
+              if(Math.hypot(lastNoiseX-ewx,lastNoiseD-ewd)<1400){
+                const ang=Math.random()*6.28, rr=Math.random()*220;
+                const nw=nearestWater(lastNoiseX+Math.cos(ang)*rr,lastNoiseD+Math.sin(ang)*rr);
+                hu.lastSeen={x:nw.x,d:nw.d};
+                hu.hintR=Math.max(160,(hu.hintR||650)-60); // barulho também aperta o cerco
+                hu.mode='last'; hu.path=null; hu.goalPos=null; hu.goal=null; hu.searchR=260;
+              }
+            }
+            // OUVE o sub em MOVIMENTO perto dela (motor/água): rastreio grosseiro
+            const hearR=180+subSpeedNow*6;
+            if(subMoving&&dist<hearR&&now-(hu.heardT||0)>1200){
+              hu.heardT=now;
+              const ang=Math.random()*6.28, rr=Math.random()*100;
+              const nw=nearestWater(nav.x+Math.cos(ang)*rr,nav.depth+Math.sin(ang)*rr);
+              hu.lastSeen={x:nw.x,d:nw.d};
+              if(hu.mode!=='last'){ hu.mode='last'; hu.path=null; hu.goalPos=null; hu.goal=null; }
+            }
+            // TRILHA QUENTE: colada no sub (<260wu) com ele em MOVIMENTO, ela
+            // ESTIMA a posição continuamente (esteira/turbulência na água) —
+            // segue na cola sem precisar ver, sem pausas
+            if(subMoving&&dist<260&&now-(hu.trailT||0)>250){
+              hu.trailT=now;
+              const nw=nearestWater(nav.x+(Math.random()-0.5)*60,nav.depth+(Math.random()-0.5)*60);
+              hu.lastSeen={x:nw.x,d:nw.d};
+              if(hu.mode!=='last'){ hu.mode='last'; hu.path=null; hu.goalPos=null; hu.goal=null; }
+              hu.scanUntil=0;
+            }
+            if(hu.mode==='hunt'){
+              hu.mode='last'; hu.path=null; hu.goalPos=null;
+            }
+          }
+          let tgtX,tgtD,spdMul=1;
+          if(hu.mode==='hunt'){ tgtX=nav.x; tgtD=nav.depth; }
+          else if(hu.mode==='last'){
+            tgtX=hu.lastSeen.x; tgtD=hu.lastSeen.d;
+            if(Math.hypot(ewx-tgtX,ewd-tgtD)<50){
+              hu.mode='search'; hu.goal=null;
+              // CEGA não "olha em volta" — segue direto pro próximo ponto por som
+              hu.scanUntil=vMode==='blind'?0:now+1600;
+            }
+          }
+          if(hu.mode==='search'){
+            spdMul=0.7;
+            // "DIRETOR" (Alien Isolation): dicas periódicas da REGIÃO do sub —
+            // um ponto = posição real + erro de raio hintR. Quanto mais tempo
+            // procurando sem achar, menor o hintR: o cerco vai apertando.
+            const hintIv=(typeof ent.hintInterval==='number'&&ent.hintInterval>0?ent.hintInterval:9)*1000;
+            if(!hu.hintR) hu.hintR=650;
+            if(!hu.nextHintT) hu.nextHintT=now+hintIv*0.45; // primeira vem mais cedo
+            if(now>=hu.nextHintT){
+              hu.nextHintT=now+hintIv;
+              // CEGA muito perto do sub NÃO ganha dica — tem que achar por som
+              if(!(vMode==='blind'&&dist<300)){
+                hu.hintR=Math.max(160,hu.hintR-90);
+                const ang=Math.random()*6.28, rr=Math.random()*hu.hintR;
+                const nw=nearestWater(nav.x+Math.cos(ang)*rr,nav.depth+Math.sin(ang)*rr);
+                hu.lastSeen={x:nw.x,d:nw.d};
+                hu.searchR=Math.max(240,hu.hintR*0.6);
+                hu.goal=null; // re-centra a varredura na dica nova
+              }
+            }
+            if(hu.goal&&Math.hypot(ewx-hu.goal.x,ewd-hu.goal.d)<50){
+              hu.goal=null;
+              hu.scanUntil=vMode==='blind'?0:now+1600; // cega não pausa pra "olhar"
+            }
+            if(!hu.goal){
+              const g=findSearchPoint(hu.lastSeen.x,hu.lastSeen.d,hu.searchR);
+              if(g){ hu.goal=g; hu.goalPos=null; }
+              hu.searchR=Math.min(800,hu.searchR+120);
+            }
+            if(hu.goal){ tgtX=hu.goal.x; tgtD=hu.goal.d; }
+            else { tgtX=ewx; tgtD=ewd; }
+          }
+          // SCAN: parada de "olhar em volta" num ponto de interesse — gira o corpo
+          // devagar procurando; qualquer visão do sub interrompe na hora
+          if(hu.scanUntil&&now<hu.scanUntil&&!sees){
+            hu._scanFace=(hu._scanFace!==undefined?hu._scanFace:(ent._facing||0))+dt*2.2;
+            creatureEntities[id]={...creatureEntities[id],_facing:hu._scanFace};
+            return;
+          }
+          hu._scanFace=undefined;
+          // pathfinding dinâmico (recalcula ao alvo mover >60wu ou a cada 600ms)
+          const needP=!hu.path||hu.wpIdx>=hu.path.length
+            ||(hu.goalPos&&Math.hypot(tgtX-hu.goalPos.x,tgtD-hu.goalPos.d)>60)
+            ||now-hu.calcT>600;
+          if(needP&&now-hu.calcT>250){
+            let raw=bfsPath(ewx,ewd,tgtX,tgtD,true);
+            if(!raw) raw=bfsPath(ewx,ewd,tgtX,tgtD);
+            hu.path=raw?smoothBfsPathW(raw):null;
+            hu.wpIdx=0; hu.calcT=now; hu.goalPos={x:tgtX,d:tgtD};
+          }
+          if(hu.path&&hu.wpIdx<hu.path.length){
+            const wp=hu.path[hu.wpIdx];
+            const dwx=wp.x-ewx, dwd=wp.depth-ewd;
+            const wdist=Math.hypot(dwx,dwd);
+            if(wdist<TILE*0.6) hu.wpIdx++;
+            else { const spd=entSpd*spdMul*dt; vx=dwx/wdist*spd; vd=dwd/wdist*spd; }
+          } else if(hu.mode==='hunt'&&dist>8){
+            const spd=entSpd*dt; vx=(dx/dist)*spd; vd=(dd/dist)*spd;
+          } else if(tgtX!==undefined){
+            // BFS falhou (alvo inalcançável): NUNCA fica parada — vai na direção
+            // do alvo e o steerMove desvia das paredes no caminho
+            const gx=tgtX-ewx, gd=tgtD-ewd, gl=Math.hypot(gx,gd);
+            if(gl>12){ const spd=entSpd*spdMul*0.8*dt; vx=gx/gl*spd; vd=gd/gl*spd; }
+          }
+          // gatilho de ataque: (a) vendo e perto, com o cooldown cheio; (b) TOCANDO
+          // (52wu) com cooldown curto próprio — encostou, BATE; não mata o momento
+          const seenAtk=sees&&dist<85&&now-jumpscareT>jumpscareCD;
+          const touchAtk=dist<52&&now-jumpscareT>Math.min(jumpscareCD,2500);
+          if((seenAtk||touchAtk)&&nav.mode!=="moonpool"){
+            jumpscareT=now; collisionFlicker=1.35;
+            recentHits+=3; // fôlego dispara
             const jf=document.getElementById("jflash");
             jf.style.display="block"; jf.style.transition="none"; jf.style.opacity="1";
-            setTimeout(()=>{jf.style.transition="opacity 0.9s ease";jf.style.opacity="0";
-              setTimeout(()=>{jf.style.display="none";jf.style.transition="none";},1000);},80);
+            setTimeout(()=>{jf.style.transition="opacity 1.3s ease";jf.style.opacity="0";
+              setTimeout(()=>{jf.style.display="none";jf.style.transition="none";},1400);},110);
             const sub_=document.getElementById("sub");
             sub_.style.animation="none"; sub_.offsetHeight;
-            sub_.style.animation="jshake 0.55s ease-in-out";
+            sub_.style.animation="jshake 0.75s cubic-bezier(.2,.9,.3,1)";
             sub_.addEventListener("animationend",()=>{sub_.style.animation="";},{once:true});
+            rollV+=(Math.random()<0.5?-1:1)*38; // o impacto TOMBA o sub
+            shkVX+=(Math.random()<0.5?-1:1)*45;
             wallHitCount+=10; ref.child("hullDamage").set(wallHitCount);
             if(attackMode==='grab'){
               ref.child('grabbedBy').set(id);
             } else {
-              // colisão: lança a criatura em frente (passa pelo sub, continua por aggrDist)
+              // colisão: lança a criatura em frente (continua por postCollisionDist)
               creatureEntities[id]={...ent,_attackPhase:'charging',
                 _chargeDir:{x:dx/dist,d:dd/dist},_chargeTraveled:0};
             }
           }
         } else if(phase==='charging'){
-          // carga: ignora perseguição, avança na direção do impacto a alta velocidade
-          const chSpd=entSpd*2.5*dt;
+          // carga: velocidade fixa na direção do impacto (distância = postCollisionDist)
+          const chSpd=entSpd*dt;
           vx=(ent._chargeDir?.x||0)*chSpd; vd=(ent._chargeDir?.d||0)*chSpd;
           const traveled=(ent._chargeTraveled||0)+Math.hypot(vx,vd);
           creatureEntities[id]={...creatureEntities[id],_chargeTraveled:traveled};
-          if(traveled>=aggrDist)
+          if(traveled>=postCollisionDist)
             creatureEntities[id]={...creatureEntities[id],_attackPhase:'recovering',_recoverT:now};
         } else if(phase==='recovering'){
           // pausa antes de retomar perseguição
@@ -1351,27 +2541,58 @@
           // vx=vd=0: criatura para
         }
       } else if(beh==="stalk"){
-        // mantém zona morta 280-440wu; navega pelas paredes com steerMove
-        const STALK_MIN=280, STALK_MAX=440;
-        if(dist>0){
-          const spd=entSpd*0.85*dt;
-          if(dist>STALK_MAX){
-            vx=(dx/dist)*spd; vd=(dd/dist)*spd;
-          } else if(dist<STALK_MIN){
-            // afasta: prefere se mover perpendicularmente ao sub (hugs walls)
-            const awayX=-(dx/dist), awayD=-(dd/dist);
-            const perpX=awayD, perpD=-awayX;
-            const sign=Math.sin(now*0.001+id.charCodeAt(0))>0?1:-1;
-            vx=(awayX*0.6+perpX*sign*0.8)*spd;
-            vd=(awayD*0.6+perpD*sign*0.8)*spd;
-          } else {
-            // dentro da zona: deriva lateralmente ao longo das paredes
-            const perp=Math.sin(now*0.0009+id.charCodeAt(0)*1.3);
-            const perpX=-dd/dist, perpD=dx/dist;
-            vx=perpX*perp*0.45*entSpd*dt;
-            vd=perpD*perp*0.45*entSpd*dt;
+        // STALK COM PATHFINDING: mantém um anel de ~380wu ao redor do sub,
+        // fugindo/aproximando por caminhos NAVEGÁVEIS (BFS com folga).
+        // A distância deixa a criatura como um pontinho de bioluminescência
+        // na fronteira da visão — só quem anda na direção certa vê.
+        // distância de stalking configurável pelo guardião (stalkDist, default 380)
+        const STALK_TGT=typeof ent.stalkDist==='number'&&ent.stalkDist>0?ent.stalkDist:380;
+        const STALK_MIN=STALK_TGT*0.79, STALK_MAX=STALK_TGT*1.21;
+        let st=creatureStalkState[id];
+        const subMoved=st?Math.hypot(nav.x-st.subX,nav.depth-st.subD):1e9;
+        const pathDone=!st||!st.path||st.wpIdx>=st.path.length;
+        const needPath=pathDone||subMoved>80||now-st.calcT>2600||dist<STALK_MIN*0.9;
+        if(needPath&&(!st||now-st.calcT>700)){
+          const goal=findStalkPoint(ewx,ewd,STALK_TGT);
+          let path=null;
+          if(goal){
+            let raw=bfsPath(ewx,ewd,goal.x,goal.d,true);
+            if(!raw) raw=bfsPath(ewx,ewd,goal.x,goal.d);
+            path=raw?smoothBfsPathW(raw):null;
           }
+          creatureStalkState[id]=st={path,wpIdx:0,calcT:now,subX:nav.x,subD:nav.depth};
         }
+        if(st&&st.path&&st.wpIdx<st.path.length){
+          const wp=st.path[st.wpIdx];
+          const dwx=wp.x-ewx, dwd=wp.depth-ewd;
+          const wdist=Math.hypot(dwx,dwd);
+          if(wdist<TILE*0.6){ st.wpIdx++; }
+          else{
+            // fugindo (perto demais) = rápida; reposicionando = lenta e paciente
+            const urgency=dist<STALK_MIN?1.35:0.75;
+            const spd=entSpd*urgency*dt;
+            vx=dwx/wdist*spd; vd=dwd/wdist*spd;
+          }
+        } else if(dist>=STALK_MIN&&dist<=STALK_MAX){
+          // no anel, sem caminho pendente: deriva lateral lenta (espreita)
+          const perp=Math.sin(now*0.0009+id.charCodeAt(0)*1.3);
+          const perpX=-dd/dist, perpD=dx/dist;
+          vx=perpX*perp*0.4*entSpd*dt;
+          vd=perpD*perp*0.4*entSpd*dt;
+        }
+      } else if(beh==='dismiss'){
+        // afasta criatura e remove quando saiu do alcance visual do sub
+        const tgt=ent.dismissTarget||{x:ewx,depth:Math.min(GRID_ROWS*TILE-TILE,ewd+8000)};
+        const dtx=tgt.x-ewx, dtd=tgt.depth-ewd;
+        const ddist=Math.hypot(dtx,dtd);
+        const subDist_=Math.hypot(nav.x-ewx,nav.depth-ewd);
+        if(ddist<80||subDist_>520){
+          if(grabbedBy===id){ ref.child('grabbedBy').set(null); ref.child('grabTarget').set(null); }
+          ref.child('entities/'+id).remove();
+          delete creatureEntities[id];
+          return;
+        }
+        const spd=entSpd*3*dt; vx=dtx/ddist*spd; vd=dtd/ddist*spd;
       } else { // wander — alvo em tile válido do grid
         const wt=creatureWanderTargets[id];
         const distToTarget=wt?Math.hypot(ewx-wt.x,ewd-wt.d):999;
@@ -1408,8 +2629,15 @@
       // steerMove: desvia de paredes, nunca trava
       const moved=steerMove(ewx,ewd,vx,vd);
       const mvx=moved.x-ewx, mvd=moved.d-ewd;
-      // chase: aponta sempre para o sub; outros: usa direção real do movimento
-      const newFacing=(beh==="chase"||ent.chasing)
+      // chase: ENCARA o sub só quando o VÊ (sem visão, olhar pro sub denunciava
+      // que a IA sabia onde ele está); sem ver, olha pra onde está indo
+      const huF=creatureHuntState[id];
+      // ela ENCARA só quando vê E não está indo embora — afastando-se do sub
+      // (recuo, ponto de busca atrás dela) mostra as COSTAS, como nado real
+      const movL=Math.hypot(mvx,mvd), distL=Math.hypot(dx,dd)||1;
+      const movingAway=movL>0.01&&((mvx*dx+mvd*dd)/(movL*distL))<-0.25;
+      const chaseStare=(beh==="chase"||ent.chasing)&&(!huF||huF._sees!==false)&&!movingAway;
+      const newFacing=chaseStare
         ? Math.atan2(dx,dd)
         : (Math.hypot(mvx,mvd)>0.01?Math.atan2(mvx,mvd):(ent._facing||0));
       creatureEntities[id]={...creatureEntities[id],wx:moved.x,wd:moved.d,_facing:newFacing};
@@ -1419,6 +2647,53 @@
       Object.entries(creatureEntities).forEach(([id,ent])=>{
         if(ent) ref.child("entities/"+id).update({wx:ent.wx,wd:ent.wd});
       });
+    }
+
+    // corda: FROUXA no diving (paga, deita no trajeto real); ESTICADA no reeling
+    if(nav.mode==='diving'){ slackFeed(); ropeSync(); }
+    else if(nav.mode==='reeling'){ ropeUpdate(); ropeSync(); }
+
+    // ===== SUSPENSÃO: trancos de terreno enquanto o veículo se move =====
+    // Nada de senoide — impulsos aleatórios numa mola amortecida (bate seco,
+    // assenta com meia oscilação). Intensidade segue a velocidade REAL do sub,
+    // então cobre WASD, reeling, descida da moonpool e arrasto do grab.
+    {
+      const mvd=Math.hypot(nav.x-(_shkPX??nav.x),nav.depth-(_shkPD??nav.depth));
+      let dh=Math.abs(nav.heading-(_shkPH??nav.heading)); if(dh>180)dh=360-dh;
+      _shkPX=nav.x; _shkPD=nav.depth; _shkPH=nav.heading;
+      const idt=Math.max(dt,0.001);
+      subSpeedNow=mvd/idt; // exposto pro stealth da criatura
+      let moveI=Math.min(1,(mvd/idt)/30)+Math.min(0.4,(dh/idt)/52*0.4);
+      const grabMul=(grabbedBy&&nav.mode==='diving')?2:1;
+      // LUTA durante o grab: a nave se debate VISIVELMENTE (sinal pros players)
+      let joltMin=400, joltRng=800;
+      if(grabbedBy&&nav.mode==='diving'&&(keys["KeyW"]||keys["KeyA"]||keys["KeyS"]||keys["KeyD"]
+        ||keys["ArrowUp"]||keys["ArrowDown"]||keys["ArrowLeft"]||keys["ArrowRight"])){
+        moveI=Math.max(moveI,0.85+struggleAmt*0.007);
+        joltMin=170; joltRng=330; // trancos bem mais frequentes na luta
+      }
+      if(moveI>0.05&&now>=nextJoltT){
+        nextJoltT=now+joltMin+Math.random()*joltRng;
+        const amp=(0.8+Math.random()*1.6)*Math.min(1.6,moveI)*grabMul;
+        shkVX+=(Math.random()<0.5?-1:1)*amp*18;   // impulso lateral dominante
+        shkVY+=(Math.random()-0.5)*amp*10;        // vertical menor
+      }
+      // mola amortecida (K=rigidez, D=amortecimento) — ~1.5Hz, assenta em ~0.5s
+      const K=90, D=7.5;
+      shkVX+=(-shkX*K-shkVX*D)*dt; shkX+=shkVX*dt;
+      shkVY+=(-shkY*K-shkVY*D)*dt; shkY+=shkVY*dt;
+      // TOMBO (roll) da investida: mola própria, mais lenta — tomba e volta
+      const KR=60, DR=5.5;
+      rollV+=(-rollA*KR-rollV*DR)*dt; rollA+=rollV*dt;
+      // micro-vibração de motor por baixo, só com propulsão
+      const eng=moveI>0.05?0.3*Math.min(1,moveI):0;
+      const ex=eng*Math.sin(now*0.055), ey=eng*0.5*Math.sin(now*0.043+1.3);
+      const subEl_=document.getElementById('sub');
+      const tx2=Math.max(-3,Math.min(3,shkX+ex));
+      const ty2=Math.max(-2,Math.min(2,shkY+ey));
+      const rr2=Math.max(-7,Math.min(7,rollA));
+      subEl_.style.transform=(Math.abs(tx2)>0.02||Math.abs(ty2)>0.02||Math.abs(rr2)>0.05)
+        ?`translate(${tx2.toFixed(2)}px,${ty2.toFixed(2)}px) rotate(${rr2.toFixed(2)}deg)`:'';
     }
 
     // HUD local
@@ -1463,21 +2738,14 @@
     else { lightOn=false; lightMode=false; }
     btnLight.classList.toggle("active",lightOn);
     btnLight.textContent=lightOn?"LIGHT: AIM":"LIGHT: OFF";
-    document.getElementById("hintdrag").textContent=lightMode?"move cursor / drag to aim · SPACE focus · CTRL light":"WASD pilot · drag look · SPACE focus · CTRL light";
+    document.getElementById("hintdrag").textContent=lightMode?"mire a lanterna com o cursor · CTRL desliga":"WASD pilota · CTRL liga a lanterna";
   }
   btnLight.addEventListener("click",toggleLight);
 
-  const btnFocus=document.getElementById("btnFocus");
-  function fStart(){focusing=true;btnFocus.classList.add("active");}
-  function fEnd(){focusing=false;btnFocus.classList.remove("active");}
-  btnFocus.addEventListener("mousedown",fStart);
-  btnFocus.addEventListener("mouseup",fEnd);btnFocus.addEventListener("mouseleave",fEnd);
-  btnFocus.addEventListener("touchstart",e=>{e.preventDefault();fStart();},{passive:false});
-  btnFocus.addEventListener("touchend",e=>{e.preventDefault();fEnd();},{passive:false});
-  // ===== teclado: WASD (pilotar), Ctrl (luz AIM), Espaço (foco) =====
+  // (HOLD TO FOCUS removido — o foco agora é a RESPIRAÇÃO; o Espaço fica
+  //  reservado pro futuro mecanismo de braços do submersível)
+  // ===== teclado: WASD (pilotar), Ctrl (luz AIM) =====
   addEventListener("keydown",e=>{
-    // foco
-    if(e.code==="Space" && !e.repeat){ e.preventDefault(); fStart(); return; }
     // ctrl liga/desliga a luz AIM
     if((e.code==="ControlLeft"||e.code==="ControlRight") && !e.repeat){
       e.preventDefault(); toggleLight(); return;
@@ -1489,7 +2757,6 @@
     }
   });
   addEventListener("keyup",e=>{
-    if(e.code==="Space"){ e.preventDefault(); fEnd(); return; }
     keys[e.code]=false;
   });
   // se a janela perde foco, solta todas as teclas (evita "tecla grudada")
@@ -1502,7 +2769,7 @@
     elHull.onload=layoutViewport;
     elHull.src=HULLS[which].src;
     document.getElementById("sub").classList.toggle("old", which.startsWith("old"));
-    document.getElementById("sub").classList.toggle("modern", which==="neurostat");
+    document.getElementById("sub").classList.toggle("modern", which.startsWith("neurostat"));
   }
 
   // ===== presenca =====
@@ -1543,25 +2810,38 @@
       if(nav.mode==="moonpool" && prev && prev!=="moonpool"){
         wallHitCount=0;
         ref.child("hullDamage").set(0);
-        navPath=[]; lastPathPoint=null; reelingPath=[]; reelingWpIdx=-1;
-        ref.child("navPath").set(null);
-      }
-      if(nav.mode==="reeling" && prev!=="reeling"){
-        // garante que posição atual está no caminho
-        const lastWp=navPath[navPath.length-1];
-        if(!lastWp||Math.hypot(nav.x-lastWp.x,nav.depth-lastWp.depth)>30) navPath.push({x:nav.x,depth:nav.depth});
-        // calcula o caminho esticado UMA VEZ — evita seguir loops/voltas do sub
-        reelingPath=computeTautPath();
-        reelingWpIdx=reelingPath.length-1;
-        ref.child("navPath").set(reelingPath.length?reelingPath:null);
+        ropePivots=[]; slackPath=[]; _slackLast=null; ropeState='slack';
+        ref.child("rope").set(null);
       }
       if(nav.mode==="diving" && prev==="moonpool"){
-        navPath=[]; lastPathPoint=null; reelingPath=[]; reelingWpIdx=-1;
-        ref.child("navPath").set(null);
+        ropePivots=[ropeAnchor()]; slackPath=[]; _slackLast=null; ropeState='slack';
+        // ao descer, o sub emerge de frente pros PILARES da plataforma
+        let bp=null,bd=1e18;
+        for(const P of PILLARS){
+          const nd2=Math.max(P.top,Math.min(nav.depth,P.bot));
+          const d2=(P.x-nav.x)*(P.x-nav.x)+(nd2-nav.depth)*(nd2-nav.depth);
+          if(d2<bd){ bd=d2; bp={x:P.x,d:nd2}; }
+        }
+        nav.heading=bp?((Math.atan2(bp.x-nav.x,bp.d-nav.depth)*180/Math.PI+360)%360):180;
+        pushNav();
+      }
+      if(nav.mode==="reeling" && prev!=="reeling"){
+        tautenRope(); // o guincho TENSIONA: a corda frouxa estica nas quinas
+      }
+      if(nav.mode==="diving" && prev==="reeling"){
+        // cancelou o recolhimento: a corda re-larga do traçado esticado atual
+        slackPath=ropePivots.slice(1).map(p=>({x:Math.round(p.x),depth:Math.round(p.depth)}));
+        _slackLast={x:nav.x,depth:nav.depth};
+        ropeState='slack'; ropeSyncT=0;
       }
     }
   });
 
+  // redução do guincho com a criatura agarrada (slider do guardião)
+  ref.child("grabReelSlow").on("value",snap=>{
+    const v=snap.val();
+    if(typeof v==="number"&&v>=0&&v<=100) grabReelSlow=v;
+  });
   // velocidade do recolhimento (configurada pelo guardião)
   ref.child("reelingSpeed").on("value",snap=>{
     const v=snap.val(); if(typeof v==="number"&&v>0) reelingSpeed=v;
@@ -1576,9 +2856,207 @@
   ref.child("jumpscareCD").on("value",snap=>{
     const v=snap.val(); if(typeof v==="number"&&v>=0) jumpscareCD=v;
   });
+  // pisca da luz interna: frequência controlada pelo guardião (0=apagado; vale
+  // pros DOIS cascos — inline style vence o CSS default old-only de 4s)
+  ref.child("flickerRate").on("value",snap=>{
+    const v=snap.val();
+    const fl=document.getElementById('flicker'), fll=document.getElementById('flickerLight');
+    if(!fl||!fll) return;
+    if(v===null||v===undefined){ // sem valor: comportamento default do CSS por skin
+      fl.style.opacity=''; fll.style.opacity=''; fll.style.animation='';
+      return;
+    }
+    if(v<=0){ fl.style.opacity='0'; fll.style.opacity='0'; fll.style.animation='none'; return; }
+    const period=Math.max(1.5,14-v*0.125); // 1..100 → ~13.9s (raro) .. 1.5s (frenético)
+    fl.style.opacity='1'; fll.style.opacity='1';
+    fll.style.animation=`flick ${period.toFixed(2)}s linear infinite`;
+  });
+
+  // ===== VIDRO RACHADO — NÍVEL 0-5 (guardião controla): desenho procedural =====
+  // Progressão coerente: cada nível ADICIONA um impacto (os antigos crescem);
+  // nível 5 = visor inteiro tomado (fissuras de borda a borda + estilhaços).
+  let glassLevel=0, _crackAnim=null;
+  const CRACK_PTS=[{x:0.63,y:0.38},{x:0.27,y:0.60},{x:0.76,y:0.70},{x:0.40,y:0.24},{x:0.52,y:0.52}];
+  function crackStar(g,W,ix,iy,sz,seed,prog){
+    let sd=seed>>>0; const rng=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+    const NR=7+Math.floor(sz*4);
+    for(let i=0;i<NR;i++){
+      const a=(i/NR)*6.283+rng()*0.5;
+      const len=(W*0.10+rng()*W*0.24)*sz*prog;
+      let px2=ix, py2=iy, ang=a;
+      g.strokeStyle=`rgba(210,230,240,${0.45+rng()*0.3})`;
+      g.lineWidth=1.5-Math.min(1,len/W)*0.8;
+      g.beginPath(); g.moveTo(px2,py2);
+      for(let s2=0;s2<5;s2++){
+        ang+=(rng()-0.5)*0.55;
+        px2+=Math.cos(ang)*(len/5); py2+=Math.sin(ang)*(len/5);
+        g.lineTo(px2,py2);
+      }
+      g.stroke();
+      if(rng()<0.7){
+        const bx=ix+Math.cos(a)*len*0.45, by=iy+Math.sin(a)*len*0.45;
+        const ba=a+(rng()<0.5?-1:1)*(0.7+rng()*0.5);
+        g.strokeStyle='rgba(200,220,232,0.4)'; g.lineWidth=0.8;
+        g.beginPath(); g.moveTo(bx,by);
+        g.lineTo(bx+Math.cos(ba)*len*0.28, by+Math.sin(ba)*len*0.28);
+        g.stroke();
+      }
+    }
+    for(let ring=0;ring<3;ring++){
+      const rr=(16+ring*22)*sz*prog*(W/420);
+      const a0=rng()*6.283, arc=1.2+rng()*2.2;
+      g.strokeStyle=`rgba(205,225,238,${Math.max(0.05,0.32-ring*0.07)})`; g.lineWidth=0.9;
+      g.beginPath(); g.arc(ix,iy,rr,a0,a0+arc); g.stroke();
+    }
+    g.fillStyle=`rgba(225,240,248,${Math.min(0.6,0.5*sz)*prog})`;
+    g.beginPath(); g.arc(ix,iy,3.2*sz*prog,0,6.283); g.fill();
+  }
+  // rachadura LONGA e torta entre dois pontos (conecta impactos)
+  function crackLine(g,W,x1,y1,x2,y2,seed,prog){
+    let sd=seed>>>0; const rng=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+    const L=Math.hypot(x2-x1,y2-y1)||1;
+    const segs=Math.max(6,Math.round(L/(W*0.05)));
+    const nx=-(y2-y1)/L, ny=(x2-x1)/L;
+    g.strokeStyle=`rgba(212,230,240,${(0.42+rng()*0.25).toFixed(3)})`;
+    g.lineWidth=1.2;
+    g.beginPath(); g.moveTo(x1,y1);
+    const upto=Math.max(2,Math.floor(segs*prog));
+    for(let s2=1;s2<=upto;s2++){
+      const t2=s2/segs;
+      const off=(rng()-0.5)*W*0.035*Math.sin(t2*Math.PI);
+      g.lineTo(x1+(x2-x1)*t2+nx*off, y1+(y2-y1)*t2+ny*off);
+    }
+    g.stroke();
+    for(let f2=0;f2<Math.floor(3*prog);f2++){
+      const t2=0.2+rng()*0.6;
+      const bx=x1+(x2-x1)*t2, by=y1+(y2-y1)*t2;
+      const ba=Math.atan2(y2-y1,x2-x1)+(rng()<0.5?-1:1)*(0.6+rng()*0.6);
+      g.strokeStyle='rgba(200,220,232,0.35)'; g.lineWidth=0.8;
+      g.beginPath(); g.moveTo(bx,by);
+      g.lineTo(bx+Math.cos(ba)*W*0.05,by+Math.sin(ba)*W*0.05);
+      g.stroke();
+    }
+  }
+  function drawGlassCrack(level,prog){
+    const cv2=document.getElementById('glassCrackCv');
+    if(!cv2) return;
+    if(level<=0){ cv2.style.display='none'; return; }
+    cv2.style.display='block';
+    cv2.width=Math.max(2,VPW); cv2.height=Math.max(2,VPH);
+    const g=cv2.getContext('2d');
+    g.clearRect(0,0,cv2.width,cv2.height);
+    const W=cv2.width,H=cv2.height;
+    g.lineCap='round';
+    // níveis 1-3: impactos individuais. 4-5: NADA de impacto novo — as
+    // rachaduras existentes se CONECTAM e tomam o visor.
+    const n=Math.min(level,3);
+    for(let i=0;i<n;i++){
+      const age=level-i;                          // impacto mais antigo = maior
+      const grown=(i===n-1&&level<=3)?prog:1;     // só o mais NOVO anima
+      const sz=Math.min(1.5,0.5+age*0.24)*grown;
+      crackStar(g,W,CRACK_PTS[i].x*W,CRACK_PTS[i].y*H,sz,1337+i*7919,1);
+    }
+    if(level>=4){
+      // conecta os três impactos entre si
+      const pairs=level>=5?[[0,1],[1,2],[0,2]]:[[0,1],[1,2]];
+      pairs.forEach(([a,b],pi)=>{
+        crackLine(g,W,CRACK_PTS[a].x*W,CRACK_PTS[a].y*H,CRACK_PTS[b].x*W,CRACK_PTS[b].y*H,4400+pi*997,level===4&&pi===pairs.length-1?prog:1);
+      });
+    }
+    if(level>=5){
+      // DESTRUÍDO: as rachaduras se estendem dos impactos até FORA do visor,
+      // estilhaços por toda parte e um véu esbranquiçado no vidro inteiro
+      let sd=99991; const rng=()=>{ sd=(sd*1664525+1013904223)>>>0; return sd/4294967296; };
+      for(let pi=0;pi<3;pi++){
+        const P=CRACK_PTS[pi];
+        for(let k2=0;k2<2;k2++){
+          const ea=rng()*6.283;
+          crackLine(g,W,P.x*W,P.y*H,P.x*W+Math.cos(ea)*W*1.2,P.y*H+Math.sin(ea)*W*1.2,6100+pi*31+k2*7,prog);
+        }
+      }
+      for(let i=0;i<20;i++) crackStar(g,W,rng()*W,rng()*H,0.12+rng()*0.10,7000+i*31,prog);
+      g.fillStyle=`rgba(215,232,242,${(0.06*prog).toFixed(3)})`;
+      g.fillRect(0,0,W,H);
+    }
+  }
+  ref.child("glassCrack").on("value",snap=>{
+    const v=snap.val();
+    const lvl=v===true?3:Math.max(0,Math.min(5,v|0)); // compat: bool antigo → nível 3
+    if(lvl===glassLevel){ if(lvl>0) drawGlassCrack(lvl,1); return; }
+    const up=lvl>glassLevel;
+    glassLevel=lvl;
+    if(_crackAnim) cancelAnimationFrame(_crackAnim);
+    if(!lvl){ drawGlassCrack(0,1); return; }
+    if(up){
+      // impacto: tranco + fôlego + flicker, e o estágio novo se PROPAGA em ~0.6s
+      shkVX+=(Math.random()<0.5?-1:1)*(40+lvl*10);
+      rollV+=(Math.random()<0.5?-1:1)*(16+lvl*6);
+      collisionFlicker=0.5+lvl*0.08; recentHits+=1.2+lvl*0.4;
+      const t0=performance.now();
+      const step=()=>{
+        const p=Math.min(1,(performance.now()-t0)/620);
+        drawGlassCrack(glassLevel,0.25+0.75*p*p);
+        if(p<1) _crackAnim=requestAnimationFrame(step);
+      };
+      step();
+    } else drawGlassCrack(lvl,1);
+  });
+
+  // troca de texturas ao vivo (guardião): 'img' = PNGs reais, 'proc' = procedurais
+  ref.child("texMode").on("value",snap=>{
+    texMode=snap.val()==='proc'?'proc':'img';
+    rebuildTexR();
+  });
+  // mapa editado pelo guardião: dimensões horizontais, grid, pilares e spawn
+  // (render/colisão/IA leem tudo dinamicamente — vale na hora)
+  ref.child("worldMap").on("value",snap=>{
+    const v=snap.val()||{};
+    GRID_COLS=(v.cols|0)>0?(v.cols|0):21;
+    X_MIN_W=(typeof v.xMin==='number')?v.xMin:-400;
+    COL_OFFSET=(v.colOffset|0)||0;
+    MAP=buildMap(v.ops||[]);
+    // noPillars distingue "GM removeu todos" de "campo ausente" (RTDB some com [] vazio)
+    PILLARS=v.noPillars?[]:(Array.isArray(v.pillars)?v.pillars:DEFAULT_PILLARS.slice());
+    if(v.spawn&&typeof v.spawn.depth==='number') SPAWN=v.spawn;
+  });
+  // itens do mundo (postes/geradores/brocas): render, luz e colisão leem worldItemsArr
+  ref.child("items").on("value",snap=>{
+    worldItems=snap.val()||{};
+    worldItemsArr=Object.entries(worldItems).map(([id,v])=>({id,...v}))
+      .filter(it=>it&&typeof it.x==='number'&&typeof it.depth==='number');
+  });
   // grab: criatura agarrou o sub (guardião controla)
-  ref.child("grabbedBy").on("value",snap=>{ grabbedBy=snap.val()||null; });
-  ref.child("grabTarget").on("value",snap=>{ grabTarget=snap.val()||null; });
+  ref.child("grabbedBy").on("value",snap=>{
+    const prev=grabbedBy; grabbedBy=snap.val()||null;
+    if(!prev&&grabbedBy){
+      grabPath=null; grabWpIdx=0;
+      grabStartT=performance.now();
+      struggleAmt=0; ref.child('struggle').set(0);
+    } else if(prev&&!grabbedBy){
+      struggleAmt=0; ref.child('struggle').set(0);
+      jumpscareT=performance.now(); // cooldown: evita re-agarrar imediato
+      // DESGRUDA: a criatura NADA se afastando na direção que o jogador está
+      // olhando — aparece logo à frente do visor e percorre DIST. PÓS-COLISÃO
+      // (mesma mecânica da carga da colisão: steerMove desvia de paredes).
+      const ent=creatureEntities[prev];
+      if(ent){
+        const hdgR=nav.heading*Math.PI/180;
+        const fx=Math.sin(hdgR), fd=Math.cos(hdgR);
+        // ponto de partida: logo à frente do visor (se livre; senão, na posição do sub)
+        const sx0=nav.x+fx*50, sd0=nav.depth+fd*50;
+        const free=!isWall(sx0,sd0);
+        creatureEntities[prev]={...ent,
+          wx:free?sx0:nav.x, wd:free?sd0:nav.depth,
+          _attackPhase:'charging',
+          _chargeDir:{x:fx,d:fd},
+          _chargeTraveled:0};
+        ref.child('entities/'+prev).update({wx:creatureEntities[prev].wx,wd:creatureEntities[prev].wd});
+      }
+    }
+  });
+  ref.child("grabTarget").on("value",snap=>{
+    grabTarget=snap.val()||null; grabPath=null; grabWpIdx=0; // target mudou: recomputa
+  });
 
   // blackout: GM apaga a tela para reposicionar visuais
   ref.child("blackout").on("value",snap=>{
@@ -1594,8 +3072,59 @@
   // entidades do mundo: peixes e criaturas renderizados como sprites 3D
   let creatureWriteT=0, jumpscareT=0, jumpscareCD=10000;
   let collisionFlicker=0;
-  let grabbedBy=null, grabTarget=null;
+  let grabbedBy=null, grabTarget=null, grabPath=null, grabWpIdx=0;
   let creatureWanderTargets={}, creatureWanderPhase={};
+  let creatureStalkState={};
+  let creatureHuntState={};
+  let creatureGlowVis={}; // fade de oclusão do glow (por entidade, imune ao eco do sync)
+  // célula de ÁGUA mais próxima (espiral): alvos de IA nunca caem dentro de rocha
+  function nearestWater(wx,wd){
+    const c0=Math.floor((wx-X_MIN_W)/TILE), r0=Math.floor(wd/TILE);
+    if(MAP[r0]&&MAP[r0][c0]===0) return {x:wx,d:wd};
+    for(let rad=1;rad<=6;rad++){
+      for(let dr=-rad;dr<=rad;dr++)for(let dc=-rad;dc<=rad;dc++){
+        if(Math.max(Math.abs(dr),Math.abs(dc))!==rad) continue;
+        const r=r0+dr,c=c0+dc;
+        if(r<0||r>=GRID_ROWS||c<0||c>=GRID_COLS) continue;
+        if(MAP[r][c]===0) return {x:X_MIN_W+c*TILE+TILE/2,d:r*TILE+TILE/2};
+      }
+    }
+    return {x:wx,d:wd};
+  }
+  // ponto de BUSCA: tile navegável com folga num anel ao redor de (cx,cd),
+  // escolhido pseudo-aleatório — a criatura vai de canto em canto procurando
+  let _searchSeed=17;
+  function findSearchPoint(cx,cd,radius){
+    const cands=[];
+    const r0=Math.max(0,Math.floor((cd-radius-80)/TILE));
+    const r1=Math.min(GRID_ROWS-1,Math.ceil((cd+radius+80)/TILE));
+    for(let r=r0;r<=r1;r++)for(let c=0;c<GRID_COLS;c++){
+      if(!tileClear(r,c)) continue;
+      const px=X_MIN_W+c*TILE+TILE/2, pd=r*TILE+TILE/2;
+      const dC=Math.hypot(px-cx,pd-cd);
+      if(dC<radius*0.5||dC>radius+80) continue;
+      cands.push({x:px,d:pd});
+    }
+    if(!cands.length) return null;
+    _searchSeed=(_searchSeed*1664525+1013904223)>>>0;
+    return cands[_searchSeed%cands.length];
+  }
+  // acha um tile navegável (com folga) num anel de raio ~rTgt ao redor do SUB,
+  // o mais próximo possível da criatura — ela se move o mínimo pra manter o anel
+  function findStalkPoint(cx,cd,rTgt){
+    let best=null,bestD=1e9;
+    const r0=Math.max(0,Math.floor((nav.depth-rTgt-80)/TILE));
+    const r1=Math.min(GRID_ROWS-1,Math.ceil((nav.depth+rTgt+80)/TILE));
+    for(let r=r0;r<=r1;r++)for(let c=0;c<GRID_COLS;c++){
+      if(!tileClear(r,c)) continue;
+      const px=X_MIN_W+c*TILE+TILE/2, pd=r*TILE+TILE/2;
+      const dSub=Math.hypot(px-nav.x,pd-nav.depth);
+      if(dSub<rTgt-60||dSub>rTgt+70) continue;
+      const dCre=Math.hypot(px-cx,pd-cd);
+      if(dCre<bestD){bestD=dCre;best={x:px,d:pd};}
+    }
+    return best;
+  }
   let dfFramesFlip=[];  // frames espelhados horizontalmente para rotação Doom
   ref.child("entities").on("value",snap=>{
     const prevCreatures={...creatureEntities};
@@ -1609,7 +3138,8 @@
         // preserva estado local — AI corre neste cliente, Firebase só sincroniza posição
         creatureEntities[id]=prev?{...ent,_facing:prev._facing,wx:prev.wx,wd:prev.wd,
           _attackPhase:prev._attackPhase,_chargeDir:prev._chargeDir,
-          _chargeTraveled:prev._chargeTraveled,_recoverT:prev._recoverT}:ent;
+          _chargeTraveled:prev._chargeTraveled,_recoverT:prev._recoverT,
+          _swipePhase:prev._swipePhase}:ent;
       }
     });
   });
@@ -1680,4 +3210,5 @@
     if(!newCoral) coralActive = false;
   });
   function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+});
 </script></body></html>

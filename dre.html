@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>. . .</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:#000}
+  body{font-family:'Courier New','Cascadia Mono',monospace;user-select:none}
+
+  /* ===== A SALA ESCURA (seção abandonada — só a luz da tela) ===== */
+  #room{position:fixed;inset:0;background:#000;overflow:hidden}
+  /* vinheta da sala: os cantos afundam no breu */
+  #room::after{content:'';position:absolute;inset:0;z-index:6;pointer-events:none;
+    background:radial-gradient(ellipse 75% 70% at 50% 44%, transparent 40%, rgba(0,0,0,.55) 78%, rgba(0,0,0,.85) 100%)}
+  #tableWrap{position:absolute;left:-6%;right:-6%;bottom:0;height:42%;overflow:hidden;
+    filter:brightness(.55) saturate(.6);transition:filter .7s}
+  /* PC desligado: a única luz da sala morre — sobra silhueta */
+  #room.dark #tableWrap{filter:brightness(.13) saturate(.35)}
+  #room.dark #crtImg{filter:brightness(.30) contrast(1.02)
+    drop-shadow(0 22px 30px rgba(0,0,0,.9)) drop-shadow(0 5px 9px rgba(0,0,0,.8))}
+  #room.dark #dust{opacity:.05}
+  #tableWrap img{position:absolute;left:0;bottom:0;width:100%;height:170%;object-fit:cover;
+    object-position:bottom}
+  /* a luz que a tela joga na sala + o REFLEXO no tampo da mesa */
+  #glow{position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:
+      radial-gradient(ellipse 50% 44% at 50% 40%, rgba(100,120,160,.25), rgba(55,68,95,.11) 55%, transparent 78%),
+      radial-gradient(ellipse 38% 16% at 50% 76%, rgba(125,150,190,.23), rgba(80,98,130,.08) 60%, transparent 80%),
+      linear-gradient(180deg, transparent 55%, rgba(80,98,130,.06) 70%, transparent 92%);
+    transition:opacity .3s}
+  #glow.off{opacity:.04}
+
+  /* ===== O MONITOR (câmera perto, ASSENTADO na mesa) ===== */
+  #rig{position:absolute;left:50%;top:46.5%;transform:translate(-50%,-50%);z-index:2}
+  /* sombra de contato: o peso do monitor no tampo */
+  #contactShadow{position:absolute;left:2%;right:2%;bottom:-3.5%;height:9%;z-index:1;
+    background:radial-gradient(ellipse 50% 50% at 50% 50%, rgba(0,0,0,.85), rgba(0,0,0,.45) 55%, transparent 78%)}
+  #crtImg{display:block;width:100%;height:100%;pointer-events:none;position:relative;z-index:4;
+    filter:brightness(.78) contrast(1.05)
+      drop-shadow(0 22px 30px rgba(0,0,0,.85)) drop-shadow(0 5px 9px rgba(0,0,0,.75));
+    transition:filter .7s}
+  /* a própria tela ilumina o bezel ao redor (posicionado via JS) */
+  #bezelGlow{position:absolute;z-index:6;pointer-events:none;mix-blend-mode:screen;
+    background:radial-gradient(ellipse 50% 50% at 50% 50%, rgba(120,145,190,.44), rgba(82,100,135,.17) 55%, transparent 78%);
+    transition:opacity .3s}
+  #bezelGlow.off{opacity:.05}
+  /* poeira/idade por cima do chassi */
+  #dust{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:.20;
+    background:
+      radial-gradient(ellipse 30% 12% at 24% 8%, rgba(160,150,130,.30), transparent 70%),
+      radial-gradient(ellipse 40% 10% at 70% 88%, rgba(150,140,120,.22), transparent 70%),
+      radial-gradient(ellipse 18% 8% at 85% 30%, rgba(140,135,120,.16), transparent 70%)}
+
+  /* ===== A TELA (posicionada sobre o furo detectado) ===== */
+  #screenHost{position:absolute;z-index:3;background:#030409;overflow:hidden;
+    border-radius:6% / 7%;
+    box-shadow:inset 0 0 34px rgba(0,0,0,.9), inset 0 0 8px rgba(0,0,0,.9)}
+  #vga{position:absolute;left:0;top:0;width:640px;height:480px;transform-origin:0 0;
+    background:#05060a;color:#c3cbd8;font-size:14px;line-height:18px;
+    text-shadow:0 0 4px rgba(150,175,220,.32)}
+
+  /* estados de energia */
+  #vga.dead{visibility:hidden}
+  #screenHost.dead{background:#050607}
+
+  /* TUI */
+  #tuiHead{position:absolute;left:0;right:0;top:0;height:24px;padding:3px 10px;
+    background:#141c38;color:#dfe4ee;font-size:13px;letter-spacing:.06em;white-space:pre;overflow:hidden}
+  #tuiBody{position:absolute;left:0;right:0;top:26px;bottom:24px;padding:8px 106px 8px 16px;
+    white-space:pre-wrap;overflow:hidden;font-size:14px}
+  .rev{opacity:0;animation:revl .04s steps(1) forwards}
+  @keyframes revl{to{opacity:1}}
+  #tuiFoot{position:absolute;left:0;right:0;bottom:0;height:22px;padding:2px 10px;
+    background:#10152a;color:#6d7690;font-size:12px;letter-spacing:.04em;white-space:pre;overflow:hidden}
+
+  .nv{color:#98a5c0}
+  .gy{color:#727a8c}
+  .wt{color:#e7eaf2}
+  .rd{color:#c04838}
+  .rdbar{background:#571414;color:#e8d8d4;padding:0 4px}
+  .nvbar{background:#1a2450;color:#dfe4ee;padding:0 4px}
+  .sel{background:#232f57;color:#eef1f8}
+  .item{cursor:pointer}
+  .item:hover{background:#151d3a}
+  .blink{animation:blink 1s step-end infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+  /* globo wireframe — SEMPRE visível (o índice não invade este canto) */
+  #globeCv{position:absolute;right:10px;top:32px;z-index:8;opacity:.9}
+  #dreName{position:absolute;right:12px;top:118px;z-index:8;text-align:right;
+    font-size:11px;color:#adb7cb;letter-spacing:.1em;transition:opacity 2.5s}
+
+  /* boot */
+  #bootScr{position:absolute;inset:0;background:#040509;color:#b3bac9;z-index:20;
+    padding:20px 22px;font-size:14px;line-height:19px;white-space:pre-wrap;display:none}
+
+  /* visualizador de fotos/vídeos (as scanlines do CRT ficam POR CIMA) */
+  #mediaBox{position:absolute;left:16px;right:104px;top:32px;bottom:30px;z-index:10;display:none;
+    background:#000;border:1px solid #2a3050;align-items:center;justify-content:center;overflow:hidden}
+  #mediaBox img,#mediaBox video{max-width:100%;max-height:100%;
+    filter:grayscale(.88) contrast(1.14) brightness(.85);image-rendering:pixelated;
+    transition:transform .13s ease-out}
+
+  /* ===== CRT overlays ===== */
+  #vgaScan{position:absolute;inset:0;z-index:30;pointer-events:none;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,.28) 0 1px, transparent 1px 3px)}
+  #vgaVig{position:absolute;inset:0;z-index:31;pointer-events:none;
+    background:radial-gradient(ellipse 100% 96% at 50% 50%, transparent 58%, rgba(0,0,0,.5) 97%)}
+  #vgaNoise{position:absolute;inset:0;width:100%;height:100%;z-index:29;pointer-events:none;
+    opacity:.07;image-rendering:pixelated}
+  #vgaFlick{position:absolute;inset:0;z-index:32;pointer-events:none;background:#d2ddf0;
+    opacity:0;animation:vflick 7.1s steps(1) infinite}
+  @keyframes vflick{
+    0%{opacity:0}11%{opacity:.02}11.5%{opacity:0}37%{opacity:0}38%{opacity:.035}38.4%{opacity:0}
+    61%{opacity:0}61.6%{opacity:.018}62%{opacity:0}88%{opacity:0}89%{opacity:.028}89.6%{opacity:0}100%{opacity:0}}
+
+  /* brownout: a imagem colapsa numa linha e morre */
+  #vgaWrap{position:absolute;inset:0}
+  #vgaWrap.collapse{animation:vcollapse .34s ease-in forwards}
+  @keyframes vcollapse{
+    0%{transform:scaleY(1);filter:brightness(1)}
+    55%{transform:scaleY(.06);filter:brightness(2.6)}
+    80%{transform:scaleY(.012);filter:brightness(4)}
+    100%{transform:scaleY(.002);filter:brightness(6);opacity:0}}
+  #vgaWrap.reviving{animation:vrevive .5s ease-out forwards}
+  @keyframes vrevive{
+    0%{transform:scaleY(.002);filter:brightness(5);opacity:.6}
+    45%{transform:scaleY(.05);filter:brightness(3)}
+    100%{transform:scaleY(1);filter:brightness(1);opacity:1}}
+</style>
+</head>
+<body>
+<div id="room" class="dark">
+  <div id="tableWrap"><img src="img/dre_table.jpg" alt=""></div>
+  <div id="glow" class="off"></div>
+  <div id="rig">
+    <div id="screenHost" class="dead">
+      <div id="vgaWrap">
+        <div id="vga" class="dead">
+          <div id="tuiHead"></div>
+          <div id="tuiBody"></div>
+          <div id="tuiFoot"></div>
+          <canvas id="globeCv" width="84" height="84"></canvas>
+          <div id="dreName">DRE//</div>
+          <div id="mediaBox"></div>
+          <div id="bootScr"></div>
+          <canvas id="vgaNoise" width="96" height="72"></canvas>
+          <div id="vgaScan"></div>
+          <div id="vgaVig"></div>
+          <div id="vgaFlick"></div>
+        </div>
+      </div>
+    </div>
+    <img id="crtImg" alt="">
+    <div id="bezelGlow" class="off"></div>
+    <div id="contactShadow"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
+  if(!_authUser) return;
+  _unsubAuth();
+  const dreRef=sessionRef.child('dre');
+
+  // ===== MOLDURA: chroma-key do checkerboard + detecção do furo da tela =====
+  let screenFrac=null, imgAspect=1.15;
+  const crtRaw=new Image();
+  crtRaw.src='img/dre_crt.jpg';
+  crtRaw.onload=()=>{
+    const c=document.createElement('canvas');
+    c.width=crtRaw.width; c.height=crtRaw.height;
+    const g=c.getContext('2d');
+    g.drawImage(crtRaw,0,0);
+    const id=g.getImageData(0,0,c.width,c.height), px=id.data;
+    const W0=c.width, H0=c.height;
+    // 1) checkerboard de "transparência" pintado: claro e sem saturação → alpha 0
+    for(let i=0;i<px.length;i+=4){
+      const r=px[i],g2=px[i+1],b=px[i+2];
+      const mx=Math.max(r,g2,b),mn=Math.min(r,g2,b);
+      if(mx>160&&(mx-mn)<32) px[i+3]=0;
+    }
+    // 2) EROSÃO do halo: pixels claros de anti-alias colados na borda transparente
+    //    (os "pontos brancos" da borda) — duas passadas
+    for(let pass=0;pass<2;pass++){
+      const snap=new Uint8Array(W0*H0);
+      for(let i=0;i<W0*H0;i++) snap[i]=px[i*4+3];
+      for(let y=1;y<H0-1;y++)for(let xx=1;xx<W0-1;xx++){
+        const i4=(y*W0+xx)*4;
+        if(px[i4+3]===0) continue;
+        const nearClear=snap[(y-1)*W0+xx]===0||snap[(y+1)*W0+xx]===0||snap[y*W0+xx-1]===0||snap[y*W0+xx+1]===0;
+        if(!nearClear) continue;
+        const lum=(px[i4]+px[i4+1]+px[i4+2])/3;
+        if(lum>110) px[i4+3]=0;          // halo claro: some
+        else { px[i4]*=0.55; px[i4+1]*=0.55; px[i4+2]*=0.55; } // borda escura: assenta
+      }
+    }
+    // 3) FEATHER: as bordas (inclusive a interna do furo) viram degradê de 2px —
+    //    o serrilhado da imagem pequena esticada some
+    {
+      const snap=new Uint8Array(W0*H0);
+      for(let i=0;i<W0*H0;i++) snap[i]=px[i*4+3];
+      for(let y=2;y<H0-2;y++)for(let xx=2;xx<W0-2;xx++){
+        const i4=(y*W0+xx)*4;
+        if(snap[y*W0+xx]===0) continue;
+        const d1=snap[(y-1)*W0+xx]===0||snap[(y+1)*W0+xx]===0||snap[y*W0+xx-1]===0||snap[y*W0+xx+1]===0;
+        if(d1){ px[i4+3]=105; continue; }
+        const d2=snap[(y-2)*W0+xx]===0||snap[(y+2)*W0+xx]===0||snap[y*W0+xx-2]===0||snap[y*W0+xx+2]===0
+          ||snap[(y-1)*W0+xx-1]===0||snap[(y-1)*W0+xx+1]===0||snap[(y+1)*W0+xx-1]===0||snap[(y+1)*W0+xx+1]===0;
+        if(d2) px[i4+3]=185;
+      }
+    }
+    g.putImageData(id,0,0);
+    // furo da tela: grow-rect na máscara transparente a partir de (0.5, 0.36)
+    const W=c.width,H=c.height;
+    const alphaAt=(x,y)=>px[(y*W+x)*4+3];
+    let cx0=Math.floor(W*0.5), cy0=Math.floor(H*0.36);
+    if(alphaAt(cx0,cy0)>=40){ // acha um ponto transparente perto do centro-superior
+      outer: for(let ry=0;ry<H*0.3;ry+=4) for(let rx=0;rx<W*0.3;rx+=4){
+        for(const [sx,sy] of [[cx0+rx,cy0+ry],[cx0-rx,cy0+ry],[cx0+rx,cy0-ry],[cx0-rx,cy0-ry]]){
+          if(sx>2&&sx<W-2&&sy>2&&sy<H-2&&alphaAt(sx,sy)<40){ cx0=sx; cy0=sy; break outer; }
+        }
+      }
+    }
+    let x0=cx0-2,x1=cx0+2,y0=cy0-2,y1=cy0+2;
+    const edgeClear=(fx,a0,a1,vert)=>{
+      let ok=0,tot=0;
+      for(let a=a0;a<=a1;a+=2){ tot++; if((vert?alphaAt(fx,a):alphaAt(a,fx))<40) ok++; }
+      return ok/tot>=0.86;
+    };
+    let grew=true;
+    while(grew){
+      grew=false;
+      if(x0>2&&edgeClear(x0-1,y0,y1,true)){x0--;grew=true;}
+      if(x1<W-3&&edgeClear(x1+1,y0,y1,true)){x1++;grew=true;}
+      if(y0>2&&edgeClear(y0-1,x0,x1,false)){y0--;grew=true;}
+      if(y1<H-3&&edgeClear(y1+1,x0,x1,false)){y1++;grew=true;}
+    }
+    screenFrac={cx:((x0+x1)/2)/W, cy:((y0+y1)/2)/H, w:(x1-x0)/W, h:(y1-y0)/H};
+    imgAspect=W/H;
+    document.getElementById('crtImg').src=c.toDataURL('image/png');
+    layoutRig();
+  };
+  function layoutRig(){
+    const rig=document.getElementById('rig');
+    const vh=window.innerHeight, vw=window.innerWidth;
+    // câmera BEM perto: o monitor domina a tela
+    let h=vh*0.96, w=h*imgAspect;
+    if(w>vw*0.98){ w=vw*0.98; h=w/imgAspect; }
+    rig.style.width=w+'px'; rig.style.height=h+'px';
+    if(!screenFrac) return;
+    const sh=document.getElementById('screenHost');
+    const bw=screenFrac.w*1.01*w, bh=screenFrac.h*1.02*h;
+    sh.style.left=(screenFrac.cx*w-bw/2)+'px';
+    sh.style.top=(screenFrac.cy*h-bh/2)+'px';
+    sh.style.width=bw+'px'; sh.style.height=bh+'px';
+    // ÁREA SEGURA: o VGA encolhe 3% pra dentro — a moldura nunca cobre conteúdo
+    const vga=document.getElementById('vga');
+    const inX=bw*0.032, inY=bh*0.032;
+    vga.style.left=inX+'px'; vga.style.top=inY+'px';
+    vga.style.transform=`scale(${((bw-inX*2)/640).toFixed(4)},${((bh-inY*2)/480).toFixed(4)})`;
+    // luz da tela no chassi: elipse maior centrada no furo
+    const bg=document.getElementById('bezelGlow');
+    const gw2=screenFrac.w*1.65*w, gh2=screenFrac.h*1.75*h;
+    bg.style.left=(screenFrac.cx*w-gw2/2)+'px';
+    bg.style.top=(screenFrac.cy*h-gh2/2)+'px';
+    bg.style.width=gw2+'px'; bg.style.height=gh2+'px';
+  }
+  addEventListener('resize',layoutRig);
+
+  // ===== ESTADO DO TERMINAL =====
+  let power=true, stability=65, cardLevel=0;
+  let docs={}, docsArr=[];
+  let state='off';           // off | boot | menu | index | doc | password | card | denied | audio | media | download | loading
+  let selIdx=0, listTop=0, menuIdx=0;
+  // seções do arquivo (menu principal)
+  const SEC_ORDER=['audio','files','notes','media'];
+  const SECTIONS={
+    audio:'REGISTROS DE ÁUDIO',
+    files:'ARQUIVOS',
+    notes:'NOTAS PESSOAIS E ADENDOS',
+    media:'FOTOS / VÍDEOS'
+  };
+  let curSection='files';
+  function secOf(d){ return SEC_ORDER.includes(d.section)?d.section:'files'; }
+  function curList(){ return docsArr.filter(d=>secOf(d)===curSection&&!d.hidden); }
+  // transferências entrantes (GM revela um registro → ele "chega" de um databank)
+  let firstDocs=true, prevVis={}, dlQueue=[], dlBusy=false;
+  let curDoc=null, docPage=0, docLines=[];
+  let passBuf='', passMsg='';
+  let cardMsg='AGUARDANDO LEITOR EXTERNO', cardTimer=null, cardReqT=0;
+  let deniedDoc=null;
+  let booted=false, bootTimer=null, brownTimer=null, brownoutActive=false;
+
+  const $=id=>document.getElementById(id);
+  const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  // ===== GLOBO WIREFRAME (procedural — gira devagar, nunca some) =====
+  const gcv=$('globeCv'), gctx=gcv.getContext('2d');
+  function drawGlobe(tms){
+    gctx.clearRect(0,0,84,84);
+    const R=33, CX=42, CY=42, tilt=-0.34, rot=tms*0.00045;
+    const ct=Math.cos(tilt), st=Math.sin(tilt);
+    gctx.strokeStyle='rgba(202,210,228,.8)'; gctx.lineWidth=1;
+    const proj=(lat,lon)=>{
+      const x=Math.cos(lat)*Math.cos(lon+rot), y=Math.sin(lat), z=Math.cos(lat)*Math.sin(lon+rot);
+      return {x:CX+R*x, y:CY-R*(y*ct - z*st)};
+    };
+    // paralelos
+    for(const latD of [-60,-30,0,30,60]){
+      const lat=latD*Math.PI/180;
+      gctx.beginPath();
+      for(let i=0;i<=40;i++){
+        const p=proj(lat,i/40*Math.PI*2);
+        if(i===0) gctx.moveTo(p.x,p.y); else gctx.lineTo(p.x,p.y);
+      }
+      gctx.stroke();
+    }
+    // meridianos
+    for(let m=0;m<8;m++){
+      const lon=m/8*Math.PI*2;
+      gctx.beginPath();
+      for(let i=0;i<=40;i++){
+        const p=proj(-Math.PI/2+i/40*Math.PI,lon);
+        if(i===0) gctx.moveTo(p.x,p.y); else gctx.lineTo(p.x,p.y);
+      }
+      gctx.stroke();
+    }
+    gctx.beginPath(); gctx.arc(CX,CY,R,0,6.283); gctx.stroke();
+  }
+
+  // ===== RUÍDO (intensidade cresce com a INSTABILIDADE) =====
+  const ncv=$('vgaNoise'), nctx=ncv.getContext('2d');
+  setInterval(()=>{
+    if(state==='off') return;
+    ncv.style.opacity=(0.055+(1-stability/100)*0.11).toFixed(3);
+    const id=nctx.createImageData(96,72);
+    for(let i=0;i<id.data.length;i+=4){
+      const v=Math.random()*255|0;
+      id.data[i]=v; id.data[i+1]=v; id.data[i+2]=v; id.data[i+3]=22;
+    }
+    nctx.putImageData(id,0,0);
+  },100);
+
+  // jitter horizontal ocasional (sincronismo ruim; piora com a instabilidade)
+  setInterval(()=>{
+    if(state==='off'||brownoutActive) return;
+    if(Math.random()<0.22+(1-stability/100)*0.55){
+      const w=$('vgaWrap');
+      w.style.marginLeft=(Math.random()*4-2).toFixed(1)+'px';
+      setTimeout(()=>{ w.style.marginLeft='0'; },90+Math.random()*140);
+    }
+  },3600);
+
+  // SOLUÇOS: instabilidade degrada a imagem o tempo todo (não só nas quedas) —
+  // rolagem vertical + estouro de brilho por uma fração de segundo
+  function microGlitch(){
+    const w=$('vgaWrap');
+    w.style.transform='translateY('+((Math.random()*10-5)|0)+'px)';
+    w.style.filter='brightness('+(1.25+Math.random()*0.8).toFixed(2)+') contrast(1.15)';
+    setTimeout(()=>{ w.style.transform=''; w.style.filter=''; },80+Math.random()*180);
+  }
+  setInterval(()=>{
+    if(state==='off'||brownoutActive) return;
+    if(Math.random()<0.10+(1-stability/100)*0.6) microGlitch();
+  },2400);
+
+  // ===== HELPERS DE TEXTO =====
+  function wrapText(txt,width){
+    const out=[];
+    for(const rawLine of String(txt||'').split('\n')){
+      if(rawLine.length<=width){ out.push(rawLine); continue; }
+      let line='';
+      for(const word of rawLine.split(' ')){
+        if((line+' '+word).trim().length>width){ out.push(line); line=word; }
+        else line=(line?line+' ':'')+word;
+      }
+      out.push(line);
+    }
+    return out;
+  }
+  function dispTitle(d){
+    if(d.censor){
+      if(d.titleCensored) return d.titleCensored;
+      return String(d.title||'').replace(/[^\s—-]/g,'█');
+    }
+    return d.title||'(sem título)';
+  }
+
+  // ===== RENDER =====
+  let revealNext=false; // transição de tela: o conteúdo aparece LINHA A LINHA (lento, de época)
+  function reveal(lines,per){
+    if(!revealNext) return lines.join('\n');
+    revealNext=false;
+    return lines.map((l,i)=>`<span class="rev" style="animation-delay:${i*(per||30)}ms">${l}</span>`).join('\n');
+  }
+  function render(){
+    const head=$('tuiHead'), body=$('tuiBody'), foot=$('tuiFoot');
+    if(state==='menu'){
+      head.textContent='DRE//OS v3.2 — ARQUIVO CENTRAL          TERMINAL 07';
+      const rows=[];
+      rows.push('<span class="gy">SELECIONE A SEÇÃO DO ARQUIVO</span>');
+      rows.push('<span class="gy">'+('─'.repeat(58))+'</span>');
+      rows.push('');
+      SEC_ORDER.forEach((k,i)=>{
+        const n=docsArr.filter(d=>secOf(d)===k&&!d.hidden).length;
+        const sel=i===menuIdx;
+        rows.push(`<span class="item ${sel?'sel':''}" data-m="${i}">${sel?'&gt; ':'  '}${i+1}. ${SECTIONS[k].padEnd(28)}<span class="gy">${String(n).padStart(3)} REG.</span></span>`);
+        rows.push('');
+      });
+      rows.push('<span class="gy">'+('─'.repeat(58))+'</span>');
+      rows.push('<span class="gy">SELO DE ARQUIVO ATIVO — TODO ACESSO É REGISTRADO</span>');
+      body.innerHTML=reveal(rows,40);
+      foot.textContent='↑↓ NAVEGAR   ENTER ABRIR   1-4 DIRETO            DRE//RESTRITO';
+    }
+    else if(state==='index'){
+      const L=curList();
+      head.textContent='DRE//OS v3.2 — '+SECTIONS[curSection];
+      const rows=[];
+      rows.push('<span class="gy">'+SECTIONS[curSection]+' — SELO DE ARQUIVO ATIVO</span>');
+      rows.push('<span class="gy">'+('─'.repeat(58))+'</span>');
+      const VIS=17;
+      if(selIdx<listTop) listTop=selIdx;
+      if(selIdx>=listTop+VIS) listTop=selIdx-VIS+1;
+      for(let i=listTop;i<Math.min(L.length,listTop+VIS);i++){
+        const d=L[i];
+        const sel=i===selIdx;
+        const code='['+esc(d.code||'?')+']';
+        const t=esc(dispTitle(d)).slice(0,44);
+        rows.push(`<span class="item ${sel?'sel':''}" data-i="${i}">${sel?'&gt; ':'  '}${code.padEnd(9)} ${t}</span>`);
+      }
+      if(!L.length) rows.push('<span class="gy">  (nenhum registro indexado nesta seção)</span>');
+      if(L.length>VIS) rows.push(`<span class="gy">  … ${L.length} registros — ↑↓ navega</span>`);
+      body.innerHTML=reveal(rows,34);
+      foot.textContent='↑↓ NAVEGAR   ENTER ABRIR   ESC SEÇÕES            DRE//RESTRITO';
+    }
+    else if(state==='doc'){
+      const d=curDoc;
+      head.textContent=`[${d.code}] ${dispTitle(d).slice(0,46)}`;
+      const PAGE=18;
+      const pages=Math.max(1,Math.ceil(docLines.length/PAGE));
+      docPage=Math.max(0,Math.min(pages-1,docPage));
+      const slice=docLines.slice(docPage*PAGE,(docPage+1)*PAGE);
+      const lvl=d.level||1;
+      const stamp=lvl>=3?'rdbar':'nvbar';
+      body.innerHTML=reveal([`<span class="${stamp}">DRE//CLASSIFICADO — NÍVEL ${lvl}</span>`,''].concat(slice.map(esc)),26);
+      foot.textContent=`PÁG ${docPage+1}/${pages}   ←→ PÁGINA   ESC VOLTAR`;
+    }
+    else if(state==='password'){
+      const d=curDoc;
+      head.textContent=`[${d.code}] LIBERAÇÃO MÓVEL`;
+      body.innerHTML=
+        `\n<span class="nvbar">ACESSO RESTRITO — LIBERAÇÃO MÓVEL</span>\n\n`+
+        `<span class="gy">Este registro exige código de liberação móvel.</span>\n\n`+
+        `INSIRA O CÓDIGO: <span class="wt">${esc('•'.repeat(passBuf.length))}</span><span class="blink">▉</span>\n\n`+
+        (passMsg?`<span class="rd">${esc(passMsg)}</span>`:'');
+      foot.textContent='DIGITE O CÓDIGO   ENTER CONFIRMAR   ESC CANCELAR';
+    }
+    else if(state==='card'){
+      const d=curDoc;
+      head.textContent=`[${d.code}] LEITOR EXTERNO`;
+      const spin=['|','/','—','\\'][Math.floor(performance.now()/240)%4];
+      body.innerHTML=
+        `\n<span class="nvbar">ACESSO RESTRITO — CREDENCIAL FÍSICA</span>\n\n`+
+        `<span class="gy">Este registro exige cartão de credencial\n`+
+        `nível ${d.cardLevel||1} ou superior.</span>\n\n`+
+        `APRESENTE O CARTÃO AO LEITOR EXTERNO ${spin}\n\n`+
+        `<span class="gy">${esc(cardMsg)}</span>`;
+      foot.textContent='AGUARDANDO LEITOR   ESC CANCELAR';
+    }
+    else if(state==='denied'){
+      const d=deniedDoc;
+      head.textContent=`[${d.code}] ACESSO NEGADO`;
+      body.innerHTML=
+        `\n\n<span class="rdbar">  ██  ACESSO NEGADO  ██  </span>\n\n`+
+        `<span class="rd">CLEARANCE INSUFICIENTE.\nNÍVEL ${d.level||5} REQUERIDO.</span>\n\n`+
+        `<span class="gy">Este incidente foi registrado.\nO oficial de selo da estação será notificado.</span>`;
+      foot.textContent='ESC VOLTAR';
+    }
+    else if(state==='audio'){ renderAudio(false); }
+    else if(state==='media'&&curDoc){ paintMedia(curDoc); }
+  }
+  setInterval(()=>{ if(state==='card') render(); },240); // spinner
+
+  // clique nos itens
+  $('tuiBody').addEventListener('click',e=>{
+    const it=e.target.closest('.item');
+    if(!it) return;
+    if(state==='menu'&&it.dataset.m!==undefined){ menuIdx=parseInt(it.dataset.m)||0; enterSection(SEC_ORDER[menuIdx]); }
+    else if(state==='index'){ selIdx=parseInt(it.dataset.i)||0; openSel(); }
+  });
+
+  // ===== SEÇÕES =====
+  function enterSection(k){
+    curSection=k; selIdx=0; listTop=0;
+    state='loading';
+    macSeekNoise(5);
+    $('tuiHead').textContent='DRE//OS v3.2';
+    $('tuiBody').innerHTML=`\n<span class="gy">LENDO DIRETÓRIO: ${SECTIONS[k]} <span class="blink">▉</span></span>`;
+    $('tuiFoot').textContent='AGUARDE';
+    setTimeout(()=>{ if(state!=='loading') return; state='index'; revealNext=true; render(); },380+Math.random()*520);
+  }
+
+  // ===== ABERTURA DE DOCUMENTOS =====
+  function openSel(){
+    const d=curList()[selIdx]; if(!d) return;
+    curDoc=d;
+    // o disco é VELHO: toda abertura passa por uma leitura demorada de setor
+    state='loading';
+    macSeekNoise(7);
+    const secHex=(0x2000+Math.floor(Math.random()*0xDFFF)).toString(16).toUpperCase();
+    $('tuiHead').textContent=`[${d.code||'?'}]`;
+    $('tuiBody').innerHTML=`\n<span class="gy">LENDO SETOR 0x${secHex} <span class="blink">▉</span></span>`;
+    $('tuiFoot').textContent='AGUARDE — NÃO DESLIGUE O TERMINAL';
+    setTimeout(()=>{
+      if(state!=='loading') return;
+      revealNext=true;
+      openSel2(d);
+    },480+Math.random()*750);
+  }
+  function openSel2(d){
+    // credencial NÃO fica em cache: senha e cartão são exigidos a CADA abertura
+    if(d.lock==='open'||!d.lock){ openViewer(d); return; }
+    if(d.lock==='sealed'){ deniedDoc=d; state='denied'; render(); return; }
+    if(d.lock==='password'){ passBuf=''; passMsg=''; state='password'; render(); return; }
+    if(d.lock==='card'){
+      state='card'; cardMsg='AGUARDANDO LEITOR EXTERNO'; cardReqT=Date.now();
+      dreRef.child('cardRequest').set({docId:d.id,code:d.code||'',level:d.cardLevel||1,t:cardReqT});
+      if(cardTimer) clearTimeout(cardTimer);
+      if(cardLevel>0){
+        // os jogadores TÊM um cartão: o leitor decide sozinho (delay teatral)
+        cardTimer=setTimeout(()=>{
+          if(state!=='card') return;
+          if(cardLevel>=(d.cardLevel||1)) cardAccept();
+          else cardReject('CARTÃO NÍVEL '+cardLevel+' — INSUFICIENTE');
+        },2600);
+      }
+      render();
+    }
+  }
+  function cardAccept(){
+    if(cardTimer){clearTimeout(cardTimer);cardTimer=null;}
+    cardMsg='CARTÃO ACEITO — LIBERANDO…';
+    render();
+    setTimeout(()=>{
+      if(state!=='card') return;
+      dreRef.child('cardRequest').set(null);
+      openViewer(curDoc);
+    },900);
+  }
+  function cardReject(msg){
+    if(cardTimer){clearTimeout(cardTimer);cardTimer=null;}
+    cardMsg=msg||'CARTÃO REJEITADO';
+    render();
+    setTimeout(()=>{ if(state==='card'){ state='index'; dreRef.child('cardRequest').set(null); render(); } },2200);
+  }
+  function openViewer(d){
+    const sec=secOf(d);
+    if(sec==='audio'){ openAudio(d); return; }
+    if(sec==='media'){ openMedia(d); return; }
+    curDoc=d; docPage=0;
+    docLines=wrapText(d.body||'(registro corrompido)',58);
+    revealNext=true;
+    state='doc'; render();
+  }
+
+  // ===== ALTO-FALANTE VELHO (Web Audio: caixinha + saturação + bitcrush + hiss) =====
+  let AC=null, spkIn=null, hissGain=null;
+  function speakerChain(){
+    if(AC) return spkIn;
+    try{
+      AC=new (window.AudioContext||window.webkitAudioContext)();
+      // banda estreita de alto-falante pequeno de monitor (voz de "caixinha")
+      const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=280;
+      const lp=AC.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=3400;
+      const pk=AC.createBiquadFilter(); pk.type='peaking'; pk.frequency.value=1300; pk.gain.value=6; pk.Q.value=1.1;
+      // saturação do cone + quantização ~5 bits (digitalização de 30 anos)
+      const sh=AC.createWaveShaper();
+      const N=1024, curve=new Float32Array(N);
+      for(let i=0;i<N;i++){ const x=i/(N-1)*2-1; curve[i]=Math.round(Math.tanh(x*1.7)*22)/22; }
+      sh.curve=curve;
+      const g=AC.createGain(); g.gain.value=0.95;
+      hp.connect(lp); lp.connect(pk); pk.connect(sh); sh.connect(g); g.connect(AC.destination);
+      // hiss de fita por baixo (liga só quando algo toca)
+      const hb=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);
+      const hd=hb.getChannelData(0);
+      for(let i=0;i<hd.length;i++) hd[i]=Math.random()*2-1;
+      const hs=AC.createBufferSource(); hs.buffer=hb; hs.loop=true;
+      const hlp=AC.createBiquadFilter(); hlp.type='lowpass'; hlp.frequency.value=5200;
+      hissGain=AC.createGain(); hissGain.gain.value=0;
+      hs.connect(hlp); hlp.connect(hissGain); hissGain.connect(AC.destination);
+      hs.start();
+      spkIn=hp;
+    }catch(e){ AC=null; spkIn=null; }
+    return spkIn;
+  }
+  function routeSpeaker(el){
+    const dst=speakerChain();
+    if(!dst) return; // sem Web Audio: toca direto mesmo
+    try{ AC.createMediaElementSource(el).connect(dst); }catch(e){}
+    if(AC.state==='suspended') AC.resume().catch(()=>{});
+  }
+  // URL de outro site: o filtro de alto-falante exige CORS. Tentamos com CORS;
+  // se o host não deixar, tocamos DIRETO (limpo) — som limpo é melhor que mudo.
+  function isCrossOrigin(u){
+    try{ return /^https?:/i.test(u)&&new URL(u,location.href).origin!==location.origin; }
+    catch(e){ return false; }
+  }
+
+  // ===== SOM FÍSICO DA MÁQUINA (bem baixo: hum de fonte, ventoinha, disco) =====
+  let macHum=null, _macNoise=null;
+  function macNoiseBuf(){
+    if(_macNoise) return _macNoise;
+    _macNoise=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate);
+    const d=_macNoise.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    return _macNoise;
+  }
+  function macStart(){
+    if(!speakerChain()||macHum) return;
+    if(AC.state==='suspended') AC.resume().catch(()=>{});
+    const g=AC.createGain(); g.gain.value=0;
+    const o1=AC.createOscillator(); o1.type='triangle'; o1.frequency.value=60;
+    const g1=AC.createGain(); g1.gain.value=0.006; o1.connect(g1); g1.connect(g);
+    const o2=AC.createOscillator(); o2.type='sine'; o2.frequency.value=120;
+    const g2=AC.createGain(); g2.gain.value=0.003; o2.connect(g2); g2.connect(g);
+    const fan=AC.createBufferSource(); fan.buffer=macNoiseBuf(); fan.loop=true;
+    const flp=AC.createBiquadFilter(); flp.type='lowpass'; flp.frequency.value=260;
+    const fg=AC.createGain(); fg.gain.value=0.05;
+    fan.connect(flp); flp.connect(fg); fg.connect(g);
+    g.connect(AC.destination);
+    o1.start(); o2.start(); fan.start();
+    g.gain.linearRampToValueAtTime(0.5,AC.currentTime+1.4); // liga num fade (fonte energizando)
+    macHum={g,o1,o2,fan};
+  }
+  function macStop(){
+    if(!macHum) return;
+    const m=macHum; macHum=null;
+    try{
+      m.g.gain.cancelScheduledValues(AC.currentTime);
+      m.g.gain.setValueAtTime(m.g.gain.value,AC.currentTime);
+      m.g.gain.linearRampToValueAtTime(0,AC.currentTime+0.22);
+      setTimeout(()=>{ try{m.o1.stop();m.o2.stop();m.fan.stop();}catch(e){} },400);
+    }catch(e){}
+  }
+  // disco duro fazendo seek: rajada de cliques abafados
+  function macSeekNoise(n){
+    if(!speakerChain()) return;
+    if(AC.state==='suspended') AC.resume().catch(()=>{});
+    n=n||(4+Math.random()*7|0);
+    let t=AC.currentTime+0.03;
+    for(let i=0;i<n;i++){
+      const src=AC.createBufferSource(); src.buffer=macNoiseBuf();
+      src.playbackRate.value=0.9+Math.random()*0.4;
+      const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=700+Math.random()*900; bp.Q.value=2.2;
+      const g=AC.createGain();
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(0.012+Math.random()*0.008,t+0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.03);
+      src.connect(bp); bp.connect(g); g.connect(AC.destination);
+      src.start(t,Math.random()*1.5,0.05); src.stop(t+0.06);
+      t+=0.035+Math.random()*0.075;
+    }
+  }
+  // bip de POST (PC speaker)
+  function macBeep(){
+    if(!speakerChain()) return;
+    const o=AC.createOscillator(); o.type='square'; o.frequency.value=880;
+    const g=AC.createGain();
+    g.gain.setValueAtTime(0.012,AC.currentTime);
+    g.gain.setValueAtTime(0.012,AC.currentTime+0.10);
+    g.gain.linearRampToValueAtTime(0,AC.currentTime+0.13);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime+0.15);
+  }
+  // navegador só libera áudio após gesto — o primeiro toque destrava a máquina
+  function macWake(){
+    if(AC&&AC.state==='suspended') AC.resume().catch(()=>{});
+    if(state!=='off'&&!brownoutActive&&!macHum) macStart();
+  }
+  addEventListener('keydown',macWake,{passive:true});
+  addEventListener('click',macWake,{passive:true});
+  setInterval(()=>{
+    if(!hissGain) return;
+    const playing=(audioEl&&!audioEl.paused&&!audioEl.ended)||(mediaVid&&!mediaVid.paused&&!mediaVid.ended);
+    hissGain.gain.value=playing?0.012:0;
+  },300);
+
+  // ===== CONTROLE DE FITA (setas: ←→ rebobina/avança, ↑↓ velocidade do motor) =====
+  const TAPE_RATES=[0.33,0.5,0.75,1,1.5,2,3];
+  function tapePitch(el){ try{ el.preservesPitch=false; el.mozPreservesPitch=false; el.webkitPreservesPitch=false; }catch(e){} }
+  function tapeSeek(el,dv){
+    if(!el) return;
+    try{ el.currentTime=Math.max(0,Math.min((isFinite(el.duration)?el.duration:1e9)-0.1,el.currentTime+dv)); }catch(e){}
+  }
+  function tapeRate(el,dir){
+    if(!el) return;
+    let i=0, best=1e9;
+    TAPE_RATES.forEach((r,k)=>{ const d=Math.abs(r-el.playbackRate); if(d<best){best=d;i=k;} });
+    i=Math.max(0,Math.min(TAPE_RATES.length-1,i+dir));
+    el.playbackRate=TAPE_RATES[i];
+  }
+
+  // ===== LEITOR DE FITA (áudio) =====
+  let audioEl=null;
+  function stopAudio(){ if(audioEl){ try{audioEl.pause();}catch(e){} audioEl=null; } }
+  function fmtT(s){ s=Math.max(0,Math.floor(s||0)); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+  function openAudio(d){
+    curDoc=d; stopAudio();
+    if(d.url){
+      if(isCrossOrigin(d.url)){
+        const el=new Audio(); el.crossOrigin='anonymous'; el.src=d.url;
+        el.addEventListener('error',()=>{
+          if(audioEl!==el) return;
+          const plain=new Audio(d.url); tapePitch(plain); // sem CORS: direto, sem filtro
+          audioEl=plain; plain.play().catch(()=>{});
+        },{once:true});
+        tapePitch(el); routeSpeaker(el);
+        audioEl=el;
+      } else {
+        audioEl=new Audio(d.url);
+        tapePitch(audioEl); routeSpeaker(audioEl);
+      }
+      audioEl.play().catch(()=>{});
+    }
+    state='audio'; revealNext=true;
+    renderAudio(true);
+  }
+  function renderAudio(rev){
+    const d=curDoc; if(!d) return;
+    $('tuiHead').textContent=`[${d.code}] REGISTRO DE ÁUDIO`;
+    const rows=['<span class="nvbar">LEITOR DE FITA MAGNÉTICA — BAIA 2</span>','',
+      `<span class="wt">${esc(dispTitle(d))}</span>`,''];
+    if(!d.url){
+      rows.push('<span class="rd">FITA NÃO DIGITALIZADA</span>','',
+        '<span class="gy">O rolo consta no inventário físico, mas a</span>',
+        '<span class="gy">transferência para o banco de dados nunca</span>',
+        '<span class="gy">foi concluída. Consultar o arquivo físico.</span>');
+      $('tuiFoot').textContent='ESC VOLTAR';
+    } else {
+      const cur=audioEl?audioEl.currentTime:0;
+      const dur=(audioEl&&isFinite(audioEl.duration))?audioEl.duration:0;
+      const fill=Math.round((dur>0?cur/dur:0)*30);
+      const playing=audioEl&&!audioEl.paused&&!audioEl.ended;
+      const rate=audioEl?audioEl.playbackRate:1;
+      rows.push((playing?'► REPRODUZINDO':'▮▮ PAUSADO')+`   ${fmtT(cur)} / ${dur?fmtT(dur):'--:--'}`,'',
+        `<span class="wt">[${'█'.repeat(fill)}${'·'.repeat(30-fill)}]</span>`,'',
+        `MOTOR DA FITA: ${rate.toFixed(2)}×`+(rate!==1?'  <span class="rd">FORA DO NOMINAL</span>':''),'');
+      if(d.body) rows.push('<span class="gy">'+esc(wrapText(d.body,52).join('\n'))+'</span>');
+      $('tuiFoot').textContent='←→ REBOBINAR/AVANÇAR  ↑↓ MOTOR  ESPAÇO PAUSA  ESC VOLTAR';
+    }
+    $('tuiBody').innerHTML=rev?reveal(rows,40):rows.join('\n');
+  }
+  setInterval(()=>{ if(state==='audio'&&audioEl) renderAudio(false); },500);
+
+  // ===== FOTOS / VÍDEOS =====
+  let mediaVid=null, mediaEl=null, mediaZoom=1, mediaPanX=0, mediaPanY=0;
+  function openMedia(d){
+    curDoc=d; state='media';
+    mediaZoom=1; mediaPanX=0; mediaPanY=0;
+    paintMedia(d);
+  }
+  // lupa por teclado: scale + translate clampado pra imagem nunca descolar da moldura
+  function updateMediaXf(){
+    if(!mediaEl) return;
+    const lim=50*(mediaZoom-1)/mediaZoom;
+    mediaPanX=Math.max(-lim,Math.min(lim,mediaPanX));
+    mediaPanY=Math.max(-lim,Math.min(lim,mediaPanY));
+    mediaEl.style.transform=`scale(${mediaZoom.toFixed(3)}) translate(${mediaPanX.toFixed(1)}%,${mediaPanY.toFixed(1)}%)`;
+    mediaFoot();
+  }
+  function mediaFoot(){
+    const z=mediaZoom>1.01?`  LUPA ${mediaZoom.toFixed(1)}×`:'';
+    $('tuiFoot').textContent=(mediaVid?'←→ FITA  ↑↓ MOTOR  ESPAÇO  ':'←→↑↓/WASD MOVER  ')+
+      (mediaVid?'+/− LUPA  WASD MOVER':'+/− LUPA')+z+'  ESC VOLTAR';
+  }
+  function paintMedia(d){
+    const mb=$('mediaBox');
+    const isVid=/\.(mp4|webm|mov|ogv)(\?|$)/i.test(d.url||'')||/^data:video/i.test(d.url||'')||d.mediaType==='video';
+    $('tuiHead').textContent=`[${d.code}] ${isVid?'REGISTRO DE VÍDEO':'FOTOGRAMA DIGITALIZADO'} — ${dispTitle(d).slice(0,28)}`;
+    if(!d.url){
+      mediaVid=null; mediaEl=null; mb.style.display='none'; mb.innerHTML='';
+      $('tuiBody').innerHTML='\n<span class="rd">NEGATIVO NÃO DIGITALIZADO</span>\n\n'+
+        '<span class="gy">O registro consta no inventário, mas a\ndigitalização não foi localizada no banco\nde dados. Consultar o arquivo físico.</span>';
+      $('tuiFoot').textContent='ESC VOLTAR';
+    } else {
+      $('tuiBody').innerHTML='';
+      mb.style.display='flex';
+      const xo=isVid&&isCrossOrigin(d.url);
+      mb.innerHTML=isVid?`<video src="${esc(d.url)}"${xo?' crossorigin="anonymous"':''} autoplay loop></video>`
+                        :`<img src="${esc(d.url)}" alt="">`;
+      mediaVid=mb.querySelector('video');
+      mediaEl=mb.querySelector('video,img');
+      if(mediaVid){
+        tapePitch(mediaVid);
+        if(xo) mediaVid.onerror=()=>{ // host sem CORS: recria direto, sem o filtro
+          mb.innerHTML=`<video src="${esc(d.url)}" autoplay loop></video>`;
+          mediaVid=mb.querySelector('video'); mediaEl=mediaVid; tapePitch(mediaVid);
+          updateMediaXf();
+        };
+        routeSpeaker(mediaVid); // o som do vídeo sai do MESMO alto-falante velho
+      }
+      updateMediaXf();
+    }
+  }
+  function closeMedia(){ const mb=$('mediaBox'); mediaVid=null; mediaEl=null; mediaZoom=1; mediaPanX=0; mediaPanY=0; mb.style.display='none'; mb.innerHTML=''; }
+
+  // ===== TRANSFERÊNCIA ENTRANTE (GM revelou registros → um "disco" entra no leitor) =====
+  // Registros revelados juntos e com o MESMO databank chegam como UM volume,
+  // com uma barra de progresso pra cada registro.
+  function processDl(){
+    if(dlBusy||!dlQueue.length||brownoutActive) return;
+    if(state!=='menu'&&state!=='index') return; // não interrompe leitura em andamento
+    const bank=dlQueue[0].bank||'';
+    let batch=dlQueue.filter(d=>(d.bank||'')===bank);
+    dlQueue=dlQueue.filter(d=>(d.bank||'')!==bank);
+    if(batch.length>10){ dlQueue=batch.slice(10).concat(dlQueue); batch=batch.slice(0,10); }
+    dlBusy=true;
+    const back=state; // pra onde voltar
+    state='download';
+    runDlAnim(batch,()=>{
+      dlBusy=false;
+      state=back; revealNext=true; render();
+    });
+  }
+  setInterval(processDl,1700);
+  function runDlAnim(list,done){
+    const bank=String(list[0].bank||'DB-EXT-'+(((list[0].code||'?').charCodeAt(0))%7+2)).toUpperCase();
+    $('tuiHead').textContent='LEITOR EXTERNO — VOLUME DETECTADO';
+    $('tuiFoot').textContent='AGUARDE — NÃO DESLIGUE O TERMINAL';
+    const nm=d=>`[${esc(d.code||'?')}] ${esc(dispTitle(d)).slice(0,24)}`;
+    const lines=['<span class="nvbar">▼ DISCO NO LEITOR — TRANSFERÊNCIA ENTRANTE</span>','',
+      `<span class="gy">VOLUME: DATABANK ${esc(bank)} — ${list.length} REGISTRO${list.length>1?'S':''}</span>`,
+      'MONTANDO VOLUME <span class="blink">▉</span>'];
+    const paint=()=>{ $('tuiBody').innerHTML=lines.join('\n'); };
+    paint();
+    const barRow=[];
+    setTimeout(()=>{
+      if(state!=='download'){ done(); return; }
+      lines[3]='MONTANDO VOLUME .......... OK';
+      lines.push('');
+      list.forEach((d,i)=>{
+        barRow[i]=lines.length;
+        lines.push(`${nm(d).padEnd(34)} <span class="gy">${'░'.repeat(16)} AGUARDA</span>`);
+      });
+      lines.push('');
+      paint();
+      let idx=0;
+      const startItem=()=>{
+        if(state!=='download'){ done(); return; }
+        if(idx>=list.length){
+          lines.push('VERIFICANDO PARIDADE ...... OK',
+            '<span class="gy">VOLUME ARQUIVADO — PODE EJETAR O DISCO</span>');
+          paint();
+          setTimeout(done,1600);
+          return;
+        }
+        const d=list[idx], row=barRow[idx];
+        const blocks=4+Math.floor(Math.random()*4);
+        let bi=0;
+        const tick=()=>{
+          if(state!=='download'){ done(); return; }
+          bi++;
+          if(Math.random()<0.4) macSeekNoise(2);
+          const fill=Math.round(bi/blocks*16);
+          lines[row]=`${nm(d).padEnd(34)} <span class="wt">${'▓'.repeat(fill)}${'░'.repeat(16-fill)}</span> ${String(Math.round(bi/blocks*100)).padStart(3)}%`;
+          paint();
+          if(bi>=blocks){ idx++; setTimeout(startItem,240); return; }
+          setTimeout(tick,300+Math.random()*520);
+        };
+        tick();
+      };
+      setTimeout(startItem,420);
+    },700+Math.random()*800);
+  }
+  function tryPassword(){
+    const d=curDoc;
+    // verificação LENTA (máquina de 30 anos consultando o disco)
+    macSeekNoise(5);
+    $('tuiBody').innerHTML=`\n<span class="gy">VERIFICANDO CREDENCIAL <span class="blink">▉</span></span>`;
+    setTimeout(()=>{
+      if(state!=='password') return;
+      const want=String(d.pass||'').trim().toLowerCase();
+      if(want&&passBuf.trim().toLowerCase()===want){
+        openViewer(d);
+      } else {
+        passMsg='CÓDIGO INVÁLIDO — TENTATIVA REGISTRADA'; passBuf='';
+        render();
+      }
+    },800+Math.random()*700);
+  }
+
+  // ===== TECLADO =====
+  addEventListener('keydown',e=>{
+    if(state==='off'||state==='boot'||state==='download'||brownoutActive) return;
+    if(state==='menu'){
+      if(e.key==='ArrowDown'){ menuIdx=Math.min(SEC_ORDER.length-1,menuIdx+1); render(); }
+      else if(e.key==='ArrowUp'){ menuIdx=Math.max(0,menuIdx-1); render(); }
+      else if(e.key==='Enter'){ enterSection(SEC_ORDER[menuIdx]); }
+      else if(/^[1-4]$/.test(e.key)){ menuIdx=+e.key-1; enterSection(SEC_ORDER[menuIdx]); }
+    }
+    else if(state==='index'){
+      if(e.key==='ArrowDown'){ selIdx=Math.min(curList().length-1,selIdx+1); render(); }
+      else if(e.key==='ArrowUp'){ selIdx=Math.max(0,selIdx-1); render(); }
+      else if(e.key==='Enter'){ openSel(); }
+      else if(e.key==='Escape'){ menuIdx=SEC_ORDER.indexOf(curSection); state='menu'; revealNext=true; render(); }
+    }
+    else if(state==='audio'){
+      if(e.key===' '){
+        if(audioEl){ if(audioEl.paused) audioEl.play().catch(()=>{}); else audioEl.pause(); renderAudio(false); }
+        e.preventDefault();
+      }
+      else if(e.key==='ArrowRight'){ tapeSeek(audioEl,5); renderAudio(false); e.preventDefault(); }
+      else if(e.key==='ArrowLeft'){ tapeSeek(audioEl,-5); renderAudio(false); e.preventDefault(); }
+      else if(e.key==='ArrowUp'){ tapeRate(audioEl,1); renderAudio(false); e.preventDefault(); }
+      else if(e.key==='ArrowDown'){ tapeRate(audioEl,-1); renderAudio(false); e.preventDefault(); }
+      else if(e.key==='Escape'){ stopAudio(); state='index'; revealNext=true; render(); }
+    }
+    else if(state==='media'){
+      const PAN=8;
+      if(e.key===' '&&mediaVid){
+        if(mediaVid.paused) mediaVid.play().catch(()=>{}); else mediaVid.pause();
+        e.preventDefault();
+      }
+      // vídeo: setas são o transporte da fita; foto: setas movem a lupa
+      else if(e.key==='ArrowRight'){ if(mediaVid) tapeSeek(mediaVid,5); else {mediaPanX-=PAN; updateMediaXf();} e.preventDefault(); }
+      else if(e.key==='ArrowLeft'){ if(mediaVid) tapeSeek(mediaVid,-5); else {mediaPanX+=PAN; updateMediaXf();} e.preventDefault(); }
+      else if(e.key==='ArrowUp'){ if(mediaVid) tapeRate(mediaVid,1); else {mediaPanY+=PAN; updateMediaXf();} e.preventDefault(); }
+      else if(e.key==='ArrowDown'){ if(mediaVid) tapeRate(mediaVid,-1); else {mediaPanY-=PAN; updateMediaXf();} e.preventDefault(); }
+      else if(e.key==='+'||e.key==='='){ mediaZoom=Math.min(2.7,mediaZoom*1.4); updateMediaXf(); e.preventDefault(); }
+      else if(e.key==='-'||e.key==='_'){ mediaZoom=Math.max(1,mediaZoom/1.4); updateMediaXf(); e.preventDefault(); }
+      else if(/^[wasd]$/i.test(e.key)){
+        const k=e.key.toLowerCase();
+        if(k==='a') mediaPanX+=PAN; else if(k==='d') mediaPanX-=PAN;
+        else if(k==='w') mediaPanY+=PAN; else mediaPanY-=PAN;
+        updateMediaXf(); e.preventDefault();
+      }
+      else if(e.key==='Escape'){ closeMedia(); state='index'; revealNext=true; render(); }
+    }
+    else if(state==='doc'){
+      if(e.key==='ArrowRight'||e.key==='PageDown'){ docPage++; render(); }
+      else if(e.key==='ArrowLeft'||e.key==='PageUp'){ docPage--; render(); }
+      else if(e.key==='Escape'){
+        // até voltar demora um tico
+        $('tuiBody').innerHTML=''; state='loading';
+        setTimeout(()=>{ state='index'; revealNext=true; render(); },230);
+      }
+    }
+    else if(state==='password'){
+      if(e.key==='Enter'){ tryPassword(); }
+      else if(e.key==='Escape'){ state='index'; render(); }
+      else if(e.key==='Backspace'){ passBuf=passBuf.slice(0,-1); render(); }
+      else if(e.key.length===1&&passBuf.length<24){ passBuf+=e.key; render(); }
+      e.preventDefault();
+    }
+    else if(state==='card'){
+      if(e.key==='Escape'){
+        if(cardTimer){clearTimeout(cardTimer);cardTimer=null;}
+        dreRef.child('cardRequest').set(null);
+        state='index'; render();
+      }
+    }
+    else if(state==='denied'){
+      if(e.key==='Escape'){ state='index'; render(); }
+    }
+  });
+
+  // ===== BOOT (ligar é um evento; falha às vezes) =====
+  const BOOT1=[
+    [0,   'DRE MICROSYSTEMS 386-SX    BIOS 07/91'],
+    [500, '640K BASE / 3072K EXT ......... OK'],
+    [900, 'CMOS: BATERIA FRACA — DATA PERDIDA'],
+    [1400,'HDD0: SEAGATE ST-1102A ........ '],
+    [2600,'FALHA DE LEITURA (0x17)'],
+    [3300,'RETRY 1/3 ..................... '],
+    [4600,'OK'],
+    [5100,'CARREGANDO DRE//OS v3.2'],
+    [6100,'VERIFICANDO SELO DE ARQUIVO ... INTACTO'],
+    [6900,'MONTANDO ÍNDICE ............... 10 ANOS SEM ACESSO'],
+    [7800,''],
+    [7900,'DIVISION OF REALITY ENGINEERING'],
+    [8600,'']
+  ];
+  function powerOn(){
+    if(state!=='off') return;
+    $('room').classList.remove('dark');
+    $('screenHost').classList.remove('dead');
+    $('vga').classList.remove('dead');
+    $('glow').classList.remove('off'); $('bezelGlow').classList.remove('off');
+    state='boot'; booted=false;
+    macStart(); macSeekNoise(9);
+    const b=$('bootScr');
+    b.style.display='block'; b.textContent='';
+    const failAt=Math.random()<0.35?(3+Math.floor(Math.random()*4)):-1; // 35%: morre no meio
+    let step=0, t0=performance.now();
+    const run=(script,offset)=>{
+      const tick=()=>{
+        if(state!=='boot') return;
+        const el=performance.now()-t0-offset;
+        while(step<script.length&&script[step][0]<=el){
+          b.textContent+=script[step][1]+'\n';
+          if(Math.random()<0.4) macSeekNoise(3);
+          if(failAt===step){
+            // morre no meio do POST: colapsa e religa sozinho
+            b.textContent+='\n*** FALHA DE ALIMENTAÇÃO ***';
+            setTimeout(()=>{ doCollapse(()=>{
+              b.textContent='';
+              step=0; t0=performance.now();
+              run(BOOT1.map(([t,s])=>[t*0.7,s]),0); // segunda tentativa, mais rápida, sem falha
+            }); },700);
+            return;
+          }
+          step++;
+        }
+        if(step>=script.length){ finishBoot(); return; }
+        bootTimer=setTimeout(tick,120);
+      };
+      tick();
+    };
+    run(BOOT1,0);
+  }
+  function finishBoot(){
+    booted=true;
+    macBeep();
+    $('bootScr').style.display='none';
+    state='menu'; menuIdx=0; selIdx=0; listTop=0;
+    revealNext=true;
+    render();
+    // o NOME aparece no boot e depois some — o globo fica
+    const nm=$('dreName');
+    nm.style.opacity='1';
+    setTimeout(()=>{ nm.style.opacity='0'; },9000);
+    scheduleBrownout();
+  }
+  function powerOff(){
+    state='off'; booted=false; brownoutActive=false;
+    macStop(); stopAudio(); closeMedia();
+    if(bootTimer) clearTimeout(bootTimer);
+    if(brownTimer) clearTimeout(brownTimer);
+    $('vgaWrap').classList.remove('collapse','reviving');
+    $('room').classList.add('dark');
+    $('screenHost').classList.add('dead');
+    $('vga').classList.add('dead');
+    $('glow').classList.add('off'); $('bezelGlow').classList.add('off');
+    $('bootScr').style.display='none';
+  }
+
+  // colapso visual reutilizável (brownout / falha de boot)
+  function doCollapse(after){
+    const w=$('vgaWrap');
+    brownoutActive=true;
+    macStop(); // a fonte cai junto com a imagem
+    w.classList.remove('reviving');
+    w.classList.add('collapse');
+    setTimeout(()=>{
+      $('vga').classList.add('dead');
+      $('room').classList.add('dark');
+      $('glow').classList.add('off'); $('bezelGlow').classList.add('off');
+      setTimeout(()=>{
+        // energia CORTADA pelo GM durante o colapso: fica morto — nada de reviver
+        if(state==='off'){ w.classList.remove('collapse'); brownoutActive=false; return; }
+        $('vga').classList.remove('dead');
+        $('room').classList.remove('dark');
+        $('glow').classList.remove('off'); $('bezelGlow').classList.remove('off');
+        w.classList.remove('collapse');
+        w.classList.add('reviving');
+        macStart(); macSeekNoise(6);
+        setTimeout(()=>{ w.classList.remove('reviving'); brownoutActive=false; if(after) after(); },520);
+      },1100+Math.random()*1600);
+    },360);
+  }
+  // QUEDAS: o terminal não se segura — estabilidade controla a frequência
+  function scheduleBrownout(){
+    if(brownTimer) clearTimeout(brownTimer);
+    if(stability>=100) return;
+    // s=80 (default) → ~6.6min médio entre quedas; s=0 → ~1-2min; 100 → nunca
+    const base=(60+stability*4.2)*1000;
+    const delay=base*(0.5+Math.random());
+    brownTimer=setTimeout(()=>{
+      if(state!=='off'&&state!=='boot'&&!brownoutActive){
+        doCollapse(()=>{
+          // volta com "recuperação" — o estado é preservado
+          const b=$('bootScr');
+          b.style.display='block';
+          b.textContent='DRE//OS — QUEDA DE ALIMENTAÇÃO\nRECUPERANDO SESSÃO';
+          let dots=0;
+          const iv=setInterval(()=>{
+            b.textContent+='.';
+            if(++dots>=4){ clearInterval(iv); b.style.display='none'; render(); }
+          },300);
+        });
+      }
+      scheduleBrownout();
+    },delay);
+  }
+
+  // ===== FIREBASE =====
+  dreRef.child('power').on('value',s=>{
+    const v=s.val();
+    power=(v===null||v===undefined)?true:!!v;
+    if(power&&state==='off') powerOn();
+    else if(!power&&state!=='off') powerOff();
+  });
+  dreRef.child('stability').on('value',s=>{
+    const v=s.val();
+    stability=(typeof v==='number')?v:80;
+    if(booted) scheduleBrownout();
+    // feedback IMEDIATO ao mexer no knob: instável = a imagem reclama na hora
+    if(booted&&stability<55&&!brownoutActive) microGlitch();
+  });
+  dreRef.child('cardLevel').on('value',s=>{
+    cardLevel=(typeof s.val()==='number')?s.val():0;
+  });
+  dreRef.child('docs').on('value',s=>{
+    docs=s.val()||{};
+    docsArr=Object.entries(docs).map(([id,d])=>({id,...d}))
+      .sort((a,b)=>(a.order??999)-(b.order??999)||String(a.code).localeCompare(String(b.code)));
+    // chegadas: registro que era oculto (ou não existia) e agora está visível → transferência
+    const vis={};
+    docsArr.forEach(d=>{ if(!d.hidden) vis[d.id]=d; });
+    if(!firstDocs){ for(const id in vis){ if(!(id in prevVis)) dlQueue.push(vis[id]); } }
+    prevVis=vis; firstDocs=false;
+    selIdx=Math.min(selIdx,Math.max(0,curList().length-1));
+    if(state==='index'||state==='menu') render();
+  });
+  dreRef.child('cardResponse').on('value',s=>{
+    const v=s.val();
+    if(!v||state!=='card'||!curDoc) return;
+    if(v.docId===curDoc.id&&v.t>=cardReqT){
+      if(v.ok) cardAccept(); else cardReject('CARTÃO REJEITADO PELO LEITOR');
+      dreRef.child('cardRequest').set(null);
+    }
+  });
+
+  // ===== LOOP =====
+  function loop(t){
+    if(state!=='off') drawGlobe(t);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>

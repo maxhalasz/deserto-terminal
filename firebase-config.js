@@ -16,3 +16,4 @@ const SESSION_KEY = "deserto-mesa-01";
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 const sessionRef = db.ref("sessions/" + SESSION_KEY);
+firebase.auth().signInAnonymously().catch(e => console.error("auth falhou:", e));

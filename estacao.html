@@ -248,8 +248,12 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
+var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
+  if(!_authUser) return;
+  _unsubAuth();
   const CAM_DURATION   = 6000;   // feed no ar
   const CAM_COOLDOWN   = 60000;  // 1 min ate a camera voltar
 
@@ -547,6 +551,7 @@
   // relogios
   setInterval(()=>{const n=new Date();const tc=document.getElementById("camtc");if(tc)tc.textContent=n.toTimeString().slice(0,8);},1000);
   setInterval(()=>{document.getElementById("clock").textContent=new Date().toTimeString().slice(0,8);},1000);
+});
 </script>
 </body>
 </html>
