@@ -398,3 +398,225 @@ AgeTintFilter.defaults = {amount:0.4};
 AgeTintFilter.uniformLocations = ['uAmount'];
 AgeTintFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); };
 fabric.classRegistry.setClass(AgeTintFilter, 'AgeTint');
+
+// ===================== Lote 2 (Image Lab v2, sessão 2026-09-20) =====================
+// Vazamento de luz — gradiente quente entrando por um canto, falloff radial suave,
+// blend screen (mesmo raciocínio de "light leak" de câmera analógica: luz vazando
+// por uma trava mal vedada ou pela lateral do rolo de filme).
+class LightLeakFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uAmount; uniform float uSeed; uniform float uSpread;
+    varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      float ang = uSeed * 6.2831853;
+      vec2 pos = vec2(0.5) + vec2(cos(ang), sin(ang)) * 0.72;
+      float d = distance(vTexCoord, pos);
+      float leak = (1.0 - smoothstep(0.0, uSpread, d)) * uAmount;
+      vec3 leakColor = vec3(1.0, 0.55, 0.16) * leak;
+      color.rgb = 1.0 - (1.0-color.rgb)*(1.0-leakColor);
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data,width,height}}){
+    const ang = this.seed*Math.PI*2;
+    const px = 0.5+Math.cos(ang)*0.72, py = 0.5+Math.sin(ang)*0.72;
+    const warm = [1.0,0.55,0.16];
+    for (let y=0;y<height;y++) for (let x=0;x<width;x++){
+      const dx=x/width-px, dy=y/height-py;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      const t=Math.max(0,Math.min(1,1-d/this.spread));
+      const leak=t*t*this.amount;
+      const i=(y*width+x)*4;
+      data[i]  = data[i]  + (255-data[i])  *(leak*warm[0]);
+      data[i+1]= data[i+1]+ (255-data[i+1])*(leak*warm[1]);
+      data[i+2]= data[i+2]+ (255-data[i+2])*(leak*warm[2]);
+    }
+  }
+}
+LightLeakFilter.type = 'LightLeak';
+LightLeakFilter.defaults = {amount:0.5, seed:0, spread:0.75};
+LightLeakFilter.uniformLocations = ['uAmount','uSeed','uSpread'];
+LightLeakFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uSeed,this.seed); gl.uniform1f(loc.uSpread,this.spread); };
+fabric.classRegistry.setClass(LightLeakFilter, 'LightLeak');
+
+// Poeira e risco de filme — riscos verticais finos + poeira esparsa via hash.
+// Cada frame de filme real carrega marcas fixas de poeira/risco do rolo, não
+// uniformes — por isso vertical (risco de transporte) + specks pontuais (poeira).
+class DustScratchesFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uAmount; uniform float uSeed; varying vec2 vTexCoord;
+    float hash1(float n){ return fract(sin(n)*43758.5453123); }
+    float hash2(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453123); }
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      float col = floor(vTexCoord.x*260.0);
+      float sr = hash1(col*7.13 + uSeed*91.7);
+      float scratch = step(0.986, sr) * (0.35+0.65*hash1(col*3.1+uSeed*5.3));
+      color.rgb += scratch*uAmount*1.6;
+      vec2 cell = floor(vTexCoord*vec2(420.0,420.0));
+      float sp = hash2(cell + uSeed*13.0);
+      float speck = step(0.9975, sp);
+      color.rgb += speck*uAmount*2.2;
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data,width,height}}){
+    const hash1 = n => { const x = Math.sin(n)*43758.5453123; return x - Math.floor(x); };
+    for (let y=0;y<height;y++) for (let x=0;x<width;x++){
+      const col = Math.floor(x/width*260);
+      const sr = hash1(col*7.13 + this.seed*91.7);
+      const scratch = sr>0.986 ? (0.35+0.65*hash1(col*3.1+this.seed*5.3)) : 0;
+      const cellX = Math.floor(x/width*420), cellY = Math.floor(y/height*420);
+      const sp = hash1((cellX*12.9898+cellY*78.233) + this.seed*13.0);
+      const speck = sp>0.9975 ? 1 : 0;
+      const add = (scratch*this.amount*1.6 + speck*this.amount*2.2)*255;
+      const i=(y*width+x)*4;
+      data[i]+=add; data[i+1]+=add; data[i+2]+=add;
+    }
+  }
+}
+DustScratchesFilter.type = 'DustScratches';
+DustScratchesFilter.defaults = {amount:0.3, seed:0};
+DustScratchesFilter.uniformLocations = ['uAmount','uSeed'];
+DustScratchesFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uSeed,this.seed); };
+fabric.classRegistry.setClass(DustScratchesFilter, 'DustScratches');
+
+// Duotone — mapeia luminância entre duas cores livres (generaliza o AgeTintFilter,
+// que faz o mesmo só que com sépia fixo). Base pra câmera de segurança (verde
+// monocromático), térmica, cianotipo — qualquer falso-cor de dois tons.
+class DuotoneFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform vec3 uShadow; uniform vec3 uHighlight; uniform float uAmount;
+    varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      float lum = dot(color.rgb, vec3(0.299,0.587,0.114));
+      vec3 duo = mix(uShadow, uHighlight, lum);
+      color.rgb = mix(color.rgb, duo, uAmount);
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data}}){
+    const [sr,sg,sb]=this.shadow, [hr,hg,hb]=this.highlight, a=this.amount;
+    for (let i=0;i<data.length;i+=4){
+      const lum=(data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114)/255;
+      const dr=(sr+(hr-sr)*lum)*255, dg=(sg+(hg-sg)*lum)*255, db=(sb+(hb-sb)*lum)*255;
+      data[i]=data[i]*(1-a)+dr*a; data[i+1]=data[i+1]*(1-a)+dg*a; data[i+2]=data[i+2]*(1-a)+db*a;
+    }
+  }
+}
+DuotoneFilter.type = 'Duotone';
+DuotoneFilter.defaults = {shadow:[0.02,0.06,0.02], highlight:[0.65,1.0,0.55], amount:1.0};
+DuotoneFilter.uniformLocations = ['uShadow','uHighlight','uAmount'];
+DuotoneFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform3fv(loc.uShadow,this.shadow); gl.uniform3fv(loc.uHighlight,this.highlight); gl.uniform1f(loc.uAmount,this.amount); };
+fabric.classRegistry.setClass(DuotoneFilter, 'Duotone');
+
+// Posterize — quantização de níveis de cor, efeito "digitalização ruim"/geração
+// de xerox (perda de gradiente tonal característica de reprodução analógica
+// repetida).
+class PosterizeFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uLevels; varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      vec3 c = floor(color.rgb*uLevels)/uLevels;
+      gl_FragColor = vec4(c, color.a);
+    }`;
+  }
+  applyTo2d({imageData:{data}}){
+    const lv=this.levels;
+    for (let i=0;i<data.length;i+=4){
+      data[i]=Math.floor(data[i]/255*lv)/lv*255;
+      data[i+1]=Math.floor(data[i+1]/255*lv)/lv*255;
+      data[i+2]=Math.floor(data[i+2]/255*lv)/lv*255;
+    }
+  }
+}
+PosterizeFilter.type = 'Posterize';
+PosterizeFilter.defaults = {levels:6};
+PosterizeFilter.uniformLocations = ['uLevels'];
+PosterizeFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uLevels,this.levels); };
+fabric.classRegistry.setClass(PosterizeFilter, 'Posterize');
+
+// Solarize — inversão tonal parcial acima de um limiar, efeito clássico de
+// câmara escura (Sabattier effect: exposição extra durante a revelação inverte
+// parte das tonalidades).
+class SolarizeFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uThreshold; uniform float uAmount; varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      vec3 inv = 1.0 - color.rgb;
+      vec3 mask = step(vec3(uThreshold), color.rgb);
+      vec3 solarized = mix(color.rgb, inv, mask);
+      color.rgb = mix(color.rgb, solarized, uAmount);
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data}}){
+    const th=this.threshold*255, a=this.amount;
+    for (let i=0;i<data.length;i+=4){
+      for (let c=0;c<3;c++){
+        const v=data[i+c];
+        const sol = v>=th ? 255-v : v;
+        data[i+c]=v*(1-a)+sol*a;
+      }
+    }
+  }
+}
+SolarizeFilter.type = 'Solarize';
+SolarizeFilter.defaults = {threshold:0.5, amount:1.0};
+SolarizeFilter.uniformLocations = ['uThreshold','uAmount'];
+SolarizeFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uThreshold,this.threshold); gl.uniform1f(loc.uAmount,this.amount); };
+fabric.classRegistry.setClass(SolarizeFilter, 'Solarize');
+
+// Glitch de trilha de fita — uma faixa horizontal com deslocamento lateral de
+// pixel + linha de brilho fina: erro de tracking de VHS num único frame estático
+// (sem precisar animar; a foto já "é" o frame corrompido).
+class TapeGlitchFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uAmount; uniform float uSeed; uniform float uBand;
+    varying vec2 vTexCoord;
+    float hash1(float n){ return fract(sin(n)*43758.5453123); }
+    void main(){
+      float bandY = fract(uSeed*3.71+0.15);
+      float d = abs(vTexCoord.y - bandY);
+      float inBand = 1.0 - smoothstep(0.0, uBand, d);
+      float shift = (hash1(floor(vTexCoord.y*60.0)+uSeed*11.3)-0.5) * uAmount * inBand;
+      vec2 uv = clamp(vec2(vTexCoord.x + shift, vTexCoord.y), 0.0, 1.0);
+      vec4 color = texture2D(uTexture, uv);
+      float brightLine = (1.0 - smoothstep(0.0, uBand*0.3, d)) * 0.5;
+      color.rgb += brightLine;
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data,width,height}}){
+    const hash1 = n => { const x=Math.sin(n)*43758.5453123; return x-Math.floor(x); };
+    const bandY = ((this.seed*3.71+0.15)%1+1)%1;
+    const src = new Uint8ClampedArray(data);
+    for (let y=0;y<height;y++){
+      const ty=y/height;
+      const d=Math.abs(ty-bandY);
+      const inBand = Math.max(0,1-d/this.band);
+      const shift = Math.round((hash1(Math.floor(ty*60)+this.seed*11.3)-0.5)*this.amount*inBand*width);
+      const bright = Math.max(0,1-d/(this.band*0.3))*0.5*255;
+      for (let x=0;x<width;x++){
+        const sx=Math.min(width-1,Math.max(0,x-shift));
+        const si=(y*width+sx)*4, i=(y*width+x)*4;
+        data[i]=src[si]+bright; data[i+1]=src[si+1]+bright; data[i+2]=src[si+2]+bright;
+      }
+    }
+  }
+}
+TapeGlitchFilter.type = 'TapeGlitch';
+TapeGlitchFilter.defaults = {amount:0.06, seed:0, band:0.03};
+TapeGlitchFilter.uniformLocations = ['uAmount','uSeed','uBand'];
+TapeGlitchFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uSeed,this.seed); gl.uniform1f(loc.uBand,this.band); };
+fabric.classRegistry.setClass(TapeGlitchFilter, 'TapeGlitch');

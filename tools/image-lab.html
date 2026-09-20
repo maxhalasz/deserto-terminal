@@ -7,6 +7,7 @@
 <title>Image Lab — O Deserto</title>
 <link rel="stylesheet" href="vendor/fonts.css">
 <script src="vendor/fabric.min.js"></script>
+<script src="vendor/texture-pack-grunge.js"></script>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:#15171b;color:#c7cdd6;font:13px/1.4 -apple-system,Segoe UI,Arial,sans-serif}
@@ -23,11 +24,19 @@
   .rangeval{float:right;color:#6d93c9;font-variant-numeric:tabular-nums}
   button{cursor:pointer;border:1px solid #3a4050;background:#262b34;color:#dbe0e8;border-radius:5px;padding:8px 10px;font-size:12px;width:100%;margin-top:6px}
   button:hover{background:#323947}
+  button:disabled{opacity:.4;cursor:default}
+  button:disabled:hover{background:#262b34}
   button.primary{background:#2c4a72;border-color:#3d6293}
   button.primary:hover{background:#35588a}
   button.danger{border-color:#6a3030;color:#e0a0a0}
+  .btnRow{display:flex;gap:5px}
+  .btnRow button{width:auto;flex:1}
+
   .presetRow{display:flex;flex-wrap:wrap;gap:5px}
-  .presetRow button{width:auto;flex:1 1 calc(50% - 5px);font-size:10.5px;padding:6px 4px;margin-top:0}
+  .presetBtn{width:auto;flex:1 1 calc(50% - 5px);display:flex;flex-direction:column;align-items:center;gap:3px;padding:5px;margin-top:0;font-size:10px;line-height:1.25;text-align:center}
+  .presetBtn img{width:100%;height:38px;object-fit:cover;border-radius:3px;background:#0f1115;border:1px solid #333844}
+  .presetBtn span{padding:0 2px}
+
   .hint{color:#5b6170;font-size:10.5px;margin-top:2px}
   .filterRow{display:flex;flex-direction:column;gap:2px;padding:6px 0;border-top:1px solid #23262d}
   .filterHead{display:flex;justify-content:space-between;align-items:center}
@@ -37,12 +46,16 @@
   #dropZone{border:2px dashed #333844;border-radius:8px;padding:26px 10px;text-align:center;color:#767c88;font-size:12px;cursor:pointer}
   #dropZone.drag{border-color:#3d6293;color:#c7cdd6;background:#1c2636}
 
-  #layerList{display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto}
-  .layerRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11.5px}
+  #layerList{display:flex;flex-direction:column;gap:2px;max-height:220px;overflow-y:auto}
+  .layerRow{display:flex;align-items:center;gap:4px;padding:4px 5px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11px}
   .layerRow:hover{border-color:#333844}
   .layerRow.active{border-color:#3d6293;background:#1c2636}
+  .layerThumb{width:28px;height:28px;object-fit:cover;border-radius:3px;background:#0f1115;flex:0 0 auto}
   .layerRow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .layerRow button{width:auto;margin:0;padding:2px 6px;font-size:11px}
+  .layerRow button{width:auto;margin:0;padding:2px 5px;font-size:10.5px;flex:0 0 auto}
+
+  #cropActions{display:none;gap:6px;margin-top:6px}
+  #cropActions button{width:auto;flex:1;margin-top:0}
 
   #main{flex:1;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:22px;gap:10px;
     background:
@@ -51,6 +64,7 @@
     background-size:20px 20px;background-position:0 0,10px 10px}
   .zoomrow{display:flex;gap:6px;align-items:center;color:#767c88;font-size:11px}
   .zoomrow button{width:auto;margin:0;padding:4px 9px}
+  .zoomrow .spacer{flex:1}
   #canvasWrap{box-shadow:0 20px 60px rgba(0,0,0,.6);background:repeating-conic-gradient(#2a2d34 0% 25%, #202329 0% 50%) 50% / 24px 24px}
 </style>
 </head>
@@ -65,18 +79,60 @@
 
   <fieldset>
     <legend>Imagem</legend>
-    <div id="dropZone">Arraste uma foto aqui<br>ou clique pra escolher um arquivo</div>
-    <input type="file" id="fileInput" accept="image/*" style="display:none">
+    <div id="dropZone">Arraste foto(s) aqui, cole (Ctrl+V)<br>ou clique pra escolher arquivo(s)</div>
+    <input type="file" id="fileInput" accept="image/*" multiple style="display:none">
+    <label>Proporção do canvas</label>
+    <select id="canvasAspect">
+      <option value="livre" selected>Livre (1400×1000)</option>
+      <option value="polaroid">Quadrado Polaroid</option>
+      <option value="celular">Retrato celular 9:16</option>
+      <option value="paisagem">Paisagem 4:3</option>
+    </select>
   </fieldset>
 
   <fieldset>
     <legend>Camadas</legend>
     <div id="layerList"></div>
-    <div class="hint">Seleciona uma pra editar os filtros dela. Arraste outra foto pra adicionar mais uma camada.</div>
+    <div class="hint">Clique pra selecionar, duplo clique no nome pra renomear. Ctrl+D duplica, Delete apaga.</div>
+    <div class="btnRow">
+      <button id="btnUndo" title="Ctrl+Z">↶ Desfazer</button>
+      <button id="btnRedo" title="Ctrl+Shift+Z">↷ Refazer</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Transformar</legend>
+    <div class="btnRow">
+      <button id="btnFlipH">⇋ Espelhar H</button>
+      <button id="btnFlipV">⇵ Espelhar V</button>
+    </div>
+    <button id="btnCrop">▧ Recortar</button>
+    <div id="cropActions">
+      <button id="btnCropApply" class="primary">✓ Aplicar</button>
+      <button id="btnCropCancel">✕ Cancelar</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Moldura &amp; overlay</legend>
+    <div class="btnRow">
+      <button id="btnBloom">✨ Glow</button>
+      <button id="btnGrunge">🪨 Sujeira</button>
+    </div>
+    <div class="btnRow">
+      <button id="btnPolaroid">🖼 Polaroid</button>
+      <button id="btnCCTV">📹 HUD CCTV</button>
+    </div>
+    <button id="btnVHSBars">▬ Barras VHS</button>
+  </fieldset>
+
+  <fieldset id="layerPropsFieldset" style="display:none">
+    <legend>Camada selecionada</legend>
+    <div id="layerPropsHost"></div>
   </fieldset>
 
   <fieldset id="filterFieldset" style="display:none">
-    <legend>Filtros</legend>
+    <legend>Efeitos analógicos</legend>
     <div id="filterPanelHost"></div>
     <button id="btnDelete" class="danger">Excluir esta camada</button>
   </fieldset>
@@ -100,6 +156,8 @@
     <button data-z="0.6">60%</button>
     <button data-z="0.85">85%</button>
     <button data-z="1">100%</button>
+    <span class="spacer"></span>
+    <span>Segure espaço = antes/depois</span>
   </div>
   <div id="canvasWrap">
     <canvas id="labCanvas"></canvas>
@@ -108,6 +166,7 @@
 
 <script src="filters.js"></script>
 <script src="filter-panel.js"></script>
+<script src="composites.js"></script>
 <script src="image-lab.js"></script>
 </body>
 </html>

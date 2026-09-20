@@ -198,36 +198,13 @@ function addStain(type){
   imgEl.src = TEXTURE_PACK[fname];
 }
 
-/* ---- grunge/dirt e bloom: composição de objetos (não shader duplo-textura) ---- */
+/* ---- grunge/dirt e bloom: composição de objetos (não shader duplo-textura),
+   implementação real em composites.js (compartilhada com o image-lab) ---- */
 function applyGrungeOverlay(){
-  const rng = mulberry32(Math.floor(Math.random()*4294967296));
-  const fname = pickFile('grunge', rng);
-  fabric.Image.fromURL(TEXTURE_PACK[fname], {crossOrigin:'anonymous'}).then(img=>{
-    img.set({
-      left:0, top:0, originX:'left', originY:'top',
-      scaleX: PAGE_W/img.width, scaleY: PAGE_H/img.height,
-      globalCompositeOperation: rng()<0.5?'multiply':'screen',
-      opacity: 0.18+rng()*0.15,
-      selectable:true,
-    });
-    img.set('customType','grunge');
-    canvas.add(img);
-    canvas.setActiveObject(img);
-    canvas.renderAll();
-  });
+  addGrungeOverlay(canvas, PAGE_W, PAGE_H, TEXTURE_PACK, TEX_CATS.grunge).catch(e=>alert(e.message));
 }
 function applyBloomToSelected(){
-  const obj = canvas.getActiveObject();
-  if (!obj || obj.type!=='image') { alert('Selecione uma imagem primeiro.'); return; }
-  obj.clone().then(clone=>{
-    clone.filters = [new fabric.filters.Blur({blur:0.06}), new fabric.filters.Brightness({brightness:0.35})];
-    clone.applyFilters();
-    clone.set({globalCompositeOperation:'screen', opacity:0.7});
-    clone.set('customType','bloom');
-    canvas.add(clone);
-    canvas.setActiveObject(clone);
-    canvas.renderAll();
-  });
+  addBloomToObject(canvas, canvas.getActiveObject()).catch(e=>alert(e.message));
 }
 
 /* ===================== Templates ===================== */
