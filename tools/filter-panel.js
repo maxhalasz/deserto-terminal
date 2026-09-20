@@ -190,6 +190,27 @@ function applyPreset(canvasRef, obj, preset, intensity){
    Alguns filtros geométricos (LensDistortion, Fringing) não têm fallback 2D de
    propósito (comentado em filters.js) — a miniatura só fica sem esse efeito
    específico, o resultado real ao aplicar continua correto. */
+/* Fabric reaproveita o próprio elemento de origem (`obj.getElement()`) como
+   destino da renderização filtrada — depois de aplicar um preset, esse elemento
+   NÃO é mais a imagem original, é o resultado já filtrado (confirmado ao vivo:
+   sem isso, toda miniatura de preset ficava verde depois de aplicar CCTV uma vez).
+   Por isso guardamos uma cópia num canvas próprio na primeira vez que vemos cada
+   objeto — antes de qualquer filtro ser tocado — e reusamos essa cópia sempre. */
+const THUMB_SRC_CACHE = new WeakMap();
+function getPristineThumbSource(obj){
+  let el = THUMB_SRC_CACHE.get(obj);
+  if (!el){
+    const live = obj.getElement ? obj.getElement() : obj._element;
+    const iw = live && (live.naturalWidth||live.width), ih = live && (live.naturalHeight||live.height);
+    if (!live || !iw || !ih) return null;
+    el = document.createElement('canvas');
+    el.width = iw; el.height = ih;
+    el.getContext('2d').drawImage(live, 0, 0, iw, ih);
+    THUMB_SRC_CACHE.set(obj, el);
+  }
+  return el;
+}
+
 function renderPresetThumbnail(imgEl, preset, w, h){
   try {
     const c = document.createElement('canvas'); c.width=w; c.height=h;
@@ -262,7 +283,7 @@ function renderFilterPanel(canvasRef, obj, body){
 
   const presetLab = document.createElement('div'); presetLab.className='hint'; presetLab.textContent='Presets:';
   const presetRow = document.createElement('div'); presetRow.className='presetRow';
-  const srcEl = (obj.getElement ? obj.getElement() : obj._element);
+  const srcEl = getPristineThumbSource(obj);
   Object.entries(PRESETS).forEach(([key,p])=>{
     const b = document.createElement('button'); b.className='presetBtn';
     b.title = p.label;
