@@ -2,8 +2,15 @@
    PAGE_W/PAGE_H e o motor de layout do jornal (presets, colunas, pull-quote,
    caixa lateral) vêm de layout.js. */
 const TEX_CATS = {
-  paper_aged: ['paper_aged_1.jpg','paper_aged_2.jpg','paper_aged_3.jpg','paper_aged_4.jpg','paper_aged_5.jpg','paper_aged_6.jpg','paper_aged_7.jpg'],
-  paper_notebook_ruled: ['paper_notebook_2.jpg','paper_notebook_4.jpg'],
+  // paper_aged_2.jpg e paper_aged_3.jpg removidas: são fotos de livro ABERTO
+  // (lombada/dobra central visível), e o crop centralizado de setBackgroundPaper
+  // deixa essa vinca bem no meio da página final — confirmado ao vivo no template
+  // Etiqueta 2026-09-21. Não reintroduzir sem recortar/rejeitar a lombada.
+  paper_aged: ['paper_aged_1.jpg','paper_aged_4.jpg','paper_aged_5.jpg','paper_aged_6.jpg','paper_aged_7.jpg'],
+  // paper_notebook_2.jpg removida: marca d'água de banco de imagens visível na
+  // foto inteira (confirmado ao vivo 2026-09-21) — não reintroduzir sem achar
+  // substituto limpo.
+  paper_notebook_ruled: ['paper_notebook_4.jpg'],
   paper_notebook_plain: ['paper_notebook_1.jpg','paper_notebook_3.jpg'],
   paper_newsprint: ['paper_newsprint_1.jpg'],
   stain_shape: ['stain_shape_1.jpg','stain_shape_2.jpg','stain_shape_3.jpg'],
@@ -89,6 +96,7 @@ function setBackgroundPaper(filename, opts){
       canvas.add(img);
       canvas.sendObjectToBack(img);
       computeFoldField(img.getElement(), img.cropX, img.cropY, sw, sh);
+      computeRuledLines(img.getElement(), img.cropX, img.cropY, sw, sh);
       resolve(img);
     });
   });
@@ -128,6 +136,54 @@ function sampleFoldSlope(px, py){
   const fy = Math.max(0,Math.min(rows-1, Math.floor((py/PAGE_H)*rows)));
   const i = fy*cols+fx;
   return {dx: dx[i]||0, dy: dy[i]||0};
+}
+
+/* ===================== Linhas do papel pautado (pra texto manuscrito grudar nelas) =====================
+   Pesquisado/prototipado nesta sessão: amostra uma faixa de colunas do meio da
+   região recortada (evita a margem vermelha à esquerda e a espiral do caderno à
+   direita), calcula por linha de pixel o "excesso de azul" = média(B) − média(R)
+   (tinta azul deprime o vermelho mais que o azul num papel próximo de
+   branco/creme), acha picos locais acima de um limiar adaptativo, regulariza pro
+   espaçamento MEDIANO entre picos (papel pautado de fábrica é quase perfeitamente
+   uniforme) e só aceita o padrão se muitos picos reais baterem num grid construído
+   com esse espaçamento — descarta ruído/textura que só parecia periódico olhando
+   só os gaps adjacentes. Validado com simulação Node (linha real com até 1 de ~20
+   linhas perdida detecta bem; ruído puro passa em <4% dos casos em 30 seeds) antes
+   de entrar aqui. Fica null quando o papel não tem pauta detectável. */
+let currentRuledLines = null;
+function computeRuledLines(imgEl, sx, sy, sw, sh){
+  currentRuledLines = null;
+  const rows = Math.max(200, Math.min(900, Math.round(sh)));
+  const cols = 24;
+  const bandSx = sx + sw*0.4, bandSw = sw*0.2;
+  const c = document.createElement('canvas'); c.width=cols; c.height=rows;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(imgEl, bandSx, sy, bandSw, sh, 0, 0, cols, rows);
+  const data = ctx.getImageData(0,0,cols,rows).data;
+  const score = new Float32Array(rows);
+  for (let y=0;y<rows;y++){
+    let sumR=0, sumB=0;
+    for (let x=0;x<cols;x++){ const i=(y*cols+x)*4; sumR+=data[i]; sumB+=data[i+2]; }
+    score[y] = (sumB-sumR)/cols;
+  }
+  let mean=0; for (let y=0;y<rows;y++) mean+=score[y]; mean/=rows;
+  let variance=0; for (let y=0;y<rows;y++) variance += (score[y]-mean)*(score[y]-mean); variance/=rows;
+  const threshold = mean + Math.sqrt(variance)*1.5;
+  const rawPeaks = [];
+  for (let y=2;y<rows-2;y++){
+    if (score[y]>threshold && score[y]>=score[y-1] && score[y]>=score[y+1] && score[y]>score[y-2] && score[y]>score[y+2]) rawPeaks.push(y);
+  }
+  const peaks = [];
+  rawPeaks.forEach(p=>{ if (!peaks.length || p-peaks[peaks.length-1]>15) peaks.push(p); });
+  if (peaks.length < 8) return;
+  const gaps = peaks.slice(1).map((p,i)=>p-peaks[i]).slice().sort((a,b)=>a-b);
+  const spacing = gaps[Math.floor(gaps.length/2)];
+  if (spacing < rows*(30/900)) return;
+  const tol = Math.max(6, spacing*0.25);
+  let hits=0, gridPoints=0;
+  for (let g=peaks[0]; g<rows; g+=spacing){ gridPoints++; if (peaks.some(p=>Math.abs(p-g)<=tol)) hits++; }
+  if (hits/gridPoints < 0.6) return;
+  currentRuledLines = {firstY: (peaks[0]/rows)*PAGE_H, spacing: (spacing/rows)*PAGE_H};
 }
 
 /* ---- manchas: fotos reais com máscara de alfa (sem borda quadrada) + tinta de cor ---- */

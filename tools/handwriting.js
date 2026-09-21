@@ -76,8 +76,32 @@ class HandwrittenText extends fabric.Textbox {
     const foldMatrix = (typeof this.calcTransformMatrix==='function') ? this.calcTransformMatrix() : null;
     const hasFold = foldMatrix && typeof sampleFoldSlope==='function' && typeof currentFoldField!=='undefined' && currentFoldField;
 
+    // Pauta do papel: se o fundo tem linhas azuis detectadas (computeRuledLines
+    // em editor.js) e o objeto não está rotacionado, cada quebra de linha gruda
+    // na próxima linha da pauta em vez de usar lineHeight fixo. Sem rotação a
+    // conversão local<->página é só translação+escala (this.top/this.scaleY já
+    // são page-space) — não precisa inverter matriz. Objeto rotacionado cai no
+    // comportamento antigo (limite consciente: bilhete manuscrito na prática não
+    // é usado rotacionado).
+    const scaleY = this.scaleY || 1;
+    const hasRuled = typeof currentRuledLines!=='undefined' && currentRuledLines && Math.abs(this.angle||0) < 0.5;
+    const localToPageY = localY => this.top + (localY - y0)*scaleY;
+    const pageToLocalY = pageY => (pageY - this.top)/scaleY + y0;
+    const advanceLine = cyVal=>{
+      if (!hasRuled) return cyVal + lineHeight;
+      const {firstY, spacing} = currentRuledLines;
+      const pageY = localToPageY(cyVal);
+      const idx = Math.floor((pageY-firstY)/spacing + 1e-6) + 1;
+      return pageToLocalY(firstY + idx*spacing);
+    };
+
     const paragraphs = (this.text||'').split(/\n+/).filter(p=>p.trim().length);
     let cy = y0 + lineHeight*0.8;
+    if (hasRuled){
+      const {firstY, spacing} = currentRuledLines;
+      const idx = Math.round((localToPageY(cy)-firstY)/spacing);
+      cy = pageToLocalY(firstY + idx*spacing);
+    }
 
     ctx.save();
     ctx.textBaseline = 'alphabetic';
@@ -86,6 +110,7 @@ class HandwrittenText extends fabric.Textbox {
       const fatigueT = this.fatigue ? pi/Math.max(1,paragraphs.length-1) : 0;
       const shake = persona.shakiness * (1+fatigueT*0.7);
       const sizeVarAmt = persona.sizeVar * (1+fatigueT*0.5);
+      const baselineAmp = hasRuled ? persona.baselineAmp*0.5 : persona.baselineAmp;
       let wjr=0, wjy=0, wjs=0;
       let cx = x0;
       const words = p.split(/\s+/).filter(Boolean);
@@ -95,7 +120,7 @@ class HandwrittenText extends fabric.Textbox {
       words.forEach(word=>{
         ctx.font = `${persona.baseSize}px ${persona.fonts[0]}`;
         const wWidth = ctx.measureText(word).width*persona.spacing;
-        if (cx+wWidth > x0+maxWidth && cx>x0){ cy += lineHeight; cx = x0; }
+        if (cx+wWidth > x0+maxWidth && cx>x0){ cy = advanceLine(cy); cx = x0; }
 
         wjr = correlatedWalk(wjr, shake*0.09, 0.55, rng);
         wjy = correlatedWalk(wjy, shake*2.6, 0.55, rng);
@@ -110,7 +135,7 @@ class HandwrittenText extends fabric.Textbox {
           const sz = persona.baseSize*(1+cjs);
           ctx.font = `${sz.toFixed(1)}px ${useAlt?persona.fonts[1]:persona.fonts[0]}`;
           const cw = ctx.measureText(ch).width;
-          const wave = Math.sin((ccx-x0)*persona.baselineFreq)*persona.baselineAmp;
+          const wave = Math.sin((ccx-x0)*persona.baselineFreq)*baselineAmp;
           const [ir,ig,ib] = persona.ink;
           const ia = Math.max(0.35, Math.min(1, persona.inkAlpha*(0.85+(rng()-0.5)*persona.inkVar*1.6)));
 
@@ -136,7 +161,7 @@ class HandwrittenText extends fabric.Textbox {
         }
         cx = ccx + spaceW;
       });
-      cy += lineHeight;
+      cy = advanceLine(cy);
     });
 
     ctx.restore();
