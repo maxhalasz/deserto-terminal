@@ -197,6 +197,69 @@ function setBackgroundPaper(filename, opts){
 }
 function getBackground(){ return canvas.getObjects().find(o=>o.customType==='background'); }
 
+/* ---- fundo digital: sem foto, sem envelhecimento/dobra/pauta — um documento
+   "renderizado" em vez de fotografado (pedido do Max pro crachá: "ao invés de
+   usar uma textura pro cartão de acesso, faz ele digital", generalizado num
+   alternador Texturizado/Digital pra qualquer template). Degradê frio + grade
+   fina (linguagem visual azul-clínica já estabelecida no estacao.html/NeuroStat)
+   em vez de papel real — os carimbos/fotos/composites por cima continuam
+   texturizados nos dois modos, porque não dependem do fundo pra nada. */
+function setDigitalBackground(opts){
+  opts = opts || {};
+  const old = canvas.getObjects().find(o=>o.customType==='background');
+  if (old) canvas.remove(old);
+  const c = document.createElement('canvas'); c.width=PAGE_W; c.height=PAGE_H;
+  const ctx = c.getContext('2d');
+  const grd = ctx.createLinearGradient(0,0,PAGE_W,PAGE_H);
+  grd.addColorStop(0, opts.color1||'#eef2f7');
+  grd.addColorStop(1, opts.color2||'#dbe2ec');
+  ctx.fillStyle = grd; ctx.fillRect(0,0,PAGE_W,PAGE_H);
+  ctx.strokeStyle = 'rgba(20,40,70,0.05)'; ctx.lineWidth = 1;
+  for (let x=0; x<PAGE_W; x+=40){ ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,PAGE_H); ctx.stroke(); }
+  for (let y=0; y<PAGE_H; y+=40){ ctx.beginPath(); ctx.moveTo(0,y+0.5); ctx.lineTo(PAGE_W,y+0.5); ctx.stroke(); }
+  return fabric.Image.fromURL(c.toDataURL()).then(img=>{
+    img.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
+    img.set('customType','background');
+    img.__paperFile = null;
+    canvas.add(img);
+    canvas.sendObjectToBack(img);
+    currentFoldField = null; currentRuledLines = null;
+    return img;
+  });
+}
+
+/* ---- alternador Texturizado/Digital: cada template guarda a CATEGORIA de papel
+   (não o arquivo exato) que usaria se estivesse texturizado, então trocar o modo
+   depois de já ter conteúdo no documento só troca o fundo — não regenera o resto
+   (loadTemplateBody inteiro apagaria edições do Max). ---- */
+let bgMode = 'textured';
+let currentBgCategory = null, currentBgOpts = null;
+function setTemplateBackground(category, opts){
+  currentBgCategory = category; currentBgOpts = opts||{};
+  if (bgMode === 'digital') return setDigitalBackground(currentBgOpts);
+  const rng = mulberry32(Math.floor(Math.random()*4294967296));
+  return setBackgroundPaper(pickFile(category, rng), currentBgOpts);
+}
+function updateBgModeUI(){
+  document.querySelectorAll('.bgModeBtn').forEach(b=>b.classList.toggle('active', b.dataset.bgmode===bgMode));
+}
+function setBgMode(mode){
+  if (mode===bgMode){ updateBgModeUI(); return; }
+  bgMode = mode;
+  updateBgModeUI();
+  if (!currentBgCategory) return; // documento ainda não tem fundo de papel (ex: terminal)
+  const __wasRestoring = restoringHistory;
+  restoringHistory = true;
+  Promise.resolve(setTemplateBackground(currentBgCategory, currentBgOpts)).then(()=>{
+    canvas.renderAll();
+    restoringHistory = __wasRestoring;
+    pushHistory();
+  });
+}
+document.querySelectorAll('.bgModeBtn').forEach(b=>{
+  b.addEventListener('click', ()=>setBgMode(b.dataset.bgmode));
+});
+
 /* ===================== Campo de dobra/vinco (pra texto seguir o relevo do papel) =====================
    Pesquisado: é o mesmo princípio do Displacement Map do Photoshop (Filter > Distort
    > Displace) — desfoca a imagem pra sobrar só as variações grandes de luz (onde uma
@@ -491,14 +554,20 @@ async function loadTemplateBody(name){
   applyPageSize(name);
   clearDoc();
   const rng = mulberry32(Math.floor(Math.random()*4294967296));
+  // Crachá é digital por padrão (pedido do Max: "ao invés de usar uma textura pro
+  // cartão de acesso, faz ele digital") — os outros mantêm o comportamento antigo
+  // (papel fotografado), mas o alternador continua disponível pros dois lados.
+  bgMode = (name==='badge') ? 'digital' : 'textured';
+  currentBgCategory = null; currentBgOpts = null; // reseta pra não sobrar categoria do template anterior (ex: 'terminal' não usa papel algum)
+  updateBgModeUI();
 
   if (name==='blank'){
-    await setBackgroundPaper(pickFile('paper_aged', rng));
+    await setTemplateBackground('paper_aged');
     canvas.renderAll(); renderLayerList(); return;
   }
 
   if (name==='newspaper'){
-    await setBackgroundPaper(pickFile('paper_newsprint', rng));
+    await setTemplateBackground('paper_newsprint');
     const content = {
       orgao: 'THE ABYSSAL POST',
       data: 'MARCH 14 — EDITION NO. 118',
@@ -517,7 +586,7 @@ async function loadTemplateBody(name){
     objs.forEach(o=>canvas.add(o));
   }
   else if (name==='report'){
-    await setBackgroundPaper(pickFile('paper_aged', rng));
+    await setTemplateBackground('paper_aged');
     const head = new fabric.Textbox('CONFIDENTIAL — INTERNAL USE ONLY\nNEUROSTAT — FIELD DIVISION\nREF: NS-DES-0447\nDATE: 03/14', {left:90, top:90, width:500, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:14, fill:'#141414', lineHeight:1.5});
     const body = new RedactedText('INCIDENT REPORT — NIGHT SHIFT\n\nAt 03:12 radio contact with the dive team was lost. The last recorded transmission consisted of broadband noise, no identifiable verbal content.\n\nSurface crew not authorized to descend without direct order from supervision.', {left:90, top:220, width:PAGE_W-180, redactPct:0, fontSize:16});
     const [stampRect, stampTxt] = makeStampObjects('CONFIDENTIAL', {left:PAGE_W-220, top:150, angle:-10, color:'#7a2020'});
@@ -525,12 +594,12 @@ async function loadTemplateBody(name){
     [head, body, stampRect, stampTxt, sig].forEach(o=>canvas.add(o));
   }
   else if (name==='note'){
-    await setBackgroundPaper(pickFile('paper_notebook_ruled', rng), {age:0.3});
+    await setTemplateBackground('paper_notebook_ruled', {age:0.3});
     const body = new HandwrittenText("if you find this\n\ndon't go down\n\nthe radio won't stop but there's no one talking\n\ni saw something near the moonpool yesterday and i'm not going to describe it\n\nstay in the machine room, lock the door", {left:110, top:220, width:PAGE_W-260, personaId:'A', fontSize:30, fatigue:true});
     canvas.add(body);
   }
   else if (name==='redacted'){
-    await setBackgroundPaper(pickFile('paper_aged', rng));
+    await setTemplateBackground('paper_aged');
     const band = new fabric.Rect({left:66, top:70, width:PAGE_W-132, height:34, fill:'#101010'});
     const bandTxt = new fabric.Textbox('RESTRICTED — DO NOT DISTRIBUTE', {left:PAGE_W/2, top:78, originX:'center', width:900, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:15, fill:'#e6e2d8', textAlign:'center'});
     const head = new fabric.Textbox('NEUROSTAT\nCASE NO. 0447-D', {left:90, top:130, width:500, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:15, fill:'#141414', lineHeight:1.4});
@@ -539,7 +608,7 @@ async function loadTemplateBody(name){
     [band, bandTxt, head, body, stampRect, stampTxt].forEach(o=>canvas.add(o));
   }
   else if (name==='tag'){
-    await setBackgroundPaper(pickFile('paper_aged', rng));
+    await setTemplateBackground('paper_aged');
     const border = new fabric.Rect({left:80, top:80, width:PAGE_W-160, height:PAGE_H-160-260, fill:'transparent', stroke:'#141414', strokeWidth:4});
     const org = new fabric.Textbox('NEUROSTAT', {left:PAGE_W/2, top:130, originX:'center', width:600, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:22, fill:'#141414', textAlign:'center'});
     const title = new fabric.Textbox('EVIDENCE — DO NOT REMOVE', {left:PAGE_W/2, top:180, originX:'center', width:700, fontFamily:"'Playfair Display'", fontWeight:900, fontSize:30, fill:'#141414', textAlign:'center'});
@@ -556,7 +625,7 @@ async function loadTemplateBody(name){
     // 2480×1754 — duas páginas de 1240 de largura lado a lado, a lombada cai
     // bem no meio, em x=1240). Dois blocos de texto, um por página, com margem
     // suficiente pra não cruzar por cima dela.
-    await setBackgroundPaper(pickFile('paper_aged_bookspread', rng), {age:0.35});
+    await setTemplateBackground('paper_aged_bookspread', {age:0.35});
     const leftEntry = new HandwrittenText(
       "MARCH 09\n\nCrew rotation finished. Everyone settled in fine, no complaints. Weather held.\n\nRan the weekly radio check at 0600, channel clear both ways. Standard.\n\nOff to bed early tonight.",
       {left:90, top:180, width:1000, personaId:'G', fontSize:26, fatigue:false}
@@ -568,7 +637,7 @@ async function loadTemplateBody(name){
     [leftEntry, rightEntry].forEach(o=>canvas.add(o));
   }
   else if (name==='letter'){
-    await setBackgroundPaper(pickFile('paper_aged', rng), {age:0.3});
+    await setTemplateBackground('paper_aged', {age:0.3});
     const body = new fabric.Textbox(
       "March 11\n\nDear Sarah,\n\nI know it's been a while. Work out here doesn't leave much room for letters, and honestly there isn't much to say that would clear the censor's desk anyway.\n\nThe platform is fine. Routine, mostly. I think about the house a lot, and the noise the boiler used to make, and how much I used to complain about it. I'd take that noise over what we've got out here.\n\nIf anything happens, the company has my paperwork in order. Don't let them tell you otherwise.\n\nTake care of yourself.\n\nYours,\nM.",
       {left:120, top:150, width:PAGE_W-240, fontFamily:"'PT Serif'", fontSize:18, fill:'#181410', lineHeight:1.6}
@@ -620,7 +689,7 @@ async function loadTemplateBody(name){
     canvas.add(txt);
   }
   else if (name==='badge'){
-    await setBackgroundPaper(pickFile('paper_aged', rng), {age:0.15});
+    await setTemplateBackground('paper_aged', {age:0.15});
     const headerBar = new fabric.Rect({left:0, top:0, width:PAGE_W, height:90, fill:'#1c3a5e'});
     const org = new fabric.Textbox('NEUROSTAT', {left:24, top:22, width:400, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:26, fill:'#e6eef8'});
     const photo = await makePhotoPlaceholder({left:36, top:140, width:220, height:280});
@@ -1169,17 +1238,29 @@ function renderBackgroundInspector(obj, body){
   const lab = document.createElement('div'); lab.className='hint'; lab.textContent='Papel de fundo';
   body.appendChild(lab);
 
+  // Controles de categoria/reroll/mancha só fazem sentido no modo Texturizado —
+  // o fundo Digital não é uma foto (não tem categoria pra trocar, mancha em cima
+  // de um degradê vetorial ficaria errado). Modo se troca no alternador da aba
+  // Documento, não aqui.
+  if (bgMode === 'digital'){
+    const digitalLab = document.createElement('div'); digitalLab.className='hint';
+    digitalLab.textContent = 'Fundo digital (sem foto) — troque pra Texturizado na aba Documento pra ver categoria de papel e manchas.';
+    body.appendChild(digitalLab);
+    return;
+  }
+
   const catLab = document.createElement('label'); catLab.textContent='Categoria';
   const catSel = document.createElement('select');
   const CAT_LABELS = {paper_aged:'Envelhecido', paper_notebook_ruled:'Caderno pautado', paper_notebook_plain:'Caderno liso', paper_newsprint:'Jornal'};
   Object.keys(CAT_LABELS).forEach(c=>{
     const o=document.createElement('option'); o.value=c; o.textContent=CAT_LABELS[c]; catSel.appendChild(o);
   });
+  if (currentBgCategory && CAT_LABELS[currentBgCategory]) catSel.value = currentBgCategory;
   body.appendChild(catLab); body.appendChild(catSel);
   const swapBtn = document.createElement('button'); swapBtn.textContent='🎲 Trocar papel';
   swapBtn.addEventListener('click', async ()=>{
     const age = (obj.filters[0]&&obj.filters[0].amount)||0.4;
-    await setBackgroundPaper(pickFile(catSel.value), {age});
+    await setTemplateBackground(catSel.value, {age});
     canvas.renderAll(); updateInspector();
   });
   body.appendChild(swapBtn);

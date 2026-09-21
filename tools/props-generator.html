@@ -44,6 +44,8 @@
   .tabs .tabBtn.active{background:#1b1e24;color:#e8ebf0;border-color:#3a4050;border-bottom-color:#1b1e24}
   .tabPanel{display:flex;flex-direction:column;gap:10px;margin-top:-1px}
 
+  .bgModeBtn.active{background:#2c4a72;border-color:#3d6293;color:#fff}
+
   #layerList{display:flex;flex-direction:column;gap:2px;max-height:170px;overflow-y:auto}
   .layerRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11.5px}
   .layerRow:hover{border-color:#333844}
@@ -121,6 +123,12 @@
         <option value="blank">Em branco</option>
       </select>
       <button id="btnNewDoc" class="primary">Novo documento (apaga o atual)</button>
+      <label>Aparência do papel</label>
+      <div class="grid2">
+        <button id="bgModeTextured" class="bgModeBtn" data-bgmode="textured">🖼️ Texturizado</button>
+        <button id="bgModeDigital" class="bgModeBtn" data-bgmode="digital">💻 Digital</button>
+      </div>
+      <div class="hint">Só troca o fundo — carimbos, fotos e outros props continuam texturizados nos dois modos.</div>
     </fieldset>
 
     <fieldset id="newsLayoutBlock" style="display:none">
