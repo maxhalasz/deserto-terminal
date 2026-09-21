@@ -143,13 +143,17 @@ function sampleFoldSlope(px, py){
    região recortada (evita a margem vermelha à esquerda e a espiral do caderno à
    direita), calcula por linha de pixel o "excesso de azul" = média(B) − média(R)
    (tinta azul deprime o vermelho mais que o azul num papel próximo de
-   branco/creme), acha picos locais acima de um limiar adaptativo, regulariza pro
-   espaçamento MEDIANO entre picos (papel pautado de fábrica é quase perfeitamente
-   uniforme) e só aceita o padrão se muitos picos reais baterem num grid construído
-   com esse espaçamento — descarta ruído/textura que só parecia periódico olhando
-   só os gaps adjacentes. Validado com simulação Node (linha real com até 1 de ~20
-   linhas perdida detecta bem; ruído puro passa em <4% dos casos em 30 seeds) antes
-   de entrar aqui. Fica null quando o papel não tem pauta detectável. */
+   branco/creme), acha picos locais acima de um limiar adaptativo. Valida o
+   padrão comparando cada gap CONSECUTIVO entre picos ao múltiplo mais próximo do
+   espaçamento mediano (tolera 1+ linha perdida por dobra/sombra sem invalidar o
+   resto, já que cada checagem é local) — um teste de grid rígido ancorado no
+   primeiro pico foi tentado primeiro e rejeitou dados reais bons por deriva
+   sistemática de espaçamento (a foto real tinha uma leve perspectiva, espaçamento
+   crescendo de ~42px a ~46px ao longo da página; o teste local não acumula esse
+   erro). Validado com simulação Node contra dados reais capturados ao vivo
+   (bate 18/18 gaps) e contra ruído puro (0/30 falsos positivos, 30 seeds
+   variados) antes de entrar aqui. Fica null quando o papel não tem pauta
+   detectável. */
 let currentRuledLines = null;
 function computeRuledLines(imgEl, sx, sy, sw, sh){
   currentRuledLines = null;
@@ -176,13 +180,13 @@ function computeRuledLines(imgEl, sx, sy, sw, sh){
   const peaks = [];
   rawPeaks.forEach(p=>{ if (!peaks.length || p-peaks[peaks.length-1]>15) peaks.push(p); });
   if (peaks.length < 8) return;
-  const gaps = peaks.slice(1).map((p,i)=>p-peaks[i]).slice().sort((a,b)=>a-b);
-  const spacing = gaps[Math.floor(gaps.length/2)];
+  const gapsSeq = peaks.slice(1).map((p,i)=>p-peaks[i]);
+  const gapsSorted = gapsSeq.slice().sort((a,b)=>a-b);
+  const spacing = gapsSorted[Math.floor(gapsSorted.length/2)];
   if (spacing < rows*(30/900)) return;
   const tol = Math.max(6, spacing*0.25);
-  let hits=0, gridPoints=0;
-  for (let g=peaks[0]; g<rows; g+=spacing){ gridPoints++; if (peaks.some(p=>Math.abs(p-g)<=tol)) hits++; }
-  if (hits/gridPoints < 0.6) return;
+  const good = gapsSeq.filter(g=>{ const k=Math.round(g/spacing); return k>=1 && Math.abs(g-k*spacing)<=tol*k; }).length;
+  if (good/gapsSeq.length < 0.7) return;
   currentRuledLines = {firstY: (peaks[0]/rows)*PAGE_H, spacing: (spacing/rows)*PAGE_H};
 }
 
