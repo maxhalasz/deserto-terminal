@@ -7,6 +7,10 @@ const TEX_CATS = {
   // deixa essa vinca bem no meio da página final — confirmado ao vivo no template
   // Etiqueta 2026-09-21. Não reintroduzir sem recortar/rejeitar a lombada.
   paper_aged: ['paper_aged_1.jpg','paper_aged_4.jpg','paper_aged_5.jpg','paper_aged_6.jpg','paper_aged_7.jpg'],
+  // paper_aged_2.jpg e paper_aged_3.jpg voltam aqui, dedicadas ao template
+  // "Diário — página dupla" (loadTemplate name==='diary') — a lombada de livro
+  // que as tirou do pool geral é exatamente o que esse template precisa.
+  paper_aged_bookspread: ['paper_aged_2.jpg','paper_aged_3.jpg'],
   // paper_notebook_2.jpg removida: marca d'água de banco de imagens visível na
   // foto inteira (confirmado ao vivo 2026-09-21) — não reintroduzir sem achar
   // substituto limpo.
@@ -26,16 +30,63 @@ let currentTemplate = 'newspaper';
 let currentNewsContent = null;
 let currentNewsLayout = null;
 
+/* ===================== Histórico (undo/redo) =====================
+   Mesmo padrão de tools/image-lab.js: pilha de snapshots canvas.toObject(),
+   guardando as propriedades customizadas que cada tipo de objeto usa fora do
+   schema padrão do Fabric. `restoringHistory` evita que a própria restauração
+   (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
+   espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
+   operação em lote. */
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName'];
+let history = [];
+let historyIndex = -1;
+let restoringHistory = false;
+const HISTORY_LIMIT = 40;
+function pushHistory(){
+  if (restoringHistory) return;
+  const snap = JSON.parse(JSON.stringify(canvas.toObject(HISTORY_PROPS)));
+  history = history.slice(0, historyIndex+1);
+  history.push(snap);
+  if (history.length > HISTORY_LIMIT) history.shift();
+  historyIndex = history.length-1;
+  updateUndoRedoButtons();
+}
+function restoreHistory(idx){
+  if (idx<0 || idx>=history.length) return;
+  restoringHistory = true;
+  cancelCrop();
+  canvas.loadFromJSON(history[idx]).then(()=>{
+    canvas.renderAll();
+    restoringHistory = false;
+    historyIndex = idx;
+    renderLayerList();
+    updateInspector();
+    updateUndoRedoButtons();
+    syncNewsLayoutUI();
+  });
+}
+function undo(){ if (historyIndex>0) restoreHistory(historyIndex-1); }
+function redo(){ if (historyIndex<history.length-1) restoreHistory(historyIndex+1); }
+function updateUndoRedoButtons(){
+  const bu = document.getElementById('btnUndo'), br = document.getElementById('btnRedo');
+  if (bu) bu.disabled = historyIndex<=0;
+  if (br) br.disabled = historyIndex>=history.length-1;
+}
+
 /* Reconstrói só a parte do jornal gerada pelo motor de layout (customType
    'newspaperPart'), preservando qualquer outro objeto que o Max tenha adicionado
    à mão (o fundo de papel nunca é tocado). Usado pelos presets/controles de coluna. */
 async function rebuildNewspaperLayout(){
   if (!currentNewsContent || !currentNewsLayout) return;
+  const wasRestoring = restoringHistory;
+  restoringHistory = true; // troca de preset é UMA ação do usuário, não N pushes por objeto removido/adicionado
   canvas.getObjects().filter(o=>o.__newsGenerated).forEach(o=>canvas.remove(o));
   const objs = await buildNewspaperObjects(currentNewsContent, currentNewsLayout);
   objs.forEach(o=>canvas.add(o));
   canvas.renderAll();
   renderLayerList();
+  restoringHistory = wasRestoring;
+  pushHistory();
 }
 
 function initCanvas(){
@@ -47,20 +98,22 @@ function initCanvas(){
   canvas.on('selection:created', updateInspector);
   canvas.on('selection:updated', updateInspector);
   canvas.on('selection:cleared', updateInspector);
-  canvas.on('object:modified', renderLayerList);
+  canvas.on('object:modified', ()=>{ renderLayerList(); pushHistory(); });
   canvas.on('object:added', e=>{
     renderLayerList();
+    pushHistory();
     // nunca deixa o Fabric entrar no modo de edição nativo — sempre passa pelo
     // modal (cursor confiável, prévia ao vivo). Ver comentário em openTextEditor.
     const o = e.target;
     if (o && (o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext')) o.editable = false;
   });
-  canvas.on('object:removed', renderLayerList);
+  canvas.on('object:removed', ()=>{ renderLayerList(); pushHistory(); });
   canvas.on('mouse:dblclick', e=>{
     const o = e.target;
     if (o && (o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext')) openTextEditor(o);
   });
   setZoom(0.5);
+  pushHistory();
 }
 function setZoom(z){
   const el = document.getElementById('editorCanvas');
@@ -275,6 +328,16 @@ function clearDoc(){
 
 async function loadTemplate(name){
   currentTemplate = name;
+  const __wasRestoring = restoringHistory;
+  restoringHistory = true; // carregar um template é UMA ação, não um push por objeto removido/adicionado
+  try {
+    await loadTemplateBody(name);
+  } finally {
+    restoringHistory = __wasRestoring;
+    pushHistory();
+  }
+}
+async function loadTemplateBody(name){
   clearDoc();
   const rng = mulberry32(Math.floor(Math.random()*4294967296));
 
@@ -334,6 +397,22 @@ async function loadTemplate(name){
     const barcode = await makeBarcodeImage({left:120, top:560, width:400, seed:Math.floor(rng()*1e9)});
     barcode.scaleToWidth(400);
     [border, org, title, ref, obs, barcode].forEach(o=>canvas.add(o));
+  }
+  else if (name==='diary'){
+    // Página dupla: paper_aged_2/3.jpg são fotos de livro ABERTO (lombada visível
+    // no meio) que saíram do pool comum por causa exatamente disso — aqui a
+    // lombada é a feature. Dois blocos de texto, um de cada lado, com uma faixa
+    // livre no meio pra não cruzar por cima dela.
+    await setBackgroundPaper(pickFile('paper_aged_bookspread', rng), {age:0.35});
+    const leftEntry = new HandwrittenText(
+      "MARCH 09\n\nCrew rotation finished. Everyone settled in fine, no complaints. Weather held.\n\nRan the weekly radio check at 0600, channel clear both ways. Standard.\n\nOff to bed early tonight.",
+      {left:90, top:180, width:470, personaId:'G', fontSize:24, fatigue:false}
+    );
+    const rightEntry = new HandwrittenText(
+      "MARCH 13\n\nNo radio check today. Second day in a row now. Base says it's atmospheric.\n\nDive team went down at noon and came back an hour early. Nobody's talking about why.\n\nI keep hearing something under the deck at night. Not the pumps.",
+      {left:680, top:180, width:470, personaId:'G', fontSize:24, fatigue:true}
+    );
+    [leftEntry, rightEntry].forEach(o=>canvas.add(o));
   }
 
   canvas.renderAll();
@@ -455,6 +534,7 @@ canvasWrap.addEventListener('drop', e=>{
 
 /* ===================== Camadas ===================== */
 function objLabel(o){
+  if (o.__labName) return o.__labName;
   if (o.customType==='background') return '📄 Papel de fundo';
   if (o.customType==='stain') return '💧 Mancha';
   if (o.customType==='grunge') return '🪨 Sujeira/grunge';
@@ -463,22 +543,48 @@ function objLabel(o){
   if (o.customType==='barcode') return '▮ Código de barras';
   if (o.customType==='photoPlaceholder') return '🖼 Placeholder de foto';
   if (o.customType==='photo') return '🖼 Foto';
+  if (o.customType==='polaroidFrame') return '🖼 Moldura Polaroid';
+  if (o.customType==='polaroidCaption') return '✏️ Legenda';
+  if (o.customType==='cctvHud') return '📹 HUD câmera';
+  if (o.customType==='vhsBar') return '▬ Barra VHS';
   if (o.type==='handwrittentext') return '✎ ' + (o.text||'').slice(0,18);
   if (o.type==='redactedtext') return '▬ ' + (o.text||'').slice(0,18);
   if (o.type==='textbox') return 'T ' + (o.text||'').slice(0,18);
+  if (o.type==='image') return '🖼 Imagem';
   return o.type;
 }
 function renderLayerList(){
   const box = document.getElementById('layerList');
   box.innerHTML = '';
-  const objs = canvas.getObjects().slice().reverse();
+  const objs = canvas.getObjects().filter(o=>o!==cropRect).slice().reverse();
   const active = canvas.getActiveObject();
   objs.forEach(o=>{
     const row = document.createElement('div');
     row.className = 'layerRow' + (o===active?' active':'');
+
+    const thumb = document.createElement('img'); thumb.className='layerThumb';
+    try {
+      const bw = o.getScaledWidth()||40, bh = o.getScaledHeight()||40;
+      thumb.src = o.toDataURL({format:'png', multiplier: 30/Math.max(bw,bh,1)});
+    } catch(e){ /* objeto ainda não renderizável — sem miniatura */ }
+    row.appendChild(thumb);
+
     const nm = document.createElement('span'); nm.className='nm'; nm.textContent = objLabel(o);
+    nm.title = 'Duplo clique pra renomear';
+    nm.addEventListener('dblclick', ev=>{
+      ev.stopPropagation();
+      const novo = prompt('Novo nome da camada:', o.__labName||'');
+      if (novo){ o.__labName = novo; renderLayerList(); pushHistory(); }
+    });
     row.appendChild(nm);
+
     if (o.customType!=='background'){
+      const up = document.createElement('button'); up.textContent='↑'; up.title='Trazer pra frente';
+      up.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.bringObjectForward(o); canvas.renderAll(); renderLayerList(); pushHistory(); });
+      row.appendChild(up);
+      const down = document.createElement('button'); down.textContent='↓'; down.title='Mandar pra trás';
+      down.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.sendObjectBackwards(o); canvas.renderAll(); renderLayerList(); pushHistory(); });
+      row.appendChild(down);
       const del = document.createElement('button'); del.textContent='✕';
       del.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.remove(o); canvas.renderAll(); });
       row.appendChild(del);
@@ -562,8 +668,27 @@ document.getElementById('editorTextarea').addEventListener('input', ()=>{
 });
 document.getElementById('editorClose').addEventListener('click', closeTextEditor);
 document.addEventListener('keydown', e=>{
-  if (e.key==='Escape' && !document.getElementById('editorModal').hidden) closeTextEditor();
+  if (!document.getElementById('editorModal').hidden){
+    if (e.key==='Escape') closeTextEditor();
+    return; // editando texto no modal — não deixa nenhum outro atalho passar
+  }
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT') return;
+  const obj = canvas.getActiveObject();
+  if (e.key==='Delete' || e.key==='Backspace'){
+    if (obj && obj!==cropRect && obj.customType!=='background'){ e.preventDefault(); canvas.remove(obj); canvas.discardActiveObject(); canvas.renderAll(); }
+  } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
+    if (obj){ e.preventDefault(); obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); }); }
+  } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='z'){
+    e.preventDefault(); redo();
+  } else if (e.ctrlKey && e.key.toLowerCase()==='z'){
+    e.preventDefault(); undo();
+  }
 });
+document.getElementById('btnUndo').addEventListener('click', undo);
+document.getElementById('btnRedo').addEventListener('click', redo);
+document.getElementById('btnCropApply').addEventListener('click', applyCrop);
+document.getElementById('btnCropCancel').addEventListener('click', ()=>{ cancelCrop(); canvas.renderAll(); });
 
 /* ===================== Inspetor (painel do objeto selecionado) =====================
    FILTER_REGISTRY, PRESETS, labeledRange, renderFilterPanel etc vêm de filter-panel.js
@@ -573,7 +698,7 @@ function updateInspector(){
   const panel = document.getElementById('inspector');
   const body = document.getElementById('inspectorBody');
   renderLayerList();
-  if (!obj){ panel.classList.remove('show'); body.innerHTML=''; return; }
+  if (!obj || obj===cropRect){ panel.classList.remove('show'); body.innerHTML=''; return; }
   panel.classList.add('show');
   body.innerHTML = '';
 
@@ -586,6 +711,7 @@ function updateInspector(){
   if (obj.customType==='background'){
     renderBackgroundInspector(obj, body);
   }
+  renderLayerProps(obj, body);
 
   const dup = document.createElement('button');
   dup.textContent = 'Duplicar';
@@ -611,6 +737,26 @@ function labeledRange(labelText, val, min, max, step, onInput){
   input.addEventListener('input', ()=>{ span.textContent=(+input.value).toFixed(3); onInput(+input.value); });
   wrap.appendChild(lab); wrap.appendChild(input);
   return wrap;
+}
+
+/* Opacidade + modo de mescla — genérico pra qualquer objeto selecionado (mancha
+   e grunge já usam globalCompositeOperation internamente, mas nunca expunham
+   slider pro usuário ajustar por conta própria). */
+function renderLayerProps(obj, body){
+  const details = document.createElement('details');
+  const summary = document.createElement('summary'); summary.textContent = 'Opacidade / mescla'; summary.style.cursor='pointer'; summary.style.color='#9ea6b3'; summary.style.fontSize='11.5px'; summary.style.margin='6px 0 2px';
+  details.appendChild(summary);
+  details.appendChild(labeledRange('Opacidade', obj.opacity!=null?obj.opacity:1, 0, 1, 0.01, v=>{ obj.set('opacity', v); canvas.renderAll(); }));
+  const lab = document.createElement('label'); lab.textContent='Modo de mescla';
+  const sel = document.createElement('select');
+  ['source-over','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','difference','exclusion'].forEach(m=>{
+    const o = document.createElement('option'); o.value=m; o.textContent=m;
+    if ((obj.globalCompositeOperation||'source-over')===m) o.selected=true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', ()=>{ obj.set('globalCompositeOperation', sel.value); canvas.renderAll(); pushHistory(); });
+  details.appendChild(lab); details.appendChild(sel);
+  body.appendChild(details);
 }
 
 function renderTextInspector(obj, body){
@@ -670,6 +816,73 @@ function rgbToHex(c){
   return '#'+m.slice(0,3).map(n=>(+n).toString(16).padStart(2,'0')).join('');
 }
 
+/* ===================== Recorte + espelhar (fotos) =====================
+   Mesmo mecanismo de tools/image-lab.js: marquise fabric.Rect, cropX/cropY
+   nativos do Fabric (não reencoda a imagem, só muda qual região é mostrada). */
+let cropRect = null, cropTarget = null;
+function startCrop(obj){
+  if (!obj || obj.type!=='image'){ alert('Selecione uma foto primeiro.'); return; }
+  if (Math.round(obj.angle||0)%360 !== 0){ alert('Endireite a foto (ângulo 0°) antes de recortar.'); return; }
+  cancelCrop();
+  cropTarget = obj;
+  const bw = obj.getScaledWidth(), bh = obj.getScaledHeight();
+  cropRect = new fabric.Rect({
+    left: obj.left + bw*0.1, top: obj.top + bh*0.1,
+    width: bw*0.8, height: bh*0.8,
+    fill: 'rgba(61,98,147,0.15)', stroke:'#6d93c9', strokeWidth:1.5, strokeDashArray:[6,4],
+    cornerColor:'#6d93c9', transparentCorners:false, lockRotation:true,
+  });
+  cropRect.setControlsVisibility({mtr:false});
+  const wasRestoring = restoringHistory;
+  restoringHistory = true;
+  canvas.add(cropRect);
+  restoringHistory = wasRestoring;
+  canvas.setActiveObject(cropRect);
+  canvas.renderAll();
+  const bar = document.getElementById('cropActions'); if (bar) bar.style.display='flex';
+}
+function applyCrop(){
+  if (!cropRect || !cropTarget) return;
+  const obj = cropTarget;
+  const rectLeft = cropRect.left, rectTop = cropRect.top;
+  const rectW = cropRect.getScaledWidth(), rectH = cropRect.getScaledHeight();
+  const imgLeft = obj.left, imgTop = obj.top;
+  const imgW = obj.getScaledWidth(), imgH = obj.getScaledHeight();
+  const clLeft = Math.max(rectLeft, imgLeft), clTop = Math.max(rectTop, imgTop);
+  const clRight = Math.min(rectLeft+rectW, imgLeft+imgW), clBottom = Math.min(rectTop+rectH, imgTop+imgH);
+  const clW = Math.max(2, clRight-clLeft), clH = Math.max(2, clBottom-clTop);
+  const relLeft = (clLeft-imgLeft)/obj.scaleX;
+  const relTop = (clTop-imgTop)/obj.scaleY;
+  obj.set({
+    cropX: (obj.cropX||0)+relLeft, cropY: (obj.cropY||0)+relTop,
+    width: clW/obj.scaleX, height: clH/obj.scaleY,
+    left: clLeft, top: clTop,
+  });
+  obj.setCoords();
+  const target = obj;
+  cancelCrop();
+  canvas.setActiveObject(target);
+  canvas.renderAll();
+  pushHistory();
+  updateInspector();
+}
+function cancelCrop(){
+  if (cropRect){
+    const wasRestoring = restoringHistory;
+    restoringHistory = true;
+    canvas.remove(cropRect);
+    restoringHistory = wasRestoring;
+  }
+  cropRect = null; cropTarget = null;
+  const bar = document.getElementById('cropActions'); if (bar) bar.style.display='none';
+}
+function flipSelected(obj, axis){
+  if (!obj || obj===cropRect) return;
+  if (axis==='h') obj.set('flipX', !obj.flipX); else obj.set('flipY', !obj.flipY);
+  canvas.renderAll();
+  pushHistory();
+}
+
 function renderImageInspector(obj, body){
   if (obj.customType==='photoPlaceholder' || obj.customType==='photo'){
     const lab = document.createElement('label'); lab.textContent='Trocar foto';
@@ -695,6 +908,30 @@ function renderImageInspector(obj, body){
       reader.readAsDataURL(f);
     });
     body.appendChild(lab); body.appendChild(inp);
+
+    const transformRow = document.createElement('div'); transformRow.className='grid2';
+    const cropBtn = document.createElement('button'); cropBtn.textContent='▧ Recortar';
+    cropBtn.addEventListener('click', ()=>startCrop(obj));
+    const flipHBtn = document.createElement('button'); flipHBtn.textContent='⇋ Espelhar H';
+    flipHBtn.addEventListener('click', ()=>flipSelected(obj,'h'));
+    transformRow.appendChild(cropBtn); transformRow.appendChild(flipHBtn);
+    body.appendChild(transformRow);
+    const flipVBtn = document.createElement('button'); flipVBtn.textContent='⇵ Espelhar V';
+    flipVBtn.addEventListener('click', ()=>flipSelected(obj,'v'));
+    body.appendChild(flipVBtn);
+
+    const compositeLab = document.createElement('div'); compositeLab.className='hint'; compositeLab.textContent='Moldura / overlay:';
+    body.appendChild(compositeLab);
+    const compositeRow = document.createElement('div'); compositeRow.className='grid2';
+    const polaroidBtn = document.createElement('button'); polaroidBtn.textContent='🖼 Polaroid';
+    polaroidBtn.addEventListener('click', ()=>{ addPolaroidFrame(canvas, obj); pushHistory(); });
+    const cctvBtn = document.createElement('button'); cctvBtn.textContent='📹 HUD CCTV';
+    cctvBtn.addEventListener('click', ()=>{ addCCTVHud(canvas, obj); pushHistory(); });
+    compositeRow.appendChild(polaroidBtn); compositeRow.appendChild(cctvBtn);
+    body.appendChild(compositeRow);
+    const vhsBtn = document.createElement('button'); vhsBtn.textContent='▬ Barras VHS';
+    vhsBtn.addEventListener('click', ()=>{ addVHSBars(canvas, obj); pushHistory(); });
+    body.appendChild(vhsBtn);
   }
 
   const filterPanelHost = document.createElement('div');
@@ -715,8 +952,9 @@ function renderBackgroundInspector(obj, body){
 
   const catLab = document.createElement('label'); catLab.textContent='Categoria';
   const catSel = document.createElement('select');
-  ['paper_aged','paper_notebook_ruled','paper_notebook_plain','paper_newsprint'].forEach(c=>{
-    const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o);
+  const CAT_LABELS = {paper_aged:'Envelhecido', paper_notebook_ruled:'Caderno pautado', paper_notebook_plain:'Caderno liso', paper_newsprint:'Jornal'};
+  Object.keys(CAT_LABELS).forEach(c=>{
+    const o=document.createElement('option'); o.value=c; o.textContent=CAT_LABELS[c]; catSel.appendChild(o);
   });
   body.appendChild(catLab); body.appendChild(catSel);
   const swapBtn = document.createElement('button'); swapBtn.textContent='🎲 Trocar papel';
@@ -726,13 +964,11 @@ function renderBackgroundInspector(obj, body){
     canvas.renderAll(); updateInspector();
   });
   body.appendChild(swapBtn);
-
-  const ageFilter = (obj.filters||[])[0];
-  if (ageFilter){
-    body.appendChild(labeledRange('Idade do papel', ageFilter.amount, 0, 1, 0.01, v=>{
-      ageFilter.amount = v; obj.applyFilters(); canvas.renderAll();
-    }));
-  }
+  // "Idade do papel" não tem slider próprio aqui de propósito — obj.type==='image'
+  // já faz updateInspector chamar renderImageInspector ANTES desta função (o fundo
+  // é ao mesmo tempo type:'image' e customType:'background'), que já desenha um
+  // slider de "Idade do papel" pra esse mesmo AgeTintFilter via renderFilterPanel.
+  // Ter os dois era bug cosmético confirmado (dois controles pro mesmo valor).
 
   const stainLab = document.createElement('div'); stainLab.className='hint'; stainLab.textContent='Adicionar mancha:';
   body.appendChild(stainLab);

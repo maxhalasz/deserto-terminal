@@ -43,6 +43,7 @@
   .layerRow.active{border-color:#3d6293;background:#1c2636}
   .layerRow .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .layerRow button{width:auto;margin:0;padding:2px 6px;font-size:11px}
+  .layerThumb{width:26px;height:26px;object-fit:cover;border-radius:3px;background:#0f1115;flex:0 0 auto}
 
   #main{flex:1;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:22px;gap:10px;
     background:
@@ -98,6 +99,7 @@
       <option value="note">Bilhete manuscrito</option>
       <option value="redacted">Dossiê redigido</option>
       <option value="tag">Etiqueta / rótulo</option>
+      <option value="diary">Diário — página dupla</option>
       <option value="blank">Em branco</option>
     </select>
     <button id="btnNewDoc" class="primary">Novo documento (apaga o atual)</button>
@@ -129,12 +131,22 @@
   <fieldset>
     <legend>Camadas</legend>
     <div id="layerList"></div>
+    <div class="hint">Duplo clique no nome pra renomear. Ctrl+D duplica, Delete apaga.</div>
+    <div class="grid2">
+      <button id="btnUndo" title="Ctrl+Z">↶ Desfazer</button>
+      <button id="btnRedo" title="Ctrl+Shift+Z">↷ Refazer</button>
+    </div>
   </fieldset>
 
   <fieldset id="inspector">
     <legend>Objeto selecionado</legend>
     <div id="inspectorBody"></div>
   </fieldset>
+
+  <div id="cropActions" class="grid2" style="display:none">
+    <button id="btnCropApply" class="primary">✓ Aplicar recorte</button>
+    <button id="btnCropCancel">✕ Cancelar</button>
+  </div>
 
   <fieldset>
     <legend>Exportar</legend>
