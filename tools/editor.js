@@ -288,7 +288,22 @@ function detectLineBand(imgEl, sx, sy, sw, sh, colFrac, bandFrac){
   const tol = Math.max(6, spacing*0.25);
   const good = gapsSeq.filter(g=>{ const k=Math.round(g/spacing); return k>=1 && Math.abs(g-k*spacing)<=tol*k; }).length;
   if (good/gapsSeq.length < 0.7) return null;
-  return {firstY: (peaks[0]/rows)*PAGE_H, spacing: (spacing/rows)*PAGE_H};
+  return {peaks, spacing, rows};
+}
+/* Alinha o primeiro pico de uma faixa lateral à MESMA linha física do primeiro
+   pico da faixa do meio — bug real achado testando ao vivo: cada faixa detecta
+   picos de forma independente, e se uma faixa perde 1-2 linhas do topo (comum
+   perto da espiral do caderno, onde o sinal é mais fraco), o "primeiro pico" dela
+   pode ser a linha 3 enquanto o da faixa do meio é a linha 1 — comparar os dois
+   direto dava uma inclinação gigante e errada (~2 espaçamentos de diferença).
+   Usa o espaçamento (que é o mesmo pra todas as faixas, papel pautado é
+   paralelo) pra achar quantas linhas de diferença existem e voltar pra mesma
+   linha do meio. Validado com simulação Node reproduzindo exatamente esse caso
+   (faixas perdendo linhas diferentes) antes de entrar aqui. */
+function alignBandToMid(band, midFirstPeakRow, midSpacing){
+  const avgSpacing = (band.spacing+midSpacing)/2;
+  const k = Math.round((band.peaks[0]-midFirstPeakRow)/avgSpacing);
+  return band.peaks[0] - k*avgSpacing; // linha equivalente ao 1º pico do meio, na faixa lateral
 }
 function computeRuledLines(imgEl, sx, sy, sw, sh){
   currentRuledLines = null;
@@ -296,15 +311,25 @@ function computeRuledLines(imgEl, sx, sy, sw, sh){
   if (!mid) return;
   const left = detectLineBand(imgEl, sx, sy, sw, sh, 0.25, 0.14);
   const right = detectLineBand(imgEl, sx, sy, sw, sh, 0.75, 0.14);
+  const rows = mid.rows;
+  const midFirstY = (mid.peaks[0]/rows)*PAGE_H;
   const midRefX = 0.5*PAGE_W;
   if (left && right){
+    const leftRow = alignBandToMid(left, mid.peaks[0], mid.spacing);
+    const rightRow = alignBandToMid(right, mid.peaks[0], mid.spacing);
+    const leftY = (leftRow/rows)*PAGE_H, rightY = (rightRow/rows)*PAGE_H;
     const leftRefX = 0.25*PAGE_W, rightRefX = 0.75*PAGE_W;
+    // trava de segurança: uma foto de mesa não devia ter mais que uns 10° de
+    // inclinação (tan(10°)≈0.176) — se o casamento de linha ainda assim errar
+    // (photo muito atípica), não deixa a inclinação virar um efeito absurdo.
+    const rawSlope = (rightY-leftY)/(rightRefX-leftRefX);
+    const slope = Math.max(-0.18, Math.min(0.18, rawSlope));
     currentRuledLines = {
-      firstY: mid.firstY, spacing: (left.spacing+mid.spacing+right.spacing)/3,
-      slope: (right.firstY-left.firstY)/(rightRefX-leftRefX), refX: midRefX,
+      firstY: midFirstY, spacing: ((left.spacing+mid.spacing+right.spacing)/3/rows)*PAGE_H,
+      slope, refX: midRefX,
     };
   } else {
-    currentRuledLines = {firstY: mid.firstY, spacing: mid.spacing, slope: 0, refX: midRefX};
+    currentRuledLines = {firstY: midFirstY, spacing: (mid.spacing/rows)*PAGE_H, slope: 0, refX: midRefX};
   }
 }
 
