@@ -37,6 +37,13 @@
   .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .toolgrid button{margin-top:0}
 
+  .tabs{display:flex;gap:3px}
+  .tabs .tabBtn{width:auto;flex:1;margin:0;padding:8px 4px;font-size:11px;border-radius:6px 6px 0 0;
+    background:#161820;border-color:#2b2f38;color:#767c88}
+  .tabs .tabBtn:hover{background:#1e2129;color:#a8afba}
+  .tabs .tabBtn.active{background:#1b1e24;color:#e8ebf0;border-color:#3a4050;border-bottom-color:#1b1e24}
+  .tabPanel{display:flex;flex-direction:column;gap:10px;margin-top:-1px}
+
   #layerList{display:flex;flex-direction:column;gap:2px;max-height:170px;overflow-y:auto}
   .layerRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11.5px}
   .layerRow:hover{border-color:#333844}
@@ -91,73 +98,91 @@
     <div class="sub">O Deserto — editor de documentos/jornais pra imprimir ou "digitalizar" nos HDs da DRE. Ferramenta de GM, não é acessada pelos jogadores.</div>
   </div>
 
-  <fieldset>
-    <legend>Documento</legend>
-    <select id="templateSel">
-      <option value="newspaper">Jornal (capa)</option>
-      <option value="report">Relatório datilografado</option>
-      <option value="note">Bilhete manuscrito</option>
-      <option value="redacted">Dossiê redigido</option>
-      <option value="tag">Etiqueta / rótulo</option>
-      <option value="diary">Diário — página dupla</option>
-      <option value="blank">Em branco</option>
-    </select>
-    <button id="btnNewDoc" class="primary">Novo documento (apaga o atual)</button>
-  </fieldset>
+  <div class="tabs">
+    <button class="tabBtn" data-tab="doc">Documento</button>
+    <button class="tabBtn" data-tab="add">Adicionar</button>
+    <button class="tabBtn" data-tab="layers">Camadas</button>
+    <button class="tabBtn" data-tab="object">Objeto</button>
+  </div>
 
-  <fieldset id="newsLayoutBlock" style="display:none">
-    <legend>Layout do jornal</legend>
-    <div class="hint">Troca o layout do jornal (mantém o texto atual, refaz colunas/fotos/caixas). Não mexe em objetos que você adicionou à mão.</div>
-    <div class="toolgrid" id="newsPresetRow"></div>
-    <label>Colunas</label>
-    <select id="newsCols"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
-  </fieldset>
+  <div class="tabPanel" data-tab-panel="doc">
+    <fieldset>
+      <legend>Documento</legend>
+      <select id="templateSel">
+        <option value="newspaper">Jornal (capa)</option>
+        <option value="report">Relatório datilografado</option>
+        <option value="note">Bilhete manuscrito</option>
+        <option value="redacted">Dossiê redigido</option>
+        <option value="tag">Etiqueta / rótulo</option>
+        <option value="letter">Carta</option>
+        <option value="diary">Diário — página dupla</option>
+        <option value="terminal">Impressão de terminal</option>
+        <option value="badge">Crachá de acesso</option>
+        <option value="blank">Em branco</option>
+      </select>
+      <button id="btnNewDoc" class="primary">Novo documento (apaga o atual)</button>
+    </fieldset>
 
-  <fieldset>
-    <legend>Adicionar</legend>
-    <div class="toolgrid">
-      <button id="btnAddText">+ Texto</button>
-      <button id="btnAddHandwritten">+ Texto manuscrito</button>
-      <button id="btnAddRedacted">+ Texto censurado</button>
-      <button id="btnAddStamp">+ Carimbo</button>
-      <button id="btnAddBarcode">+ Código de barras</button>
-      <button id="btnAddPhotoPlaceholder">+ Placeholder de foto</button>
-    </div>
-    <label>Imagem (arquivo local)</label>
-    <input type="file" id="fileAddImage" accept="image/*">
-    <div class="hint">Também dá pra arrastar uma imagem direto pro canvas.</div>
-  </fieldset>
+    <fieldset id="newsLayoutBlock" style="display:none">
+      <legend>Layout do jornal</legend>
+      <div class="hint">Troca o layout do jornal (mantém o texto atual, refaz colunas/fotos/caixas). Não mexe em objetos que você adicionou à mão.</div>
+      <div class="toolgrid" id="newsPresetRow"></div>
+      <label>Colunas</label>
+      <select id="newsCols"><option value="2">2</option><option value="3">3</option><option value="4">4</option></select>
+    </fieldset>
 
-  <fieldset>
-    <legend>Camadas</legend>
-    <div id="layerList"></div>
-    <div class="hint">Duplo clique no nome pra renomear. Ctrl+D duplica, Delete apaga.</div>
-    <div class="grid2">
-      <button id="btnUndo" title="Ctrl+Z">↶ Desfazer</button>
-      <button id="btnRedo" title="Ctrl+Shift+Z">↷ Refazer</button>
-    </div>
-  </fieldset>
+    <fieldset>
+      <legend>Exportar</legend>
+      <select id="exportScale">
+        <option value="1">Tela / digitalizado (1240×1754)</option>
+        <option value="2" selected>Impressão (alta resolução) (2480×3508)</option>
+      </select>
+      <button id="btnExport" class="primary">⭳ Baixar PNG</button>
+    </fieldset>
 
-  <fieldset id="inspector">
-    <legend>Objeto selecionado</legend>
-    <div id="inspectorBody"></div>
-  </fieldset>
+    <div id="status" style="font-size:10.5px;color:#6a7080;white-space:pre-line"></div>
+  </div>
+
+  <div class="tabPanel" data-tab-panel="add">
+    <fieldset>
+      <legend>Adicionar</legend>
+      <div class="toolgrid">
+        <button id="btnAddText">+ Texto</button>
+        <button id="btnAddHandwritten">+ Texto manuscrito</button>
+        <button id="btnAddRedacted">+ Texto censurado</button>
+        <button id="btnAddStamp">+ Carimbo</button>
+        <button id="btnAddBarcode">+ Código de barras</button>
+        <button id="btnAddPhotoPlaceholder">+ Placeholder de foto</button>
+      </div>
+      <label>Imagem (arquivo local)</label>
+      <input type="file" id="fileAddImage" accept="image/*">
+      <div class="hint">Também dá pra arrastar uma imagem direto pro canvas.</div>
+    </fieldset>
+  </div>
+
+  <div class="tabPanel" data-tab-panel="layers">
+    <fieldset>
+      <legend>Camadas</legend>
+      <div id="layerList"></div>
+      <div class="hint">Clique pra selecionar (pula pra aba Objeto sozinho). Duplo clique no nome pra renomear. Ctrl+D duplica, Delete apaga.</div>
+      <div class="grid2">
+        <button id="btnUndo" title="Ctrl+Z">↶ Desfazer</button>
+        <button id="btnRedo" title="Ctrl+Shift+Z">↷ Refazer</button>
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="tabPanel" data-tab-panel="object">
+    <fieldset id="inspector">
+      <legend>Objeto selecionado</legend>
+      <div id="inspectorBody"></div>
+    </fieldset>
+  </div>
 
   <div id="cropActions" class="grid2" style="display:none">
     <button id="btnCropApply" class="primary">✓ Aplicar recorte</button>
     <button id="btnCropCancel">✕ Cancelar</button>
   </div>
-
-  <fieldset>
-    <legend>Exportar</legend>
-    <select id="exportScale">
-      <option value="1">Tela / digitalizado (1240×1754)</option>
-      <option value="2" selected>Impressão 300dpi (2480×3508)</option>
-    </select>
-    <button id="btnExport" class="primary">⭳ Baixar PNG</button>
-  </fieldset>
-
-  <div id="status" style="font-size:10.5px;color:#6a7080;white-space:pre-line"></div>
 </div>
 
 <div id="main">

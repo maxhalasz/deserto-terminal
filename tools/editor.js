@@ -126,6 +126,47 @@ document.querySelectorAll('.zoomrow button').forEach(b=>{
   b.addEventListener('click', ()=>setZoom(+b.dataset.z));
 });
 
+/* ---- tamanho de página por template: cada formato de documento tem sua
+   proporção física real (folha A4 retrato, página dupla de livro aberto em
+   paisagem, tela de terminal 4:3, cartão de crachá) em vez de um canvas único
+   pra tudo. PAGE_W/PAGE_H (layout.js) são lidos no momento do uso em todo o
+   resto do código, então só trocar o valor e re-aplicar o zoom já propaga. ---- */
+const PAGE_SIZES = {
+  newspaper:[1240,1754], report:[1240,1754], note:[1240,1754], redacted:[1240,1754],
+  tag:[1240,1754], letter:[1240,1754], blank:[1240,1754],
+  diary:[2480,1754],   // duas páginas retrato lado a lado — proporção real de livro aberto
+  terminal:[1600,1200], // paisagem 4:3, proporção de tela CRT
+  badge:[860,540],      // cartão de crachá, ~1.6:1
+};
+function applyPageSize(name){
+  const [w,h] = PAGE_SIZES[name] || PAGE_SIZES.blank;
+  PAGE_W = w; PAGE_H = h;
+  setZoom(canvas.getZoom());
+  updateExportLabels();
+}
+function updateExportLabels(){
+  const sel = document.getElementById('exportScale');
+  if (!sel) return;
+  [...sel.options].forEach(o=>{
+    const mult = +o.value;
+    const suffix = mult===1 ? 'Tela / digitalizado' : 'Impressão (alta resolução)';
+    o.textContent = `${suffix} (${Math.round(PAGE_W*mult)}×${Math.round(PAGE_H*mult)})`;
+  });
+}
+
+/* ---- Abas da barra lateral: reorganização de contêiner, não redesenho — cada
+   fieldset já existia, só ganhou um wrapper .tabPanel. A aba Objeto troca
+   sozinha pra sempre que algo é selecionado (updateInspector chama switchTab),
+   já que "Objeto selecionado" era o bloco que mais precisava rolar pra alcançar
+   depois que cresceu (crop/flip/composites/opacidade da rodada anterior). ---- */
+function switchTab(name){
+  document.querySelectorAll('.tabBtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.tabPanel').forEach(p=>{ p.style.display = (p.dataset.tabPanel===name) ? 'flex' : 'none'; });
+}
+document.querySelectorAll('.tabBtn').forEach(b=>{
+  b.addEventListener('click', ()=>switchTab(b.dataset.tab));
+});
+
 /* ---- fundo de papel: objeto travado, sempre na base, com filtro de idade ---- */
 function setBackgroundPaper(filename, opts){
   opts = opts||{};
@@ -192,27 +233,34 @@ function sampleFoldSlope(px, py){
 }
 
 /* ===================== Linhas do papel pautado (pra texto manuscrito grudar nelas) =====================
-   Pesquisado/prototipado nesta sessão: amostra uma faixa de colunas do meio da
-   região recortada (evita a margem vermelha à esquerda e a espiral do caderno à
-   direita), calcula por linha de pixel o "excesso de azul" = média(B) − média(R)
-   (tinta azul deprime o vermelho mais que o azul num papel próximo de
-   branco/creme), acha picos locais acima de um limiar adaptativo. Valida o
-   padrão comparando cada gap CONSECUTIVO entre picos ao múltiplo mais próximo do
-   espaçamento mediano (tolera 1+ linha perdida por dobra/sombra sem invalidar o
-   resto, já que cada checagem é local) — um teste de grid rígido ancorado no
-   primeiro pico foi tentado primeiro e rejeitou dados reais bons por deriva
-   sistemática de espaçamento (a foto real tinha uma leve perspectiva, espaçamento
-   crescendo de ~42px a ~46px ao longo da página; o teste local não acumula esse
-   erro). Validado com simulação Node contra dados reais capturados ao vivo
-   (bate 18/18 gaps) e contra ruído puro (0/30 falsos positivos, 30 seeds
-   variados) antes de entrar aqui. Fica null quando o papel não tem pauta
-   detectável. */
+   Pesquisado/prototipado nesta sessão: calcula por linha de pixel o "excesso de
+   azul" = média(B) − média(R) (tinta azul deprime o vermelho mais que o azul num
+   papel próximo de branco/creme), acha picos locais acima de um limiar
+   adaptativo. Valida o padrão comparando cada gap CONSECUTIVO entre picos ao
+   múltiplo mais próximo do espaçamento mediano (tolera 1+ linha perdida por
+   dobra/sombra sem invalidar o resto, já que cada checagem é local) — um teste de
+   grid rígido ancorado no primeiro pico foi tentado primeiro e rejeitou dados
+   reais bons por deriva sistemática de espaçamento. Validado com simulação Node
+   contra dados reais capturados ao vivo (bate 18/18 gaps) e contra ruído puro
+   (0/30 falsos positivos, 30 seeds variados).
+
+   Rodada seguinte (pesquisa: detecção de skew em documento usa regressão linear
+   pra achar o ângulo representativo de uma linha de texto — mesmo princípio
+   aqui): uma foto real não é um scan perfeitamente plano, a pauta pode ter uma
+   leve inclinação de ponta a ponta. Por isso agora amostra TRÊS faixas de coluna
+   (25%/50%/75% da largura) em vez de uma só, cada uma roda a mesma detecção
+   independente, e a inclinação vem da diferença de posição entre a faixa
+   esquerda e a direita — as linhas de um caderno são paralelas, então uma
+   inclinação ÚNICA pra pauta inteira (rotação leve da foto) já modela bem o caso
+   real, sem precisar casar cada linha individualmente entre as 3 faixas. Só
+   aceita inclinação quando as 3 faixas validam independentemente; senão cai pra
+   inclinação zero (mesmo comportamento de antes). Fica null quando o papel não
+   tem pauta detectável. */
 let currentRuledLines = null;
-function computeRuledLines(imgEl, sx, sy, sw, sh){
-  currentRuledLines = null;
+function detectLineBand(imgEl, sx, sy, sw, sh, colFrac, bandFrac){
   const rows = Math.max(200, Math.min(900, Math.round(sh)));
   const cols = 24;
-  const bandSx = sx + sw*0.4, bandSw = sw*0.2;
+  const bandSx = sx + sw*(colFrac-bandFrac/2), bandSw = sw*bandFrac;
   const c = document.createElement('canvas'); c.width=cols; c.height=rows;
   const ctx = c.getContext('2d');
   ctx.drawImage(imgEl, bandSx, sy, bandSw, sh, 0, 0, cols, rows);
@@ -232,15 +280,32 @@ function computeRuledLines(imgEl, sx, sy, sw, sh){
   }
   const peaks = [];
   rawPeaks.forEach(p=>{ if (!peaks.length || p-peaks[peaks.length-1]>15) peaks.push(p); });
-  if (peaks.length < 8) return;
+  if (peaks.length < 8) return null;
   const gapsSeq = peaks.slice(1).map((p,i)=>p-peaks[i]);
   const gapsSorted = gapsSeq.slice().sort((a,b)=>a-b);
   const spacing = gapsSorted[Math.floor(gapsSorted.length/2)];
-  if (spacing < rows*(30/900)) return;
+  if (spacing < rows*(30/900)) return null;
   const tol = Math.max(6, spacing*0.25);
   const good = gapsSeq.filter(g=>{ const k=Math.round(g/spacing); return k>=1 && Math.abs(g-k*spacing)<=tol*k; }).length;
-  if (good/gapsSeq.length < 0.7) return;
-  currentRuledLines = {firstY: (peaks[0]/rows)*PAGE_H, spacing: (spacing/rows)*PAGE_H};
+  if (good/gapsSeq.length < 0.7) return null;
+  return {firstY: (peaks[0]/rows)*PAGE_H, spacing: (spacing/rows)*PAGE_H};
+}
+function computeRuledLines(imgEl, sx, sy, sw, sh){
+  currentRuledLines = null;
+  const mid = detectLineBand(imgEl, sx, sy, sw, sh, 0.5, 0.2);
+  if (!mid) return;
+  const left = detectLineBand(imgEl, sx, sy, sw, sh, 0.25, 0.14);
+  const right = detectLineBand(imgEl, sx, sy, sw, sh, 0.75, 0.14);
+  const midRefX = 0.5*PAGE_W;
+  if (left && right){
+    const leftRefX = 0.25*PAGE_W, rightRefX = 0.75*PAGE_W;
+    currentRuledLines = {
+      firstY: mid.firstY, spacing: (left.spacing+mid.spacing+right.spacing)/3,
+      slope: (right.firstY-left.firstY)/(rightRefX-leftRefX), refX: midRefX,
+    };
+  } else {
+    currentRuledLines = {firstY: mid.firstY, spacing: mid.spacing, slope: 0, refX: midRefX};
+  }
 }
 
 /* ---- manchas: fotos reais com máscara de alfa (sem borda quadrada) + tinta de cor ---- */
@@ -338,6 +403,7 @@ async function loadTemplate(name){
   }
 }
 async function loadTemplateBody(name){
+  applyPageSize(name);
   clearDoc();
   const rng = mulberry32(Math.floor(Math.random()*4294967296));
 
@@ -401,18 +467,85 @@ async function loadTemplateBody(name){
   else if (name==='diary'){
     // Página dupla: paper_aged_2/3.jpg são fotos de livro ABERTO (lombada visível
     // no meio) que saíram do pool comum por causa exatamente disso — aqui a
-    // lombada é a feature. Dois blocos de texto, um de cada lado, com uma faixa
-    // livre no meio pra não cruzar por cima dela.
+    // lombada é a feature. Canvas em paisagem (applyPageSize já trocou pra
+    // 2480×1754 — duas páginas de 1240 de largura lado a lado, a lombada cai
+    // bem no meio, em x=1240). Dois blocos de texto, um por página, com margem
+    // suficiente pra não cruzar por cima dela.
     await setBackgroundPaper(pickFile('paper_aged_bookspread', rng), {age:0.35});
     const leftEntry = new HandwrittenText(
       "MARCH 09\n\nCrew rotation finished. Everyone settled in fine, no complaints. Weather held.\n\nRan the weekly radio check at 0600, channel clear both ways. Standard.\n\nOff to bed early tonight.",
-      {left:90, top:180, width:470, personaId:'G', fontSize:24, fatigue:false}
+      {left:90, top:180, width:1000, personaId:'G', fontSize:26, fatigue:false}
     );
     const rightEntry = new HandwrittenText(
       "MARCH 13\n\nNo radio check today. Second day in a row now. Base says it's atmospheric.\n\nDive team went down at noon and came back an hour early. Nobody's talking about why.\n\nI keep hearing something under the deck at night. Not the pumps.",
-      {left:680, top:180, width:470, personaId:'G', fontSize:24, fatigue:true}
+      {left:PAGE_W/2+90, top:180, width:1000, personaId:'G', fontSize:26, fatigue:true}
     );
     [leftEntry, rightEntry].forEach(o=>canvas.add(o));
+  }
+  else if (name==='letter'){
+    await setBackgroundPaper(pickFile('paper_aged', rng), {age:0.3});
+    const body = new fabric.Textbox(
+      "March 11\n\nDear Sarah,\n\nI know it's been a while. Work out here doesn't leave much room for letters, and honestly there isn't much to say that would clear the censor's desk anyway.\n\nThe platform is fine. Routine, mostly. I think about the house a lot, and the noise the boiler used to make, and how much I used to complain about it. I'd take that noise over what we've got out here.\n\nIf anything happens, the company has my paperwork in order. Don't let them tell you otherwise.\n\nTake care of yourself.\n\nYours,\nM.",
+      {left:120, top:150, width:PAGE_W-240, fontFamily:"'PT Serif'", fontSize:18, fill:'#181410', lineHeight:1.6}
+    );
+    const sig = new HandwrittenText('M.', {left:120, top:PAGE_H-220, width:200, personaId:'C', fontSize:28});
+    [body, sig].forEach(o=>canvas.add(o));
+  }
+  else if (name==='terminal'){
+    // Único template sem foto de papel: um "monitor" desenhado (retângulo escuro
+    // + scanlines/vinheta via filtro, mesmo padrão de makePhotoPlaceholder: desenha
+    // num canvas solto, vira fabric.Image, só assim dá pra usar ScanlinesFilter/
+    // VignetteFilter — filtro WebGL só funciona em cima de Image, não de Rect) em
+    // vez de fundo físico. Bate com a própria frase de efeito da ferramenta
+    // ("digitalizar nos HDs da DRE"). Sem foto de papel, então sem campo de dobra
+    // nem pauta detectável — reseta os dois pra não sobrar estado de um template
+    // anterior (esse aqui não usa texto manuscrito, mas se o Max adicionar um na
+    // mão o campo teria ficado velho).
+    currentFoldField = null; currentRuledLines = null;
+    const screenC = document.createElement('canvas'); screenC.width=PAGE_W; screenC.height=PAGE_H;
+    screenC.getContext('2d').fillStyle = '#0a1512';
+    screenC.getContext('2d').fillRect(0,0,PAGE_W,PAGE_H);
+    const screen = await fabric.Image.fromURL(screenC.toDataURL());
+    screen.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
+    screen.filters = [new ScanlinesFilter({intensity:0.35, density:1400}), new VignetteFilter({amount:0.55, inner:0.2})];
+    screen.applyFilters();
+    screen.set('customType','background');
+    canvas.add(screen);
+    const lines = [
+      'NEUROSTAT FIELD DIVISION — SYSTEM LOG',
+      'NODE: DES-PLATFORM-01          BUILD 4.7.2',
+      '----------------------------------------',
+      '03:11:58  radio.check() -> OK',
+      '03:12:04  radio.check() -> TIMEOUT',
+      '03:12:04  radio.retry(3) -> TIMEOUT',
+      '03:12:07  link.status = DEGRADED',
+      '04:00:00  dive_team.status = DEPLOYED',
+      '04:58:41  dive_team.status = RETURNED_EARLY',
+      '04:58:41  crew_log.entry = [REDACTED]',
+      '05:14:22  sensor.hull_array[12] -> ANOMALY',
+      '05:14:23  sensor.hull_array[12] -> ANOMALY',
+      '05:14:23  sensor.hull_array[12] -> ANOMALY',
+      '05:14:24  sensor.hull_array[*]  -> ANOMALY',
+      '05:15:00  supervisor.override = TRUE',
+      '05:15:00  logging.suspended',
+    ];
+    const txt = new fabric.Textbox(lines.join('\n'), {
+      left:70, top:60, width:PAGE_W-140, fontFamily:"'Courier Prime'", fontSize:20, fill:'#7fffb0', lineHeight:1.55,
+    });
+    canvas.add(txt);
+  }
+  else if (name==='badge'){
+    await setBackgroundPaper(pickFile('paper_aged', rng), {age:0.15});
+    const headerBar = new fabric.Rect({left:0, top:0, width:PAGE_W, height:90, fill:'#1c3a5e'});
+    const org = new fabric.Textbox('NEUROSTAT', {left:24, top:22, width:400, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:26, fill:'#e6eef8'});
+    const photo = await makePhotoPlaceholder({left:36, top:140, width:220, height:280});
+    const name2 = new fabric.Textbox('J. OKAFOR', {left:300, top:150, width:520, fontFamily:"'Playfair Display'", fontWeight:900, fontSize:32, fill:'#141414'});
+    const role = new fabric.Textbox('FIELD DIVISION — DIVE SUPPORT', {left:300, top:200, width:520, fontFamily:"'Courier Prime'", fontSize:16, fill:'#3a3a3a'});
+    const level = new fabric.Textbox('ACCESS LEVEL: 2 — MOONPOOL DECK', {left:300, top:240, width:520, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:16, fill:'#7a2020'});
+    const id = new fabric.Textbox('ID 0447-M-12', {left:300, top:300, width:520, fontFamily:"'Courier Prime'", fontSize:14, fill:'#3a3a3a'});
+    const barcode = await makeBarcodeImage({left:36, top:PAGE_H-100, width:PAGE_W-72, seed:Math.floor(rng()*1e9)});
+    barcode.scaleToWidth(PAGE_W-72);
+    [headerBar, org, photo, name2, role, level, id, barcode].forEach(o=>canvas.add(o));
   }
 
   canvas.renderAll();
@@ -701,6 +834,7 @@ function updateInspector(){
   if (!obj || obj===cropRect){ panel.classList.remove('show'); body.innerHTML=''; return; }
   panel.classList.add('show');
   body.innerHTML = '';
+  switchTab('object'); // seleção pula sozinho pra aba Objeto — não precisa rolar até achar
 
   if (obj.type==='textbox' || obj.type==='handwrittentext' || obj.type==='redactedtext'){
     renderTextInspector(obj, body);
@@ -996,6 +1130,7 @@ document.getElementById('btnExport').addEventListener('click', ()=>{
 
 /* ===================== Init ===================== */
 document.fonts.ready.then(()=>{
+  switchTab('doc');
   initCanvas();
   loadTemplate('newspaper');
 });

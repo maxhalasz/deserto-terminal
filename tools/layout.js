@@ -3,7 +3,12 @@
    mesma lógica de distribuição proporcional de linhas por coluna, kicker,
    pull-quote, caixa lateral, foto de banner/coluna. A v3 tinha perdido isso
    (virou 5 Textbox soltos sem coluna nenhuma) — Max notou e pediu de volta. */
-const PAGE_W = 1240, PAGE_H = 1754;
+// let em vez de const: cada template define o tamanho de página certo pra ele
+// (retrato A4, página dupla em paisagem, tela de terminal, cartão de crachá) via
+// applyPageSize() em editor.js. O resto deste arquivo lê PAGE_W/PAGE_H no momento
+// do uso (nunca guarda cópia), então continua funcionando sem mudança nenhuma —
+// o jornal sempre chama applyPageSize('newspaper') antes de montar o layout.
+let PAGE_W = 1240, PAGE_H = 1754;
 
 const SIZE_FRAC = {P:0.16, M:0.27, G:0.42};
 const BANNER_H = {P:150, M:220, G:300};

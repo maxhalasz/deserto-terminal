@@ -83,10 +83,11 @@ class HandwrittenText extends fabric.Textbox {
     // são page-space) — não precisa inverter matriz. Objeto rotacionado cai no
     // comportamento antigo (limite consciente: bilhete manuscrito na prática não
     // é usado rotacionado).
-    const scaleY = this.scaleY || 1;
+    const scaleX = this.scaleX || 1, scaleY = this.scaleY || 1;
     const hasRuled = typeof currentRuledLines!=='undefined' && currentRuledLines && Math.abs(this.angle||0) < 0.5;
     const localToPageY = localY => this.top + (localY - y0)*scaleY;
     const pageToLocalY = pageY => (pageY - this.top)/scaleY + y0;
+    const localToPageX = localX => this.left + (localX - x0)*scaleX;
     const advanceLine = cyVal=>{
       if (!hasRuled) return cyVal + lineHeight;
       const {firstY, spacing} = currentRuledLines;
@@ -144,11 +145,24 @@ class HandwrittenText extends fabric.Textbox {
             const pagePt = fabric.util.transformPoint({x: ccx+cw/2, y: cy+cjy+wave}, foldMatrix);
             const slope = sampleFoldSlope(pagePt.x, pagePt.y);
             foldRot = slope.dx * 0.9;
-            foldDy = slope.dy * 14;
+            // Amortecido bem forte quando colado na pauta: o campo de dobra reage ao
+            // RELEVO da foto (sombra de vinco), a pauta reage à TINTA azul — numa foto
+            // muito amassada os dois brigavam (foldDy arrancava a letra da linha
+            // exatamente nas dobras mais fortes). A rotação (foldRot) é discreta e não
+            // atrapalha, então só o deslocamento vertical é reduzido aqui.
+            foldDy = slope.dy * 14 * (hasRuled ? 0.15 : 1);
+          }
+          // Inclinação da própria pauta (computeRuledLines detecta a foto levemente
+          // rotacionada, não perfeitamente plana) — desloca cada caractere conforme
+          // sua posição X real, igual o `wave` já faz, pra a linha desenhada seguir a
+          // leve diagonal da linha real em vez de ficar sempre perfeitamente horizontal.
+          let tiltDy = 0;
+          if (hasRuled && currentRuledLines.slope){
+            tiltDy = currentRuledLines.slope * (localToPageX(ccx+cw/2) - currentRuledLines.refX) / scaleY;
           }
 
           ctx.save();
-          ctx.translate(ccx+cw/2, cy+cjy+wave+foldDy);
+          ctx.translate(ccx+cw/2, cy+cjy+wave+foldDy+tiltDy);
           ctx.rotate(persona.slant+cjr+foldRot);
           // segundo traço bem sutil, deslocado, opacidade baixa — simula tinta
           // absorvida na fibra do papel (pincelada dupla em vez de glifo chapado).
