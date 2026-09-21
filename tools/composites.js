@@ -5,7 +5,31 @@
    dimensões/posição do que ela deve envolver como parâmetro, em vez de depender
    de globals fixos tipo PAGE_W/PAGE_H — assim funciona nos dois lugares sem
    modificação. `editor.js` (props-generator) e `image-lab.js` chamam essas
-   funções em vez de manter cópia própria. */
+   funções em vez de manter cópia própria.
+
+   Rastreio de dono (bug real reportado por Max, testando ao vivo): clicar
+   "HUD CCTV" de novo empilhava um HUD em cima do outro em vez de trocar, e
+   apagar a foto deixava o HUD/moldura órfão flutuando. Cada objeto "dono"
+   (a foto) ganha um `__oid` (id estável, sobrevive no undo/redo porque
+   HISTORY_PROPS em editor.js/image-lab.js inclui __oid/__ownerOid), e cada
+   composite anexado guarda `__ownerOid` apontando pra ele. `addXOverlay`
+   sempre remove qualquer composite do MESMO tipo já anexado àquele dono antes
+   de adicionar (troca, não empilha), e `deleteObjectCascade` apaga os filhos
+   junto do dono. */
+let __oidCounter = 1;
+function getOid(obj){
+  if (!obj.__oid) obj.__oid = 'o'+(__oidCounter++)+'_'+Math.floor(Math.random()*1e6);
+  return obj.__oid;
+}
+function removeOwnedByType(canvas, ownerOid, customTypes){
+  canvas.getObjects().filter(o=>o.__ownerOid===ownerOid && customTypes.includes(o.customType)).forEach(o=>canvas.remove(o));
+}
+function deleteObjectCascade(canvas, obj){
+  if (!obj) return;
+  const oid = obj.__oid;
+  canvas.remove(obj);
+  if (oid) canvas.getObjects().filter(o=>o.__ownerOid===oid).forEach(o=>canvas.remove(o));
+}
 
 /* ---- Bloom/glow: clona o objeto, desfoca+clareia, blend screen por cima ---- */
 function addBloomToObject(canvas, obj){
@@ -49,6 +73,8 @@ function addGrungeOverlay(canvas, w, h, texturePack, files){
    lados, grossa embaixo pra legenda) + legenda editável. ---- */
 function addPolaroidFrame(canvas, obj){
   if (!obj) return null;
+  const oid = getOid(obj);
+  removeOwnedByType(canvas, oid, ['polaroidFrame','polaroidCaption']);
   const bw = obj.getScaledWidth(), bh = obj.getScaledHeight();
   const border = Math.max(bw,bh)*0.06;
   const bottomBorder = border*3.4;
@@ -59,6 +85,7 @@ function addPolaroidFrame(canvas, obj){
     shadow: new fabric.Shadow({color:'rgba(0,0,0,0.35)', blur:16, offsetX:0, offsetY:8}),
   });
   frame.set('customType','polaroidFrame');
+  frame.__ownerOid = oid;
   canvas.add(frame);
   canvas.sendObjectToBack(frame);
   const caption = new fabric.IText('legenda...', {
@@ -67,6 +94,7 @@ function addPolaroidFrame(canvas, obj){
     originX:'center', originY:'top', textAlign:'center',
   });
   caption.set('customType','polaroidCaption');
+  caption.__ownerOid = oid;
   canvas.add(caption);
   canvas.setActiveObject(obj);
   canvas.renderAll();
@@ -77,6 +105,8 @@ function addPolaroidFrame(canvas, obj){
    monoespaçado editável nos cantos do objeto. ---- */
 function addCCTVHud(canvas, obj){
   if (!obj) return null;
+  const oid = getOid(obj);
+  removeOwnedByType(canvas, oid, ['cctvHud']);
   const bw = obj.getScaledWidth(), bh = obj.getScaledHeight();
   const fontSize = Math.max(13, bh*0.032);
   const now = new Date();
@@ -89,7 +119,7 @@ function addCCTVHud(canvas, obj){
     left: obj.left+bw-fontSize*5.2, top: obj.top+fontSize*0.7, fill:'#d8e8d8'}));
   const stamp = new fabric.IText(ts, Object.assign({}, base, {
     left: obj.left+fontSize*0.7, top: obj.top+bh-fontSize*1.9, fill:'#d8e8d8'}));
-  [rec,cam,stamp].forEach(o=>{ o.set('customType','cctvHud'); canvas.add(o); });
+  [rec,cam,stamp].forEach(o=>{ o.set('customType','cctvHud'); o.__ownerOid=oid; canvas.add(o); });
   canvas.renderAll();
   return [rec,cam,stamp];
 }
@@ -98,12 +128,14 @@ function addCCTVHud(canvas, obj){
    trilha junto de uma das bordas. ---- */
 function addVHSBars(canvas, obj){
   if (!obj) return null;
+  const oid = getOid(obj);
+  removeOwnedByType(canvas, oid, ['vhsBar']);
   const bw = obj.getScaledWidth(), bh = obj.getScaledHeight();
   const barH = bh*0.075;
   const top = new fabric.Rect({left:obj.left, top:obj.top, width:bw, height:barH, fill:'#000', originX:'left', originY:'top'});
   const bottom = new fabric.Rect({left:obj.left, top:obj.top+bh-barH, width:bw, height:barH, fill:'#000', originX:'left', originY:'top'});
   const track = new fabric.Rect({left:obj.left, top:obj.top+bh-barH-barH*0.22, width:bw, height:barH*0.22, fill:'rgba(225,225,225,0.55)', originX:'left', originY:'top'});
-  [top,bottom,track].forEach(o=>{ o.set('customType','vhsBar'); canvas.add(o); });
+  [top,bottom,track].forEach(o=>{ o.set('customType','vhsBar'); o.__ownerOid=oid; canvas.add(o); });
   canvas.renderAll();
   return [top,bottom,track];
 }

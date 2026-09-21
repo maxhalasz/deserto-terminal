@@ -25,7 +25,7 @@ const HISTORY_LIMIT = 40;
 
 function pushHistory(){
   if (restoringHistory) return;
-  const snap = JSON.parse(JSON.stringify(canvas.toObject(['customType','__labName'])));
+  const snap = JSON.parse(JSON.stringify(canvas.toObject(['customType','__labName','__oid','__ownerOid'])));
   history = history.slice(0, historyIndex+1);
   history.push(snap);
   if (history.length > HISTORY_LIMIT) history.shift();
@@ -179,7 +179,7 @@ function renderLayerList(){
     row.appendChild(mkBtn('↑','Trazer pra frente', ()=>{ canvas.bringObjectForward(o); canvas.renderAll(); renderLayerList(); pushHistory(); }));
     row.appendChild(mkBtn('↓','Mandar pra trás', ()=>{ canvas.sendObjectBackwards(o); canvas.renderAll(); renderLayerList(); pushHistory(); }));
     row.appendChild(mkBtn('⧉','Duplicar', ()=>duplicateLayer(o)));
-    row.appendChild(mkBtn('✕','Excluir', ()=>{ canvas.remove(o); canvas.discardActiveObject(); canvas.renderAll(); updateFilterPanel(); }));
+    row.appendChild(mkBtn('✕','Excluir', ()=>{ deleteObjectCascade(canvas, o); canvas.discardActiveObject(); canvas.renderAll(); updateFilterPanel(); }));
 
     row.addEventListener('click', ()=>{ canvas.setActiveObject(o); canvas.renderAll(); updateFilterPanel(); });
     box.appendChild(row);
@@ -229,7 +229,7 @@ function renderLayerProps(obj){
 document.getElementById('btnDelete').addEventListener('click', ()=>{
   const obj = canvas.getActiveObject();
   if (!obj) return;
-  canvas.remove(obj); canvas.discardActiveObject(); canvas.renderAll();
+  deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll();
   updateFilterPanel();
 });
 // Grava histórico quando um slider de filtro é solto (evento nativo 'change', não
@@ -372,7 +372,7 @@ document.addEventListener('keydown', e=>{
     return;
   }
   if (e.key==='Delete' || e.key==='Backspace'){
-    if (obj && obj!==cropRect){ e.preventDefault(); canvas.remove(obj); canvas.discardActiveObject(); canvas.renderAll(); updateFilterPanel(); }
+    if (obj && obj!==cropRect){ e.preventDefault(); deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); updateFilterPanel(); }
   } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
     if (obj){ e.preventDefault(); duplicateLayer(obj); }
   } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='z'){

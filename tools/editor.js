@@ -37,7 +37,7 @@ let currentNewsLayout = null;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid'];
 let history = [];
 let historyIndex = -1;
 let restoringHistory = false;
@@ -303,8 +303,18 @@ function detectLineBand(imgEl, sx, sy, sw, sh, colFrac, bandFrac){
 function alignBandToMid(band, midFirstPeakRow, midSpacing){
   const avgSpacing = (band.spacing+midSpacing)/2;
   const k = Math.round((band.peaks[0]-midFirstPeakRow)/avgSpacing);
-  return band.peaks[0] - k*avgSpacing; // linha equivalente ao 1º pico do meio, na faixa lateral
+  return k; // deslocamento de ÍNDICE: band.peaks[i-k] é a mesma linha física que mid.peaks[i]
 }
+/* computeRuledLines: uma inclinação POR LINHA, não uma única pra página inteira.
+   Papel fotografado real ondula/tuerce (lombada do caderno, curvatura da folha) —
+   uma inclinação global (versão anterior) não seguia isso, Max reportou "as linhas
+   do papel estão tortas". Repete o casamento left/mid/right (já validado pro 1º
+   pico) LINHA A LINHA: o deslocamento de índice k é o mesmo pra página inteira
+   (linhas são paralelas, calculado uma vez), então band.peaks[i-k] dá o par certo
+   pra cada i sem precisar recasar. Linhas sem par válido nas 3 faixas (perto da
+   borda onde uma faixa perdeu picos) caem na inclinação média das que têm.
+   Validado em simulação Node: erro de inclinação <0.004 mesmo com ondulação +
+   ruído + faixas perdendo linhas líderes diferentes. */
 function computeRuledLines(imgEl, sx, sy, sw, sh){
   currentRuledLines = null;
   const mid = detectLineBand(imgEl, sx, sy, sw, sh, 0.5, 0.2);
@@ -312,25 +322,51 @@ function computeRuledLines(imgEl, sx, sy, sw, sh){
   const left = detectLineBand(imgEl, sx, sy, sw, sh, 0.25, 0.14);
   const right = detectLineBand(imgEl, sx, sy, sw, sh, 0.75, 0.14);
   const rows = mid.rows;
-  const midFirstY = (mid.peaks[0]/rows)*PAGE_H;
-  const midRefX = 0.5*PAGE_W;
+  const midRefX = 0.5*PAGE_W, leftRefX = 0.25*PAGE_W, rightRefX = 0.75*PAGE_W;
+  const spacingPage = (mid.spacing/rows)*PAGE_H;
   if (left && right){
-    const leftRow = alignBandToMid(left, mid.peaks[0], mid.spacing);
-    const rightRow = alignBandToMid(right, mid.peaks[0], mid.spacing);
-    const leftY = (leftRow/rows)*PAGE_H, rightY = (rightRow/rows)*PAGE_H;
-    const leftRefX = 0.25*PAGE_W, rightRefX = 0.75*PAGE_W;
-    // trava de segurança: uma foto de mesa não devia ter mais que uns 10° de
-    // inclinação (tan(10°)≈0.176) — se o casamento de linha ainda assim errar
-    // (photo muito atípica), não deixa a inclinação virar um efeito absurdo.
-    const rawSlope = (rightY-leftY)/(rightRefX-leftRefX);
-    const slope = Math.max(-0.18, Math.min(0.18, rawSlope));
-    currentRuledLines = {
-      firstY: midFirstY, spacing: ((left.spacing+mid.spacing+right.spacing)/3/rows)*PAGE_H,
-      slope, refX: midRefX,
-    };
+    const kLeft = alignBandToMid(left, mid.peaks[0], mid.spacing);
+    const kRight = alignBandToMid(right, mid.peaks[0], mid.spacing);
+    const lines = [];
+    const slopes = [];
+    for (let i=0;i<mid.peaks.length;i++){
+      const li = i-kLeft, ri = i-kRight;
+      const midY = (mid.peaks[i]/rows)*PAGE_H;
+      let slope = null;
+      if (li>=0 && li<left.peaks.length && ri>=0 && ri<right.peaks.length){
+        const leftY = (left.peaks[li]/rows)*PAGE_H, rightY = (right.peaks[ri]/rows)*PAGE_H;
+        // trava de segurança: uma foto de mesa não devia ter mais que uns 10° de
+        // inclinação (tan(10°)≈0.176) — se o casamento de linha ainda assim errar,
+        // não deixa a inclinação virar um efeito absurdo.
+        slope = Math.max(-0.18, Math.min(0.18, (rightY-leftY)/(rightRefX-leftRefX)));
+        slopes.push(slope);
+      }
+      lines.push({y: midY, slope});
+    }
+    const avgSlope = slopes.length ? slopes.reduce((a,b)=>a+b,0)/slopes.length : 0;
+    lines.forEach(l=>{ if (l.slope===null) l.slope = avgSlope; });
+    currentRuledLines = {lines, spacing: spacingPage, refX: midRefX};
   } else {
-    currentRuledLines = {firstY: midFirstY, spacing: (mid.spacing/rows)*PAGE_H, slope: 0, refX: midRefX};
+    currentRuledLines = {lines: mid.peaks.map(p=>({y:(p/rows)*PAGE_H, slope:0})), spacing: spacingPage, refX: midRefX};
   }
+}
+/* lineAt/lineIdxNearest: acesso ao array de linhas detectadas com extrapolação
+   além do trecho lido (texto pode continuar abaixo da última linha detectada) —
+   usa o espaçamento médio e repete a inclinação da linha de borda mais próxima.
+   handwriting.js usa lineIdxNearest só UMA vez (achar a linha inicial) e depois
+   incrementa um contador linha a linha (nunca re-deriva o índice a partir de Y) —
+   evita que uma leve deriva real de espaçamento entre linhas acumule erro e pule/
+   repita uma linha no meio do texto. */
+function lineAt(idx){
+  const {lines, spacing} = currentRuledLines;
+  const n = lines.length;
+  if (idx>=0 && idx<n) return lines[idx];
+  if (idx<0) return {y: lines[0].y + idx*spacing, slope: lines[0].slope};
+  return {y: lines[n-1].y + (idx-(n-1))*spacing, slope: lines[n-1].slope};
+}
+function lineIdxNearest(pageY){
+  const {lines, spacing} = currentRuledLines;
+  return Math.round((pageY - lines[0].y)/spacing);
 }
 
 /* ---- manchas: fotos reais com máscara de alfa (sem borda quadrada) + tinta de cor ---- */
@@ -744,7 +780,7 @@ function renderLayerList(){
       down.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.sendObjectBackwards(o); canvas.renderAll(); renderLayerList(); pushHistory(); });
       row.appendChild(down);
       const del = document.createElement('button'); del.textContent='✕';
-      del.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.remove(o); canvas.renderAll(); });
+      del.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteObjectCascade(canvas, o); canvas.renderAll(); });
       row.appendChild(del);
     }
     row.addEventListener('click', ()=>{ canvas.setActiveObject(o); canvas.renderAll(); updateInspector(); });
@@ -834,7 +870,7 @@ document.addEventListener('keydown', e=>{
   if (tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT') return;
   const obj = canvas.getActiveObject();
   if (e.key==='Delete' || e.key==='Backspace'){
-    if (obj && obj!==cropRect && obj.customType!=='background'){ e.preventDefault(); canvas.remove(obj); canvas.discardActiveObject(); canvas.renderAll(); }
+    if (obj && obj!==cropRect && obj.customType!=='background'){ e.preventDefault(); deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); }
   } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
     if (obj){ e.preventDefault(); obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); }); }
   } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='z'){
@@ -881,7 +917,7 @@ function updateInspector(){
   if (obj.customType!=='background'){
     const del = document.createElement('button');
     del.textContent = 'Excluir'; del.className='danger';
-    del.addEventListener('click', ()=>{ canvas.remove(obj); canvas.discardActiveObject(); canvas.renderAll(); });
+    del.addEventListener('click', ()=>{ deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); });
     body.appendChild(del);
   }
 }

@@ -88,21 +88,26 @@ class HandwrittenText extends fabric.Textbox {
     const localToPageY = localY => this.top + (localY - y0)*scaleY;
     const pageToLocalY = pageY => (pageY - this.top)/scaleY + y0;
     const localToPageX = localX => this.left + (localX - x0)*scaleX;
-    const advanceLine = cyVal=>{
-      if (!hasRuled) return cyVal + lineHeight;
-      const {firstY, spacing} = currentRuledLines;
-      const pageY = localToPageY(cyVal);
-      const idx = Math.floor((pageY-firstY)/spacing + 1e-6) + 1;
-      return pageToLocalY(firstY + idx*spacing);
+    // Pauta agora dá uma inclinação PRÓPRIA por linha (computeRuledLines em
+    // editor.js) — o índice de linha vira estado incremental (lineIdx) em vez de
+    // recalculado a cada avanço a partir de Y: assim não tem risco de uma leve
+    // deriva real de espaçamento acumular erro e o texto pular/repetir uma linha
+    // no meio do bilhete.
+    let lineIdx = hasRuled ? lineIdxNearest(localToPageY(y0 + lineHeight*0.8)) : 0;
+    const advanceLine = ()=>{
+      if (!hasRuled) return cy + lineHeight;
+      lineIdx += 1;
+      return pageToLocalY(lineAt(lineIdx).y);
     };
 
     const paragraphs = (this.text||'').split(/\n+/).filter(p=>p.trim().length);
-    let cy = y0 + lineHeight*0.8;
-    if (hasRuled){
-      const {firstY, spacing} = currentRuledLines;
-      const idx = Math.round((localToPageY(cy)-firstY)/spacing);
-      cy = pageToLocalY(firstY + idx*spacing);
-    }
+    let cy = hasRuled ? pageToLocalY(lineAt(lineIdx).y) : y0 + lineHeight*0.8;
+    // Levanta o traço um pouco acima da linha detectada em vez de deixar a
+    // linha de base do glifo cravada no centro do traço azul (Max: "parece estar
+    // seguindo o centro das linhas, não escrevendo acima delas") — aplicado só no
+    // translate de desenho (abaixo), nunca em cy/lineIdx, pra não interferir na
+    // matemática de índice de linha.
+    const baselineLift = hasRuled ? persona.baseSize * 0.32 : 0;
 
     ctx.save();
     ctx.textBaseline = 'alphabetic';
@@ -121,7 +126,7 @@ class HandwrittenText extends fabric.Textbox {
       words.forEach(word=>{
         ctx.font = `${persona.baseSize}px ${persona.fonts[0]}`;
         const wWidth = ctx.measureText(word).width*persona.spacing;
-        if (cx+wWidth > x0+maxWidth && cx>x0){ cy = advanceLine(cy); cx = x0; }
+        if (cx+wWidth > x0+maxWidth && cx>x0){ cy = advanceLine(); cx = x0; }
 
         wjr = correlatedWalk(wjr, shake*0.09, 0.55, rng);
         wjy = correlatedWalk(wjy, shake*2.6, 0.55, rng);
@@ -152,17 +157,19 @@ class HandwrittenText extends fabric.Textbox {
             // atrapalha, então só o deslocamento vertical é reduzido aqui.
             foldDy = slope.dy * 14 * (hasRuled ? 0.15 : 1);
           }
-          // Inclinação da própria pauta (computeRuledLines detecta a foto levemente
-          // rotacionada, não perfeitamente plana) — desloca cada caractere conforme
-          // sua posição X real, igual o `wave` já faz, pra a linha desenhada seguir a
-          // leve diagonal da linha real em vez de ficar sempre perfeitamente horizontal.
+          // Inclinação da PRÓPRIA linha (cada linha tem a sua, não uma só pra página
+          // inteira — computeRuledLines casa left/mid/right linha a linha) — desloca
+          // cada caractere conforme sua posição X real, igual o `wave` já faz, pra a
+          // linha desenhada seguir a leve diagonal real em vez de ficar sempre
+          // perfeitamente horizontal.
           let tiltDy = 0;
-          if (hasRuled && currentRuledLines.slope){
-            tiltDy = currentRuledLines.slope * (localToPageX(ccx+cw/2) - currentRuledLines.refX) / scaleY;
+          if (hasRuled){
+            const lineSlope = lineAt(lineIdx).slope;
+            if (lineSlope) tiltDy = lineSlope * (localToPageX(ccx+cw/2) - currentRuledLines.refX) / scaleY;
           }
 
           ctx.save();
-          ctx.translate(ccx+cw/2, cy+cjy+wave+foldDy+tiltDy);
+          ctx.translate(ccx+cw/2, cy+cjy+wave+foldDy+tiltDy-baselineLift);
           ctx.rotate(persona.slant+cjr+foldRot);
           // segundo traço bem sutil, deslocado, opacidade baixa — simula tinta
           // absorvida na fibra do papel (pincelada dupla em vez de glifo chapado).
@@ -175,7 +182,7 @@ class HandwrittenText extends fabric.Textbox {
         }
         cx = ccx + spaceW;
       });
-      cy = advanceLine(cy);
+      cy = advanceLine();
     });
 
     ctx.restore();
