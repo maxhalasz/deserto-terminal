@@ -290,31 +290,55 @@ function detectLineBand(imgEl, sx, sy, sw, sh, colFrac, bandFrac){
   if (good/gapsSeq.length < 0.7) return null;
   return {peaks, spacing, rows};
 }
-/* Alinha o primeiro pico de uma faixa lateral à MESMA linha física do primeiro
-   pico da faixa do meio — bug real achado testando ao vivo: cada faixa detecta
-   picos de forma independente, e se uma faixa perde 1-2 linhas do topo (comum
-   perto da espiral do caderno, onde o sinal é mais fraco), o "primeiro pico" dela
-   pode ser a linha 3 enquanto o da faixa do meio é a linha 1 — comparar os dois
-   direto dava uma inclinação gigante e errada (~2 espaçamentos de diferença).
-   Usa o espaçamento (que é o mesmo pra todas as faixas, papel pautado é
-   paralelo) pra achar quantas linhas de diferença existem e voltar pra mesma
-   linha do meio. Validado com simulação Node reproduzindo exatamente esse caso
-   (faixas perdendo linhas diferentes) antes de entrar aqui. */
-function alignBandToMid(band, midFirstPeakRow, midSpacing){
-  const avgSpacing = (band.spacing+midSpacing)/2;
-  const k = Math.round((band.peaks[0]-midFirstPeakRow)/avgSpacing);
-  return k; // deslocamento de ÍNDICE: band.peaks[i-k] é a mesma linha física que mid.peaks[i]
+function median(arr){
+  const s = arr.slice().sort((a,b)=>a-b), n = s.length;
+  return n%2 ? s[(n-1)/2] : (s[n/2-1]+s[n/2])/2;
+}
+/* Acha o deslocamento de ÍNDICE entre uma faixa lateral e a do meio — band.peaks[i-k]
+   é a mesma linha física que mid.peaks[i]. Bug real achado testando ao vivo (2 vezes):
+   1ª vez, confiar só no PRIMEIRO pico da faixa lateral pra achar k quebrava quando essa
+   faixa perdia linhas líderes no topo (comum perto da espiral do caderno). Corrigido
+   usando o espaçamento pra estimar k a partir do 1º pico. MAS numa foto real capturada
+   ao vivo nesta sessão, o 1º pico da faixa esquerda era um ponto FANTASMA isolado (um
+   salto de ~4 espaçamentos até o próximo pico, não uma sequência de líderes perdidos) —
+   o k estimado só por ele (k=2) casava linhas erradas em TODA a página (diffs de ~80px
+   constantes), produzindo inclinação errada em quase toda linha. Corrigido de novo:
+   busca k num intervalo em volta da estimativa ingênua e escolhe o que MINIMIZA A
+   MEDIANA da diferença absoluta entre mid.peaks[i] e band.peaks[i-k] — a mediana ignora
+   o ponto fantasma isolado (é maioria de pares bons que decide), a média não ignoraria.
+   Validado com simulação Node reproduzindo esse exato caso real (peaks capturados ao
+   vivo) antes de entrar aqui: k ingênuo dava 2 (errado), k robusto dá 4 (correto). */
+function findBandOffset(mid, band){
+  const avgSpacing = (band.spacing+mid.spacing)/2;
+  const k0 = Math.round((band.peaks[0]-mid.peaks[0])/avgSpacing);
+  let bestK = k0, bestScore = Infinity;
+  for (let k=k0-4; k<=k0+4; k++){
+    const diffs = [];
+    for (let i=0;i<mid.peaks.length;i++){
+      const j = i-k;
+      if (j>=0 && j<band.peaks.length) diffs.push(Math.abs(mid.peaks[i]-band.peaks[j]));
+    }
+    if (diffs.length < Math.min(mid.peaks.length, band.peaks.length)*0.5) continue;
+    const score = median(diffs);
+    if (score < bestScore){ bestScore = score; bestK = k; }
+  }
+  return bestK;
 }
 /* computeRuledLines: uma inclinação POR LINHA, não uma única pra página inteira.
    Papel fotografado real ondula/tuerce (lombada do caderno, curvatura da folha) —
    uma inclinação global (versão anterior) não seguia isso, Max reportou "as linhas
-   do papel estão tortas". Repete o casamento left/mid/right (já validado pro 1º
-   pico) LINHA A LINHA: o deslocamento de índice k é o mesmo pra página inteira
-   (linhas são paralelas, calculado uma vez), então band.peaks[i-k] dá o par certo
-   pra cada i sem precisar recasar. Linhas sem par válido nas 3 faixas (perto da
-   borda onde uma faixa perdeu picos) caem na inclinação média das que têm.
-   Validado em simulação Node: erro de inclinação <0.004 mesmo com ondulação +
-   ruído + faixas perdendo linhas líderes diferentes. */
+   do papel estão tortas". Repete o casamento left/mid/right LINHA A LINHA: o
+   deslocamento de índice k é o mesmo pra página inteira (linhas são paralelas,
+   calculado uma vez via findBandOffset), então band.peaks[i-k] dá o par certo pra
+   cada i sem precisar recasar. Uma linha cujo par ainda assim resulta numa
+   inclinação implausível (>10°, ±0.18 — sinal de casamento pontual ruim, tipo um
+   pico fantasma isolado que sobrou mesmo com o k certo) é DESCARTADA (não
+   clampada) e cai na média das linhas boas — clampar em vez de descartar
+   mascarava o problema (ver findBandOffset) em vez de resolvê-lo. Linhas sem par
+   válido nas 3 faixas (perto da borda onde uma faixa perdeu picos) também caem na
+   inclinação média das que têm. Validado em simulação Node com dados sintéticos
+   (ondulação, ruído, líderes perdidos) E com os peaks reais capturados ao vivo
+   nesta sessão. */
 function computeRuledLines(imgEl, sx, sy, sw, sh){
   currentRuledLines = null;
   const mid = detectLineBand(imgEl, sx, sy, sw, sh, 0.5, 0.2);
@@ -325,8 +349,8 @@ function computeRuledLines(imgEl, sx, sy, sw, sh){
   const midRefX = 0.5*PAGE_W, leftRefX = 0.25*PAGE_W, rightRefX = 0.75*PAGE_W;
   const spacingPage = (mid.spacing/rows)*PAGE_H;
   if (left && right){
-    const kLeft = alignBandToMid(left, mid.peaks[0], mid.spacing);
-    const kRight = alignBandToMid(right, mid.peaks[0], mid.spacing);
+    const kLeft = findBandOffset(mid, left);
+    const kRight = findBandOffset(mid, right);
     const lines = [];
     const slopes = [];
     for (let i=0;i<mid.peaks.length;i++){
@@ -335,11 +359,11 @@ function computeRuledLines(imgEl, sx, sy, sw, sh){
       let slope = null;
       if (li>=0 && li<left.peaks.length && ri>=0 && ri<right.peaks.length){
         const leftY = (left.peaks[li]/rows)*PAGE_H, rightY = (right.peaks[ri]/rows)*PAGE_H;
+        const raw = (rightY-leftY)/(rightRefX-leftRefX);
         // trava de segurança: uma foto de mesa não devia ter mais que uns 10° de
-        // inclinação (tan(10°)≈0.176) — se o casamento de linha ainda assim errar,
-        // não deixa a inclinação virar um efeito absurdo.
-        slope = Math.max(-0.18, Math.min(0.18, (rightY-leftY)/(rightRefX-leftRefX)));
-        slopes.push(slope);
+        // inclinação (tan(10°)≈0.176) — se um casamento pontual ainda assim der
+        // mais que isso, descarta (cai no fallback de média) em vez de clampar.
+        if (Math.abs(raw) <= 0.18){ slope = raw; slopes.push(slope); }
       }
       lines.push({y: midY, slope});
     }
