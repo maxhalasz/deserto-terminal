@@ -99,22 +99,27 @@ function initCanvas(){
   canvas.on('selection:updated', updateInspector);
   canvas.on('selection:cleared', updateInspector);
   canvas.on('object:modified', ()=>{ renderLayerList(); pushHistory(); });
+  // renderLayerList só fora de operações em lote (restoringHistory): um documento de
+  // marca tem ~150 camadas, e redesenhar a lista (com miniaturas) a cada objeto
+  // adicionado seria quadrático — os chamadores em lote já chamam renderLayerList no fim.
   canvas.on('object:added', e=>{
-    renderLayerList();
+    if (!restoringHistory) renderLayerList();
     pushHistory();
     // nunca deixa o Fabric entrar no modo de edição nativo — sempre passa pelo
     // modal (cursor confiável, prévia ao vivo). Ver comentário em openTextEditor.
     const o = e.target;
-    if (o && (o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext')) o.editable = false;
+    if (o && isModalText(o)) o.editable = false;
   });
-  canvas.on('object:removed', ()=>{ renderLayerList(); pushHistory(); });
+  canvas.on('object:removed', ()=>{ if (!restoringHistory) renderLayerList(); pushHistory(); });
   canvas.on('mouse:dblclick', e=>{
     const o = e.target;
-    if (o && (o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext')) openTextEditor(o);
+    if (o && isModalText(o)) openTextEditor(o);
   });
   setZoom(0.5);
   pushHistory();
 }
+function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext'; }
+function isLockedBase(o){ return o.customType==='background' || o.customType==='brandArt'; }
 function setZoom(z){
   const el = document.getElementById('editorCanvas');
   el.parentElement.style.width = (PAGE_W*z)+'px';
@@ -540,6 +545,7 @@ function clearDoc(){
 }
 
 async function loadTemplate(name){
+  if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
   currentTemplate = name;
   const __wasRestoring = restoringHistory;
   restoringHistory = true; // carregar um template é UMA ação, não um push por objeto removido/adicionado
@@ -823,6 +829,8 @@ canvasWrap.addEventListener('drop', e=>{
 function objLabel(o){
   if (o.__labName) return o.__labName;
   if (o.customType==='background') return '📄 Papel de fundo';
+  if (o.customType==='brandArt') return '🎨 Arte do documento (travada)';
+  if (o.type==='brandtext') return '𝐓 ' + (o.text||'').replace(/\*\*|\[\[|\]\]/g,'').slice(0,20);
   if (o.customType==='stain') return '💧 Mancha';
   if (o.customType==='grunge') return '🪨 Sujeira/grunge';
   if (o.customType==='bloom') return '✨ Glow';
@@ -865,7 +873,7 @@ function renderLayerList(){
     });
     row.appendChild(nm);
 
-    if (o.customType!=='background'){
+    if (!isLockedBase(o)){
       const up = document.createElement('button'); up.textContent='↑'; up.title='Trazer pra frente';
       up.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.bringObjectForward(o); canvas.renderAll(); renderLayerList(); pushHistory(); });
       row.appendChild(up);
@@ -893,7 +901,8 @@ function renderEditorPreview(targetObj, text){
   const canvasEl = document.getElementById('editorPreview');
   const ctx = canvasEl.getContext('2d');
   ctx.clearRect(0,0,canvasEl.width,canvasEl.height);
-  ctx.fillStyle = '#efe7d0'; ctx.fillRect(0,0,canvasEl.width,canvasEl.height);
+  const lightInk = targetObj.type==='brandtext' && typeof targetObj.fill==='string' && (()=>{ const m = rgbToHex(targetObj.fill).match(/[0-9a-f]{2}/gi); return m && (parseInt(m[0],16)*0.299+parseInt(m[1],16)*0.587+parseInt(m[2],16)*0.114) > 150; })();
+  ctx.fillStyle = lightInk ? '#141a24' : '#efe7d0'; ctx.fillRect(0,0,canvasEl.width,canvasEl.height);
 
   const w = targetObj.width||300, h = Math.max(targetObj.height||300, w*0.6);
   const fitScale = Math.min(canvasEl.width/w, canvasEl.height/h) * 0.9;
@@ -902,6 +911,9 @@ function renderEditorPreview(targetObj, text){
 
   if (targetObj.type==='handwrittentext'){
     const tmp = new HandwrittenText(text||' ', {width:w, personaId:targetObj.personaId, fatigue:targetObj.fatigue, seed:targetObj.seed, fontSize:targetObj.fontSize});
+    tmp._render(ctx);
+  } else if (targetObj.type==='brandtext'){
+    const tmp = new BrandText(text||' ', targetObj.brandCloneOptions());
     tmp._render(ctx);
   } else if (targetObj.type==='redactedtext'){
     const tmp = new RedactedText(text||' ', {width:w, redactPct:targetObj.redactPct, seed:targetObj.seed, fontFamily:targetObj.fontFamily, fontSize:targetObj.fontSize, fill:targetObj.fill});
@@ -943,8 +955,10 @@ function openTextEditor(targetObj){
 }
 function closeTextEditor(){
   if (editorTarget){
+    const before = editorTarget.text;
     editorTarget.set('text', document.getElementById('editorTextarea').value);
     canvas.renderAll(); renderLayerList();
+    if (editorTarget.text !== before) pushHistory();
   }
   document.getElementById('editorModal').hidden = true;
   editorTarget = null;
@@ -963,9 +977,9 @@ document.addEventListener('keydown', e=>{
   if (tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT') return;
   const obj = canvas.getActiveObject();
   if (e.key==='Delete' || e.key==='Backspace'){
-    if (obj && obj!==cropRect && obj.customType!=='background'){ e.preventDefault(); deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); }
+    if (obj && obj!==cropRect && !isLockedBase(obj)){ e.preventDefault(); deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); }
   } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
-    if (obj){ e.preventDefault(); obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); }); }
+    if (obj && obj.customType!=='brandArt'){ e.preventDefault(); obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); }); }
   } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='z'){
     e.preventDefault(); redo();
   } else if (e.ctrlKey && e.key.toLowerCase()==='z'){
@@ -990,8 +1004,13 @@ function updateInspector(){
   body.innerHTML = '';
   switchTab('object'); // seleção pula sozinho pra aba Objeto — não precisa rolar até achar
 
-  if (obj.type==='textbox' || obj.type==='handwrittentext' || obj.type==='redactedtext'){
+  if (obj.type==='brandtext'){
+    renderBrandTextInspector(obj, body);
+  } else if (obj.type==='textbox' || obj.type==='handwrittentext' || obj.type==='redactedtext'){
     renderTextInspector(obj, body);
+  }
+  if (obj.customType==='brandArt'){
+    renderBrandArtInspector(obj, body);
   }
   if (obj.type==='image'){
     renderImageInspector(obj, body);
@@ -1001,13 +1020,15 @@ function updateInspector(){
   }
   renderLayerProps(obj, body);
 
-  const dup = document.createElement('button');
-  dup.textContent = 'Duplicar';
-  dup.addEventListener('click', ()=>{
-    obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); });
-  });
-  body.appendChild(dup);
-  if (obj.customType!=='background'){
+  if (obj.customType!=='brandArt'){
+    const dup = document.createElement('button');
+    dup.textContent = 'Duplicar';
+    dup.addEventListener('click', ()=>{
+      obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); });
+    });
+    body.appendChild(dup);
+  }
+  if (!isLockedBase(obj)){
     const del = document.createElement('button');
     del.textContent = 'Excluir'; del.className='danger';
     del.addEventListener('click', ()=>{ deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); });
@@ -1288,7 +1309,7 @@ document.getElementById('btnExport').addEventListener('click', ()=>{
   const dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
   const a = document.createElement('a');
   a.href = dataUrl;
-  a.download = `prop_${currentTemplate}_${Date.now()}.png`;
+  a.download = `prop_${currentTemplate.replace(/[^a-z0-9_-]/gi,'_')}_${Date.now()}.png`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

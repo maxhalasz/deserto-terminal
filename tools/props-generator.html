@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="vendor/fonts.css">
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
+<script src="vendor/brand/brand-index.js"></script>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:#15171b;color:#c7cdd6;font:13px/1.4 -apple-system,Segoe UI,Arial,sans-serif}
@@ -44,7 +45,9 @@
   .tabs .tabBtn.active{background:#1b1e24;color:#e8ebf0;border-color:#3a4050;border-bottom-color:#1b1e24}
   .tabPanel{display:flex;flex-direction:column;gap:10px;margin-top:-1px}
 
-  .bgModeBtn.active{background:#2c4a72;border-color:#3d6293;color:#fff}
+  .bgModeBtn.active,.sideBtn.active{background:#2c4a72;border-color:#3d6293;color:#fff}
+  .sideBtn:disabled,.bgModeBtn:disabled{opacity:.4;cursor:not-allowed}
+  #brandStatus{font-size:11px;color:#8fb0dc;margin-top:6px;min-height:14px}
 
   #layerList{display:flex;flex-direction:column;gap:2px;max-height:170px;overflow-y:auto}
   .layerRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11.5px}
@@ -102,6 +105,7 @@
 
   <div class="tabs">
     <button class="tabBtn" data-tab="doc">Documento</button>
+    <button class="tabBtn" data-tab="brand">Marcas</button>
     <button class="tabBtn" data-tab="add">Adicionar</button>
     <button class="tabBtn" data-tab="layers">Camadas</button>
     <button class="tabBtn" data-tab="object">Objeto</button>
@@ -149,6 +153,34 @@
     </fieldset>
 
     <div id="status" style="font-size:10.5px;color:#6a7080;white-space:pre-line"></div>
+  </div>
+
+  <div class="tabPanel" data-tab-panel="brand">
+    <fieldset id="brandBlock">
+      <legend>Documentos de marca</legend>
+      <div class="hint">Kelvara, NeuroStat, DRE e Ødemark com o visual exato dos mockups, prontos pra imprimir em duplex (frente e verso). A arte é travada; todo o texto continua editável (duplo clique).</div>
+      <label>Organização</label>
+      <select id="brandFamily"></select>
+      <label>Documento</label>
+      <select id="brandDoc"></select>
+      <button id="btnBrandLoad" class="primary">Carregar documento (apaga o atual)</button>
+      <div id="brandStatus"></div>
+      <div id="brandActive" style="display:none">
+        <label>Lado da folha</label>
+        <div class="grid2">
+          <button class="sideBtn" data-side="front">Frente</button>
+          <button class="sideBtn" data-side="back">Verso</button>
+        </div>
+        <div class="hint">Cada lado guarda as próprias edições e o próprio desfazer/refazer.</div>
+        <button id="btnBrandExportBoth" class="primary">⭳ Baixar frente e verso (2 PNGs)</button>
+        <div class="hint">Usa a resolução escolhida em Documento → Exportar. Imprima o verso no mesmo papel (duplex) ou vire a folha.</div>
+        <div id="brandSlotRow" style="display:none">
+          <label>Foto do cartão</label>
+          <input type="file" id="brandPhotoFile" accept="image/*">
+          <div class="hint">Encaixa a foto na moldura do cartão (recorte centralizado).</div>
+        </div>
+      </div>
+    </fieldset>
   </div>
 
   <div class="tabPanel" data-tab-panel="add">
@@ -228,5 +260,6 @@
 <script src="composites.js"></script>
 <script src="layout.js"></script>
 <script src="editor.js"></script>
+<script src="brand.js"></script>
 </body>
 </html>
