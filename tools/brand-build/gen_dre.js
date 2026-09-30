@@ -503,6 +503,99 @@ const tagBack = `<div style="${TAGROOT}">
   </div>
 </div>`;
 
+// ---------- DRE6: transcrição de gravação de áudio (Audio Lab — mesma gravação da etiqueta DRE-0447/003) ----------
+const atCols = '46px 1fr';
+const atLine = (t, txt, i, note) => `<div style="display:grid;grid-template-columns:${atCols};border-top:1px solid rgba(27,26,23,.3);${i % 2 ? 'background:rgba(0,0,0,.025);' : ''}">
+  <div style="padding:3px 6px;"><div${E} style="font-weight:700;">${t}</div></div>
+  <div style="padding:3px 6px;"><div${E} style="${note ? 'font-style:italic;' : ''}">${txt}</div></div>
+</div>`;
+const atHeadBody = `<div style="position:absolute;left:32px;right:32px;top:26px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-family:${ELITE};font-size:12px;letter-spacing:.1em;">AUDIO LABORATORY</div>
+          <div style="font-size:6.4px;letter-spacing:.07em;margin-top:2px;">DIVISION OF REALITY ENGINEERING — TECHNICAL SERVICES</div>
+        </div>
+        <div style="text-align:right;font-size:6.2px;line-height:1.7;letter-spacing:.04em;">
+          <div>FORM DRE-52 (REV. 3-95)</div><div${E}>CONTROL NO. <b>AL-98-0031</b></div><div${E}>COPY 1 OF 1</div>
+        </div>
+      </div>
+      <div style="height:1.5px;background:${INK};opacity:.7;margin-top:9px;"></div>
+      <div style="text-align:center;font-family:${ELITE};font-size:13px;letter-spacing:.34em;margin:10px 0 9px .34em;">TRANSCRIPT — AUDIO EXHIBIT</div>
+      <div style="font-size:8px;line-height:1.7;display:grid;grid-template-columns:96px 1fr 70px 1fr;">
+        <div>EXHIBIT:</div><div${E}>Case DRE-0447, Item 003</div><div>DATE PLAYED:</div><div${E}>12/98</div>
+        <div>SOURCE:</div><div${E}>Handheld recorder, magnetic tape, ~41 min unused capacity</div><div>DURATION:</div><div${E}>02:47</div>
+        <div>TRANSCRIBED BY:</div><div${E}>M. Osei, Audio Lab</div><div>EQUIPMENT:</div><div${E}>Reel deck, 3.75 ips, calibrated 11/98</div>
+      </div>
+      <div style="height:1px;background:${INK};opacity:.6;margin:8px 0 9px;"></div>
+      <div${E} style="font-size:7px;line-height:1.6;color:#3c382f;">Transcribed verbatim from the master. Non-verbal sound is noted in brackets. Playback speed and pitch unaltered from as-found condition.</div>
+    </div>`;
+const audioFront = `<div style="${ROOT}">
+  ${paperLayers('at', 601, { fox: 8, coffeeAt: [82, 80, 20, 18], folds: [33, 66] })}
+  <div style="position:absolute;inset:0;transform:rotate(-.2deg);transform-origin:50% 40%;">
+    ${atHeadBody}
+    <div style="position:absolute;left:32px;right:32px;top:230px;border:1.2px solid ${INK};">
+      <div style="display:grid;grid-template-columns:${atCols};font-weight:700;font-size:6.2px;letter-spacing:.08em;border-bottom:1.2px solid ${INK};"><div style="padding:3px 6px;">TIME</div><div style="padding:3px 6px;">CONTENT</div></div>
+      ${atLine('00:00', '[tape hiss, continuous]', 0, true)}
+      ${atLine('00:12', '[hiss continues, no change]', 1, true)}
+      ${atLine('00:24', "[a change in the hiss — not quite a tone, not quite a voice]", 0, true)}
+      ${atLine('00:41', 'VOICE (unidentified): ...four. Five. Six.', 1)}
+      ${atLine('00:58', 'VOICE: Seven. One. Two. Three.', 0)}
+      ${atLine('01:15', 'VOICE: Four. Five. Six. [restarts the count without pause]', 1)}
+      ${atLine('01:40', 'VOICE: Seven. One. Two.', 0)}
+      ${atLine('02:02', '[the count is audibly faster here than at 00:41 — see Section 2]', 1, true)}
+      ${atLine('02:19', 'VOICE: Three. Four. Five. Six.', 0)}
+    </div>
+    ${hand('counts in 7s. never says the same number twice in a row — listen close', 40, 470, { size: 12.5, rot: -2 })}
+    <div style="position:absolute;left:32px;right:32px;bottom:14px;text-align:right;font-size:6.4px;color:#4a453a;">CONTINUED OVERLEAF — 02:19 TO 02:47</div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:5.6px;letter-spacing:.14em;color:#4a453a;">DRE — INTERNAL — NOT FOR EXTERNAL DISTRIBUTION</div>
+</div>`;
+
+// ---------- DRE6 verso: continuação + notas técnicas + certificação ----------
+const audioBackBody = `<div style="position:absolute;left:32px;right:32px;top:30px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div style="font-family:${ELITE};font-size:12px;letter-spacing:.1em;">AUDIO LABORATORY</div>
+          <div style="font-size:6.2px;letter-spacing:.07em;margin-top:2px;">TRANSCRIPT — AUDIO EXHIBIT, CONTINUED</div>
+        </div>
+        <div style="text-align:right;font-size:6.2px;line-height:1.6;letter-spacing:.04em;"><div>AL-98-0031</div><div${E}>SHEET 2 OF 2</div></div>
+      </div>
+      <div style="height:1.5px;background:${INK};opacity:.7;margin-top:8px;"></div>
+
+      <div style="margin-top:9px;border:1.2px solid ${INK};">
+        <div style="display:grid;grid-template-columns:${atCols};font-weight:700;font-size:6.2px;letter-spacing:.08em;border-bottom:1.2px solid ${INK};"><div style="padding:3px 6px;">TIME</div><div style="padding:3px 6px;">CONTENT</div></div>
+        ${atLine('02:19', 'VOICE: Three. Four. Five. Six.', 0)}
+        ${atLine('02:24', '[a second voice, further back, counting out of step with the first]', 1, true)}
+        ${atLine('02:31', 'VOICE 1: Seven. VOICE 2: Two.', 0)}
+        ${atLine('02:36', '[voices overlap, no longer distinguishable as separate counts]', 1, true)}
+        ${atLine('02:44', '[abrupt silence — not a fade, a cut]', 0, true)}
+        ${atLine('02:47', '[tape continues, hiss only, unchanged to end of side]', 1, true)}
+      </div>
+      <div${E} style="margin-top:8px;font-size:6.6px;line-height:1.6;color:#3c382f;">Recording ends at 02:47 into an otherwise unused reel — approximately 38 minutes of blank tape follow. Playback was not stopped by the operator; the content simply ends.</div>
+
+      ${hand('silence at 2:44 measured 0.0dB below noise floor.<br>that is not possible with this machine running.', 40, 260, { size: 12, rot: -2 })}
+
+      <div style="margin-top:112px;font-size:6.4px;letter-spacing:.1em;font-weight:700;">TECHNICAL NOTES</div>
+      <div style="font-size:7.4px;line-height:1.62;margin-top:3px;">
+        <p${E} style="margin:0 0 6px;">Signal-to-noise ratio is consistent throughout; no evidence of splicing or post-recording alteration. Voice print does not match any entry in the DRE Sublevel audio signature library (checked against 41 references, no partial matches above threshold).</p>
+        <p${E} style="margin:0 0 6px;">Second voice at 02:24 could not be isolated for independent analysis — frequency range overlaps the first too closely for the equipment available in this lab.</p>
+        <p${E} style="margin:0;">Recommend: master retained under standard evidence control; the duplicate referenced in the chain of custody (overleaf, evidence tag) not to be played pending review by Sublevel Records.</p>
+      </div>
+
+      <div style="margin-top:10px;border:1.2px solid ${INK};padding:5px 8px;font-size:6.6px;line-height:1.55;"><div${E}>I certify that this transcript is a true and complete record of exhibit DRE-0447, Item 003, as played on the equipment noted overleaf.</div></div>
+      <div style="margin-top:8px;font-size:7.6px;">
+        <div${E} style="font-weight:700;">M. Osei</div>
+        <div${E} style="color:#4a453a;">Audio Laboratory, Division of Reality Engineering</div>
+      </div>
+      ${stamp('DO NOT REPLAY<br><span style="font-size:6px;letter-spacing:.1em;">MASTER — RECORDS AUTHORISATION REQUIRED</span>', 262, 566, -6, REDSTAMP, 8)}
+    </div>`;
+const audioBack = `<div style="${ROOT}">
+  ${paperLayers('atb', 602, { fox: 8, coffeeAt: [82, 80, 20, 18], folds: [33, 66], mirror: true })}
+  ${ghost(atHeadBody, 0)}
+  <div style="position:absolute;inset:0;transform:rotate(.2deg);transform-origin:50% 40%;">${audioBackBody}</div>
+  <div style="position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:5.6px;letter-spacing:.14em;color:#4a453a;">DRE — INTERNAL — NOT FOR EXTERNAL DISTRIBUTION</div>
+</div>`;
+
 const out = (name, title, body, meta, extra = {}) => {
   fs.writeFileSync(path.join(OUT, name), docFile(Object.assign({ title, fonts: FONTS, body }, extra)));
   register(Object.assign({ file: name, family: 'dre' }, meta));
@@ -517,4 +610,6 @@ out('DRE4_back.dc.html', 'DRE — Briefing (página 2)', briefingBack, { doc: 'd
 out('DRE4_p3.dc.html', 'DRE — Briefing (Anexo A)', briefingAnnex, { doc: 'dre_briefing', side: 'p3', label: 'Briefing classificado' }, { defs: defs('ba', 403, 10.9) });
 out('DRE5.dc.html', 'DRE — Cartão de evidência', tag, { doc: 'dre_tag', side: 'front', label: 'Etiqueta de evidência', w: 280, h: 480 }, { w: 280, h: 480, defs: grainDef('tg', 511) + speckDef('ts', 521, 10.9) });
 out('DRE5_back.dc.html', 'DRE — Cartão de evidência (verso)', tagBack, { doc: 'dre_tag', side: 'back', label: 'Etiqueta de evidência', w: 280, h: 480 }, { w: 280, h: 480, defs: grainDef('tg', 511) + speckDef('ts', 521, 10.9) });
+out('DRE6.dc.html', 'DRE — Transcrição de áudio', audioFront, { doc: 'dre_audio', side: 'front', label: 'Transcrição de gravação de áudio' }, { defs: defs('at', 601, 10.9) });
+out('DRE6_back.dc.html', 'DRE — Transcrição de áudio (verso)', audioBack, { doc: 'dre_audio', side: 'back', label: 'Transcrição de gravação de áudio' }, { defs: defs('atb', 602, 10.9) });
 console.log('dre ok');

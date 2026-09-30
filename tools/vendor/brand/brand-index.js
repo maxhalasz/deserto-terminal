@@ -45,6 +45,38 @@ window.BRAND_INDEX=[
   ]
  },
  {
+  "id": "odemark",
+  "label": "Ødemark A.",
+  "docs": [
+   {
+    "id": "od_notice",
+    "label": "Ordens de Mørketid",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "od_badge",
+    "label": "Cartão de identificação",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2,
+    "wCss": 640,
+    "hCss": 402,
+    "pageW": 1280,
+    "pageH": 804
+   }
+  ]
+ },
+ {
   "id": "neurostat",
   "label": "NeuroStat",
   "docs": [
@@ -98,16 +130,10 @@ window.BRAND_INDEX=[
     "hCss": 650,
     "pageW": 1240,
     "pageH": 1752
-   }
-  ]
- },
- {
-  "id": "odemark",
-  "label": "Ødemark A.",
-  "docs": [
+   },
    {
-    "id": "od_notice",
-    "label": "Ordens de Mørketid",
+    "id": "ns_physical",
+    "label": "Exame físico periódico",
     "sides": [
      "front",
      "back"
@@ -119,17 +145,43 @@ window.BRAND_INDEX=[
     "pageH": 1752
    },
    {
-    "id": "od_badge",
-    "label": "Cartão de identificação",
+    "id": "ns_termination",
+    "label": "Aviso de desligamento",
     "sides": [
      "front",
      "back"
     ],
-    "k": 2,
-    "wCss": 640,
-    "hCss": 402,
-    "pageW": 1280,
-    "pageH": 804
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "ns_transcript",
+    "label": "Transcrição de entrevista",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "ns_diagram",
+    "label": "Diagrama de instalação/rede",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
    }
   ]
  },
@@ -201,6 +253,19 @@ window.BRAND_INDEX=[
     "hCss": 480,
     "pageW": 840,
     "pageH": 1440
+   },
+   {
+    "id": "dre_audio",
+    "label": "Transcrição de gravação de áudio",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
    }
   ]
  }
