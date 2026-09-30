@@ -542,11 +542,9 @@ const audioFront = `<div style="${ROOT}">
       ${atLine('00:58', 'VOICE: Seven. One. Two. Three.', 0)}
       ${atLine('01:15', 'VOICE: Four. Five. Six. [restarts the count without pause]', 1)}
       ${atLine('01:40', 'VOICE: Seven. One. Two.', 0)}
-      ${atLine('02:02', '[the count is audibly faster here than at 00:41 — see Section 2]', 1, true)}
-      ${atLine('02:19', 'VOICE: Three. Four. Five. Six.', 0)}
     </div>
-    ${hand('counts in 7s. never says the same number twice in a row — listen close', 40, 470, { size: 12.5, rot: -2 })}
-    <div style="position:absolute;left:32px;right:32px;bottom:14px;text-align:right;font-size:6.4px;color:#4a453a;">CONTINUED OVERLEAF — 02:19 TO 02:47</div>
+    ${hand('counts in 7s. never says the same number twice in a row — listen close', 40, 460, { size: 12.5, rot: -2, width: 180, wrap: true })}
+    <div style="position:absolute;left:32px;right:32px;bottom:14px;text-align:right;font-size:6.4px;color:#4a453a;">CONTINUED OVERLEAF — 02:02 TO 02:47</div>
   </div>
   <div style="position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:5.6px;letter-spacing:.14em;color:#4a453a;">DRE — INTERNAL — NOT FOR EXTERNAL DISTRIBUTION</div>
 </div>`;
@@ -564,12 +562,13 @@ const audioBackBody = `<div style="position:absolute;left:32px;right:32px;top:30
 
       <div style="margin-top:9px;border:1.2px solid ${INK};">
         <div style="display:grid;grid-template-columns:${atCols};font-weight:700;font-size:6.2px;letter-spacing:.08em;border-bottom:1.2px solid ${INK};"><div style="padding:3px 6px;">TIME</div><div style="padding:3px 6px;">CONTENT</div></div>
-        ${atLine('02:19', 'VOICE: Three. Four. Five. Six.', 0)}
-        ${atLine('02:24', '[a second voice, further back, counting out of step with the first]', 1, true)}
-        ${atLine('02:31', 'VOICE 1: Seven. VOICE 2: Two.', 0)}
-        ${atLine('02:36', '[voices overlap, no longer distinguishable as separate counts]', 1, true)}
-        ${atLine('02:44', '[abrupt silence — not a fade, a cut]', 0, true)}
-        ${atLine('02:47', '[tape continues, hiss only, unchanged to end of side]', 1, true)}
+        ${atLine('02:02', '[the count is audibly faster here than at 00:41 — see Section 2]', 0, true)}
+        ${atLine('02:19', 'VOICE: Three. Four. Five. Six.', 1)}
+        ${atLine('02:24', '[a second voice, further back, counting out of step with the first]', 0, true)}
+        ${atLine('02:31', 'VOICE 1: Seven. VOICE 2: Two.', 1)}
+        ${atLine('02:36', '[voices overlap, no longer distinguishable as separate counts]', 0, true)}
+        ${atLine('02:44', '[abrupt silence — not a fade, a cut]', 1, true)}
+        ${atLine('02:47', '[tape continues, hiss only, unchanged to end of side]', 0, true)}
       </div>
       <div${E} style="margin-top:8px;font-size:6.6px;line-height:1.6;color:#3c382f;">Recording ends at 02:47 into an otherwise unused reel — approximately 38 minutes of blank tape follow. Playback was not stopped by the operator; the content simply ends.</div>
 
