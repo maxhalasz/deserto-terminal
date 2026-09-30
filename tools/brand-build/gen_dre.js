@@ -595,6 +595,189 @@ const audioBack = `<div style="${ROOT}">
   <div style="position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:5.6px;letter-spacing:.14em;color:#4a453a;">DRE — INTERNAL — NOT FOR EXTERNAL DISTRIBUTION</div>
 </div>`;
 
+// ================= DRE7: Ficha de catalogação — Componente de Anomalia Contida (ARC) =================
+// Canon real da DRE (wiki, colada pelo Max 2026-10-01): organização apagada em 1991, documentação
+// não passa disso — os documentos DRE já publicados (memo/ficha/briefing/terminal, datados 2009-2010)
+// contrariam esse canon e ficam como pendência de retcon registrada em memória; tudo NOVO da DRE a
+// partir daqui respeita 1991 como corte.
+const classBanner = (label, sub) => `<div style="border:2px solid ${INK};text-align:center;padding:4px 0;"><div style="font-family:${ELITE};font-size:13px;letter-spacing:.2em;">${label}</div>${sub ? `<div style="font-size:5.6px;letter-spacing:.1em;margin-top:1px;">${sub}</div>` : ''}</div>`;
+const arcPhotoBox = `<div style="width:92px;height:92px;border:1px solid ${INK};overflow:hidden;position:relative;"><div data-slot="photo" style="position:absolute;inset:0;background:linear-gradient(145deg,#8f8a7c,#6e6a5e);filter:grayscale(1) contrast(1.05);"></div></div>
+  <div style="font-size:5.2px;text-align:center;margin-top:3px;letter-spacing:.06em;">ITEM PHOTOGRAPH</div>`;
+const arcCardBody = `<div style="position:absolute;left:24px;top:26px;width:140px;height:16px;border:1.5px solid ${INK};border-bottom:none;border-radius:6px 6px 0 0;background:rgba(255,255,255,.14);font-size:7px;letter-spacing:.1em;padding:3px 8px;font-weight:700;"><div${E}>ARC-0891</div></div>
+    <div style="position:absolute;left:24px;right:24px;top:41px;border:1.5px solid ${INK};padding:12px 14px 14px;background:rgba(255,255,255,.10);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div style="font-family:${ELITE};font-size:13px;letter-spacing:.12em;">ARC CATALOG ENTRY</div>
+          <div style="font-size:6.4px;letter-spacing:.09em;margin-top:2px;">DIVISION OF REALITY ENGINEERING — ARCHIVES SECTOR</div>
+        </div>
+        <div style="text-align:right;font-size:6px;line-height:1.6;letter-spacing:.05em;"><div>FORM DRE-63 (REV. 1-88)</div><div${E}><b>COPY 1 OF 2</b></div></div>
+      </div>
+      <div style="height:1.5px;background:${INK};margin:8px 0 8px;opacity:.7;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+        <div>${classBanner('ARC', 'ANOMALOUS RETAINED COMPONENT')}</div>
+        <div><div style="font-size:5.6px;letter-spacing:.08em;font-weight:700;margin-bottom:2px;">TOLERANCE</div><div style="font-size:6.6px;line-height:1.7;">${cboxD(false)}T0 — INERT<br>${cboxD(true)}T1 — CONTAINED<br>${cboxD(false)}T2 — CONST. MAINT.<br>${cboxD(false)}T3 — UNCONTAINED</div></div>
+        <div><div style="font-size:5.6px;letter-spacing:.08em;font-weight:700;margin-bottom:2px;">CLEARANCE REQ.</div><div style="font-size:6.8px;">${cboxD(false)}1 ${cboxD(false)}2 ${cboxD(true)}3 ${cboxD(false)}4 ${cboxD(false)}5</div><div style="font-size:5.6px;letter-spacing:.08em;font-weight:700;margin:6px 0 2px;">CLASS AUTH.</div><div style="font-size:6.6px;">${cboxD(true)}CONTACT<br>${cboxD(false)}EXPOSURE</div></div>
+      </div>
+
+      <div style="margin-top:9px;display:grid;grid-template-columns:1fr 92px;gap:12px;">
+        <div>
+          ${fld('DESIGNATION', 'Recording device, unknown origin')}
+          ${fld('DIMENSIONS', 'approx. 18 × 9 × 4 cm')}
+          ${fld('MATERIAL', 'Bakelite housing, steel reel mechanism')}
+          ${fld('RECOVERED FROM', 'Sublevel — Access Corridor C')}
+          ${fld('RECOVERY DATE', '09 / 11 / 88')}
+          ${fld('RECOVERY TEAM', 'Equipe Sudário')}
+          ${fld('STATUS', 'CONTAINED — VAULT 4')}
+        </div>
+        <div>${arcPhotoBox}</div>
+      </div>
+
+      <div style="margin-top:10px;font-size:6.2px;letter-spacing:.09em;font-weight:700;">ANOMALOUS EFFECT</div>
+      <div${E} style="font-size:7.4px;line-height:1.6;margin-top:3px;">Recovered still running on dead batteries. Recorded material (see cross-reference, overleaf) does not correspond to any known broadcast, transmission or prior authorised use of the device. Playback of the duplicate has not been authorised. No anomalous effect has been observed from the housing itself; effect, if any, is believed to reside in the recorded material rather than the object.</div>
+
+      <div style="margin-top:9px;font-size:6.2px;letter-spacing:.09em;font-weight:700;">HANDLING / CONTAINMENT NOTES</div>
+      <div${E} style="font-size:7.2px;line-height:1.55;margin-top:3px;">Store sealed, Vault 4. Master and duplicate not to be played outside Audio Laboratory. Personnel handling this item are not to discuss its contents outside the secure channel, including with Classe de Contato staff not assigned to the case.</div>
+    </div>
+    ${hand('why did it keep running? batteries logged dead on recovery.', 34, 566, { size: 12, rot: -2 })}
+    ${stamp('CATALOGUED', 298, 24, 4, '#3b3a35', 8)}`;
+const arcCard = `<div style="${ROOT}">
+  ${paperLayers('ar', 701, { fox: 10, coffeeAt: [18, 86, 20, 18], folds: [50] })}
+  ${faxLine('DEC-02-1988 09:14     FROM: DRE RECORDS     TO: SETOR DE ARQUIVOS     P.01')}
+  <div style="position:absolute;inset:0;transform:rotate(.2deg);transform-origin:50% 40%;">${arcCardBody}</div>
+</div>`;
+
+const arcCols = '48px 1fr 66px 56px';
+const arcRow = (a, b, c, d) => `<div style="display:grid;grid-template-columns:${arcCols};border-top:1px solid rgba(27,26,23,.3);"><div style="padding:3px 6px;"><div${E}>${a}</div></div><div style="padding:3px 6px;"><div${E}>${b}</div></div><div style="padding:3px 6px;"><div${E}>${c}</div></div><div style="padding:3px 6px;"><div${E}>${d}</div></div></div>`;
+const arcHead = (labels) => `<div style="display:grid;grid-template-columns:${arcCols};font-weight:700;font-size:6px;letter-spacing:.08em;border-bottom:1.2px solid ${INK};">${labels.map(l => `<div style="padding:3px 6px;">${l}</div>`).join('')}</div>`;
+const arcBackBody = `<div style="position:absolute;left:24px;right:24px;top:30px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div style="font-family:${ELITE};font-size:12px;letter-spacing:.12em;">ARC CATALOG ENTRY — CONTINUED</div>
+          <div style="font-size:6.2px;letter-spacing:.09em;margin-top:2px;">DIVISION OF REALITY ENGINEERING — ARCHIVES SECTOR</div>
+        </div>
+        <div style="text-align:right;font-size:6px;line-height:1.6;letter-spacing:.05em;"><div>ARC-0891</div><div${E}>SHEET 2 OF 2</div></div>
+      </div>
+      <div style="height:1.5px;background:${INK};margin-top:8px;opacity:.7;"></div>
+
+      ${hsec('STORAGE &amp; REVIEW LOG')}
+      <div style="border:1.2px solid ${INK};background:rgba(255,255,255,.08);">
+        ${arcHead(['DATE', 'FACILITY / SECTION', 'REVIEWED BY', 'NEXT'])}
+        ${arcRow('09/1988', 'Complexo Heisenberg — Setor de Contenção', 'L. Häuser', '03/1989')}
+        ${arcRow('03/1989', 'Complexo Heisenberg — Setor de Contenção', 'L. Häuser', '09/1989')}
+        ${arcRow('09/1989', 'Transferred — Setor de Arquivos, Vault 4', 'Dra. E. Voss', '09/1990')}
+        ${arcRow('09/1990', 'Setor de Arquivos, Vault 4', 'Dra. E. Voss', '—')}
+      </div>
+      <div${E} style="margin-top:4px;font-size:6.4px;color:#4a453a;">No scheduled review logged after 09/1990.</div>
+
+      ${hsec('ASSOCIATED TELOS')}
+      <div${E} style="font-size:7.4px;line-height:1.6;">None. No research programme was opened against this item — Setor de Norma declined the case on the grounds that the anomalous property, if any, could not be isolated from the housing.</div>
+
+      ${hsec('CROSS-REFERENCE')}
+      <div${E} style="font-size:7.4px;line-height:1.6;">Recorded material — Audio Laboratory transcript, Control No. AL-88-0031 (attached under separate cover, Setor de Arquivos access only).</div>
+
+      ${hand('ask Records why this was never escalated to Correlação', 36, 380, { size: 12.5, rot: -2 })}
+
+      <div style="margin-top:100px;display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:5.8px;color:#4a453a;">
+        <div style="border-top:1px solid ${INK};padding-top:3px;">CURADORIA — SIGNATURE / DATE</div>
+        <div style="border-top:1px solid ${INK};padding-top:3px;">SETOR DE ARQUIVOS — SIGNATURE / DATE</div>
+      </div>
+    </div>`;
+const arcCardBack = `<div style="${ROOT}">
+  ${paperLayers('arb', 702, { fox: 10, coffeeAt: [18, 86, 20, 18], folds: [50], mirror: true })}
+  ${ghost(arcCardBody)}
+  ${faxLine('DEC-02-1988 09:14     FROM: DRE RECORDS     TO: SETOR DE ARQUIVOS     P.02')}
+  <div style="position:absolute;inset:0;transform:rotate(-.2deg);transform-origin:50% 40%;">${arcBackBody}</div>
+</div>`;
+
+// ================= DRE8: Ficha de catalogação de Anomalia =================
+// Visual deliberadamente diferente da ARC (objeto): banner de classificação grande no topo em vez de
+// caixa de número de controle, bandeira dupla DRE/SUBLEVEL como no briefing, mais "alarme" que "catálogo".
+const anomSec = (t) => `<div style="font-family:${ELITE};font-size:7px;letter-spacing:.1em;border-bottom:1px solid ${INK};padding-bottom:2px;margin:9px 0 4px;">${t}</div>`;
+const anomClassRow = (active) => {
+  const types = ['AWE', 'ARC', 'BLOOM', 'EIDOLON', 'BREACH', 'NOETIC', 'APEIRON', 'TELOS'];
+  return `<div style="display:grid;grid-template-columns:repeat(8,1fr);border:1.5px solid ${INK};">${types.map((t, i) => `<div style="padding:4px 2px;text-align:center;font-family:${ELITE};font-size:5.6px;letter-spacing:.02em;${t === active ? `background:${INK};color:#e8dfc4;` : ''}${i < types.length - 1 ? `border-right:1px solid ${INK};` : ''}">${t}</div>`).join('')}</div>`;
+};
+const anomalyBody = `<div style="position:absolute;left:30px;right:30px;top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-family:${ELITE};font-size:13px;letter-spacing:.14em;">ANOMALY CATALOG ENTRY</div>
+            <div${E} style="font-size:9px;font-weight:700;margin-top:2px;">Recurrent Numerical Intrusion — Minor</div>
+          </div>
+          <div style="text-align:right;font-size:6px;line-height:1.7;letter-spacing:.04em;"><div>FORM DRE-64 (REV. 1-88)</div><div${E}><b>ANOM-0447</b></div><div${E}>COPY 1 OF 1</div></div>
+        </div>
+        <div style="height:1.5px;background:${INK};opacity:.7;margin:8px 0 7px;"></div>
+
+        <div style="font-size:5.6px;letter-spacing:.08em;font-weight:700;margin-bottom:2px;">CLASSIFICATION</div>
+        ${anomClassRow('NOETIC')}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:7px;">
+          <div style="border:1px solid ${INK};padding:4px 7px;"><div style="font-size:5.4px;letter-spacing:.08em;font-weight:700;">AWE CLASS (IF APPLICABLE)</div><div style="font-size:6.8px;margin-top:2px;">${cboxD(false)}1 ${cboxD(false)}2 ${cboxD(false)}3 ${cboxD(false)}4 <span style="color:#7a7462;">— N/A</span></div></div>
+          <div style="border:1px solid ${INK};padding:4px 7px;"><div style="font-size:5.4px;letter-spacing:.08em;font-weight:700;">TOLERANCE</div><div style="font-size:6.8px;margin-top:2px;">${cboxD(true)}T0 ${cboxD(false)}T1 ${cboxD(false)}T2 ${cboxD(false)}T3</div></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:70px 1fr 66px 1fr;font-size:7px;line-height:1.75;margin-top:9px;">
+          <div>FIRST OBSERVED:</div><div${E}>03 / 1989</div><div>LOCATION:</div><div${E}>Complexo Heisenberg — Setor Erebo</div>
+          <div>REPORTED BY:</div><div${E}>Dr. A. Mühler</div><div>STATUS:</div><div${E} style="font-weight:700;">CLOSED — UNCORRELATED</div>
+        </div>
+        <div style="height:1px;background:${INK};opacity:.5;margin:8px 0 9px;"></div>
+
+        ${anomSec('ORIGIN EVENT')}
+        <div${E} style="font-size:7.4px;line-height:1.55;">Three junior researchers assigned to the same shift independently reported counting behaviour they could not account for — steps, dial readings, page numbers. None associated it with the others' reports until routine correlation flagged the pattern.</div>
+
+        ${anomSec('BEHAVIORAL PROFILE')}
+        <div${E} style="font-size:7.4px;line-height:1.55;">Subjects describe the count as continuing without their attention and resuming ahead of where they left off. No physical trigger identified. Effect did not spread to personnel outside the original three. No recurrence after reassignment off Setor Erebo.</div>
+
+        ${anomSec('CONTAINMENT PROTOCOL')}
+        <div${E} style="font-size:7.4px;line-height:1.55;">None required at this tolerance. Subjects reassigned, monitored six months, discharged from observation. Filed for correlation; insufficient data to open a standing case at this time.</div>
+      </div>
+      ${hand("3 unrelated? check the other Erebo shifts before filing closed.", 36, 486, { size: 12.5, rot: -2 })}`;
+const anomaly = `<div style="${ROOT}">
+  ${paperLayers('an', 703, { fox: 9, coffeeAt: [84, 82, 20, 18], folds: [33, 66] })}
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+    ${banner4('DRE — SUBLEVEL ONLY // NOT FOR EXTERNAL DISTRIBUTION')}
+    <div style="position:relative;flex:1;transform:rotate(-.2deg);">${anomalyBody}</div>
+    ${banner4('DRE — SUBLEVEL ONLY // NOT FOR EXTERNAL DISTRIBUTION')}
+  </div>
+</div>`;
+
+const aiCols = '52px 1fr 70px';
+const aiRow = (a, b, c) => `<div style="display:grid;grid-template-columns:${aiCols};border-top:1px solid rgba(27,26,23,.3);"><div style="padding:3px 6px;"><div${E}>${a}</div></div><div style="padding:3px 6px;"><div${E}>${b}</div></div><div style="padding:3px 6px;"><div${E}>${c}</div></div></div>`;
+const aiHead = (labels) => `<div style="display:grid;grid-template-columns:${aiCols};font-weight:700;font-size:6px;letter-spacing:.08em;border-bottom:1.2px solid ${INK};">${labels.map(l => `<div style="padding:3px 6px;">${l}</div>`).join('')}</div>`;
+const anomalyBackBody = `<div style="position:absolute;left:30px;right:30px;top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <div${E} style="font-family:${ELITE};font-size:11px;letter-spacing:.14em;">ANOMALY ENTRY — CONTINUED</div>
+          <div${E} style="font-size:7px;"><b>ANOM-0447</b> · SHEET 2 OF 2</div>
+        </div>
+        <div style="height:1.5px;background:${INK};opacity:.7;margin:7px 0 9px;"></div>
+
+        ${anomSec('ASSOCIATED INCIDENTS')}
+        <div style="border:1.2px solid ${INK};background:rgba(255,255,255,.08);">
+          ${aiHead(['DATE', 'SUBJECT', 'DISPOSITION'])}
+          ${aiRow('03/1989', 'Researcher A — Setor Erebo', 'Reassigned, monitored 6 mo., discharged')}
+          ${aiRow('03/1989', 'Researcher B — Setor Erebo', 'Reassigned, monitored 6 mo., discharged')}
+          ${aiRow('04/1989', 'Researcher C — Setor Erebo', 'Reassigned, monitored 6 mo., discharged')}
+        </div>
+
+        ${anomSec('PERSONNEL EXPOSURE')}
+        <div${E} style="font-size:7.4px;line-height:1.55;">All three subjects Classe de Contato, Liberação 2. No Classe de Exposição personnel used. No injury, no further intervention requested by Setor de Psicoanálise after discharge.</div>
+
+        ${anomSec('CROSS-REFERENCE')}
+        <div${E} style="font-size:7.4px;line-height:1.55;">None filed at time of closure. Setor de Correlação access log (not reproduced here) shows this record was pulled and reviewed twice after 1990 — no note attached either time explaining why.</div>
+
+        <div style="margin-top:14px;display:flex;justify-content:space-between;font-size:6.6px;">
+          <div${E}>ENTERED BY: <b>Records, Setor de Arquivos</b></div><div>REVIEWED: ______ / ______</div>
+        </div>
+      </div>
+      ${hand('pulled twice, no note. by who?', 260, 380, { font: 'Reenie Beanie', size: 17, color: '#7a1c1c', rot: 4 })}
+      ${stamp('UNCORRELATED<br><span style="font-size:6px;letter-spacing:.1em;">CLOSED — SEE REMARKS</span>', 268, 470, -6, '#3b3a35', 8)}`;
+const anomalyBack = `<div style="${ROOT}">
+  ${paperLayers('anb', 704, { fox: 9, coffeeAt: [84, 82, 20, 18], folds: [33, 66], mirror: true })}
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+    ${banner4('DRE — SUBLEVEL ONLY // NOT FOR EXTERNAL DISTRIBUTION')}
+    <div style="position:relative;flex:1;transform:rotate(.2deg);">${anomalyBackBody}</div>
+    ${banner4('DRE — SUBLEVEL ONLY // NOT FOR EXTERNAL DISTRIBUTION')}
+  </div>
+</div>`;
+
 const out = (name, title, body, meta, extra = {}) => {
   fs.writeFileSync(path.join(OUT, name), docFile(Object.assign({ title, fonts: FONTS, body }, extra)));
   register(Object.assign({ file: name, family: 'dre' }, meta));
@@ -611,4 +794,8 @@ out('DRE5.dc.html', 'DRE — Cartão de evidência', tag, { doc: 'dre_tag', side
 out('DRE5_back.dc.html', 'DRE — Cartão de evidência (verso)', tagBack, { doc: 'dre_tag', side: 'back', label: 'Etiqueta de evidência', w: 280, h: 480 }, { w: 280, h: 480, defs: grainDef('tg', 511) + speckDef('ts', 521, 10.9) });
 out('DRE6.dc.html', 'DRE — Transcrição de áudio', audioFront, { doc: 'dre_audio', side: 'front', label: 'Transcrição de gravação de áudio' }, { defs: defs('at', 601, 10.9) });
 out('DRE6_back.dc.html', 'DRE — Transcrição de áudio (verso)', audioBack, { doc: 'dre_audio', side: 'back', label: 'Transcrição de gravação de áudio' }, { defs: defs('atb', 602, 10.9) });
+out('DRE7.dc.html', 'DRE — Ficha de catalogação de artefato (ARC)', arcCard, { doc: 'dre_arc', side: 'front', label: 'Ficha de catalogação — artefato (ARC)' }, { defs: defs('ar', 701, 10.9) });
+out('DRE7_back.dc.html', 'DRE — Ficha ARC (verso)', arcCardBack, { doc: 'dre_arc', side: 'back', label: 'Ficha de catalogação — artefato (ARC)' }, { defs: defs('arb', 702, 10.9) });
+out('DRE8.dc.html', 'DRE — Ficha de catalogação de anomalia', anomaly, { doc: 'dre_anomaly', side: 'front', label: 'Ficha de catalogação — anomalia' }, { defs: defs('an', 703, 10.9) });
+out('DRE8_back.dc.html', 'DRE — Ficha de anomalia (verso)', anomalyBack, { doc: 'dre_anomaly', side: 'back', label: 'Ficha de catalogação — anomalia' }, { defs: defs('anb', 704, 10.9) });
 console.log('dre ok');

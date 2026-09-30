@@ -1,4 +1,4 @@
-window.BRAND_VERSION=1790809376697;
+window.BRAND_VERSION=1790810975344;
 window.BRAND_INDEX=[
  {
   "id": "kelvara",
@@ -258,6 +258,32 @@ window.BRAND_INDEX=[
    {
     "id": "dre_audio",
     "label": "Transcrição de gravação de áudio",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_arc",
+    "label": "Ficha de catalogação — artefato (ARC)",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_anomaly",
+    "label": "Ficha de catalogação — anomalia",
     "sides": [
      "front",
      "back"
