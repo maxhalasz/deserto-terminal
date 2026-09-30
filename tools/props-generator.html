@@ -46,7 +46,7 @@
   .tabs .tabBtn.active{background:#1b1e24;color:#e8ebf0;border-color:#3a4050;border-bottom-color:#1b1e24}
   .tabPanel{display:flex;flex-direction:column;gap:10px;margin-top:-1px}
 
-  .bgModeBtn.active,.sideBtn.active{background:#2c4a72;border-color:#3d6293;color:#fff}
+  .bgModeBtn.active,.sideBtn.active,.netLinkModeBtn.active{background:#2c4a72;border-color:#3d6293;color:#fff}
   .sideBtn:disabled,.bgModeBtn:disabled{opacity:.4;cursor:not-allowed}
   #brandStatus{font-size:11px;color:#8fb0dc;margin-top:6px;min-height:14px}
   .loreSec{margin-top:8px}
@@ -201,7 +201,10 @@
         <button id="btnAddWatermark">+ Marca d'água</button>
         <button id="btnAddBarcode">+ Código de barras</button>
         <button id="btnAddPhotoPlaceholder">+ Placeholder de foto</button>
+        <button id="btnAddNetNode">+ Nó de rede</button>
+        <button id="btnNetLinkModeAdd" class="netLinkModeBtn">🔗 Modo de ligação</button>
       </div>
+      <div class="hint">Nó de rede: caixa + rótulo (duplo clique edita), arraste pra mover/redimensionar. Modo de ligação: clique em dois nós em sequência pra conectar.</div>
       <label>Imagem (arquivo local)</label>
       <input type="file" id="fileAddImage" accept="image/*">
       <div class="hint">Também dá pra arrastar uma imagem direto pro canvas.</div>
@@ -266,6 +269,7 @@
 <script src="filters.js"></script>
 <script src="filter-panel.js"></script>
 <script src="composites.js"></script>
+<script src="network-diagram.js"></script>
 <script src="layout.js"></script>
 <script src="editor.js"></script>
 <script src="brand.js"></script>

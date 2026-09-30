@@ -37,7 +37,7 @@ let currentNewsLayout = null;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB'];
 let history = [];
 let historyIndex = -1;
 let restoringHistory = false;
@@ -115,6 +115,10 @@ function initCanvas(){
     const o = e.target;
     if (o && isModalText(o)) openTextEditor(o);
   });
+  canvas.on('mouse:down', e=>{ if (typeof networkLinkModeClick==='function') networkLinkModeClick(e); });
+  canvas.on('object:moving', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
+  canvas.on('object:scaling', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
+  canvas.on('object:modified', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
   setZoom(0.5);
   pushHistory();
 }
@@ -810,6 +814,11 @@ document.getElementById('btnAddWatermark').addEventListener('click', ()=>{
   const t = makeWatermarkText('CONFIDENTIAL', {left:PAGE_W/2, top:PAGE_H/2, width:PAGE_W*0.8});
   canvas.add(t); canvas.setActiveObject(t); canvas.renderAll();
 });
+document.getElementById('btnAddNetNode').addEventListener('click', ()=>{
+  const [box, label] = makeNetworkNode({left:PAGE_W/2, top:PAGE_H/2, title:'NODE', sub:'', stroke:'#2c4a72'});
+  canvas.add(box); canvas.add(label); canvas.setActiveObject(box); canvas.renderAll();
+});
+document.getElementById('btnNetLinkModeAdd').addEventListener('click', ()=>toggleNetworkLinkMode());
 
 function loadImageFileToCanvas(file, atPoint){
   const reader = new FileReader();
@@ -853,6 +862,9 @@ function objLabel(o){
   if (o.customType==='stampBorder') return '▭ Moldura do carimbo';
   if (o.customType==='stampGrain') return '🩸 Textura de tinta';
   if (o.customType==='watermark') return "💧 Marca d'água";
+  if (o.customType==='netNode') return '▭ Nó de rede';
+  if (o.customType==='netNodeLabel') return '▭ Rótulo do nó';
+  if (o.customType==='netLink') return '— Ligação';
   if (o.customType==='barcode') return '▮ Código de barras';
   if (o.customType==='photoPlaceholder') return '🖼 Placeholder de foto';
   if (o.customType==='photo') return '🖼 Foto';
@@ -1035,6 +1047,9 @@ function updateInspector(){
   }
   if (obj.customType==='background'){
     renderBackgroundInspector(obj, body);
+  }
+  if (obj.customType==='netNode' || obj.customType==='netLink'){
+    renderNetworkInspector(obj, body);
   }
   renderLayerProps(obj, body);
 
@@ -1275,6 +1290,31 @@ function renderImageInspector(obj, body){
   body.appendChild(bloomBtn);
 }
 
+function renderNetworkInspector(obj, body){
+  if (obj.customType==='netLink'){
+    const lab = document.createElement('label'); lab.className='inline';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!obj.strokeDashArray;
+    cb.addEventListener('change', ()=>{ obj.set('strokeDashArray', cb.checked ? [4,3] : null); canvas.renderAll(); pushHistory(); });
+    lab.appendChild(cb); lab.appendChild(document.createTextNode(' Linha tracejada (backup/baixa banda)'));
+    body.appendChild(lab);
+    const colorLab = document.createElement('label'); colorLab.textContent='Cor';
+    const colorInp = document.createElement('input'); colorInp.type='color'; colorInp.value = rgbToHex(obj.stroke);
+    colorInp.addEventListener('input', ()=>{ obj.set('stroke', colorInp.value); canvas.renderAll(); });
+    body.appendChild(colorLab); body.appendChild(colorInp);
+    const hint = document.createElement('div'); hint.className='hint'; hint.textContent = 'Ligação entre dois nós — some sozinha se um dos dois for apagado.';
+    body.appendChild(hint);
+    return;
+  }
+  const lab = document.createElement('label'); lab.textContent='Cor da borda';
+  const colorInp = document.createElement('input'); colorInp.type='color'; colorInp.value = rgbToHex(obj.stroke);
+  colorInp.addEventListener('input', ()=>{ obj.set('stroke', colorInp.value); canvas.renderAll(); });
+  body.appendChild(lab); body.appendChild(colorInp);
+  const hint = document.createElement('div'); hint.className='hint'; hint.textContent = 'Arraste pra mover/redimensionar. O rótulo acompanha sozinho. Duplo clique no texto pra editar.';
+  body.appendChild(hint);
+  const linkBtn = document.createElement('button'); linkBtn.className='netLinkModeBtn'; linkBtn.textContent='🔗 Ligar a outro nó';
+  linkBtn.addEventListener('click', ()=>toggleNetworkLinkMode());
+  body.appendChild(linkBtn);
+}
 function renderBackgroundInspector(obj, body){
   const lab = document.createElement('div'); lab.className='hint'; lab.textContent='Papel de fundo';
   body.appendChild(lab);

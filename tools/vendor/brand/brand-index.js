@@ -1,4 +1,4 @@
-window.BRAND_VERSION=1790810975344;
+window.BRAND_VERSION=1790811590952;
 window.BRAND_INDEX=[
  {
   "id": "kelvara",
@@ -42,6 +42,148 @@ window.BRAND_INDEX=[
     "hCss": 650,
     "pageW": 1240,
     "pageH": 1752
+   }
+  ]
+ },
+ {
+  "id": "dre",
+  "label": "DRE",
+  "docs": [
+   {
+    "id": "dre_memo",
+    "label": "Memorando datilografado",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_personnel",
+    "label": "Ficha de pessoal",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_terminal",
+    "label": "Impressão de terminal",
+    "sides": [
+     "front"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_briefing",
+    "label": "Briefing classificado",
+    "sides": [
+     "front",
+     "back",
+     "p3"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_tag",
+    "label": "Etiqueta de evidência",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 3,
+    "wCss": 280,
+    "hCss": 480,
+    "pageW": 840,
+    "pageH": 1440
+   },
+   {
+    "id": "dre_audio",
+    "label": "Transcrição de gravação de áudio",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_arc",
+    "label": "Ficha de catalogação — artefato (ARC)",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "dre_anomaly",
+    "label": "Ficha de catalogação — anomalia",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   }
+  ]
+ },
+ {
+  "id": "odemark",
+  "label": "Ødemark A.",
+  "docs": [
+   {
+    "id": "od_notice",
+    "label": "Ordens de Mørketid",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "od_badge",
+    "label": "Cartão de identificação",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2,
+    "wCss": 640,
+    "hCss": 402,
+    "pageW": 1280,
+    "pageH": 804
    }
   ]
  },
@@ -151,139 +293,10 @@ window.BRAND_INDEX=[
     "hCss": 650,
     "pageW": 1240,
     "pageH": 1752
-   }
-  ]
- },
- {
-  "id": "odemark",
-  "label": "Ødemark A.",
-  "docs": [
-   {
-    "id": "od_notice",
-    "label": "Ordens de Mørketid",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
    },
    {
-    "id": "od_badge",
-    "label": "Cartão de identificação",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2,
-    "wCss": 640,
-    "hCss": 402,
-    "pageW": 1280,
-    "pageH": 804
-   }
-  ]
- },
- {
-  "id": "dre",
-  "label": "DRE",
-  "docs": [
-   {
-    "id": "dre_memo",
-    "label": "Memorando datilografado",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
-   },
-   {
-    "id": "dre_personnel",
-    "label": "Ficha de pessoal",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
-   },
-   {
-    "id": "dre_terminal",
-    "label": "Impressão de terminal",
-    "sides": [
-     "front"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
-   },
-   {
-    "id": "dre_briefing",
-    "label": "Briefing classificado",
-    "sides": [
-     "front",
-     "back",
-     "p3"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
-   },
-   {
-    "id": "dre_tag",
-    "label": "Etiqueta de evidência",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 3,
-    "wCss": 280,
-    "hCss": 480,
-    "pageW": 840,
-    "pageH": 1440
-   },
-   {
-    "id": "dre_audio",
-    "label": "Transcrição de gravação de áudio",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
-   },
-   {
-    "id": "dre_arc",
-    "label": "Ficha de catalogação — artefato (ARC)",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
-   },
-   {
-    "id": "dre_anomaly",
-    "label": "Ficha de catalogação — anomalia",
+    "id": "ns_audio",
+    "label": "Transcrição automática de áudio",
     "sides": [
      "front",
      "back"

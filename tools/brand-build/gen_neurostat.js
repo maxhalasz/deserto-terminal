@@ -402,21 +402,6 @@ const psychBack = `<div style="${ROOT}">
 
 // ---------- Exame físico periódico — frente ----------
 const vit = (label, val) => `<div style="border-right:1px solid ${NAVY};border-bottom:1px solid ${NAVY};padding:3px 5px;"><div style="font-size:4.6px;letter-spacing:.07em;color:${GRAYB};font-weight:700;">${label}</div><div${E} style="font-size:7.4px;font-family:${MONO};font-weight:700;margin-top:1px;">${val}</div></div>`;
-const bodyDiagram = (marks) => `<svg width="100%" viewBox="0 0 412 150" xmlns="http://www.w3.org/2000/svg" style="display:block;">
-  <text x="62" y="10" text-anchor="middle" font-family="Roboto Condensed, sans-serif" font-size="6.5" font-weight="700" fill="${NAVY}" letter-spacing="1">ANTERIOR</text>
-  <text x="290" y="10" text-anchor="middle" font-family="Roboto Condensed, sans-serif" font-size="6.5" font-weight="700" fill="${NAVY}" letter-spacing="1">POSTERIOR</text>
-  <g stroke="${NAVY}" stroke-width="0.9" fill="none">
-    <circle cx="62" cy="24" r="9"/>
-    <path d="M62 33 L62 78 M40 45 Q62 40 84 45 M62 78 Q44 80 40 118 M62 78 Q80 80 84 118 M40 118 L38 140 M84 118 L86 140"/>
-    <path d="M48 44 L44 90 M76 44 L80 90"/>
-  </g>
-  <g stroke="${NAVY}" stroke-width="0.9" fill="none">
-    <circle cx="290" cy="24" r="9"/>
-    <path d="M290 33 L290 78 M268 45 Q290 40 312 45 M290 78 Q272 80 268 118 M290 78 Q308 80 312 118 M268 118 L266 140 M312 118 L314 140"/>
-    <path d="M276 44 L272 90 M304 44 L308 90"/>
-  </g>
-  ${marks.map((m, i) => `<circle cx="${m.x}" cy="${m.y}" r="3.4" fill="none" stroke="${ORANGE_NS}" stroke-width="1"/><text x="${m.x + (m.lx || 8)}" y="${m.y + (m.ly || 2)}" font-family="Courier Prime, monospace" font-size="5.2" fill="${ORANGE_NS}" font-weight="700">${i + 1}</text>`).join('')}
-</svg>`;
 const ORANGE_NS = '#a13a12';
 const finding = (n, t) => `<div style="display:flex;gap:5px;margin-bottom:3px;"><div style="font-family:${MONO};font-weight:700;font-size:6.4px;color:${ORANGE_NS};flex-shrink:0;">${n}</div><div${E} style="flex:1;font-size:7px;line-height:1.45;">${t}</div></div>`;
 const physical = `<div style="${ROOT}">
@@ -435,14 +420,11 @@ const physical = `<div style="${ROOT}">
       ${vit('O2 SAT', '98%')}${vit('WEIGHT', '81.4 kg')}${vit('HEIGHT', '179 cm')}${vit('BMI', '25.4')}
     </div>
 
-    ${secHead('2', 'EXAMINATION — SEE NUMBERED FINDINGS')}
-    <div style="border:1px solid ${NAVY};padding:6px 8px 4px;background:#fff;">
-      ${bodyDiagram([{ x: 55, y: 20, lx: 9, ly: -2 }, { x: 84, y: 95, lx: 8 }, { x: 296, y: 60, lx: -14, ly: -4 }])}
-      <div style="margin-top:4px;">
-        ${finding('1', 'Bilateral mild conjunctival injection, no discharge. Denies visual disturbance.')}
-        ${finding('2', 'Old surgical scar, right forearm (pre-existing, noted 2022).')}
-        ${finding('3', 'Tenderness on palpation, left trapezius, no radiation. Reports "the cold feeling doesn\'t go away" in the same spot.')}
-      </div>
+    ${secHead('2', 'EXAMINATION FINDINGS')}
+    <div style="border:1px solid ${NAVY};padding:6px 8px;background:#fff;">
+      ${finding('1', 'Eyes: bilateral mild conjunctival injection, no discharge. Denies visual disturbance.')}
+      ${finding('2', 'Right forearm: old surgical scar (pre-existing, noted 2022).')}
+      ${finding('3', 'Left trapezius: tenderness on palpation, no radiation. Reports "the cold feeling doesn\'t go away" in the same spot.')}
     </div>
 
     ${secHead('3', 'SYSTEMS REVIEW')}
@@ -566,11 +548,11 @@ const terminationBack = `<div style="${ROOT}">
 </div>`;
 
 // ---------- Transcrição de entrevista — frente ----------
-const XS = '30px 44px 1fr';
-const speakerLine = (t, who, txt, i, sysNote) => `<div style="display:grid;grid-template-columns:${XS};gap:4px;padding:3px 0;${i % 2 ? 'background:#f2f5f9;' : ''}${sysNote ? 'font-style:italic;' : ''}">
-  <div${E} style="font-family:${MONO};font-size:6px;color:${GRAYB};padding-left:6px;">${t}</div>
-  <div${E} style="font-family:${COND};font-weight:700;font-size:6.6px;color:${NAVY};">${who}</div>
-  <div${E} style="font-size:7.2px;line-height:1.45;padding-right:6px;">${txt}</div>
+// Simplificado (pedido do Max): sem grade/zebra — formato corrido de transcrição real,
+// "TIME — SPEAKER" numa linha, texto na linha de baixo, só uma régua fina separando falas.
+const speakerLine = (t, who, txt, sysNote) => `<div style="margin:0 0 8px;">
+  <div${E} style="font-family:${MONO};font-size:6.2px;letter-spacing:.06em;color:${NAVY};font-weight:700;">${t} — ${who}</div>
+  <div${E} style="font-size:7.4px;line-height:1.48;margin-top:1px;${sysNote ? 'font-style:italic;color:#4d5a6a;' : ''}">${txt}</div>
 </div>`;
 const transcript = `<div style="${ROOT}">
   ${watermark}
@@ -582,18 +564,17 @@ const transcript = `<div style="${ROOT}">
   cell('LOCATION', 'Medical bay, platform', { span: 2 }) + cell('RECORDING', 'NS-INT-0452/AUD', { mono: true, span: 2 }))}
 
     ${secHead('', 'TRANSCRIPT')}
-    <div style="border:1px solid ${NAVY};">
-      <div style="display:grid;grid-template-columns:${XS};background:${NAVY};color:#fff;font-family:${COND};font-weight:700;font-size:5.4px;letter-spacing:.1em;"><div style="padding:3px 6px;">TIME</div><div style="padding:3px 6px;">SPEAKER</div><div style="padding:3px 6px;">TEXT</div></div>
-      ${speakerLine('00:00', 'FENN', 'Recording started. Can you tell me, in your own words, what you notice.', 0)}
-      ${speakerLine('00:11', 'OKAFOR', 'It\'s not all the time. Mostly at night, when it\'s quiet. I count things without meaning to — steps, tiles, whatever\'s in front of me.', 1)}
-      ${speakerLine('00:34', 'FENN', 'Does it stop when you ask it to?', 0)}
-      ${speakerLine('00:38', 'OKAFOR', 'Usually. Not always. Sometimes I catch myself already at a high number and I don\'t remember starting.', 1)}
-      ${speakerLine('00:51', 'FENN', 'When did you first notice this?', 0)}
-      ${speakerLine('00:54', 'OKAFOR', 'The night comms went down. 21st. I was on channel two the whole time it happened.', 1)}
-      ${speakerLine('01:10', 'FENN', 'Was there anything on the channel before contact was lost — anything you can describe?', 0)}
-      ${speakerLine('01:16', 'OKAFOR', "[pause] It wasn't static. It had a rhythm. I didn't think about it as counting until after. Now I think that's what it was doing the whole time.", 1, true)}
-      ${speakerLine('01:41', 'FENN', 'Have you told anyone else this, specifically the rhythm detail?', 0)}
-      ${speakerLine('01:45', 'OKAFOR', 'Lindqvist. He said the cold spot on his shoulder does the same thing, moves in time.', 1)}
+    <div style="margin-top:2px;">
+      ${speakerLine('00:00', 'FENN', 'Recording started. Can you tell me, in your own words, what you notice.')}
+      ${speakerLine('00:11', 'OKAFOR', 'It\'s not all the time. Mostly at night, when it\'s quiet. I count things without meaning to — steps, tiles, whatever\'s in front of me.')}
+      ${speakerLine('00:34', 'FENN', 'Does it stop when you ask it to?')}
+      ${speakerLine('00:38', 'OKAFOR', 'Usually. Not always. Sometimes I catch myself already at a high number and I don\'t remember starting.')}
+      ${speakerLine('00:51', 'FENN', 'When did you first notice this?')}
+      ${speakerLine('00:54', 'OKAFOR', 'The night comms went down. 21st. I was on channel two the whole time it happened.')}
+      ${speakerLine('01:10', 'FENN', 'Was there anything on the channel before contact was lost — anything you can describe?')}
+      ${speakerLine('01:16', 'OKAFOR', "[pause] It wasn't static. It had a rhythm. I didn't think about it as counting until after. Now I think that's what it was doing the whole time.", true)}
+      ${speakerLine('01:41', 'FENN', 'Have you told anyone else this, specifically the rhythm detail?')}
+      ${speakerLine('01:45', 'OKAFOR', 'Lindqvist. He said the cold spot on his shoulder does the same thing, moves in time.')}
     </div>
     <div style="text-align:right;font-size:6px;color:${GRAYB};margin-top:6px;">CONTINUED OVERLEAF</div>
   </div>
@@ -605,15 +586,15 @@ const transcriptBack = `<div style="${ROOT}">
   ${watermark}
   ${contHeader({ form: 'FORM NS-CL-03 · REV. 07/20', title: 'INTERVIEW TRANSCRIPT — CONTINUED', sub: 'NS-INT-0452 · SHEET 2 OF 2', docNo: 'NS-INT-0452', seed: 172, cls: 'CLINICAL — PROTECTED HEALTH INFORMATION' })}
   <div style="padding:0 24px;">
-    <div style="border:1px solid ${NAVY};margin-top:9px;">
-      ${speakerLine('02:03', 'FENN', 'I want to try something. Count backward from ten for me, out loud.', 0)}
-      ${speakerLine('02:08', 'OKAFOR', 'Ten, nine, eight, seven —', 1)}
-      ${speakerLine('02:11', 'OKAFOR', '[subject stops unprompted, 6-second pause]', 1, true)}
-      ${speakerLine('02:17', 'FENN', 'Are you all right? You stopped at seven.', 0)}
-      ${speakerLine('02:20', 'OKAFOR', 'Something else was already past it. I was still on seven and it wasn\'t.', 1)}
-      ${speakerLine('02:34', 'FENN', 'We\'ll stop there for today. You did well.', 0)}
-      ${speakerLine('02:38', 'OKAFOR', 'Is Lindqvist doing one of these too?', 1)}
-      ${speakerLine('02:41', 'FENN', '[non-responsive, redirected] Let\'s focus on your own follow-up for now.', 0, true)}
+    <div style="margin-top:9px;">
+      ${speakerLine('02:03', 'FENN', 'I want to try something. Count backward from ten for me, out loud.')}
+      ${speakerLine('02:08', 'OKAFOR', 'Ten, nine, eight, seven —')}
+      ${speakerLine('02:11', 'OKAFOR', '[subject stops unprompted, 6-second pause]', true)}
+      ${speakerLine('02:17', 'FENN', 'Are you all right? You stopped at seven.')}
+      ${speakerLine('02:20', 'OKAFOR', 'Something else was already past it. I was still on seven and it wasn\'t.')}
+      ${speakerLine('02:34', 'FENN', 'We\'ll stop there for today. You did well.')}
+      ${speakerLine('02:38', 'OKAFOR', 'Is Lindqvist doing one of these too?')}
+      ${speakerLine('02:41', 'FENN', '[non-responsive, redirected] Let\'s focus on your own follow-up for now.', true)}
     </div>
 
     ${secHead('', "INTERVIEWER'S NOTE")}
@@ -629,13 +610,80 @@ const transcriptBack = `<div style="${ROOT}">
   ${footer(172, '2 OF 2', 'Printed 26 MAR 14:10 by FENN, A. · NeuroStat Document Management System v4.2')}
 </div>`;
 
+// ---------- Transcrição automática de áudio — frente (pedido do Max: "faz um pra transcrito de
+// audio" da NeuroStat, separado do transcrito de entrevista) — reaproveita o mesmo som já
+// estabelecido no log de rádio do NS-DES-0451 ("broadband noise, no speech"), mas do ponto de
+// vista do sistema de reconhecimento de voz tentando (e falhando) transcrever aquilo. ----------
+const asrLine = (t, tag, txt, conf) => `<div style="margin:0 0 7px;">
+  <div style="display:flex;gap:6px;align-items:baseline;">
+    <div${E} style="font-family:${MONO};font-size:6.2px;letter-spacing:.05em;color:${NAVY};font-weight:700;">${t} — ${tag}</div>
+    <div style="font-family:${MONO};font-size:5.6px;color:${conf < 30 ? '#a13a12' : GRAYB};">CONF ${conf}%</div>
+  </div>
+  <div${E} style="font-size:7.4px;line-height:1.48;margin-top:1px;${conf < 30 ? 'font-style:italic;color:#4d5a6a;' : ''}">${txt}</div>
+</div>`;
+const audioLog = `<div style="${ROOT}">
+  ${watermark}
+  ${header({ form: 'SYSTEM LOG · NS-ASR 2.3', docNo: 'NS-DES-0451/C', seed: 191, cls: 'CONFIDENTIAL — PROPRIETARY' })}
+  <div style="padding:0 24px;">
+    ${titleRow('AUTOMATED AUDIO TRANSCRIPTION LOG', 'CHANNEL 4 — AUTO-GENERATED, UNREVIEWED')}
+    ${grid('1fr 1fr 1fr 1fr',
+  cell('SOURCE', 'Radio channel 4', { mono: true }) + cell('RANGE', '03:11:40 — 03:15:00', { mono: true }) + cell('ENGINE', 'NS-ASR v2.3') + cell('AVG. CONFIDENCE', '9%', { mono: true }) +
+  cell('TRIGGERED BY', 'Auto (incident flag NS-DES-0451)', { span: 2 }) + cell('REVIEWED BY', 'Not reviewed — auto-archived', { span: 2 }))}
+
+    ${secHead('', 'TRANSCRIPTION')}
+    <div style="margin-top:2px;">
+      ${asrLine('03:11:58', 'SYSTEM', 'radio.check() -&gt; OK', 100)}
+      ${asrLine('03:12:04', 'SPEAKER_1', '[no output — signal present, no speech detected]', 4)}
+      ${asrLine('03:12:09', 'SPEAKER_1', '...seven...', 12)}
+      ${asrLine('03:12:31', 'SPEAKER_1', '[no output]', 3)}
+      ${asrLine('03:13:02', 'SPEAKER_1', '...one... two...', 14)}
+      ${asrLine('03:13:47', 'SPEAKER_1', '[no output]', 2)}
+      ${asrLine('03:14:15', 'SPEAKER_1', '...five... six... seven...', 17)}
+      ${asrLine('03:14:44', 'SPEAKER_2', '[low confidence — possible second source, not isolated]', 6)}
+      ${asrLine('03:15:00', 'SYSTEM', 'end of flagged segment — transcription confidence below archival threshold (30%)', 100)}
+    </div>
+    <div${E} style="margin-top:8px;font-size:6.4px;line-height:1.55;color:#4d5a6a;"><b>NOTE.</b> This log is generated automatically and has not been reviewed by Records. Fragments above the confidence threshold are retained verbatim; nothing has been corrected or normalised.</div>
+    <div style="text-align:right;font-size:6px;color:${GRAYB};margin-top:6px;">CONTINUED OVERLEAF</div>
+  </div>
+  ${footer(191, '1 OF 2', 'Printed 21 MAR 04:05 by SYSTEM (NS-ASR) · NeuroStat Document Management System v4.2')}
+</div>`;
+
+// ---------- transcrição automática — verso: métricas do motor + revisão manual solicitada ----------
+const MT = '1.6fr 1fr';
+const mtRow = (a, b, i) => tr(MT, [a, b], i, [1]);
+const audioLogBack = `<div style="${ROOT}">
+  ${watermark}
+  ${contHeader({ form: 'SYSTEM LOG · NS-ASR 2.3', title: 'TRANSCRIPTION LOG — CONTINUED', sub: 'NS-DES-0451/C · SHEET 2 OF 2', docNo: 'NS-DES-0451/C', seed: 192 })}
+  <div style="padding:0 24px;">
+    ${secHead('', 'ENGINE METRICS — THIS SEGMENT')}
+    <div style="border:1px solid ${NAVY};font-size:6.9px;">
+      ${th(MT, ['METRIC', 'VALUE'])}
+      ${mtRow('Segments processed', '9')}
+      ${mtRow('Segments above threshold (≥30%)', '0')}
+      ${mtRow('Peak confidence', '17% (03:14:15)')}
+      ${mtRow('Background noise classification', 'UNKNOWN — no match in NS-ASR noise library')}
+      ${mtRow('Language model match', 'None — numeral sequence only, no syntax detected')}
+    </div>
+    <div${E} style="margin-top:5px;font-size:6.4px;line-height:1.5;color:${GRAYB};">NS-ASR flags a recording for manual review when confidence stays below threshold for a full segment. This one did not auto-flag — average confidence was too low even for the flagging heuristic, which reads as "no speech" rather than "unclear speech."</div>
+
+    ${secHead('', 'MANUAL REVIEW — REQUESTED')}
+    <div${E} style="font-size:7.4px;line-height:1.58;">
+      Auto-archived without review per standard policy (confidence below 30%). Flagged here for manual review after the fact: the numeral fragments recovered ("seven," "one," "two," "five," "six," "seven") are sequential and non-repeating within each run, consistent with a count rather than noise. Compare to the pattern already on file for Okafor, R. (NS-INT-0452) and Lindqvist, T. (NS-MED-0578) — both independently describe counting in sequences of seven. Recommend this log be attached to the cohort review requested in NS-MED-0578.
+    </div>
+
+    ${secHead('', 'CERTIFICATION')}
+    <div style="border:1px solid ${NAVY};font-size:6.6px;line-height:1.6;padding:6px 8px;"><div${E}>Generated automatically by NS-ASR v2.3. No human transcriber reviewed this log prior to archival. Manual review note above added 03 APR by Records on secondary pass.</div></div>
+  </div>
+  ${footer(192, '2 OF 2', 'Printed 03 APR 11:20 by RECORDS · NeuroStat Document Management System v4.2')}
+</div>`;
+
 // ---------- Diagrama de instalação / rede — frente (planta técnica, não formulário) ----------
+// O mapa (caixas + ligações) NÃO é mais desenhado aqui — virou objeto Fabric de verdade,
+// construído por buildDiagramTopology() em brand.js a partir de DIAGRAM_TOPOLOGY, pra dar
+// pro Max editar nó por nó e ligação por ligação (pedido dele: "um mecanismo para eu editar
+// os nódulos e ligações"). Esta arte fica só com o timbre, título, nota e quadro de
+// título/revisão — a área onde o mapa entra fica em branco (grade de fundo) de propósito.
 const BP_BG = '#0f2942', BP_LINE = '#bcd4e8', BP_ACC = '#6fa8d8';
-const bpRoom = (x, y, w, h, label, sub) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${BP_LINE}" stroke-width="0.9"/>
-  <text x="${x + w / 2}" y="${y + h / 2 - 2}" text-anchor="middle" font-family="Roboto Condensed, sans-serif" font-size="7" font-weight="700" fill="${BP_LINE}" letter-spacing=".5">${label}</text>
-  ${sub ? `<text x="${x + w / 2}" y="${y + h / 2 + 7}" text-anchor="middle" font-family="Courier Prime, monospace" font-size="5" fill="${BP_ACC}">${sub}</text>` : ''}`;
-const bpLink = (x1, y1, x2, y2, dashed) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${BP_ACC}" stroke-width="1.1" ${dashed ? 'stroke-dasharray="3 2"' : ''}/>`;
-const bpNode = (x, y, id) => `<circle cx="${x}" cy="${y}" r="3.2" fill="${BP_BG}" stroke="${BP_ACC}" stroke-width="1"/><text x="${x}" y="${y + 1.8}" text-anchor="middle" font-family="Courier Prime, monospace" font-size="4.2" fill="${BP_ACC}">${id}</text>`;
 const blueprint = `<div style="width:460px;height:650px;box-sizing:border-box;position:relative;overflow:hidden;background:${BP_BG};font-family:'Source Sans 3',Arial,sans-serif;color:${BP_LINE};">
   <div style="position:absolute;inset:0;opacity:.35;background-image:linear-gradient(${BP_ACC}22 1px,transparent 1px),linear-gradient(90deg,${BP_ACC}22 1px,transparent 1px);background-size:20px 20px;"></div>
   <div style="position:absolute;left:16px;top:14px;display:flex;align-items:center;gap:7px;">
@@ -647,23 +695,8 @@ const blueprint = `<div style="width:460px;height:650px;box-sizing:border-box;po
   <div${E} style="position:absolute;left:16px;top:38px;font-family:${COND};font-weight:700;font-size:13px;letter-spacing:.06em;">NETWORK TOPOLOGY — SUBLEVEL / TOPSIDE</div>
   <div${E} style="position:absolute;left:16px;top:52px;font-size:5.6px;letter-spacing:.06em;color:${BP_ACC};">CLOSED NETWORK, FIELD DIVISION PLATFORM — NOT FOR DISTRIBUTION OUTSIDE FACILITIES ENGINEERING</div>
 
-  <svg width="428" height="330" viewBox="0 0 428 330" xmlns="http://www.w3.org/2000/svg" style="position:absolute;left:16px;top:66px;">
-    ${bpLink(90, 55, 90, 140)}${bpLink(90, 140, 40, 200)}${bpLink(90, 140, 160, 200)}${bpLink(160, 200, 160, 260)}
-    ${bpLink(260, 55, 260, 140, true)}${bpLink(260, 140, 340, 200)}${bpLink(340, 200, 340, 260, true)}
-    ${bpLink(90, 140, 260, 140)}
-    ${bpRoom(50, 20, 80, 45, 'CONTROL RM', 'SW-01')}
-    ${bpRoom(220, 20, 80, 45, 'COMMS RELAY', 'SW-02')}
-    ${bpNode(90, 140, 'CORE')}
-    ${bpRoom(0, 175, 80, 50, 'DIVE SUPPORT', 'TERM 02–04')}
-    ${bpRoom(120, 175, 80, 50, 'TERMINAL RM 3', 'TERM 09–12')}
-    ${bpRoom(300, 175, 80, 50, 'MOONPOOL CTRL', 'TERM 14')}
-    ${bpRoom(120, 245, 80, 45, 'MEDICAL BAY', 'TERM 07')}
-    ${bpRoom(300, 245, 80, 45, 'CRANE PEDESTAL', 'RELAY ONLY')}
-    <text x="214" y="305" text-anchor="middle" font-family="Courier Prime, monospace" font-size="5" fill="${BP_ACC}">DASHED = BACKUP / LOW-BANDWIDTH LINK</text>
-  </svg>
-
   <div style="position:absolute;left:16px;top:410px;right:16px;border-top:1px solid ${BP_ACC};padding-top:6px;">
-    <div style="font-family:${COND};font-weight:700;font-size:6px;letter-spacing:.1em;margin-bottom:3px;">LEGEND</div>
+    <div style="font-family:${COND};font-weight:700;font-size:6px;letter-spacing:.1em;margin-bottom:3px;">KEY</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:6px;">
       <div>▭ Node / equipment room</div><div>— Primary fibre run</div>
       <div>◯ Core switch</div><div>┄ Backup / low-bandwidth link</div>
@@ -680,36 +713,56 @@ const blueprint = `<div style="width:460px;height:650px;box-sizing:border-box;po
   </div>
 </div>`;
 
-// ---------- diagrama — verso: relação de equipamentos, revisões ----------
+// ---------- diagrama — verso: mesma linguagem visual da frente (pedido do Max: "fazer o
+// verso ser em um visual parecido com a frente") — timbre azul-escuro, réguas claras, em
+// vez do formulário branco padrão da NeuroStat. ----------
+const bpSecHead = (t) => `<div style="font-family:${COND};font-weight:700;font-size:7px;letter-spacing:.12em;border-bottom:1px solid ${BP_ACC};padding-bottom:2px;margin:10px 0 5px;color:${BP_LINE};">${t}</div>`;
 const EQ = '44px 1.3fr 1fr 1fr';
-const eqRow = (a, b, c, d, i) => tr(EQ, [a, b, c, d], i, [0]);
-const diagramBack = `<div style="${ROOT}">
-  ${contHeader({ form: 'FORM NS-FE-08 · REV. 01/22', title: 'EQUIPMENT SCHEDULE', sub: 'NS-FE-0212 · SHEET 2 OF 2', docNo: 'NS-FE-0212', seed: 182 })}
-  <div style="padding:0 24px;">
-    ${secHead('', 'EQUIPMENT SCHEDULE — REFERENCE NS-FE-0212')}
-    <div style="border:1px solid ${NAVY};font-size:6.6px;">
-      ${th(EQ, ['NODE', 'LOCATION', 'MODEL', 'IP RANGE'])}
-      ${eqRow('SW-01', 'Control Room — core switch', 'Juniper EX-4400', '10.4.0.1/24')}
-      ${eqRow('SW-02', 'Comms Relay — edge switch', 'Juniper EX-2300', '10.4.1.1/24')}
-      ${eqRow('TERM 02–04', 'Dive Support', 'NS field terminal', '10.4.2.10–14')}
-      ${eqRow('TERM 07', 'Medical Bay', 'NS field terminal', '10.4.2.30')}
-      ${eqRow('TERM 09–12', 'Terminal Room 3', 'NS field terminal', '10.4.2.40–44')}
-      ${eqRow('TERM 14', 'Moonpool Control', 'NS field terminal, hardened', '10.4.2.60')}
-      ${eqRow('RELAY', 'Crane Pedestal', 'Fibre repeater, unmanned', '—')}
-    </div>
-    <div${E} style="margin-top:5px;font-size:6.4px;line-height:1.5;color:${GRAYB};">Crane Pedestal relay has no address and no login — equipment schedule lists it only because it appears in the physical fibre run.</div>
-
-    ${secHead('', 'REVISION HISTORY')}
-    <div style="border:1px solid ${NAVY};font-size:6.6px;">
-      ${th('22px 1fr 60px 70px', ['REV', 'DESCRIPTION', 'DATE', 'BY'])}
-      ${tr('22px 1fr 60px 70px', ['—', 'Original issue', '14 JAN 2022', 'K. VANCE'], 0)}
-      ${tr('22px 1fr 60px 70px', ['A', 'Added Terminal Room 3 sub-nodes 11–12', '19 MAR', 'K. VANCE'], 1)}
-    </div>
-
-    ${secHead('', 'NOTES')}
-    <div style="font-size:7.2px;line-height:1.6;"><div${E}>1. All field terminals authenticate against SW-01. No terminal on this topology is reachable from outside the closed network.</div><div${E} style="margin-top:4px;">2. Backup link (Comms Relay → Moonpool Control) is rated for telemetry only, not voice or file transfer.</div></div>
+const bpTh = (cols, labels) => `<div style="display:grid;grid-template-columns:${cols};background:${BP_ACC};color:${BP_BG};font-family:${COND};font-weight:700;font-size:5.6px;letter-spacing:.1em;">${labels.map(l => `<div style="padding:3px 6px;">${l}</div>`).join('')}</div>`;
+const bpTr = (cols, vals, i) => `<div style="display:grid;grid-template-columns:${cols};border-top:1px solid rgba(111,168,216,.35);${i % 2 ? 'background:rgba(111,168,216,.08);' : ''}">${vals.map(v => `<div style="padding:3px 6px;"><div${E} style="color:${BP_LINE};">${v}</div></div>`).join('')}</div>`;
+const diagramBack = `<div style="width:460px;height:650px;box-sizing:border-box;position:relative;overflow:hidden;background:${BP_BG};font-family:'Source Sans 3',Arial,sans-serif;color:${BP_LINE};">
+  <div style="position:absolute;inset:0;opacity:.35;background-image:linear-gradient(${BP_ACC}22 1px,transparent 1px),linear-gradient(90deg,${BP_ACC}22 1px,transparent 1px);background-size:20px 20px;"></div>
+  <div style="position:absolute;left:16px;top:14px;display:flex;align-items:center;gap:7px;">
+    <div style="width:22px;height:18px;overflow:hidden;position:relative;filter:invert(1) brightness(2);opacity:.85;"><img src="${img(B.nsMark)}" alt="NeuroStat" style="position:absolute;width:73px;height:auto;left:-25px;top:-11px;"></div>
+    <div style="font-family:${COND};font-weight:700;font-size:7.5px;letter-spacing:.22em;">NEUROSTAT</div>
   </div>
-  ${footer(182, '2 OF 2', 'Printed 19 MAR 08:10 by VANCE, K. · NeuroStat Document Management System v4.2')}
+  <div${E} style="position:absolute;right:16px;top:15px;text-align:right;font-family:${COND};font-weight:700;font-size:9px;letter-spacing:.06em;">EQUIPMENT SCHEDULE</div>
+  <div${E} style="position:absolute;right:16px;top:25px;text-align:right;font-family:${MONO};font-size:5.6px;color:${BP_ACC};">NS-FE-0212 · SHEET 2 OF 2</div>
+  <div style="position:absolute;left:16px;right:16px;top:38px;height:1px;background:${BP_ACC};"></div>
+
+  <div style="position:absolute;left:16px;right:16px;top:48px;">
+    ${bpSecHead('EQUIPMENT SCHEDULE — REFERENCE NS-FE-0212')}
+    <div style="border:1px solid ${BP_ACC};font-size:6.4px;">
+      ${bpTh(EQ, ['NODE', 'LOCATION', 'MODEL', 'IP RANGE'])}
+      ${bpTr(EQ, ['SW-01', 'Control Room — core switch', 'Juniper EX-4400', '10.4.0.1/24'], 0)}
+      ${bpTr(EQ, ['SW-02', 'Comms Relay — edge switch', 'Juniper EX-2300', '10.4.1.1/24'], 1)}
+      ${bpTr(EQ, ['TERM 02–04', 'Dive Support', 'NS field terminal', '10.4.2.10–14'], 0)}
+      ${bpTr(EQ, ['TERM 07', 'Medical Bay', 'NS field terminal', '10.4.2.30'], 1)}
+      ${bpTr(EQ, ['TERM 09–12', 'Terminal Room 3', 'NS field terminal', '10.4.2.40–44'], 0)}
+      ${bpTr(EQ, ['TERM 14', 'Moonpool Control', 'NS field terminal, hardened', '10.4.2.60'], 1)}
+      ${bpTr(EQ, ['RELAY', 'Crane Pedestal', 'Fibre repeater, unmanned', '—'], 0)}
+    </div>
+    <div${E} style="margin-top:5px;font-size:6.2px;line-height:1.5;color:${BP_ACC};">Crane Pedestal relay has no address and no login — equipment schedule lists it only because it appears in the physical fibre run.</div>
+
+    ${bpSecHead('REVISION HISTORY')}
+    <div style="border:1px solid ${BP_ACC};font-size:6.4px;">
+      ${bpTh('22px 1fr 60px 70px', ['REV', 'DESCRIPTION', 'DATE', 'BY'])}
+      ${bpTr('22px 1fr 60px 70px', ['—', 'Original issue', '14 JAN 2022', 'K. VANCE'], 0)}
+      ${bpTr('22px 1fr 60px 70px', ['A', 'Added Terminal Room 3 sub-nodes 11–12', '19 MAR', 'K. VANCE'], 1)}
+    </div>
+
+    ${bpSecHead('NOTES')}
+    <div style="font-size:7px;line-height:1.55;">
+      <div${E}>1. All field terminals authenticate against SW-01. No terminal on this topology is reachable from outside the closed network.</div>
+      <div${E} style="margin-top:4px;">2. Backup link (Comms Relay → Moonpool Control) is rated for telemetry only, not voice or file transfer.</div>
+      <div${E} style="margin-top:4px;">3. Node positions and links on sheet 1 are maintained directly in the facilities CAD system — this schedule is the reference of record if the two disagree.</div>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:16px;right:16px;bottom:16px;border-top:1px solid ${BP_ACC};padding-top:5px;display:flex;justify-content:space-between;font-size:5.4px;color:${BP_ACC};">
+    <div${E}>Printed 19 MAR 08:10 by VANCE, K. · NeuroStat Document Management System v4.2</div>
+    <div style="display:flex;gap:3px;">PAGE <div${E} style="color:${BP_LINE};font-weight:700;">2 OF 2</div></div>
+  </div>
 </div>`;
 
 const out = (name, title, body, meta) => {
@@ -731,4 +784,6 @@ out('NeuroStat7.dc.html', 'NeuroStat — Transcrição de entrevista', transcrip
 out('NeuroStat7_back.dc.html', 'NeuroStat — Transcrição (continuação)', transcriptBack, { doc: 'ns_transcript', side: 'back', label: 'Transcrição de entrevista' });
 out('NeuroStat8.dc.html', 'NeuroStat — Diagrama de rede', blueprint, { doc: 'ns_diagram', side: 'front', label: 'Diagrama de instalação/rede' });
 out('NeuroStat8_back.dc.html', 'NeuroStat — Diagrama (equipamentos)', diagramBack, { doc: 'ns_diagram', side: 'back', label: 'Diagrama de instalação/rede' });
+out('NeuroStat9.dc.html', 'NeuroStat — Transcrição automática de áudio', audioLog, { doc: 'ns_audio', side: 'front', label: 'Transcrição automática de áudio' });
+out('NeuroStat9_back.dc.html', 'NeuroStat — Transcrição automática (verso)', audioLogBack, { doc: 'ns_audio', side: 'back', label: 'Transcrição automática de áudio' });
 console.log('neurostat ok');

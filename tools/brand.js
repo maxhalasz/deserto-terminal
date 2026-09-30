@@ -225,6 +225,43 @@ class BrandText extends fabric.Textbox {
 }
 fabric.classRegistry.setClass(BrandText, 'BrandText');
 
+/* ---------- Topologia inicial dos diagramas de rede editáveis ---------- */
+const DIAGRAM_TOPOLOGY = {
+  ns_diagram: {
+    stroke: '#6fa8d8',
+    nodes: [
+      { key: 'ctrl', title: 'CONTROL RM', sub: 'SW-01', x: 126, y: 108, w: 90, h: 50 },
+      { key: 'relay', title: 'COMMS RELAY', sub: 'SW-02', x: 276, y: 108, w: 90, h: 50 },
+      { key: 'core', title: 'CORE', sub: '', x: 106, y: 206, w: 46, h: 30 },
+      { key: 'dive', title: 'DIVE SUPPORT', sub: 'TERM 02–04', x: 56, y: 266, w: 90, h: 55 },
+      { key: 'term3', title: 'TERMINAL RM 3', sub: 'TERM 09–12', x: 176, y: 266, w: 90, h: 55 },
+      { key: 'moon', title: 'MOONPOOL CTRL', sub: 'TERM 14', x: 356, y: 266, w: 90, h: 55 },
+      { key: 'med', title: 'MEDICAL BAY', sub: 'TERM 07', x: 176, y: 334, w: 90, h: 50 },
+      { key: 'crane', title: 'CRANE PEDESTAL', sub: 'RELAY ONLY', x: 356, y: 334, w: 90, h: 50 },
+    ],
+    links: [['ctrl', 'core'], ['core', 'dive'], ['core', 'term3'], ['term3', 'med'], ['relay', 'core', true], ['core', 'moon'], ['moon', 'crane', true]],
+  },
+};
+/* Constrói a topologia inicial como objetos de verdade (tools/network-diagram.js) em vez de
+   arte plana — ligações primeiro (ficam por baixo), nós por cima (cobrem o trecho da linha
+   que passaria por dentro da caixa, sobra só o trecho visível entre elas). */
+function buildDiagramTopology(cv, topo, k){
+  const boxes = {};
+  topo.nodes.forEach(n=>{
+    const [box, label] = makeNetworkNode({
+      left: n.x*k, top: n.y*k, width: n.w*k, height: n.h*k,
+      title: n.title, sub: n.sub, stroke: topo.stroke, fontSize: 6*k,
+    });
+    boxes[n.key] = { box, label };
+  });
+  topo.links.forEach(([aKey, bKey, dashed])=>{
+    const a = boxes[aKey], b = boxes[bKey];
+    if (!a || !b) return;
+    cv.add(makeNetworkLink(a.box, b.box, { stroke: topo.stroke, dashed, strokeWidth: 1.3*k }));
+  });
+  Object.values(boxes).forEach(({box, label})=>{ cv.add(box); cv.add(label); });
+}
+
 /* ---------- monta um lado num canvas (Canvas do editor ou StaticCanvas da exportação) ---------- */
 const BRAND_OBJ_LABEL = {ring:'⭕ Círculo à caneta', stamp:'🔖 Carimbo', logo:'◼ Logo', patch:'◉ Selo Ødemark', mark:'◈ Emblema'};
 function makeBrandText(f, k){
@@ -268,6 +305,12 @@ async function buildBrandSide(cv, pack){
       cv.add(makeBrandText(it.f, k));
     }
   }
+  // Diagrama de rede editável (pedido do Max: "um mecanismo para eu editar os nódulos e
+  // ligações") — o mapa nunca foi extraído do mockup (a arte só tem timbre/título/nota),
+  // ele é montado aqui como nós/ligações de verdade a partir de uma topologia fixa por
+  // documento. Só roda pra quem tem uma topologia registrada (hoje: ns_diagram).
+  const topo = DIAGRAM_TOPOLOGY[pack.doc];
+  if (topo) buildDiagramTopology(cv, topo, k);
   // Slots de foto (bug real reportado pelo Max: clicar na caixa "PHOTO ATTACHED" etc não
   // levava a nenhum jeito de trocar por uma foto de verdade, porque era só gradiente
   // pintado na arte travada — sem objeto nenhum ali pra selecionar). Cada data-slot="photo"

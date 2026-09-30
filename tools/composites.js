@@ -28,7 +28,13 @@ function deleteObjectCascade(canvas, obj){
   if (!obj) return;
   const oid = obj.__oid;
   canvas.remove(obj);
-  if (oid) canvas.getObjects().filter(o=>o.__ownerOid===oid).forEach(o=>canvas.remove(o));
+  if (oid){
+    canvas.getObjects().filter(o=>o.__ownerOid===oid).forEach(o=>canvas.remove(o));
+    // ligações de diagrama de rede não têm UM dono (__ownerOid) — têm duas pontas
+    // (__linkA/__linkB) — apagar qualquer nó das duas pontas some com a ligação junto,
+    // pra nunca sobrar uma linha órfã apontando pro vazio.
+    canvas.getObjects().filter(o=>o.customType==='netLink' && (o.__linkA===oid || o.__linkB===oid)).forEach(o=>canvas.remove(o));
+  }
 }
 
 /* ---- Bloom/glow: clona o objeto, desfoca+clareia, blend screen por cima ---- */
