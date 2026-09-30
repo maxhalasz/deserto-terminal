@@ -102,6 +102,38 @@ window.BRAND_INDEX=[
   ]
  },
  {
+  "id": "odemark",
+  "label": "Ødemark A.",
+  "docs": [
+   {
+    "id": "od_notice",
+    "label": "Ordens de Mørketid",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2.6956521739130435,
+    "wCss": 460,
+    "hCss": 650,
+    "pageW": 1240,
+    "pageH": 1752
+   },
+   {
+    "id": "od_badge",
+    "label": "Cartão de identificação",
+    "sides": [
+     "front",
+     "back"
+    ],
+    "k": 2,
+    "wCss": 640,
+    "hCss": 402,
+    "pageW": 1280,
+    "pageH": 804
+   }
+  ]
+ },
+ {
   "id": "dre",
   "label": "DRE",
   "docs": [
@@ -148,7 +180,8 @@ window.BRAND_INDEX=[
     "label": "Briefing classificado",
     "sides": [
      "front",
-     "back"
+     "back",
+     "p3"
     ],
     "k": 2.6956521739130435,
     "wCss": 460,
@@ -168,38 +201,6 @@ window.BRAND_INDEX=[
     "hCss": 480,
     "pageW": 840,
     "pageH": 1440
-   }
-  ]
- },
- {
-  "id": "odemark",
-  "label": "Ødemark A.",
-  "docs": [
-   {
-    "id": "od_notice",
-    "label": "Ordens de Mørketid",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2.6956521739130435,
-    "wCss": 460,
-    "hCss": 650,
-    "pageW": 1240,
-    "pageH": 1752
-   },
-   {
-    "id": "od_badge",
-    "label": "Cartão de identificação",
-    "sides": [
-     "front",
-     "back"
-    ],
-    "k": 2,
-    "wCss": 640,
-    "hCss": 402,
-    "pageW": 1280,
-    "pageH": 804
    }
   ]
  }

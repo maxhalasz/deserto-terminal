@@ -272,31 +272,81 @@ fabric.classRegistry.setClass(RedactedText, 'RedactedText');
    fabric.IText em vez de Textbox: cresce/encolhe com o texto (não quebra linha numa
    largura fixa), e como não sobrescreve _render() o cursor nativo do Fabric funciona
    certo — dá pra editar clicando duas vezes direto, sem precisar do modal. A borda é
-   um Rect separado (não-selecionável) que se recalcula sozinho a cada mudança. */
+   um Rect separado (não-selecionável) que se recalcula sozinho a cada mudança.
+
+   Tinta (rodada 2026-09-30, pedido do Max: "deixa ele mais parecido com tinta"): o que
+   vendeu o visual de carimbo de verdade nos mockups de documento de marca (confirmado
+   olhando os PNGs renderizados) nunca foi geometria — foi `mix-blend-mode:multiply` +
+   opacidade ~0.8 em vez de cor sólida opaca. O carimbo adicionável pela ferramenta nunca
+   tinha isso. Aplicado aqui + uma camada extra de manchas de tinta (`stampGrain`, imagem
+   gerada por canvas, nunca selecionável) por cima, seguindo o mesmo dono/`__ownerOid` que
+   já existe em composites.js pra HUD/moldura/etc — apaga o carimbo, apaga a mancha junto. */
+function generateInkGrainURL(seed){
+  const rng = mulberry32(seed);
+  const W=220, H=110;
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const ctx = c.getContext('2d');
+  for (let i=0;i<26;i++){
+    const x=rng()*W, y=rng()*H, r=4+rng()*17;
+    const g = ctx.createRadialGradient(x,y,0,x,y,r);
+    g.addColorStop(0, `rgba(0,0,0,${(0.12+rng()*0.20).toFixed(2)})`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  }
+  for (let i=0;i<1100;i++){
+    ctx.fillStyle = `rgba(0,0,0,${(rng()*0.09).toFixed(2)})`;
+    ctx.fillRect(rng()*W, rng()*H, 1, 1);
+  }
+  return c.toDataURL();
+}
 function makeStampObjects(text, options){
   options = options || {};
   const color = options.color || '#7a2020';
   const fontSize = options.fontSize || 30;
   const angle = options.angle || -10;
+  const opacity = options.opacity!=null ? options.opacity : 0.82;
   const padX = 22, padY = 16;
 
   const txt = new fabric.IText(text, {
     fontFamily:"'Courier Prime'", fontWeight:'700', fontSize, fill:color,
     left: options.left||400, top: options.top||400, angle,
     originX:'center', originY:'center', textAlign:'center',
+    globalCompositeOperation:'multiply', opacity,
   });
   const rect = new fabric.Rect({
     left: txt.left, top: txt.top, angle,
     width: txt.width+padX*2, height: txt.height+padY*2,
-    fill:'transparent', stroke:color, strokeWidth:3,
+    fill:'transparent', stroke:color, strokeWidth: options.strokeWidth||3,
     originX:'center', originY:'center', selectable:false, evented:false,
+    globalCompositeOperation:'multiply', opacity,
   });
   txt.set('customType','stampText');
   rect.set('customType','stampBorder');
+  const oid = getOid(txt);
+  rect.__ownerOid = oid;
 
+  let grainImg = null;
+  fabric.Image.fromURL(generateInkGrainURL(Math.floor(Math.random()*4294967296))).then(g=>{
+    if (!txt.canvas) return; // carimbo já foi removido antes da textura carregar
+    grainImg = g;
+    grainImg.set({selectable:false, evented:false, globalCompositeOperation:'multiply', opacity:0.7});
+    grainImg.set('customType','stampGrain');
+    grainImg.__ownerOid = oid;
+    syncGrain();
+    txt.canvas.add(grainImg);
+    txt.canvas.renderAll();
+  });
+
+  const syncGrain = ()=>{
+    if (!grainImg) return;
+    const w = (txt.width+padX*2)*(txt.scaleX||1), h = (txt.height+padY*2)*(txt.scaleY||1);
+    grainImg.set({left:txt.left, top:txt.top, angle:txt.angle, originX:'center', originY:'center', scaleX:w/grainImg.width, scaleY:h/grainImg.height});
+    grainImg.setCoords();
+  };
   const sync = ()=>{
     rect.set({width:txt.width+padX*2, height:txt.height+padY*2, left:txt.left, top:txt.top, angle:txt.angle});
     rect.setCoords();
+    syncGrain();
   };
   txt.on('changed', sync);
   txt.on('moving', sync);
@@ -304,6 +354,23 @@ function makeStampObjects(text, options){
   txt.on('scaling', sync);
   txt.__stampRect = rect;
   return [rect, txt];
+}
+
+/* ===================== Marca d'água (texto diagonal, baixa opacidade) =====================
+   Textbox comum (mesmo caminho de edição/modal dos demais textos) — só muda o padrão
+   visual: grande, rotacionado, quase transparente, do jeito que o selo "CONFIDENTIAL" da
+   NeuroStat já funciona nos documentos de marca. */
+function makeWatermarkText(text, options){
+  options = options || {};
+  const t = new fabric.Textbox(text, {
+    left: options.left||400, top: options.top||400, originX:'center', originY:'center',
+    width: options.width||600, fontFamily:"'Courier Prime'", fontWeight:700,
+    fontSize: options.fontSize||58, fill: options.color||'#141414', textAlign:'center',
+    angle: options.angle!=null ? options.angle : -30, opacity: options.opacity!=null ? options.opacity : 0.1,
+    charSpacing: 80, editable:false,
+  });
+  t.set('customType','watermark');
+  return t;
 }
 
 /* ===================== Código de barras (pré-renderizado como imagem) ===================== */

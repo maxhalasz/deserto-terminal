@@ -190,7 +190,8 @@ function EXTRACT(Z) {
   const slots = [];
   document.querySelectorAll('[data-slot]').forEach((el) => {
     const bb = rect(el);
-    slots.push({ kind: el.dataset.slot, x: bb.left - rr.left, y: bb.top - rr.top, w: bb.width, h: bb.height });
+    const cs = getComputedStyle(el);
+    slots.push({ kind: el.dataset.slot, x: bb.left - rr.left, y: bb.top - rr.top, w: bb.width, h: bb.height, rx: num(cs.borderTopLeftRadius) });
   });
   return { PAGE, fields, objs, slots, warns };
 }
@@ -269,7 +270,7 @@ const shot = async (cdp, fmt, clip, quality) => {
         if (process.env.VERBOSE) console.log('viewport', real);
 
         const ex = await evalJS(cdp, `(${EXTRACT.toString()})(${dsf})`);
-        await setCss(cdp, `html,body{background:transparent!important} [data-e],[data-e] *{color:transparent!important;text-decoration-color:transparent!important} [data-r]{background:transparent!important} [data-obj]{visibility:hidden!important}`);
+        await setCss(cdp, `html,body{background:transparent!important} [data-e],[data-e] *{color:transparent!important;text-decoration-color:transparent!important} [data-r]{background:transparent!important} [data-obj]{visibility:hidden!important} [data-slot]{visibility:hidden!important}`);
         await sleep(150);
         const pw = Math.round(man.w * dsf), ph = Math.floor(man.h * dsf);
         const clipPage = { x: 0, y: 0, width: pw, height: ph };

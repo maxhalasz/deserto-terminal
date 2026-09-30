@@ -9,6 +9,7 @@
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
 <script src="vendor/brand/brand-index.js"></script>
+<script src="print-dpi.js"></script>
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:#15171b;color:#c7cdd6;font:13px/1.4 -apple-system,Segoe UI,Arial,sans-serif}
@@ -167,18 +168,10 @@
       <div id="brandStatus"></div>
       <div id="brandActive" style="display:none">
         <label>Lado da folha</label>
-        <div class="grid2">
-          <button class="sideBtn" data-side="front">Frente</button>
-          <button class="sideBtn" data-side="back">Verso</button>
-        </div>
-        <div class="hint">Cada lado guarda as próprias edições e o próprio desfazer/refazer.</div>
-        <button id="btnBrandExportBoth" class="primary">⭳ Baixar frente e verso (2 PNGs)</button>
-        <div class="hint">Usa a resolução escolhida em Documento → Exportar. Imprima o verso no mesmo papel (duplex) ou vire a folha.</div>
-        <div id="brandSlotRow" style="display:none">
-          <label>Foto do cartão</label>
-          <input type="file" id="brandPhotoFile" accept="image/*">
-          <div class="hint">Encaixa a foto na moldura do cartão (recorte centralizado).</div>
-        </div>
+        <div id="sideBtnRow" class="toolgrid"></div>
+        <div class="hint">Cada lado guarda as próprias edições e o próprio desfazer/refazer. Clique numa foto no documento e vá na aba Objeto pra trocar — funciona igual aos outros templates.</div>
+        <button id="btnBrandExportBoth" class="primary">⭳ Baixar PNG</button>
+        <div class="hint">Usa a resolução escolhida em Documento → Exportar, já com o DPI certo pra sair no tamanho físico real. Pra duplex, imprima cada página no mesmo papel ou vire a folha.</div>
       </div>
     </fieldset>
   </div>
@@ -191,6 +184,7 @@
         <button id="btnAddHandwritten">+ Texto manuscrito</button>
         <button id="btnAddRedacted">+ Texto censurado</button>
         <button id="btnAddStamp">+ Carimbo</button>
+        <button id="btnAddWatermark">+ Marca d'água</button>
         <button id="btnAddBarcode">+ Código de barras</button>
         <button id="btnAddPhotoPlaceholder">+ Placeholder de foto</button>
       </div>

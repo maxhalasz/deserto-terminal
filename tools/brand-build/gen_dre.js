@@ -33,7 +33,7 @@ const defs = (id, seed, thr) => grainDef(id + 'g', seed) + speckDef(id + 's', se
 const ROOT = `width:460px;height:650px;box-sizing:border-box;position:relative;overflow:hidden;font-family:${TYPE};color:${INK};background:#e9e2cb;`;
 
 // fantasma espelhado da outra face (não editável — sem marcadores)
-const strip = (h) => h.replace(/ data-e\b/g, '').replace(/ data-hand\b/g, '').replace(/ data-notext\b/g, '').replace(/ data-obj="[a-z]+"/g, '').replace(/ data-r\b/g, '');
+const strip = (h) => h.replace(/ data-e\b/g, '').replace(/ data-hand\b/g, '').replace(/ data-notext\b/g, '').replace(/ data-obj="[a-z]+"/g, '').replace(/ data-r\b/g, '').replace(/ data-slot="[a-z]+"/g, '');
 const ghost = (html, top = 0) => `<div style="position:absolute;left:0;right:0;top:${top}px;bottom:0;transform:scaleX(-1);opacity:.075;filter:blur(.45px);mix-blend-mode:multiply;pointer-events:none;">${strip(html)}</div>`;
 
 const hand = (txt, x, y, o = {}) => `<div${E} data-hand style="position:absolute;left:${x}px;top:${y}px;font-family:'${o.font || 'Caveat'}',cursive;font-weight:${o.w || 600};font-size:${o.size || 13}px;line-height:1.05;color:${o.color || BLUEPEN};transform:rotate(${o.rot ?? -3}deg);white-space:${o.wrap ? 'normal' : 'nowrap'};${o.width ? 'width:' + o.width + 'px;' : ''}opacity:.92;">${txt}</div>`;
@@ -155,9 +155,11 @@ const cardBody = `<div style="position:absolute;left:24px;top:26px;width:132px;h
           ${fld('STATUS', 'ACTIVE')}
         </div>
         <div>
-          <div style="width:74px;height:92px;border:1px solid ${INK};background:linear-gradient(180deg,#8f8a7c,#6e6a5e);position:relative;overflow:hidden;filter:grayscale(1) contrast(1.1);">
-            <div style="position:absolute;left:23px;top:16px;width:28px;height:32px;border-radius:50%;background:#4b483f;"></div>
-            <div style="position:absolute;left:8px;top:52px;width:58px;height:50px;border-radius:50% 50% 0 0;background:#4b483f;"></div>
+          <div style="width:74px;height:92px;border:1px solid ${INK};overflow:hidden;position:relative;">
+            <div data-slot="photo" style="position:absolute;inset:0;background:linear-gradient(180deg,#8f8a7c,#6e6a5e);filter:grayscale(1) contrast(1.1);">
+              <div style="position:absolute;left:23px;top:16px;width:28px;height:32px;border-radius:50%;background:#4b483f;"></div>
+              <div style="position:absolute;left:8px;top:52px;width:58px;height:50px;border-radius:50% 50% 0 0;background:#4b483f;"></div>
+            </div>
           </div>
           <div style="font-size:5.4px;text-align:center;margin-top:3px;letter-spacing:.06em;">PHOTO ATTACHED</div>
         </div>
@@ -373,6 +375,56 @@ const briefingBack = `<div style="${ROOT}">
   </div>
 </div>`;
 
+// ---------- briefing — página 3: Anexo A (o anexo que o rodapé das duas primeiras
+// páginas já prometia — "ATTACHMENTS: (1) Terminal 11 access log, 02–10 JAN (3 pp.)" —
+// fechava um gancho que ficou solto quando o documento era só frente+verso) ----------
+const annexRow = (a, b, c, d, bold, blank) => blank
+  ? `<div style="display:grid;grid-template-columns:${logCols};border-bottom:1px solid rgba(27,26,23,.3);"><div style="padding:3px 6px;"><div${E}>${a}</div></div><div style="padding:3px 6px;grid-column:span 3;"><div${E} style="color:#6a655a;font-style:italic;">${d}</div></div></div>`
+  : logRow(a, b, c, d, bold);
+const briefAnnexBody = `<div style="position:absolute;left:30px;right:30px;top:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <div${E} style="font-family:${ELITE};font-size:11px;letter-spacing:.16em;">ANNEX A — TERMINAL 11 ACCESS LOG</div>
+          <div${E} style="font-size:7.2px;"><b>SL-10-0119</b> · COPY 1 OF 2</div>
+        </div>
+        <div style="height:1.5px;background:${INK};opacity:.7;margin:7px 0 10px;"></div>
+        <div style="font-size:8.5px;line-height:1.65;">
+          <p${E} style="margin:0 0 9px;">Extract requested under paragraph 4. Range 02–10 JAN, Sublevel Core, all terminals. Nine calendar days; Terminal 11 shows recorded activity on eight of them, all after 23:00. No other terminal in Sublevel Core shows comparable after-hours use in this window.</p>
+        </div>
+        <div style="border:1px solid ${INK};font-size:7px;margin-top:2px;">
+          <div style="display:grid;grid-template-columns:${logCols};font-weight:700;font-size:6.2px;letter-spacing:.08em;border-bottom:1.2px solid ${INK};"><div style="padding:3px 6px;">DATE</div><div style="padding:3px 6px;">TERMINAL</div><div style="padding:3px 6px;">LOGIN</div><div style="padding:3px 6px;">LOGOUT</div></div>
+          ${annexRow('02 JAN', 'TERM-11', '23:41', '02:58')}
+          ${annexRow('03 JAN', 'TERM-11', '—', 'no terminal activity logged', false, true)}
+          ${annexRow('04 JAN', 'TERM-11', '23:52', '03:07')}
+          ${annexRow('05 JAN', 'TERM-11', '23:47', '03:01')}
+          ${annexRow('06 JAN', 'TERM-11', '00:03', '03:11', true)}
+          ${annexRow('07 JAN', 'TERM-11', '23:44', '02:49')}
+          ${annexRow('08 JAN', 'TERM-11', '23:58', '03:12', true)}
+          ${annexRow('09 JAN', 'TERM-11', '23:39', '03:14', true)}
+          ${annexRow('10 JAN', 'TERM-11', '00:01', '02:52')}
+        </div>
+        <div${E} style="margin-top:8px;font-size:6.6px;line-height:1.6;color:#4a453d;">Logout times in bold recur within ±3 minutes of 03:12. Operator of record for all sessions: ANSELM.K. No other credential used Terminal 11 in this window.</div>
+        ${hsec('ROUTING')}
+        <div style="border:1px solid ${INK};font-size:7px;">
+          <div style="display:grid;grid-template-columns:${hcols};font-weight:700;font-size:6.2px;letter-spacing:.08em;border-bottom:1.2px solid ${INK};"><div style="padding:3px 6px;">TO</div><div style="padding:3px 6px;">REMARKS</div><div style="padding:3px 6px;">INIT.</div></div>
+          <div style="display:grid;grid-template-columns:${hcols};border-bottom:1px solid rgba(27,26,23,.3);"><div style="padding:3px 6px;"><div${E}>Director, Sublevel Command</div></div><div style="padding:3px 6px;"><div${E}>noted — see sheet 1</div></div><div style="padding:3px 6px;"><span style="font-family:'Reenie Beanie',cursive;font-size:16px;color:${BLUEPEN};position:relative;top:-3px;">K.M.</span></div></div>
+          <div style="display:grid;grid-template-columns:${hcols};"><div style="padding:3px 6px;"><div${E}>Records, Sublevel</div></div><div style="padding:3px 6px;"><div${E}>filed with SL-10-0119</div></div><div style="padding:3px 6px;"></div></div>
+        </div>
+      </div>
+      ${hand('eight nights out of nine.<br>ask him what he was doing on the ninth.', 40, 420, { size: 13, rot: -2 })}
+      <div style="position:absolute;left:30px;right:30px;bottom:14px;border-top:1px solid ${INK};padding-top:5px;font-size:6.4px;line-height:1.65;">
+        <div${E}>CLASSIFIED BY: ${redact('XXXX')} &nbsp;·&nbsp; REASON: 1.4(g) &nbsp;·&nbsp; DECLASSIFY ON: —</div>
+        <div${E}>PAGE 3 OF 3 — ANNEX A</div>
+      </div>
+      ${stamp('SUBLEVEL EYES<br>ONLY — COPY 1', 292, 462, -8, REDSTAMP, 8.5)}`;
+const briefingAnnex = `<div style="${ROOT}">
+  ${paperLayers('ba', 403, { fox: 8, coffeeAt: [86, 84, 21, 19], folds: [33, 66] })}
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+    ${banner4('DRE — SUBLEVEL ONLY // NOT FOR EXTERNAL DISTRIBUTION')}
+    <div style="position:relative;flex:1;transform:rotate(-.2deg);">${briefAnnexBody}</div>
+    ${banner4('DRE — SUBLEVEL ONLY // NOT FOR EXTERNAL DISTRIBUTION')}
+  </div>
+</div>`;
+
 // ---------- DRE5: etiqueta de evidência — frente ----------
 const tagClip = 'clip-path:polygon(14% 0%,86% 0%,100% 8%,100% 100%,0% 100%,0% 8%);';
 const RS = 'rgba(138,34,34,.5)';
@@ -462,6 +514,7 @@ out('DRE2_back.dc.html', 'DRE — Ficha de pessoal (verso)', cardBack, { doc: 'd
 out('DRE3.dc.html', 'DRE — Impressão de terminal', printout, { doc: 'dre_terminal', side: 'front', label: 'Impressão de terminal' }, { defs: grainDef('pg', 321) + speckDef('ps', 331, 10.8) });
 out('DRE4.dc.html', 'DRE — Briefing classificado', briefing, { doc: 'dre_briefing', side: 'front', label: 'Briefing classificado' }, { defs: defs('b', 401, 10.9) });
 out('DRE4_back.dc.html', 'DRE — Briefing (página 2)', briefingBack, { doc: 'dre_briefing', side: 'back', label: 'Briefing classificado' }, { defs: defs('bb', 402, 10.9) });
+out('DRE4_p3.dc.html', 'DRE — Briefing (Anexo A)', briefingAnnex, { doc: 'dre_briefing', side: 'p3', label: 'Briefing classificado' }, { defs: defs('ba', 403, 10.9) });
 out('DRE5.dc.html', 'DRE — Cartão de evidência', tag, { doc: 'dre_tag', side: 'front', label: 'Etiqueta de evidência', w: 280, h: 480 }, { w: 280, h: 480, defs: grainDef('tg', 511) + speckDef('ts', 521, 10.9) });
 out('DRE5_back.dc.html', 'DRE — Cartão de evidência (verso)', tagBack, { doc: 'dre_tag', side: 'back', label: 'Etiqueta de evidência', w: 280, h: 480 }, { w: 280, h: 480, defs: grainDef('tg', 511) + speckDef('ts', 521, 10.9) });
 console.log('dre ok');

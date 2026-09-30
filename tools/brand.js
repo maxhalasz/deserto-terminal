@@ -268,6 +268,23 @@ async function buildBrandSide(cv, pack){
       cv.add(makeBrandText(it.f, k));
     }
   }
+  // Slots de foto (bug real reportado pelo Max: clicar na caixa "PHOTO ATTACHED" etc não
+  // levava a nenhum jeito de trocar por uma foto de verdade, porque era só gradiente
+  // pintado na arte travada — sem objeto nenhum ali pra selecionar). Cada data-slot="photo"
+  // do mockup vira um placeholder de foto DE VERDADE (mesmo objeto/mesmo fluxo de "Trocar
+  // foto" dos templates antigos), inserido por cima da arte, recortado com os cantos
+  // arredondados do slot quando o mockup tinha (`rx`).
+  for (const slot of (pack.slots||[])){
+    if (slot.kind !== 'photo') continue;
+    const inset = (slot.inset != null ? slot.inset : 1.2) * k;
+    const ph = await makePhotoPlaceholder({
+      left: slot.x*k + inset, top: slot.y*k + inset,
+      width: Math.max(4, slot.w*k - inset*2), height: Math.max(4, slot.h*k - inset*2),
+      rx: Math.max(0, (slot.rx||0)*k - inset*0.3),
+    });
+    ph.__labName = '🖼 Foto';
+    cv.add(ph);
+  }
 }
 
 /* ---------- estado e troca de lado ---------- */
@@ -319,7 +336,18 @@ function brandDownload(dataUrl, name){
   a.href = dataUrl; a.download = name;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
-async function brandExportBoth(mult){
+/* Rótulo do lado pela posição na lista (não pelo id): índice 0 é sempre "Frente"; com
+   só 2 lados o segundo é "Verso"; com 3+ (pedido do Max: mais de uma página de verso —
+   ex: DRE4 tem 3 páginas) os demais viram "Pág. 3", "Pág. 4"... */
+function brandSideLabel(sides, i){
+  if (i === 0) return 'Frente';
+  if (i === 1 && sides.length === 2) return 'Verso';
+  return 'Pág. ' + (i+1);
+}
+function brandSlug(s){
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+async function brandExportAll(mult){
   const c = BRAND.cur; if (!c) return;
   canvas.discardActiveObject(); canvas.renderAll();
   const out = {};
@@ -334,37 +362,12 @@ async function brandExportBoth(mult){
     out[other] = sc.toDataURL({format: 'png', multiplier: mult});
     sc.dispose();
   }
+  const dpi = getExportDpi(c.W*mult, 'brand:'+c.doc);
   const stamp = Date.now();
-  Object.keys(out).forEach((s, i)=>setTimeout(()=>brandDownload(out[s], `${c.doc}_${s === 'front' ? 'frente' : 'verso'}_${stamp}.png`), i*350));
-}
-/* Foto no encaixe do cartão (recorte "cover", cantos arredondados como a moldura) */
-function brandAddPhoto(file){
-  const c = BRAND.cur; if (!c) return;
-  const pack = window.BRAND_PACK[c.doc+':'+c.side];
-  const slot = pack && pack.slots.find(s=>s.kind === 'photo');
-  if (!slot) return;
-  const reader = new FileReader();
-  reader.onload = (e)=>{
-    fabric.Image.fromURL(e.target.result).then(img=>{
-      const k = c.k, inset = 1;
-      const sw = (slot.w - inset*2) * k, sh = (slot.h - inset*2) * k;
-      const ir = img.width / img.height, tr = sw / sh;
-      let cw = img.width, ch = img.height;
-      if (ir > tr) cw = img.height * tr; else ch = img.width / tr;
-      const scale = sw / cw;
-      img.set({
-        left: (slot.x + inset)*k, top: (slot.y + inset)*k, originX: 'left', originY: 'top',
-        cropX: (img.width - cw)/2, cropY: (img.height - ch)/2, width: cw, height: ch, scaleX: scale, scaleY: scale,
-        customType: 'photo', __labName: '🖼 Foto do cartão',
-        clipPath: new fabric.Rect({width: cw, height: ch, rx: 5*k/scale, ry: 5*k/scale, originX: 'center', originY: 'center', left: 0, top: 0}),
-      });
-      canvas.getObjects().filter(o=>o.__labName === '🖼 Foto do cartão').forEach(o=>canvas.remove(o));
-      canvas.insertAt(1, img);
-      canvas.setActiveObject(img);
-      canvas.renderAll();
-    });
-  };
-  reader.readAsDataURL(file);
+  c.meta.sides.forEach((s, i)=>{
+    const label = brandSideLabel(c.meta.sides, i);
+    setTimeout(()=>brandDownload(pngWithDpi(out[s], dpi), `${c.doc}_${brandSlug(label)}_${stamp}.png`), i*350);
+  });
 }
 
 /* ---------- inspetor do texto de marca ---------- */
@@ -409,19 +412,29 @@ function renderBrandArtInspector(obj, body){
 }
 
 /* ---------- UI (aba "Marcas") ---------- */
+function brandRenderSideButtons(){
+  const row = document.getElementById('sideBtnRow');
+  if (!row) return;
+  row.innerHTML = '';
+  const c = BRAND.cur;
+  const sides = c ? c.meta.sides : [];
+  sides.forEach((s, i)=>{
+    const b = document.createElement('button');
+    b.className = 'sideBtn' + (c.side === s ? ' active' : '');
+    b.textContent = brandSideLabel(sides, i);
+    b.addEventListener('click', ()=>brandSwitchSide(s).catch(e=>alert(e.message)));
+    row.appendChild(b);
+  });
+}
 function brandUpdateUI(){
   const c = BRAND.cur;
   const act = document.getElementById('brandActive'); if (!act) return;
   act.style.display = c ? 'block' : 'none';
-  document.querySelectorAll('.sideBtn').forEach(b=>{
-    b.classList.toggle('active', !!c && b.dataset.side === c.side);
-    b.disabled = !c || !c.meta.sides.includes(b.dataset.side);
-  });
+  brandRenderSideButtons();
   const status = document.getElementById('brandStatus');
-  if (status) status.textContent = c ? `${c.meta.familyLabel} — ${c.meta.label} · ${c.side === 'front' ? 'FRENTE' : 'VERSO'}${c.meta.sides.length < 2 ? ' (documento de uma face só)' : ''}` : '';
-  const pack = c && window.BRAND_PACK[c.doc+':'+c.side];
-  const slotRow = document.getElementById('brandSlotRow');
-  if (slotRow) slotRow.style.display = (pack && pack.slots.some(s=>s.kind === 'photo')) ? 'block' : 'none';
+  if (status) status.textContent = c ? `${c.meta.familyLabel} — ${c.meta.label} · ${brandSideLabel(c.meta.sides, c.meta.sides.indexOf(c.side)).toUpperCase()}${c.meta.sides.length < 2 ? ' (documento de uma face só)' : ''}` : '';
+  const btnAll = document.getElementById('btnBrandExportBoth');
+  if (btnAll) btnAll.textContent = c && c.meta.sides.length > 1 ? `⭳ Baixar todas as ${c.meta.sides.length} páginas (${c.meta.sides.length} PNGs)` : '⭳ Baixar PNG';
   document.querySelectorAll('.bgModeBtn').forEach(b=>{ b.disabled = !!c; });
 }
 (function brandInitUI(){
@@ -431,7 +444,7 @@ function brandUpdateUI(){
   const fill = ()=>{
     doc.innerHTML = '';
     const f = window.BRAND_INDEX.find(x=>x.id === fam.value);
-    f.docs.forEach(d=>{ const o = document.createElement('option'); o.value = d.id; o.textContent = d.label + (d.sides.length > 1 ? ' (frente + verso)' : ''); doc.appendChild(o); });
+    f.docs.forEach(d=>{ const o = document.createElement('option'); o.value = d.id; o.textContent = d.label + (d.sides.length > 1 ? ` (${d.sides.length} páginas)` : ''); doc.appendChild(o); });
   };
   fam.addEventListener('change', fill); fill();
   document.getElementById('btnBrandLoad').addEventListener('click', ()=>{
@@ -439,8 +452,6 @@ function brandUpdateUI(){
     const btn = document.getElementById('btnBrandLoad'); btn.disabled = true;
     loadBrandDoc(doc.value, 'front').catch(e=>alert(e.message)).finally(()=>{ btn.disabled = false; });
   });
-  document.querySelectorAll('.sideBtn').forEach(b=>b.addEventListener('click', ()=>brandSwitchSide(b.dataset.side).catch(e=>alert(e.message))));
-  document.getElementById('btnBrandExportBoth').addEventListener('click', ()=>brandExportBoth(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
-  document.getElementById('brandPhotoFile').addEventListener('change', (e)=>{ const f = e.target.files[0]; if (f) brandAddPhoto(f); e.target.value = ''; });
+  document.getElementById('btnBrandExportBoth').addEventListener('click', ()=>brandExportAll(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
   brandUpdateUI();
 })();

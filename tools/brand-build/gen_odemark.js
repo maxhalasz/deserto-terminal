@@ -206,7 +206,7 @@ const badgeFront = `<div style="${CARD}">
     </div>
     <div style="height:1px;background:linear-gradient(90deg,#d9531e,transparent);margin-top:14px;"></div>
     <div style="display:flex;gap:18px;margin-top:16px;flex-grow:1;">
-      <div data-slot="photo" style="width:108px;height:132px;border-radius:6px;background:linear-gradient(155deg,#33455e,#1a2436);border:1px solid rgba(224,167,46,.4);flex-shrink:0;"></div>
+      <div style="width:108px;height:132px;border-radius:6px;border:1px solid rgba(224,167,46,.4);flex-shrink:0;overflow:hidden;"><div data-slot="photo" style="width:100%;height:100%;border-radius:5px;background:linear-gradient(155deg,#33455e,#1a2436);"></div></div>
       <div style="flex-grow:1;display:flex;flex-direction:column;">
         <div${E} style="font-family:${OSW};font-weight:700;font-size:21px;letter-spacing:.02em;color:#f3ede0;">K. ANDRESEN</div>
         <div${E} style="font-size:11px;letter-spacing:.04em;color:#e0a72e;margin-top:2px;">DRILLING TECHNICIAN — KELVARA PETROCHEMICALS AS</div>

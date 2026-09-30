@@ -37,7 +37,7 @@ let currentNewsLayout = null;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx'];
 let history = [];
 let historyIndex = -1;
 let restoringHistory = false;
@@ -738,7 +738,18 @@ async function makePhotoPlaceholder(opts){
   img.set({left:opts.left||300, top:opts.top||300, scaleX:(opts.width||300)/img.width, scaleY:(opts.height||200)/img.height});
   img.filters = [new HalftoneFilter({size:0.012})];
   img.set('customType','photoPlaceholder');
+  applyPhotoCornerRadius(img, opts.rx||0);
   return img;
+}
+/* Cantos arredondados opcionais (crachás etc.) — o raio é guardado em PIXELS DO
+   DOCUMENTO (não em unidades locais do objeto), porque "Trocar foto" troca o
+   elemento de imagem por um novo quase sempre com outro tamanho natural — sem
+   isso o clipPath ficaria com o raio errado depois da troca. */
+function applyPhotoCornerRadius(img, rxPx){
+  img.__cornerRadiusPx = rxPx||0;
+  if (!rxPx){ img.clipPath = null; return; }
+  const rx = rxPx/(img.scaleX||1), ry = rxPx/(img.scaleY||1);
+  img.clipPath = new fabric.Rect({width:img.width, height:img.height, rx, ry, originX:'center', originY:'center', left:0, top:0});
 }
 
 /* ===================== Toolbar: adicionar objetos ===================== */
@@ -795,6 +806,10 @@ document.getElementById('btnAddPhotoPlaceholder').addEventListener('click', asyn
   const p = await makePhotoPlaceholder({left:PAGE_W/2-150, top:PAGE_H/2-100});
   canvas.add(p); canvas.setActiveObject(p); canvas.renderAll();
 });
+document.getElementById('btnAddWatermark').addEventListener('click', ()=>{
+  const t = makeWatermarkText('CONFIDENTIAL', {left:PAGE_W/2, top:PAGE_H/2, width:PAGE_W*0.8});
+  canvas.add(t); canvas.setActiveObject(t); canvas.renderAll();
+});
 
 function loadImageFileToCanvas(file, atPoint){
   const reader = new FileReader();
@@ -834,7 +849,10 @@ function objLabel(o){
   if (o.customType==='stain') return '💧 Mancha';
   if (o.customType==='grunge') return '🪨 Sujeira/grunge';
   if (o.customType==='bloom') return '✨ Glow';
-  if (o.customType==='stamp') return '🔖 Carimbo';
+  if (o.customType==='stamp' || o.customType==='stampText') return '🔖 Carimbo';
+  if (o.customType==='stampBorder') return '▭ Moldura do carimbo';
+  if (o.customType==='stampGrain') return '🩸 Textura de tinta';
+  if (o.customType==='watermark') return "💧 Marca d'água";
   if (o.customType==='barcode') return '▮ Código de barras';
   if (o.customType==='photoPlaceholder') return '🖼 Placeholder de foto';
   if (o.customType==='photo') return '🖼 Foto';
@@ -1206,6 +1224,8 @@ function renderImageInspector(obj, body){
           newImg.filters = filters;
           newImg.applyFilters();
           newImg.set('customType', obj.customType==='photoPlaceholder'?'photo':obj.customType);
+          if (obj.__labName) newImg.__labName = obj.__labName;
+          applyPhotoCornerRadius(newImg, obj.__cornerRadiusPx||0);
           const idx = canvas.getObjects().indexOf(obj);
           canvas.remove(obj);
           canvas.insertAt(idx, newImg);
@@ -1306,7 +1326,8 @@ function renderBackgroundInspector(obj, body){
 document.getElementById('btnExport').addEventListener('click', ()=>{
   const mult = +document.getElementById('exportScale').value;
   canvas.discardActiveObject(); canvas.renderAll();
-  const dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
+  let dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
+  dataUrl = pngWithDpi(dataUrl, getExportDpi(PAGE_W*mult));
   const a = document.createElement('a');
   a.href = dataUrl;
   a.download = `prop_${currentTemplate.replace(/[^a-z0-9_-]/gi,'_')}_${Date.now()}.png`;
