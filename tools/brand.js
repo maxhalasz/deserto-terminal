@@ -17,7 +17,7 @@ function brandLoadPack(doc, side){
   if (window.BRAND_PACK && window.BRAND_PACK[key]) return Promise.resolve(window.BRAND_PACK[key]);
   return new Promise((res, rej)=>{
     const s = document.createElement('script');
-    s.src = `vendor/brand/${doc}_${side}.js`;
+    s.src = `vendor/brand/${doc}_${side}.js?v=${window.BRAND_VERSION||0}`;
     s.onload = ()=> (window.BRAND_PACK && window.BRAND_PACK[key]) ? res(window.BRAND_PACK[key]) : rej(new Error('Pack vazio: '+key));
     s.onerror = ()=> rej(new Error('Não achei '+s.src));
     document.head.appendChild(s);

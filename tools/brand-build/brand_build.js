@@ -316,7 +316,11 @@ const shot = async (cdp, fmt, clip, quality) => {
   });
   const FAMLABEL = { kelvara: 'Kelvara Petrochemicals', neurostat: 'NeuroStat', dre: 'DRE', odemark: 'Ødemark A.' };
   const index = Object.values(fam).map((f) => ({ id: f.id, label: FAMLABEL[f.id] || f.id, docs: Object.values(f.docs).map((d) => Object.assign(d, { pageW: Math.round(d.wCss * d.k), pageH: Math.round(d.hCss * d.k) })) }));
-  fs.writeFileSync(path.join(OUT, 'brand-index.js'), 'window.BRAND_INDEX=' + JSON.stringify(index, null, 1) + ';\n');
+  // BRAND_VERSION vira query string nos packs (brand.js) — sem isso o navegador serve a versão
+  // antiga em cache de um pack específico depois que eu conserto aquele documento (bug real,
+  // achado ao vivo: o site mostrava o layout velho mesmo depois do deploy, porque o script
+  // vendor/brand/<doc>_<lado>.js é carregado sem cache-busting nenhum).
+  fs.writeFileSync(path.join(OUT, 'brand-index.js'), `window.BRAND_VERSION=${Date.now()};\nwindow.BRAND_INDEX=` + JSON.stringify(index, null, 1) + ';\n');
   console.log('\nindice ok');
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });

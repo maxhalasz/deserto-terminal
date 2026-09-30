@@ -1,3 +1,4 @@
+window.BRAND_VERSION=1790809376697;
 window.BRAND_INDEX=[
  {
   "id": "kelvara",
