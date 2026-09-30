@@ -437,6 +437,55 @@ function brandUpdateUI(){
   if (btnAll) btnAll.textContent = c && c.meta.sides.length > 1 ? `⭳ Baixar todas as ${c.meta.sides.length} páginas (${c.meta.sides.length} PNGs)` : '⭳ Baixar PNG';
   document.querySelectorAll('.bgModeBtn').forEach(b=>{ b.disabled = !!c; });
 }
+/* ---------- Referência rápida de lore (pedido do Max: "lembrete de nomenclaturas e lore
+   na lateral pra eu ter tudo das famílias e organizações em fácil acesso") — só o que já
+   está estabelecido nos documentos construídos até agora, nada novo inventado aqui. */
+const LORE_REF = {
+  kelvara: {
+    'Pessoas': [['C. Vance', 'Logistics Coordinator, Stavanger HQ'], ['Capt. H. Sæther', 'Master, MS Nordvakt'], ['M. Krog', 'Deck Crew, Topside — reportou o sensor do moonpool'], ['T. Lund', 'Shift Supervisor'], ['E. Solberg', 'Platform Manager, Ødemark A.'], ['K. Andresen', 'Drilling Technician, crachá modelo']],
+    'Numeração de documentos': [['KP-LOG-####', 'logística / manifesto de carga'], ['KP-SB-###', 'boletim de segurança'], ['KP-HSE-##', 'formulário HSE'], ['ØA-SO-##', 'ordens de Mørketid, Ødemark A.'], ['ØA-CID-#####', 'crachá de identificação']],
+    'Linha do tempo': [['14–22 MAR', 'memorando de logística + manifesto de carga (supply run 11)'], ['15 MAR', 'boletim de segurança — sensor do moonpool (LT-4102B)']],
+    'Termos / detalhes': [['MS Nordvakt', 'embarcação de suprimento regular'], ['Mørketid', 'temporada de trevas (NOV–ABR) — vigia dobrada, luzes sempre acesas, regra de duas pessoas no moonpool']],
+  },
+  neurostat: {
+    'Pessoas': [['M. Holt', 'Field Division Supervisor'], ['R. Okafor', 'Dive Support, NS-F-0212'], ['T. Lindqvist', 'Comms Technician, NS-F-0344 — desligado 02 ABR'], ['Dr. A. Fenn', 'Clinical Psychologist'], ['Dr. R. Achebe', 'Staff Physician'], ['K. Vance', 'Facilities Engineering']],
+    'Numeração de documentos': [['NS-DES-####', 'relatório de incidente'], ['NS-PSY-####', 'avaliação psicológica'], ['NS-MED-####', 'exame físico'], ['NS-REQ-####', 'requisição de equipamento'], ['NS-HR-####', 'RH / desligamento'], ['NS-FE-####', 'facilities / rede'], ['NS-INT-####', 'transcrição de entrevista']],
+    'Linha do tempo': [['21 MAR, 03:12', 'perda de contato com a equipe de mergulho (incidente NS-DES-0451)'], ['24 MAR', 'avaliação psicológica de Okafor + Adendo A'], ['26 MAR', 'entrevista de acompanhamento com Okafor'], ['02 ABR', 'exame físico de Lindqvist + desligamento']],
+    'Termos / lore': [['Contagem em sete', 'padrão cognitivo recorrente — Okafor e Lindqvist, independentemente'], ['Terminal Room 3', 'nós 09–12, maior concentração de sessões fora de horário na topologia de rede'], ['Cortisol elevado', 'achado em ao menos 2 funcionários do mesmo turno da noite de 21 MAR']],
+  },
+  dre: {
+    'Pessoas': [['R.K.', 'Sublevel Command — iniciais em várias assinaturas/carimbos'], ['K. Marchetti', 'Director, Sublevel'], ['T. Reyes (SL-0338)', 'Sr. Network Analyst — acesso noturno ao Terminal 11 desde 1996'], ['M. Osei', 'Audio Laboratory'], ['Dir. Halloran', 'Records']],
+    'Numeração de documentos': [['SL-YY-####', 'memorando / briefing'], ['AL-YY-####', 'Audio Laboratory'], ['DRE-####', 'caso de evidência'], ['FORM DRE-##', 'formulário interno (personnel, evidência, tramitação)']],
+    'Linha do tempo': [['1996', 'T. Reyes começa na DRE (Facilities)'], ['11/1998', 'gravador recuperado — etiqueta DRE-0447/003'], ['12/1998', 'gravação examinada pelo Audio Lab'], ['02–10 JAN', 'janela de auditoria do acesso ao Terminal 11'], ['14 MAR 2010', 'memorando de rede + log de terminal (ANSELM.K)'], ['06 JUL 2009', 'ficha de pessoal de Reyes reemitida']],
+    'Termos / lore': [['Terminal 11', 'Sublevel Core — acesso após-horário recorrente, nunca explicado'], ['ANSELM.K', 'último operador registrado no log de terminal, 14 MAR 2010'], ['Gravador DRE-0447/003', 'contagem em sete, segunda voz aos 02:24, corte abrupto aos 02:44']],
+  },
+  odemark: {
+    'Pessoas': [['E. Solberg', 'Platform Manager'], ['K. Andresen', 'Drilling Technician, Kelvara Petrochemicals']],
+    'Numeração de documentos': [['ØA-SO-##', 'ordens permanentes (Mørketid)'], ['ØA-CID-#####', 'crachá de identificação']],
+    'Linha do tempo': [['01 NOV – 30 ABR', 'temporada Mørketid, ordens em vigor']],
+    'Termos / lore': [['Operada pela Kelvara', 'Ødemark A. é uma plataforma da Kelvara Petrochemicals'], ['Regra de duas pessoas', 'ninguém trabalha sozinho no corrimão do moonpool'], ['Sinais de alarme', 'Generalalarm (contínuo) · Gassalarm (intermitente) · Evakuering (só por ordem no PA)']],
+  },
+};
+function renderLoreRef(familyId){
+  const box = document.getElementById('loreRef');
+  if (!box) return;
+  const data = LORE_REF[familyId];
+  box.innerHTML = '';
+  if (!data){ box.textContent = 'Sem referência ainda pra esta organização.'; return; }
+  Object.entries(data).forEach(([section, rows])=>{
+    const det = document.createElement('details'); det.className = 'loreSec';
+    const sum = document.createElement('summary'); sum.textContent = section; det.appendChild(sum);
+    const dl = document.createElement('dl');
+    rows.forEach(([term, def])=>{
+      const dt = document.createElement('dt'); dt.textContent = term;
+      const dd = document.createElement('dd'); dd.textContent = def;
+      dl.appendChild(dt); dl.appendChild(dd);
+    });
+    det.appendChild(dl);
+    box.appendChild(det);
+  });
+}
+
 (function brandInitUI(){
   const fam = document.getElementById('brandFamily'), doc = document.getElementById('brandDoc');
   if (!fam || !window.BRAND_INDEX) return;
@@ -445,6 +494,7 @@ function brandUpdateUI(){
     doc.innerHTML = '';
     const f = window.BRAND_INDEX.find(x=>x.id === fam.value);
     f.docs.forEach(d=>{ const o = document.createElement('option'); o.value = d.id; o.textContent = d.label + (d.sides.length > 1 ? ` (${d.sides.length} páginas)` : ''); doc.appendChild(o); });
+    renderLoreRef(fam.value);
   };
   fam.addEventListener('change', fill); fill();
   document.getElementById('btnBrandLoad').addEventListener('click', ()=>{
