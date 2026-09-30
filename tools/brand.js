@@ -309,7 +309,7 @@ async function buildBrandSide(cv, pack){
   // ligações") — o mapa nunca foi extraído do mockup (a arte só tem timbre/título/nota),
   // ele é montado aqui como nós/ligações de verdade a partir de uma topologia fixa por
   // documento. Só roda pra quem tem uma topologia registrada (hoje: ns_diagram).
-  const topo = DIAGRAM_TOPOLOGY[pack.doc];
+  const topo = pack.side === 'front' ? DIAGRAM_TOPOLOGY[pack.doc] : null;
   if (topo) buildDiagramTopology(cv, topo, k);
   // Slots de foto (bug real reportado pelo Max: clicar na caixa "PHOTO ATTACHED" etc não
   // levava a nenhum jeito de trocar por uma foto de verdade, porque era só gradiente
