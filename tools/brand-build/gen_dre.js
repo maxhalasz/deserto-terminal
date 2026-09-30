@@ -572,9 +572,9 @@ const audioBackBody = `<div style="position:absolute;left:32px;right:32px;top:30
       </div>
       <div${E} style="margin-top:8px;font-size:6.6px;line-height:1.6;color:#3c382f;">Recording ends at 02:47 into an otherwise unused reel — approximately 38 minutes of blank tape follow. Playback was not stopped by the operator; the content simply ends.</div>
 
-      ${hand('silence at 2:44 measured 0.0dB below noise floor.<br>that is not possible with this machine running.', 40, 260, { size: 12, rot: -2 })}
+      <div${E} data-hand style="font-family:'Caveat',cursive;font-weight:600;font-size:12px;line-height:1.15;color:${BLUEPEN};transform:rotate(-2deg);transform-origin:left;margin:10px 0 8px 8px;opacity:.92;">silence at 2:44 measured 0.0dB below noise floor.<br>that is not possible with this machine running.</div>
 
-      <div style="margin-top:112px;font-size:6.4px;letter-spacing:.1em;font-weight:700;">TECHNICAL NOTES</div>
+      <div style="margin-top:14px;font-size:6.4px;letter-spacing:.1em;font-weight:700;">TECHNICAL NOTES</div>
       <div style="font-size:7.4px;line-height:1.62;margin-top:3px;">
         <p${E} style="margin:0 0 6px;">Signal-to-noise ratio is consistent throughout; no evidence of splicing or post-recording alteration. Voice print does not match any entry in the DRE Sublevel audio signature library (checked against 41 references, no partial matches above threshold).</p>
         <p${E} style="margin:0 0 6px;">Second voice at 02:24 could not be isolated for independent analysis — frequency range overlaps the first too closely for the equipment available in this lab.</p>
