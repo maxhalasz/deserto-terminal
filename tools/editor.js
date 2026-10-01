@@ -1270,7 +1270,9 @@ document.getElementById('editorClose').addEventListener('click', closeTextEditor
    qualquer lugar que precisar "apagar o que tá selecionado" ou "duplicar o que tá
    selecionado" chama estes em vez de reimplementar o desvio objeto-único/seleção-múltipla. */
 function activeSelectionMembers(obj){
-  return obj && obj.type==='activeSelection' ? obj.getObjects() : (obj ? [obj] : []);
+  // Fabric 6: o getter .type devolve o nome da classe em minúsculo (confirmado ao vivo:
+  // 'activeselection', não 'activeSelection') — testar com o valor real, não o que pareceria certo.
+  return obj && obj.type==='activeselection' ? obj.getObjects() : (obj ? [obj] : []);
 }
 function deleteActiveSelection(){
   const obj = canvas.getActiveObject();
@@ -1350,7 +1352,7 @@ function updateInspector(){
   body.innerHTML = '';
   switchTab('object'); // seleção pula sozinho pra aba Objeto — não precisa rolar até achar
 
-  if (obj.type==='activeSelection'){
+  if (obj.type==='activeselection'){
     renderMultiSelectInspector(obj, body);
     return;
   }
