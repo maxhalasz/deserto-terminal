@@ -333,47 +333,51 @@ async function buildBrandSide(cv, pack){
 /* ---------- estado e troca de lado ---------- */
 function brandOnLeave(){ BRAND.cur = null; brandUpdateUI(); }
 async function loadBrandDoc(docId, side){
-  const meta = brandDocMeta(docId);
-  if (!meta) return;
-  side = side || 'front';
-  const pack = await brandLoadPack(docId, side);
-  const k = meta.k, W = Math.round(meta.wCss*k), H = Math.round(meta.hCss*k);
-  cancelCrop();
-  restoringHistory = true;
-  try {
-    currentTemplate = 'brand:'+docId;
-    PAGE_SIZES[currentTemplate] = [W, H];
-    applyPageSize(currentTemplate);
-    clearDoc();
-    currentBgCategory = null; currentBgOpts = null; currentFoldField = null; currentRuledLines = null;
-    currentNewsContent = null; currentNewsLayout = null;
-    await buildBrandSide(canvas, pack);
-    canvas.renderAll();
-  } finally { restoringHistory = false; }
-  BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}};
-  history = []; historyIndex = -1;
-  pushHistory();
-  PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
-  renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
+  return withSceneLock(async ()=>{
+    const meta = brandDocMeta(docId);
+    if (!meta) return;
+    side = side || 'front';
+    const pack = await brandLoadPack(docId, side);
+    const k = meta.k, W = Math.round(meta.wCss*k), H = Math.round(meta.hCss*k);
+    cancelCrop();
+    beginBatch();
+    try {
+      currentTemplate = 'brand:'+docId;
+      PAGE_SIZES[currentTemplate] = [W, H];
+      applyPageSize(currentTemplate);
+      clearDoc();
+      currentBgCategory = null; currentBgOpts = null; currentFoldField = null; currentRuledLines = null;
+      currentNewsContent = null; currentNewsLayout = null;
+      await buildBrandSide(canvas, pack);
+      canvas.renderAll();
+    } finally { endBatch(); }
+    BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}};
+    history = []; historyIndex = -1;
+    pushHistory();
+    PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
+    renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
+  });
 }
 async function brandSwitchSide(side){
   const c = BRAND.cur;
   if (!c || c.side === side || !c.meta.sides.includes(side)) return;
-  cancelCrop();
-  canvas.discardActiveObject();
-  c.sides[c.side] = {json: JSON.parse(JSON.stringify(canvas.toObject(HISTORY_PROPS))), history, historyIndex};
-  const pack = await brandLoadPack(c.doc, side);
-  const saved = c.sides[side];
-  restoringHistory = true;
-  try {
-    if (saved) await canvas.loadFromJSON(saved.json);
-    else { clearDoc(); await buildBrandSide(canvas, pack); }
-    canvas.renderAll();
-  } finally { restoringHistory = false; }
-  if (saved){ history = saved.history; historyIndex = saved.historyIndex; }
-  else { history = []; historyIndex = -1; pushHistory(); }
-  c.side = side;
-  renderLayerList(); updateInspector(); updateUndoRedoButtons(); brandUpdateUI();
+  return withSceneLock(async ()=>{
+    cancelCrop();
+    canvas.discardActiveObject();
+    c.sides[c.side] = {json: JSON.parse(JSON.stringify(canvas.toObject(HISTORY_PROPS))), history, historyIndex};
+    const pack = await brandLoadPack(c.doc, side);
+    const saved = c.sides[side];
+    beginBatch();
+    try {
+      if (saved) await canvas.loadFromJSON(saved.json);
+      else { clearDoc(); await buildBrandSide(canvas, pack); }
+      canvas.renderAll();
+    } finally { endBatch(); }
+    if (saved){ history = saved.history; historyIndex = saved.historyIndex; }
+    else { history = []; historyIndex = -1; pushHistory(); }
+    c.side = side;
+    renderLayerList(); updateInspector(); updateUndoRedoButtons(); brandUpdateUI();
+  });
 }
 function brandDownload(dataUrl, name){
   const a = document.createElement('a');

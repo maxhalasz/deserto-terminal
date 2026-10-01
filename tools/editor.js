@@ -51,7 +51,30 @@ let curPageIdx = 0;
 const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB'];
 let history = [];
 let historyIndex = -1;
-let restoringHistory = false;
+/* Contador de profundidade, NÃO boolean — uma operação em lote (trocar de página, trocar
+   de lado de doc de marca, recarregar histórico) pode disparar OUTRA operação em lote por
+   baixo antes de terminar (ex: trocar de página chama canvas.loadFromJSON, que dispara
+   object:added por objeto). Um boolean com "salva o valor antigo, restaura no finally" só
+   funciona se TODO call site lembrar de fazer isso certo — dois (pageGo/pageDelete) não
+   lembravam e resetavam pra false incondicional, fechando o lote externo cedo demais. Um
+   contador fecha sozinho: beginBatch/endBatch sempre dão certo não importa o aninhamento. */
+let restoringHistory = 0;
+function beginBatch(){ restoringHistory++; }
+function endBatch(){ restoringHistory = Math.max(0, restoringHistory-1); }
+
+/* Trava simples pra operações de "troca de cena" (carregar template, trocar/adicionar/
+   apagar página, carregar doc de marca, trocar de lado) — todas mexem em PAGES/BRAND.cur/
+   currentTemplate/history ao mesmo tempo que esperam um await (loadFromJSON, carregar
+   fonte, montar arte). O contador de lote acima já deixa o HISTÓRICO seguro mesmo se duas
+   dessas rodarem juntas, mas a troca de PÁGINA/ESTADO em si (ex: dois cliques rápidos em
+   "Próxima") ainda poderia embaralhar `curPageIdx`/`PAGES` — essa trava impede que uma
+   segunda operação comece antes da primeira terminar. */
+let sceneBusy = false;
+async function withSceneLock(fn){
+  if (sceneBusy) return;
+  sceneBusy = true;
+  try { await fn(); } finally { sceneBusy = false; }
+}
 const HISTORY_LIMIT = 40;
 function pushHistory(){
   if (restoringHistory) return;
@@ -62,19 +85,19 @@ function pushHistory(){
   historyIndex = history.length-1;
   updateUndoRedoButtons();
 }
-function restoreHistory(idx){
+async function restoreHistory(idx){
   if (idx<0 || idx>=history.length) return;
-  restoringHistory = true;
+  beginBatch();
   cancelCrop();
-  canvas.loadFromJSON(history[idx]).then(()=>{
+  try {
+    await canvas.loadFromJSON(history[idx]);
     canvas.renderAll();
-    restoringHistory = false;
     historyIndex = idx;
-    renderLayerList();
-    updateInspector();
-    updateUndoRedoButtons();
-    syncNewsLayoutUI();
-  });
+  } finally { endBatch(); }
+  renderLayerList();
+  updateInspector();
+  updateUndoRedoButtons();
+  syncNewsLayoutUI();
 }
 function undo(){ if (historyIndex>0) restoreHistory(historyIndex-1); }
 function redo(){ if (historyIndex<history.length-1) restoreHistory(historyIndex+1); }
@@ -89,14 +112,14 @@ function updateUndoRedoButtons(){
    à mão (o fundo de papel nunca é tocado). Usado pelos presets/controles de coluna. */
 async function rebuildNewspaperLayout(){
   if (!currentNewsContent || !currentNewsLayout) return;
-  const wasRestoring = restoringHistory;
-  restoringHistory = true; // troca de preset é UMA ação do usuário, não N pushes por objeto removido/adicionado
-  canvas.getObjects().filter(o=>o.__newsGenerated).forEach(o=>canvas.remove(o));
-  const objs = await buildNewspaperObjects(currentNewsContent, currentNewsLayout);
-  objs.forEach(o=>canvas.add(o));
-  canvas.renderAll();
-  renderLayerList();
-  restoringHistory = wasRestoring;
+  beginBatch(); // troca de preset é UMA ação do usuário, não N pushes por objeto removido/adicionado
+  try {
+    canvas.getObjects().filter(o=>o.__newsGenerated).forEach(o=>canvas.remove(o));
+    const objs = await buildNewspaperObjects(currentNewsContent, currentNewsLayout);
+    objs.forEach(o=>canvas.add(o));
+    canvas.renderAll();
+    renderLayerList();
+  } finally { endBatch(); }
   pushHistory();
 }
 
@@ -127,14 +150,72 @@ function initCanvas(){
     if (o && isModalText(o)) openTextEditor(o);
   });
   canvas.on('mouse:down', e=>{ if (typeof networkLinkModeClick==='function') networkLinkModeClick(e); });
-  canvas.on('object:moving', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e, true); });
-  canvas.on('object:scaling', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e, false); });
-  canvas.on('object:modified', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e, false); });
+  canvas.on('object:moving', e=>{
+    applyAlignmentSnap(e);
+    if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e);
+  });
+  canvas.on('object:scaling', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
+  canvas.on('object:modified', e=>{ hideGuideLines(); if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
+  canvas.on('mouse:up', hideGuideLines);
   setZoom(0.5);
   pushHistory();
 }
 function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext'; }
 function isLockedBase(o){ return o.customType==='background' || o.customType==='brandArt'; }
+
+/* ===================== Guias de alinhamento =====================
+   Substitui o grid fixo de 20px que só o diagrama de rede tinha (ver network-diagram.js)
+   — ao arrastar QUALQUER objeto, procura bordas/centro de outros objetos (e do canvas)
+   perto o bastante pra "colar", com uma guia visual temporária. Limiar em pixels de TELA
+   (dividido pelo zoom atual), não de documento, pra sentir igual em qualquer nível de
+   zoom — padrão "smart guides" de Figma/Canva/Balsamiq, pesquisado antes de implementar.
+   `getBoundingRect()` (sem argumentos nesta versão do Fabric, confirmado no fonte
+   vendorizado) já devolve a caixa em coordenada de DOCUMENTO — funciona igual não importa
+   o originX/originY de cada tipo de objeto (nó de rede usa 'center', a maioria usa
+   'left'/'top' padrão), sem precisar tratar isso caso a caso. */
+let __guideH = null, __guideV = null;
+function ensureGuideLines(){
+  if (__guideH) return;
+  const opts = {stroke:'#ff5fa8', strokeWidth:1, strokeDashArray:[4,3], selectable:false, evented:false, excludeFromExport:true, visible:false};
+  __guideH = new fabric.Line([0,0,0,0], opts);
+  __guideV = new fabric.Line([0,0,0,0], Object.assign({}, opts));
+  beginBatch();
+  canvas.add(__guideH); canvas.add(__guideV);
+  endBatch();
+}
+function hideGuideLines(){
+  if (!__guideH) return;
+  __guideH.set('visible', false); __guideV.set('visible', false);
+  canvas.requestRenderAll();
+}
+function applyAlignmentSnap(e){
+  const obj = e.target;
+  if (!obj || obj===cropRect) return;
+  ensureGuideLines();
+  if (obj===__guideH || obj===__guideV) return;
+  const excluded = new Set(activeSelectionMembers(obj));
+  excluded.add(cropRect); excluded.add(__guideH); excluded.add(__guideV);
+  const thresh = 8 / canvas.getZoom();
+  const br = obj.getBoundingRect();
+  const movingX = [br.left, br.left+br.width/2, br.left+br.width];
+  const movingY = [br.top, br.top+br.height/2, br.top+br.height];
+  const candX = [0, PAGE_W/2, PAGE_W], candY = [0, PAGE_H/2, PAGE_H];
+  canvas.getObjects().forEach(o=>{
+    if (excluded.has(o)) return;
+    const r = o.getBoundingRect();
+    candX.push(r.left, r.left+r.width/2, r.left+r.width);
+    candY.push(r.top, r.top+r.height/2, r.top+r.height);
+  });
+  let dx = null, bestXDist = thresh, snapXAt = null;
+  movingX.forEach(v=>candX.forEach(c=>{ const d = Math.abs(v-c); if (d < bestXDist){ bestXDist = d; dx = c-v; snapXAt = c; } }));
+  let dy = null, bestYDist = thresh, snapYAt = null;
+  movingY.forEach(v=>candY.forEach(c=>{ const d = Math.abs(v-c); if (d < bestYDist){ bestYDist = d; dy = c-v; snapYAt = c; } }));
+  if (dx!==null) obj.set('left', obj.left+dx);
+  if (dy!==null) obj.set('top', obj.top+dy);
+  if (dx!==null || dy!==null) obj.setCoords();
+  __guideV.set(snapXAt!==null ? {x1:snapXAt, y1:-50, x2:snapXAt, y2:PAGE_H+50, visible:true} : {visible:false});
+  __guideH.set(snapYAt!==null ? {x1:-50, y1:snapYAt, x2:PAGE_W+50, y2:snapYAt, visible:true} : {visible:false});
+}
 function setZoom(z){
   const el = document.getElementById('editorCanvas');
   el.parentElement.style.width = (PAGE_W*z)+'px';
@@ -285,11 +366,11 @@ function setBgMode(mode){
   bgMode = mode;
   updateBgModeUI();
   if (!currentBgCategory) return; // documento ainda não tem fundo de papel (ex: terminal)
-  const __wasRestoring = restoringHistory;
-  restoringHistory = true;
+  beginBatch();
   Promise.resolve(setTemplateBackground(currentBgCategory, currentBgOpts)).then(()=>{
     canvas.renderAll();
-    restoringHistory = __wasRestoring;
+  }).finally(()=>{
+    endBatch();
     pushHistory();
   });
 }
@@ -593,19 +674,20 @@ async function buildTerminalScreenBg(){
 }
 
 async function loadTemplate(name){
-  if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
-  currentTemplate = name;
-  const __wasRestoring = restoringHistory;
-  restoringHistory = true; // carregar um template é UMA ação, não um push por objeto removido/adicionado
-  try {
-    await loadTemplateBody(name);
-  } finally {
-    restoringHistory = __wasRestoring;
-    pushHistory();
-  }
-  PAGES = [pageSnapshot()];
-  curPageIdx = 0;
-  updatePageNavUI();
+  return withSceneLock(async ()=>{
+    if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
+    currentTemplate = name;
+    beginBatch(); // carregar um template é UMA ação, não um push por objeto removido/adicionado
+    try {
+      await loadTemplateBody(name);
+    } finally {
+      endBatch();
+      pushHistory();
+    }
+    PAGES = [pageSnapshot()];
+    curPageIdx = 0;
+    updatePageNavUI();
+  });
 }
 async function loadTemplateBody(name){
   applyPageSize(name);
@@ -782,63 +864,68 @@ function updatePageNavUI(){
 }
 async function pageGo(idx){
   if (idx<0 || idx>=PAGES.length || idx===curPageIdx) return;
-  pageSaveCurrent();
-  const p = PAGES[idx];
-  cancelCrop();
-  restoringHistory = true;
-  try {
-    currentTemplate = p.template;
-    PAGE_W = p.pageW; PAGE_H = p.pageH;
-    setZoom(canvas.getZoom());
-    updateExportLabels();
-    await canvas.loadFromJSON(p.json);
-    recomputeBgFieldsFromObjects(canvas.getObjects());
-    canvas.renderAll();
-  } finally { restoringHistory = false; }
-  history = p.history.slice(); historyIndex = p.historyIndex;
-  curPageIdx = idx;
-  renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+  return withSceneLock(async ()=>{
+    pageSaveCurrent();
+    const p = PAGES[idx];
+    cancelCrop();
+    beginBatch();
+    try {
+      currentTemplate = p.template;
+      PAGE_W = p.pageW; PAGE_H = p.pageH;
+      setZoom(canvas.getZoom());
+      updateExportLabels();
+      await canvas.loadFromJSON(p.json);
+      recomputeBgFieldsFromObjects(canvas.getObjects());
+      canvas.renderAll();
+    } finally { endBatch(); }
+    history = p.history.slice(); historyIndex = p.historyIndex;
+    curPageIdx = idx;
+    renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+  });
 }
 /* Nova página em branco no MESMO documento: repete o fundo (mesma categoria de papel —
    foto NOVA do mesmo tipo, ou tela de terminal, ou digital) sem repetir o conteúdo — o
    Max escreve o que quiser em cada página. */
 async function pageAdd(){
-  pageSaveCurrent();
-  cancelCrop();
-  const wasRestoring = restoringHistory;
-  restoringHistory = true;
-  try {
-    clearDoc();
-    if (currentTemplate==='terminal') await buildTerminalScreenBg();
-    else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
-    else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
-    canvas.renderAll();
-  } finally { restoringHistory = wasRestoring; }
-  PAGES.splice(curPageIdx+1, 0, pageSnapshot());
-  curPageIdx++;
-  history = []; historyIndex = -1; pushHistory();
-  renderLayerList(); updateInspector(); syncNewsLayoutUI(); updatePageNavUI();
+  return withSceneLock(async ()=>{
+    pageSaveCurrent();
+    cancelCrop();
+    beginBatch();
+    try {
+      clearDoc();
+      if (currentTemplate==='terminal') await buildTerminalScreenBg();
+      else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
+      else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
+      canvas.renderAll();
+    } finally { endBatch(); }
+    PAGES.splice(curPageIdx+1, 0, pageSnapshot());
+    curPageIdx++;
+    history = []; historyIndex = -1; pushHistory();
+    renderLayerList(); updateInspector(); syncNewsLayoutUI(); updatePageNavUI();
+  });
 }
 async function pageDelete(){
   if (PAGES.length<=1) return;
   if (!confirm('Apagar esta página? Não dá pra desfazer.')) return;
-  PAGES.splice(curPageIdx, 1);
-  const idx = Math.min(curPageIdx, PAGES.length-1);
-  const target = PAGES[idx];
-  cancelCrop();
-  restoringHistory = true;
-  try {
-    currentTemplate = target.template;
-    PAGE_W = target.pageW; PAGE_H = target.pageH;
-    setZoom(canvas.getZoom());
-    updateExportLabels();
-    await canvas.loadFromJSON(target.json);
-    recomputeBgFieldsFromObjects(canvas.getObjects());
-    canvas.renderAll();
-  } finally { restoringHistory = false; }
-  history = target.history.slice(); historyIndex = target.historyIndex;
-  curPageIdx = idx;
-  renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+  return withSceneLock(async ()=>{
+    PAGES.splice(curPageIdx, 1);
+    const idx = Math.min(curPageIdx, PAGES.length-1);
+    const target = PAGES[idx];
+    cancelCrop();
+    beginBatch();
+    try {
+      currentTemplate = target.template;
+      PAGE_W = target.pageW; PAGE_H = target.pageH;
+      setZoom(canvas.getZoom());
+      updateExportLabels();
+      await canvas.loadFromJSON(target.json);
+      recomputeBgFieldsFromObjects(canvas.getObjects());
+      canvas.renderAll();
+    } finally { endBatch(); }
+    history = target.history.slice(); historyIndex = target.historyIndex;
+    curPageIdx = idx;
+    renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+  });
 }
 /* Renderiza CADA página num PNG — a atual pelo canvas ao vivo, as outras por um
    StaticCanvas isolado (mesmo truque já provado em brandExportAll), sem navegar de
@@ -1057,10 +1144,10 @@ function renderLayerList(){
   const box = document.getElementById('layerList');
   box.innerHTML = '';
   const objs = canvas.getObjects().filter(o=>o!==cropRect).slice().reverse();
-  const active = canvas.getActiveObject();
+  const activeMembers = activeSelectionMembers(canvas.getActiveObject());
   objs.forEach(o=>{
     const row = document.createElement('div');
-    row.className = 'layerRow' + (o===active?' active':'');
+    row.className = 'layerRow' + (activeMembers.includes(o)?' active':'');
 
     const thumb = document.createElement('img'); thumb.className='layerThumb';
     try {
@@ -1173,6 +1260,40 @@ document.getElementById('editorTextarea').addEventListener('input', ()=>{
   if (editorTarget) renderEditorPreview(editorTarget, document.getElementById('editorTextarea').value);
 });
 document.getElementById('editorClose').addEventListener('click', closeTextEditor);
+
+/* ===================== Multi-seleção =====================
+   Pedido do Max, achado numa auditoria do código: o Fabric já deixa marquee/shift-click
+   multi-selecionar (canvas.selection nunca foi desativado), mas APAGAR, DUPLICAR e o
+   inspector só liam canvas.getActiveObject() (singular) — com 2+ objetos isso devolve o
+   ActiveSelection sintético do Fabric, que nenhum desses caminhos tratava (os `if` de tipo
+   simplesmente não batiam, silenciosamente). Esses 3 helpers centralizam o tratamento:
+   qualquer lugar que precisar "apagar o que tá selecionado" ou "duplicar o que tá
+   selecionado" chama estes em vez de reimplementar o desvio objeto-único/seleção-múltipla. */
+function activeSelectionMembers(obj){
+  return obj && obj.type==='activeSelection' ? obj.getObjects() : (obj ? [obj] : []);
+}
+function deleteActiveSelection(){
+  const obj = canvas.getActiveObject();
+  if (!obj || obj===cropRect) return;
+  const members = activeSelectionMembers(obj).filter(m=>m!==cropRect && !isLockedBase(m));
+  if (!members.length) return;
+  canvas.discardActiveObject();
+  members.forEach(m=>deleteObjectCascade(canvas, m));
+  canvas.renderAll();
+}
+function duplicateActiveSelection(){
+  const obj = canvas.getActiveObject();
+  if (!obj) return;
+  const members = activeSelectionMembers(obj).filter(m=>m.customType!=='brandArt');
+  if (!members.length) return;
+  canvas.discardActiveObject();
+  Promise.all(members.map(m=>m.clone().then(c=>{ c.set({left:m.left+20, top:m.top+20}); canvas.add(c); return c; }))).then(clones=>{
+    if (clones.length===1) canvas.setActiveObject(clones[0]);
+    else canvas.setActiveObject(new fabric.ActiveSelection(clones, {canvas}));
+    canvas.renderAll();
+  });
+}
+const NUDGE_STEP = 1, NUDGE_STEP_SHIFT = 10;
 document.addEventListener('keydown', e=>{
   if (!document.getElementById('editorModal').hidden){
     if (e.key==='Escape') closeTextEditor();
@@ -1182,13 +1303,33 @@ document.addEventListener('keydown', e=>{
   if (tag==='INPUT' || tag==='TEXTAREA' || tag==='SELECT') return;
   const obj = canvas.getActiveObject();
   if (e.key==='Delete' || e.key==='Backspace'){
-    if (obj && obj!==cropRect && !isLockedBase(obj)){ e.preventDefault(); deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); }
+    e.preventDefault(); deleteActiveSelection();
   } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
-    if (obj && obj.customType!=='brandArt'){ e.preventDefault(); obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); }); }
+    e.preventDefault(); duplicateActiveSelection();
   } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='z'){
     e.preventDefault(); redo();
   } else if (e.ctrlKey && e.key.toLowerCase()==='z'){
     e.preventDefault(); undo();
+  } else if (e.key==='Escape'){
+    if (obj){ e.preventDefault(); canvas.discardActiveObject(); canvas.renderAll(); updateInspector(); }
+  } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+    if (obj && obj!==cropRect){
+      e.preventDefault();
+      const step = e.shiftKey ? NUDGE_STEP_SHIFT : NUDGE_STEP;
+      const dx = e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0;
+      const dy = e.key==='ArrowUp'?-step:e.key==='ArrowDown'?step:0;
+      obj.set({left: obj.left+dx, top: obj.top+dy});
+      obj.setCoords();
+      canvas.renderAll();
+      nudgeDirty = true; // histórico só é gravado UMA vez no keyup — segurar a seta não pode encher os 40 slots de desfazer com micro-passos
+    }
+  }
+});
+let nudgeDirty = false;
+document.addEventListener('keyup', e=>{
+  if (nudgeDirty && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
+    nudgeDirty = false;
+    pushHistory();
   }
 });
 document.getElementById('btnUndo').addEventListener('click', undo);
@@ -1208,6 +1349,11 @@ function updateInspector(){
   panel.classList.add('show');
   body.innerHTML = '';
   switchTab('object'); // seleção pula sozinho pra aba Objeto — não precisa rolar até achar
+
+  if (obj.type==='activeSelection'){
+    renderMultiSelectInspector(obj, body);
+    return;
+  }
 
   if (obj.type==='brandtext'){
     renderBrandTextInspector(obj, body);
@@ -1231,17 +1377,32 @@ function updateInspector(){
   if (obj.customType!=='brandArt'){
     const dup = document.createElement('button');
     dup.textContent = 'Duplicar';
-    dup.addEventListener('click', ()=>{
-      obj.clone().then(c=>{ c.set({left:obj.left+20, top:obj.top+20}); canvas.add(c); canvas.setActiveObject(c); canvas.renderAll(); });
-    });
+    dup.addEventListener('click', duplicateActiveSelection);
     body.appendChild(dup);
   }
   if (!isLockedBase(obj)){
     const del = document.createElement('button');
     del.textContent = 'Excluir'; del.className='danger';
-    del.addEventListener('click', ()=>{ deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); });
+    del.addEventListener('click', deleteActiveSelection);
     body.appendChild(del);
   }
+}
+/* Seleção múltipla (marquee/shift-click): os inspetores por tipo acima não fazem sentido
+   pra um grupo heterogêneo de objetos — mostra só a contagem e as duas ações que fazem
+   sentido em lote (duplicar/excluir todos), via os mesmos helpers que o teclado usa. */
+function renderMultiSelectInspector(sel, body){
+  const members = sel.getObjects();
+  const info = document.createElement('div'); info.className='hint';
+  info.textContent = `${members.length} objetos selecionados.`;
+  body.appendChild(info);
+  const dup = document.createElement('button');
+  dup.textContent = 'Duplicar todos';
+  dup.addEventListener('click', duplicateActiveSelection);
+  body.appendChild(dup);
+  const del = document.createElement('button');
+  del.textContent = 'Excluir todos'; del.className = 'danger';
+  del.addEventListener('click', deleteActiveSelection);
+  body.appendChild(del);
 }
 
 function labeledRange(labelText, val, min, max, step, onInput){
@@ -1350,10 +1511,9 @@ function startCrop(obj){
     cornerColor:'#6d93c9', transparentCorners:false, lockRotation:true,
   });
   cropRect.setControlsVisibility({mtr:false});
-  const wasRestoring = restoringHistory;
-  restoringHistory = true;
+  beginBatch();
   canvas.add(cropRect);
-  restoringHistory = wasRestoring;
+  endBatch();
   canvas.setActiveObject(cropRect);
   canvas.renderAll();
   const bar = document.getElementById('cropActions'); if (bar) bar.style.display='flex';
@@ -1385,10 +1545,9 @@ function applyCrop(){
 }
 function cancelCrop(){
   if (cropRect){
-    const wasRestoring = restoringHistory;
-    restoringHistory = true;
+    beginBatch();
     canvas.remove(cropRect);
-    restoringHistory = wasRestoring;
+    endBatch();
   }
   cropRect = null; cropTarget = null;
   const bar = document.getElementById('cropActions'); if (bar) bar.style.display='none';

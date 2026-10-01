@@ -59,16 +59,13 @@ function makeNetworkNode(opts){
    listener por objeto — objetos reconstruídos por canvas.loadFromJSON (desfazer/refazer,
    trocar de lado e voltar, trocar de página) são instâncias NOVAS sem os listeners
    originais; um handler genérico no canvas não depende de nenhuma instância específica,
-   então sobrevive a isso. `snap` só é true no evento 'object:moving' (ver initCanvas) —
-   alinhar durante um redimensionamento (object:scaling) atrapalharia a precisão do
-   arrasto da alça. */
-function networkSyncOnObjectMoving(e, snap){
+   então sobrevive a isso. O alinhamento/snap em si NÃO é mais feito aqui — virou o sistema
+   genérico de guias (editor.js, applyAlignmentSnap) que roda ANTES deste handler pra
+   QUALQUER objeto, nó de rede incluso; este handler só reage à posição (já alinhada) pra
+   mover rótulo/acento/ligações junto. */
+function networkSyncOnObjectMoving(e){
   const box = e.target;
   if (!box || box.customType!=='netNode' || !box.canvas) return;
-  if (snap){
-    const GRID = 20;
-    box.set({ left: Math.round(box.left/GRID)*GRID, top: Math.round(box.top/GRID)*GRID });
-  }
   const oid = box.__oid;
   const bw = box.getScaledWidth(), bh = box.getScaledHeight();
   box.canvas.getObjects().forEach(o=>{
@@ -130,8 +127,7 @@ function syncNetworkLinks(movedNode){
   const cv = movedNode.canvas;
   if (!cv) return;
   const oid = movedNode.__oid;
-  const wasRestoring = restoringHistory;
-  restoringHistory = true;
+  beginBatch();
   let touched = false;
   try {
     cv.getObjects().filter(o=>o.customType==='netLink' && (o.__linkA===oid || o.__linkB===oid)).forEach(line=>{
@@ -148,7 +144,7 @@ function syncNetworkLinks(movedNode){
       const art = cv.getObjects().find(o=>o.customType==='brandArt'||o.customType==='background');
       if (art) cv.sendObjectToBack(art);
     }
-  } finally { restoringHistory = wasRestoring; }
+  } finally { endBatch(); }
 }
 /* Ao apagar um nó, some com a ligação junto (mesma lógica de deleteObjectCascade, mas
    pareada pelos DOIS lados — uma ligação nunca some sozinha órfã). */
