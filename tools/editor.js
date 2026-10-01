@@ -127,9 +127,9 @@ function initCanvas(){
     if (o && isModalText(o)) openTextEditor(o);
   });
   canvas.on('mouse:down', e=>{ if (typeof networkLinkModeClick==='function') networkLinkModeClick(e); });
-  canvas.on('object:moving', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
-  canvas.on('object:scaling', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
-  canvas.on('object:modified', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
+  canvas.on('object:moving', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e, true); });
+  canvas.on('object:scaling', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e, false); });
+  canvas.on('object:modified', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e, false); });
   setZoom(0.5);
   pushHistory();
 }
@@ -990,8 +990,8 @@ document.getElementById('btnAddWatermark').addEventListener('click', ()=>{
   canvas.add(t); canvas.setActiveObject(t); canvas.renderAll();
 });
 document.getElementById('btnAddNetNode').addEventListener('click', ()=>{
-  const [box, label] = makeNetworkNode({left:PAGE_W/2, top:PAGE_H/2, title:'NODE', sub:'', stroke:'#2c4a72'});
-  canvas.add(box); canvas.add(label); canvas.setActiveObject(box); canvas.renderAll();
+  const [box, label, accent] = makeNetworkNode({left:PAGE_W/2, top:PAGE_H/2, title:'NODE', sub:''});
+  canvas.add(box); canvas.add(label); canvas.add(accent); canvas.setActiveObject(box); canvas.renderAll();
 });
 document.getElementById('btnNetLinkModeAdd').addEventListener('click', ()=>toggleNetworkLinkMode());
 

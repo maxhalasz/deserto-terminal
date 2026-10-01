@@ -248,18 +248,18 @@ const DIAGRAM_TOPOLOGY = {
 function buildDiagramTopology(cv, topo, k){
   const boxes = {};
   topo.nodes.forEach(n=>{
-    const [box, label] = makeNetworkNode({
+    const [box, label, accent] = makeNetworkNode({
       left: n.x*k, top: n.y*k, width: n.w*k, height: n.h*k,
       title: n.title, sub: n.sub, stroke: topo.stroke, fontSize: 6*k,
     });
-    boxes[n.key] = { box, label };
+    boxes[n.key] = { box, label, accent };
   });
   topo.links.forEach(([aKey, bKey, dashed])=>{
     const a = boxes[aKey], b = boxes[bKey];
     if (!a || !b) return;
     cv.add(makeNetworkLink(a.box, b.box, { stroke: topo.stroke, dashed, strokeWidth: 1.3*k }));
   });
-  Object.values(boxes).forEach(({box, label})=>{ cv.add(box); cv.add(label); });
+  Object.values(boxes).forEach(({box, label, accent})=>{ cv.add(box); cv.add(label); cv.add(accent); });
 }
 
 /* ---------- monta um lado num canvas (Canvas do editor ou StaticCanvas da exportação) ---------- */
@@ -530,10 +530,20 @@ const LORE_REF = {
     'Termos / lore': [['Contagem em sete', 'padrão cognitivo recorrente — Okafor e Lindqvist, independentemente'], ['Terminal Room 3', 'nós 09–12, maior concentração de sessões fora de horário na topologia de rede'], ['Cortisol elevado', 'achado em ao menos 2 funcionários do mesmo turno da noite de 21 MAR']],
   },
   dre: {
-    'Pessoas': [['R.K.', 'Sublevel Command — iniciais em várias assinaturas/carimbos'], ['K. Marchetti', 'Director, Sublevel'], ['T. Reyes (SL-0338)', 'Sr. Network Analyst — acesso noturno ao Terminal 11 desde 1996'], ['M. Osei', 'Audio Laboratory'], ['Dir. Halloran', 'Records']],
-    'Numeração de documentos': [['SL-YY-####', 'memorando / briefing'], ['AL-YY-####', 'Audio Laboratory'], ['DRE-####', 'caso de evidência'], ['FORM DRE-##', 'formulário interno (personnel, evidência, tramitação)']],
-    'Linha do tempo': [['1996', 'T. Reyes começa na DRE (Facilities)'], ['11/1998', 'gravador recuperado — etiqueta DRE-0447/003'], ['12/1998', 'gravação examinada pelo Audio Lab'], ['02–10 JAN', 'janela de auditoria do acesso ao Terminal 11'], ['14 MAR 2010', 'memorando de rede + log de terminal (ANSELM.K)'], ['06 JUL 2009', 'ficha de pessoal de Reyes reemitida']],
-    'Termos / lore': [['Terminal 11', 'Sublevel Core — acesso após-horário recorrente, nunca explicado'], ['ANSELM.K', 'último operador registrado no log de terminal, 14 MAR 2010'], ['Gravador DRE-0447/003', 'contagem em sete, segunda voz aos 02:24, corte abrupto aos 02:44']],
+    '⚠ Conflito de datas (não resolvido)': [['Docs antigos (memo/personnel/briefing/terminal)', '2009–2010 — contradiz "documentação para em 1991"'], ['dre_tag / dre_audio', '1998 — idem'], ['ANSELM.K no log de terminal (dre_terminal, 14 MAR 2010)', 'colide com o nome do Anselm Krause real da wiki (arquivista, paciente zero do Coro, apagado em 1991) — não editado ainda, perguntar ao Max se é erro ou gancho intencional'], ['Catalog cards novos (ARC/Anomaly)', 'já respeitam 1991 — únicos alinhados com a wiki até agora']],
+    'Hierarquia de comando (wiki)': [['Conclave', 'corpo decisório máximo, composição/identidade nunca registradas, nunca contato direto com anomalia'], ['Curadoria', 'camada executiva, concentrava o conhecimento consolidado — foi aqui que @O Coro foi reconstruído a partir dos fragmentos'], ['Diretor de Instalação', 'autoridade máxima local, reporta à Curadoria'], ['Chefia de Setor', 'comando técnico de um setor dentro da instalação'], ['Pessoal de base', 'pesquisadores, operadores, técnicos, arquivistas, segurança']],
+    'Classificação de pessoal (wiki)': [['Classe Selada', 'proibida de qualquer contato direto com anomalia — o Conclave é Selada'], ['Classe de Contato', 'trabalha com anomalias já em quarentena cognitiva / liberadas de efeito memético'], ['Classe de Exposição', 'pessoal descartável, testes de contato direto, recrutado fora dos quadros permanentes'], ['Liberação 1–5', 'acesso à informação, sobreposto à classe — Liberação 5 = arquivo irrestrito']],
+    'Setores (wiki)': [['Correlação', 'cruzava registros de anomalias entre instalações pela rede fechada'], ['Contenção', 'manutenção física e cognitiva das anomalias presas'], ['Norma', 'pesquisa de anomalias de ruptura da realidade'], ['Recuperação', 'campo — localizava/isolava/trazia anomalias pra contenção'], ['Psicoanálise', 'neutralizava efeito memético antes de liberar pra Classe de Contato'], ['Telecomunicação', 'rede fechada entre instalações, tecnologia décadas à frente'], ['Arquivos', 'guarda da documentação, em transição física→digital no fim'], ['Identificação', 'produzia e controlava os chips de identificação']],
+    'Grupos de Campo (wiki)': [['Equipe Orfeu', 'anomalias biológicas/químicas/radiológicas, surtos contagiosos'], ['Equipe Erebo', 'subsolo e subaquático profundo, atuava com o Setor Erebo'], ['Equipe Lázaro', 'quarentena cognitiva de campo — treinada pra CONTER sem compreender'], ['Equipe Sentinela', 'contrainteligência — cultos do Mythos, vazamento de conhecimento anômalo'], ['Equipe Sudário', 'recuperação de pessoal/material em instalação comprometida, entra onde a contenção falhou']],
+    'Classificação de anomalias (wiki)': [['AWE / ERA 1–4', 'mudança no plano da existência — Class1 ≤100km, Class2 ≤10.000km, Class3 global, Class4 possivelmente cósmico'], ['ARC / CAC', 'itens com efeito anômalo ligado a eles'], ['BLOOM / VODMO', 'vida orgânica de mutação oculta'], ['Eidolon', 'entidade anômala sem corpo material'], ['Telos', 'tudo que a DRE fez ou derivou de anomalias'], ['BREACH / PREQUE', 'concentração física de anomalias ligada fisicamente a uma realidade externa'], ['Apeiron', 'nome pros deuses antigos e a pesquisa da DRE sobre eles'], ['Noetic', 'adendo do Max (fora da wiki original) — memetic/knowledge hazard']],
+    'Tolerância T0–T3 (wiki)': [['T0', 'Inerte'], ['T1', 'Contido'], ['T2', 'Manutenção constante necessária'], ['T3', 'Impossível de conter, ou ainda não contido — ex. da wiki: "A Colônia é um BLOOM T2"']],
+    'Instalações conhecidas (wiki)': [['Complexo Heisenberg', '@Schwarzwald-Süd, sul da Alemanha, erguido 1929–34 sobre ponto de Véu fino; DRE não abriu @O Outro Mundo, só conectou a cidade a ele; depois virou fachada Heisenberg Pharmaceutical pela @Aegis Corporation'], ['Complexo Serra dos Pesares', 'Santa Catarina, Brasil, subterrâneo sob fachada de mineração de carvão; conduziu o @Projeto SOMA e a mineração em direção a @Hastur; incidente catastrófico de 1987']],
+    'Membros conhecidos (wiki, sem doc ainda)': [['Dra. Elena Voss', 'sem cargo listado na wiki'], ['Dr. Adrian Mühler', 'chefe científico do Setor Heisenberg durante o incidente'], ['Dr. Leo Fischer', 'sem cargo listado na wiki'], ['Dr. Elias Hartwich', 'sem cargo listado na wiki'], ['Dra. Sabine Reitz', 'sem cargo listado na wiki'], ['L. Häuser', 'sem cargo listado na wiki']],
+    '⚠ O que realmente aconteceu em 1991 (spoiler, só pro GM)': [['Causa real', '@O Coro chegou à DRE como desaparecimentos tratados como anomalias menores em várias instalações; Setor de Correlação cruzou os registros pela rede fechada'], ['Anselm Krause', 'arquivista de base (Setor de Arquivos), paciente zero do Coro — fechou o entendimento sobre o material consolidado'], ['O apagamento', 'em 1991 TODOS os membros da DRE foram apagados no mesmo instante, em TODAS as instalações — algumas anomalias contidas sumiram junto'], ['Hipótese da NeuroStat', 'contato direto com @Hastur via Serra dos Pesares — a própria wiki diz que essa hipótese ESTÁ ERRADA']],
+    'Pessoas (lore dos documentos já publicados)': [['R.K.', 'Sublevel Command — iniciais em várias assinaturas/carimbos'], ['K. Marchetti', 'Director, Sublevel'], ['T. Reyes (SL-0338)', 'Sr. Network Analyst — acesso noturno ao Terminal 11 desde 1996'], ['M. Osei', 'Audio Laboratory'], ['Dir. Halloran', 'Records']],
+    'Numeração de documentos': [['SL-YY-####', 'memorando / briefing'], ['AL-YY-####', 'Audio Laboratory'], ['DRE-####', 'caso de evidência'], ['FORM DRE-##', 'formulário interno (personnel, evidência, tramitação)'], ['FORM DRE-63', 'catalog card de artefato (ARC)'], ['FORM DRE-64', 'catalog card de anomalia']],
+    'Linha do tempo (docs já publicados)': [['1996', 'T. Reyes começa na DRE (Facilities)'], ['11/1998', 'gravador recuperado — etiqueta DRE-0447/003'], ['12/1998', 'gravação examinada pelo Audio Lab'], ['02–10 JAN', 'janela de auditoria do acesso ao Terminal 11'], ['14 MAR 2010', 'memorando de rede + log de terminal (ANSELM.K) — ver conflito de datas acima'], ['06 JUL 2009', 'ficha de pessoal de Reyes reemitida'], ['09/11/88', 'recuperação do ARC-0891 (Equipe Sudário)'], ['03/1989', 'ANOM-0447 registrada, Complexo Heisenberg Setor Erebo']],
+    'Termos / lore (docs já publicados)': [['Terminal 11', 'Sublevel Core — acesso após-horário recorrente, nunca explicado'], ['ANSELM.K', 'último operador registrado no log de terminal, 14 MAR 2010'], ['Gravador DRE-0447/003', 'contagem em sete, segunda voz aos 02:24, corte abrupto aos 02:44'], ['ARC-0891', 'artefato, Tier T1, Equipe Sudário'], ['ANOM-0447', 'Recurrent Numerical Intrusion — Minor, Noetic, T0, fechada "UNCORRELATED"']],
   },
   odemark: {
     'Pessoas': [['E. Solberg', 'Platform Manager'], ['K. Andresen', 'Drilling Technician, Kelvara Petrochemicals']],
