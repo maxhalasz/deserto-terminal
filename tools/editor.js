@@ -677,21 +677,16 @@ async function loadTemplate(name){
   return withSceneLock(async ()=>{
     if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
     currentTemplate = name;
-    beginBatch(); // carregar um template é UMA ação, não um push por objeto removido/adicionado
-    try {
-      await loadTemplateBody(name);
-    } finally {
-      endBatch();
-      pushHistory();
-    }
+    await sceneSwitchTo({}, { buildFresh: ()=>loadTemplateBody(name) });
     PAGES = [pageSnapshot()];
     curPageIdx = 0;
     updatePageNavUI();
   });
 }
+/* clearDoc() não roda mais aqui dentro — o único chamador (loadTemplate, acima) já passa
+   por sceneSwitchTo, que limpa o canvas antes de chamar buildFresh. */
 async function loadTemplateBody(name){
   applyPageSize(name);
-  clearDoc();
   const rng = mulberry32(Math.floor(Math.random()*4294967296));
   // Crachá é digital por padrão (pedido do Max: "ao invés de usar uma textura pro
   // cartão de acesso, faz ele digital") — os outros mantêm o comportamento antigo
@@ -842,14 +837,16 @@ async function loadTemplateBody(name){
    lados fixos pré-autorados (BRAND.cur.sides). Esse aqui é pros templates de documento
    (relatório, carta, dossiê...), pra um documento GM poder crescer além de uma folha só. */
 function pageSnapshot(){
-  return {
-    json: JSON.parse(JSON.stringify(canvas.toObject(HISTORY_PROPS))),
-    history: history.slice(), historyIndex,
-    pageW: PAGE_W, pageH: PAGE_H, template: currentTemplate,
-  };
+  return makeSceneSnapshot({pageW: PAGE_W, pageH: PAGE_H, template: currentTemplate});
 }
 function pageSaveCurrent(){
   if (PAGES.length) PAGES[curPageIdx] = pageSnapshot();
+}
+function applyPageSceneFields(scene){
+  currentTemplate = scene.template;
+  PAGE_W = scene.pageW; PAGE_H = scene.pageH;
+  setZoom(canvas.getZoom());
+  updateExportLabels();
 }
 function updatePageNavUI(){
   const wrap = document.getElementById('pageNavBlock');
@@ -866,19 +863,10 @@ async function pageGo(idx){
   if (idx<0 || idx>=PAGES.length || idx===curPageIdx) return;
   return withSceneLock(async ()=>{
     pageSaveCurrent();
-    const p = PAGES[idx];
-    cancelCrop();
-    beginBatch();
-    try {
-      currentTemplate = p.template;
-      PAGE_W = p.pageW; PAGE_H = p.pageH;
-      setZoom(canvas.getZoom());
-      updateExportLabels();
-      await canvas.loadFromJSON(p.json);
-      recomputeBgFieldsFromObjects(canvas.getObjects());
-      canvas.renderAll();
-    } finally { endBatch(); }
-    history = p.history.slice(); historyIndex = p.historyIndex;
+    await sceneSwitchTo(PAGES[idx], {
+      applyFields: applyPageSceneFields,
+      afterLoad: ()=>recomputeBgFieldsFromObjects(canvas.getObjects()),
+    });
     curPageIdx = idx;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
   });
@@ -889,18 +877,15 @@ async function pageGo(idx){
 async function pageAdd(){
   return withSceneLock(async ()=>{
     pageSaveCurrent();
-    cancelCrop();
-    beginBatch();
-    try {
-      clearDoc();
-      if (currentTemplate==='terminal') await buildTerminalScreenBg();
-      else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
-      else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
-      canvas.renderAll();
-    } finally { endBatch(); }
+    await sceneSwitchTo({}, {
+      buildFresh: async ()=>{
+        if (currentTemplate==='terminal') await buildTerminalScreenBg();
+        else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
+        else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
+      },
+    });
     PAGES.splice(curPageIdx+1, 0, pageSnapshot());
     curPageIdx++;
-    history = []; historyIndex = -1; pushHistory();
     renderLayerList(); updateInspector(); syncNewsLayoutUI(); updatePageNavUI();
   });
 }
@@ -910,19 +895,10 @@ async function pageDelete(){
   return withSceneLock(async ()=>{
     PAGES.splice(curPageIdx, 1);
     const idx = Math.min(curPageIdx, PAGES.length-1);
-    const target = PAGES[idx];
-    cancelCrop();
-    beginBatch();
-    try {
-      currentTemplate = target.template;
-      PAGE_W = target.pageW; PAGE_H = target.pageH;
-      setZoom(canvas.getZoom());
-      updateExportLabels();
-      await canvas.loadFromJSON(target.json);
-      recomputeBgFieldsFromObjects(canvas.getObjects());
-      canvas.renderAll();
-    } finally { endBatch(); }
-    history = target.history.slice(); historyIndex = target.historyIndex;
+    await sceneSwitchTo(PAGES[idx], {
+      applyFields: applyPageSceneFields,
+      afterLoad: ()=>recomputeBgFieldsFromObjects(canvas.getObjects()),
+    });
     curPageIdx = idx;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
   });

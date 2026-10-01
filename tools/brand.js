@@ -339,21 +339,13 @@ async function loadBrandDoc(docId, side){
     side = side || 'front';
     const pack = await brandLoadPack(docId, side);
     const k = meta.k, W = Math.round(meta.wCss*k), H = Math.round(meta.hCss*k);
-    cancelCrop();
-    beginBatch();
-    try {
-      currentTemplate = 'brand:'+docId;
-      PAGE_SIZES[currentTemplate] = [W, H];
-      applyPageSize(currentTemplate);
-      clearDoc();
-      currentBgCategory = null; currentBgOpts = null; currentFoldField = null; currentRuledLines = null;
-      currentNewsContent = null; currentNewsLayout = null;
-      await buildBrandSide(canvas, pack);
-      canvas.renderAll();
-    } finally { endBatch(); }
+    currentTemplate = 'brand:'+docId;
+    PAGE_SIZES[currentTemplate] = [W, H];
+    applyPageSize(currentTemplate);
+    currentBgCategory = null; currentBgOpts = null; currentFoldField = null; currentRuledLines = null;
+    currentNewsContent = null; currentNewsLayout = null;
+    await sceneSwitchTo({}, { buildFresh: ()=>buildBrandSide(canvas, pack) });
     BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}};
-    history = []; historyIndex = -1;
-    pushHistory();
     PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
     renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
   });
@@ -362,19 +354,13 @@ async function brandSwitchSide(side){
   const c = BRAND.cur;
   if (!c || c.side === side || !c.meta.sides.includes(side)) return;
   return withSceneLock(async ()=>{
-    cancelCrop();
+    cancelCrop(); // antes do snapshot — senão o retângulo de recorte temporário vira parte permanente do lado salvo
     canvas.discardActiveObject();
-    c.sides[c.side] = {json: JSON.parse(JSON.stringify(canvas.toObject(HISTORY_PROPS))), history, historyIndex};
+    c.sides[c.side] = makeSceneSnapshot();
     const pack = await brandLoadPack(c.doc, side);
-    const saved = c.sides[side];
-    beginBatch();
-    try {
-      if (saved) await canvas.loadFromJSON(saved.json);
-      else { clearDoc(); await buildBrandSide(canvas, pack); }
-      canvas.renderAll();
-    } finally { endBatch(); }
-    if (saved){ history = saved.history; historyIndex = saved.historyIndex; }
-    else { history = []; historyIndex = -1; pushHistory(); }
+    await sceneSwitchTo(c.sides[side] || {}, {
+      buildFresh: ()=>buildBrandSide(canvas, pack),
+    });
     c.side = side;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); brandUpdateUI();
   });
