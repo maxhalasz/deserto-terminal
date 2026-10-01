@@ -246,20 +246,20 @@ const DIAGRAM_TOPOLOGY = {
    arte plana — ligações primeiro (ficam por baixo), nós por cima (cobrem o trecho da linha
    que passaria por dentro da caixa, sobra só o trecho visível entre elas). */
 function buildDiagramTopology(cv, topo, k){
-  const boxes = {};
+  const nodes = {};
   topo.nodes.forEach(n=>{
-    const [box, label, accent] = makeNetworkNode({
+    const [node, handle] = makeNetworkNode({
       left: n.x*k, top: n.y*k, width: n.w*k, height: n.h*k,
       title: n.title, sub: n.sub, stroke: topo.stroke, fontSize: 6*k,
     });
-    boxes[n.key] = { box, label, accent };
+    nodes[n.key] = { node, handle };
   });
   topo.links.forEach(([aKey, bKey, dashed])=>{
-    const a = boxes[aKey], b = boxes[bKey];
+    const a = nodes[aKey], b = nodes[bKey];
     if (!a || !b) return;
-    cv.add(makeNetworkLink(a.box, b.box, { stroke: topo.stroke, dashed, strokeWidth: 1.3*k }));
+    cv.add(makeNetworkLink(a.node, b.node, { stroke: topo.stroke, dashed, strokeWidth: 1.3*k }));
   });
-  Object.values(boxes).forEach(({box, label, accent})=>{ cv.add(box); cv.add(label); cv.add(accent); });
+  Object.values(nodes).forEach(({node, handle})=>{ cv.add(node); cv.add(handle); });
 }
 
 /* ---------- monta um lado num canvas (Canvas do editor ou StaticCanvas da exportação) ---------- */

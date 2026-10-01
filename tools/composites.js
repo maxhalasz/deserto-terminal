@@ -76,11 +76,17 @@ function addGrungeOverlay(canvas, w, h, texturePack, files){
 }
 
 /* ---- Moldura Polaroid: retângulo branco por trás do objeto (borda fina nos 3
-   lados, grossa embaixo pra legenda) + legenda editável. ---- */
+   lados, grossa embaixo pra legenda) + legenda editável.
+   Virou fabric.Group (rodada "refaz do zero" do Max) — frame+legenda eram 2 objetos soltos
+   ligados só por __ownerOid, cada um sua própria linha na lista de camadas. Continuam NÃO
+   agrupados com a FOTO em si — a foto precisa continuar selecionável sozinha (recorte,
+   filtro, trocar foto), só a decoração em cima dela virou uma peça só. A legenda edita pelo
+   mesmo modal de sempre (duplo clique → e.subTargets, editor.js), `.set('text',...)` simples
+   bastando porque legenda não redimensiona nada ao lado (diferente do carimbo). ---- */
 function addPolaroidFrame(canvas, obj){
   if (!obj) return null;
   const oid = getOid(obj);
-  removeOwnedByType(canvas, oid, ['polaroidFrame','polaroidCaption']);
+  removeOwnedByType(canvas, oid, ['polaroid']);
   const bw = obj.getScaledWidth(), bh = obj.getScaledHeight();
   const border = Math.max(bw,bh)*0.06;
   const bottomBorder = border*3.4;
@@ -91,24 +97,25 @@ function addPolaroidFrame(canvas, obj){
     shadow: new fabric.Shadow({color:'rgba(0,0,0,0.35)', blur:16, offsetX:0, offsetY:8}),
   });
   frame.set('customType','polaroidFrame');
-  frame.__ownerOid = oid;
-  canvas.add(frame);
-  canvas.sendObjectToBack(frame);
   const caption = new fabric.IText('legenda...', {
     left: obj.left + bw/2, top: obj.top + bh + border*0.55,
     fontFamily:"'Caveat'", fontSize: Math.max(16, bh*0.05), fill:'#2b2b2b',
     originX:'center', originY:'top', textAlign:'center',
   });
   caption.set('customType','polaroidCaption');
-  caption.__ownerOid = oid;
-  canvas.add(caption);
+  const group = new fabric.Group([frame, caption], {subTargetCheck:true, interactive:false});
+  group.set('customType','polaroid');
+  group.__ownerOid = oid;
+  group.__labName = '🖼 Moldura Polaroid';
+  canvas.add(group);
+  canvas.sendObjectToBack(group);
   canvas.setActiveObject(obj);
   canvas.renderAll();
-  return {frame, caption};
+  return group;
 }
 
 /* ---- HUD de câmera de segurança: timestamp + REC + ID da câmera, texto
-   monoespaçado editável nos cantos do objeto. ---- */
+   monoespaçado editável nos cantos do objeto. Virou Group — mesmo raciocínio do Polaroid. ---- */
 function addCCTVHud(canvas, obj){
   if (!obj) return null;
   const oid = getOid(obj);
@@ -125,13 +132,19 @@ function addCCTVHud(canvas, obj){
     left: obj.left+bw-fontSize*5.2, top: obj.top+fontSize*0.7, fill:'#d8e8d8'}));
   const stamp = new fabric.IText(ts, Object.assign({}, base, {
     left: obj.left+fontSize*0.7, top: obj.top+bh-fontSize*1.9, fill:'#d8e8d8'}));
-  [rec,cam,stamp].forEach(o=>{ o.set('customType','cctvHud'); o.__ownerOid=oid; canvas.add(o); });
+  [rec,cam,stamp].forEach(o=>o.set('customType','cctvHudText'));
+  const group = new fabric.Group([rec,cam,stamp], {subTargetCheck:true, interactive:false});
+  group.set('customType','cctvHud');
+  group.__ownerOid = oid;
+  group.__labName = '📹 HUD câmera';
+  canvas.add(group);
   canvas.renderAll();
-  return [rec,cam,stamp];
+  return group;
 }
 
 /* ---- Barras VHS: letterbox preto em cima/embaixo + faixa fina de ruído de
-   trilha junto de uma das bordas. ---- */
+   trilha junto de uma das bordas. Virou Group — nada aqui é editável (não há texto), só
+   reunia 3 Rects soltos ligados por __ownerOid sem motivo pra continuarem separados. ---- */
 function addVHSBars(canvas, obj){
   if (!obj) return null;
   const oid = getOid(obj);
@@ -141,7 +154,11 @@ function addVHSBars(canvas, obj){
   const top = new fabric.Rect({left:obj.left, top:obj.top, width:bw, height:barH, fill:'#000', originX:'left', originY:'top'});
   const bottom = new fabric.Rect({left:obj.left, top:obj.top+bh-barH, width:bw, height:barH, fill:'#000', originX:'left', originY:'top'});
   const track = new fabric.Rect({left:obj.left, top:obj.top+bh-barH-barH*0.22, width:bw, height:barH*0.22, fill:'rgba(225,225,225,0.55)', originX:'left', originY:'top'});
-  [top,bottom,track].forEach(o=>{ o.set('customType','vhsBar'); o.__ownerOid=oid; canvas.add(o); });
+  const group = new fabric.Group([top,bottom,track], {subTargetCheck:false, interactive:false});
+  group.set('customType','vhsBar');
+  group.__ownerOid = oid;
+  group.__labName = '▬ Barras VHS';
+  canvas.add(group);
   canvas.renderAll();
-  return [top,bottom,track];
+  return group;
 }

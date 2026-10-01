@@ -48,7 +48,7 @@ let curPageIdx = 0;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions'];
 let history = [];
 let historyIndex = -1;
 /* Contador de profundidade, NÃO boolean — uma operação em lote (trocar de página, trocar
@@ -147,9 +147,18 @@ function initCanvas(){
   canvas.on('object:removed', ()=>{ if (!restoringHistory) renderLayerList(); pushHistory(); });
   canvas.on('mouse:dblclick', e=>{
     const o = e.target;
-    if (o && isModalText(o)) openTextEditor(o);
+    if (o && isModalText(o)){ openTextEditor(o); return; }
+    // Duplo clique num filho de um Group não-interativo (carimbo, nó de rede) — o Fabric
+    // resolve o grupo inteiro como `target`, mas relata qual filho foi clicado via
+    // `e.subTargets` (confirmado ao vivo, ver network-diagram.js). Mesmo modal de sempre.
+    if (o && o.type==='group' && e.subTargets && e.subTargets.length){
+      const sub = e.subTargets.find(isModalText);
+      if (sub) openTextEditor(sub);
+    }
   });
-  canvas.on('mouse:down', e=>{ if (typeof networkLinkModeClick==='function') networkLinkModeClick(e); });
+  canvas.on('mouse:down', e=>{ if (typeof networkMouseDown==='function') networkMouseDown(e); });
+  canvas.on('mouse:move', e=>{ if (typeof networkMouseMove==='function') networkMouseMove(e); });
+  canvas.on('mouse:up', e=>{ if (typeof networkMouseUp==='function') networkMouseUp(e); });
   canvas.on('object:moving', e=>{
     applyAlignmentSnap(e);
     if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e);
@@ -160,7 +169,7 @@ function initCanvas(){
   setZoom(0.5);
   pushHistory();
 }
-function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext'; }
+function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext' || o.type==='itext'; }
 function isLockedBase(o){ return o.customType==='background' || o.customType==='brandArt'; }
 
 /* ===================== Guias de alinhamento =====================
@@ -723,9 +732,9 @@ async function loadTemplateBody(name){
     await setTemplateBackground('paper_aged');
     const head = new fabric.Textbox('CONFIDENTIAL — INTERNAL USE ONLY\nNEUROSTAT — FIELD DIVISION\nREF: NS-DES-0447\nDATE: 03/14', {left:90, top:90, width:500, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:14, fill:'#141414', lineHeight:1.5});
     const body = new RedactedText('INCIDENT REPORT — NIGHT SHIFT\n\nAt 03:12 radio contact with the dive team was lost. The last recorded transmission consisted of broadband noise, no identifiable verbal content.\n\nSurface crew not authorized to descend without direct order from supervision.', {left:90, top:220, width:PAGE_W-180, redactPct:0, fontSize:16});
-    const [stampRect, stampTxt] = makeStampObjects('CONFIDENTIAL', {left:PAGE_W-220, top:150, angle:-10, color:'#7a2020'});
+    const stamp = makeStampObjects('CONFIDENTIAL', {left:PAGE_W-220, top:150, angle:-10, color:'#7a2020'});
     const sig = new HandwrittenText('M. Holt', {left:90, top:620, width:260, personaId:'C', fontSize:26});
-    [head, body, stampRect, stampTxt, sig].forEach(o=>canvas.add(o));
+    [head, body, stamp, sig].forEach(o=>canvas.add(o));
   }
   else if (name==='note'){
     await setTemplateBackground('paper_notebook_ruled', {age:0.3});
@@ -738,8 +747,8 @@ async function loadTemplateBody(name){
     const bandTxt = new fabric.Textbox('RESTRICTED — DO NOT DISTRIBUTE', {left:PAGE_W/2, top:78, originX:'center', width:900, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:15, fill:'#e6e2d8', textAlign:'center'});
     const head = new fabric.Textbox('NEUROSTAT\nCASE NO. 0447-D', {left:90, top:130, width:500, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:15, fill:'#141414', lineHeight:1.4});
     const body = new RedactedText('Subject was located near the coral formation. State of consciousness unknown. Immediate containment and notification of leadership recommended.\n\nThe identified sound pattern does not match any catalog known to the division. Preliminary analysis suggests uncatalogued biological origin.', {left:90, top:220, width:PAGE_W-180, redactPct:28, fontSize:16});
-    const [stampRect, stampTxt] = makeStampObjects('CLASSIFIED', {left:PAGE_W/2, top:PAGE_H/2+150, angle:-18, color:'rgba(150,20,20,0.85)', fontSize:44});
-    [band, bandTxt, head, body, stampRect, stampTxt].forEach(o=>canvas.add(o));
+    const stamp = makeStampObjects('CLASSIFIED', {left:PAGE_W/2, top:PAGE_H/2+150, angle:-18, color:'rgba(150,20,20,0.85)', fontSize:44});
+    [band, bandTxt, head, body, stamp].forEach(o=>canvas.add(o));
   }
   else if (name==='tag'){
     await setTemplateBackground('paper_aged');
@@ -1037,8 +1046,8 @@ document.getElementById('btnAddRedacted').addEventListener('click', ()=>{
   canvas.add(t); canvas.setActiveObject(t); canvas.renderAll();
 });
 document.getElementById('btnAddStamp').addEventListener('click', ()=>{
-  const [rect, txt] = makeStampObjects('CONFIDENTIAL', {left:PAGE_W/2, top:PAGE_H/2});
-  canvas.add(rect); canvas.add(txt); canvas.setActiveObject(txt); canvas.renderAll();
+  const stamp = makeStampObjects('CONFIDENTIAL', {left:PAGE_W/2, top:PAGE_H/2});
+  canvas.add(stamp); canvas.setActiveObject(stamp); canvas.renderAll();
 });
 document.getElementById('btnAddBarcode').addEventListener('click', async ()=>{
   const b = await makeBarcodeImage({left:PAGE_W/2-130, top:PAGE_H/2});
@@ -1052,11 +1061,7 @@ document.getElementById('btnAddWatermark').addEventListener('click', ()=>{
   const t = makeWatermarkText('CONFIDENTIAL', {left:PAGE_W/2, top:PAGE_H/2, width:PAGE_W*0.8});
   canvas.add(t); canvas.setActiveObject(t); canvas.renderAll();
 });
-document.getElementById('btnAddNetNode').addEventListener('click', ()=>{
-  const [box, label, accent] = makeNetworkNode({left:PAGE_W/2, top:PAGE_H/2, title:'NODE', sub:''});
-  canvas.add(box); canvas.add(label); canvas.add(accent); canvas.setActiveObject(box); canvas.renderAll();
-});
-document.getElementById('btnNetLinkModeAdd').addEventListener('click', ()=>toggleNetworkLinkMode());
+document.getElementById('btnAddNetNode').addEventListener('click', ()=>armPlaceNetNode());
 
 function loadImageFileToCanvas(file, atPoint){
   const reader = new FileReader();
@@ -1119,7 +1124,9 @@ function objLabel(o){
 function renderLayerList(){
   const box = document.getElementById('layerList');
   box.innerHTML = '';
-  const objs = canvas.getObjects().filter(o=>o!==cropRect).slice().reverse();
+  // Alça de conexão do nó de rede e as guias de alinhamento são chrome de edição, não
+  // conteúdo — não aparecem como linha própria na lista (igual cropRect já não aparecia).
+  const objs = canvas.getObjects().filter(o=>o!==cropRect && o.customType!=='netConnectHandle' && o!==__guideH && o!==__guideV).slice().reverse();
   const activeMembers = activeSelectionMembers(canvas.getActiveObject());
   objs.forEach(o=>{
     const row = document.createElement('div');
@@ -1224,9 +1231,20 @@ function openTextEditor(targetObj){
 function closeTextEditor(){
   if (editorTarget){
     const before = editorTarget.text;
-    editorTarget.set('text', document.getElementById('editorTextarea').value);
-    canvas.renderAll(); renderLayerList();
-    if (editorTarget.text !== before) pushHistory();
+    const newText = document.getElementById('editorTextarea').value;
+    // Texto de carimbo é filho de um Group (ver handwriting.js) — a largura pode mudar e
+    // o grupo não se remede sozinho quando um filho muda de tamanho por dentro, então
+    // trocar o texto reconstrói o carimbo inteiro em vez de só setar `.text`.
+    if (editorTarget.customType==='stampText' && newText!==before && editorTarget.group){
+      const fresh = rebuildStamp(editorTarget.group, newText);
+      canvas.setActiveObject(fresh);
+      canvas.renderAll(); renderLayerList();
+      pushHistory();
+    } else {
+      editorTarget.set('text', newText);
+      canvas.renderAll(); renderLayerList();
+      if (newText !== before) pushHistory();
+    }
   }
   document.getElementById('editorModal').hidden = true;
   editorTarget = null;
@@ -1289,7 +1307,8 @@ document.addEventListener('keydown', e=>{
   } else if (e.ctrlKey && e.key.toLowerCase()==='z'){
     e.preventDefault(); undo();
   } else if (e.key==='Escape'){
-    if (obj){ e.preventDefault(); canvas.discardActiveObject(); canvas.renderAll(); updateInspector(); }
+    if (typeof __placingNetNode!=='undefined' && __placingNetNode){ e.preventDefault(); cancelPlaceNetNode(); }
+    else if (obj){ e.preventDefault(); canvas.discardActiveObject(); canvas.renderAll(); updateInspector(); }
   } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
     if (obj && obj!==cropRect){
       e.preventDefault();
@@ -1617,15 +1636,14 @@ function renderNetworkInspector(obj, body){
     body.appendChild(hint);
     return;
   }
+  // obj é o Group (caixa+rótulo+acento) — a cor em si está no filho da caixa, não no grupo.
+  const box = obj.getObjects().find(o=>o.customType==='netNodeBox');
   const lab = document.createElement('label'); lab.textContent='Cor da borda';
-  const colorInp = document.createElement('input'); colorInp.type='color'; colorInp.value = rgbToHex(obj.stroke);
-  colorInp.addEventListener('input', ()=>{ obj.set('stroke', colorInp.value); canvas.renderAll(); });
+  const colorInp = document.createElement('input'); colorInp.type='color'; colorInp.value = rgbToHex(box.stroke);
+  colorInp.addEventListener('input', ()=>{ box.set('stroke', colorInp.value); canvas.renderAll(); });
   body.appendChild(lab); body.appendChild(colorInp);
-  const hint = document.createElement('div'); hint.className='hint'; hint.textContent = 'Arraste pra mover/redimensionar. O rótulo acompanha sozinho. Duplo clique no texto pra editar.';
+  const hint = document.createElement('div'); hint.className='hint'; hint.textContent = 'Arraste pra mover/redimensionar. Duplo clique no rótulo edita. Arraste do pontinho laranja na borda direita até outro nó pra ligar.';
   body.appendChild(hint);
-  const linkBtn = document.createElement('button'); linkBtn.className='netLinkModeBtn'; linkBtn.textContent='🔗 Ligar a outro nó';
-  linkBtn.addEventListener('click', ()=>toggleNetworkLinkMode());
-  body.appendChild(linkBtn);
 }
 function renderBackgroundInspector(obj, body){
   const lab = document.createElement('div'); lab.className='hint'; lab.textContent='Papel de fundo';

@@ -299,61 +299,82 @@ function generateInkGrainURL(seed){
   }
   return c.toDataURL();
 }
+/* Virou fabric.Group (rodada "refaz do zero" do Max) — antes eram IText+Rect soltos,
+   religados por um listener `txt.on('changed'|'moving'|'rotating'|'scaling', sync)` que
+   recalculava a borda a cada evento. Um Group arrasta/escala como UMA peça rígida sem
+   precisar de nada disso. A edição de texto também não passa mais pelo cursor nativo do
+   IText — como editável:false + duplo clique agora abre o MESMO modal usado em
+   HandwrittenText/RedactedText/BrandText (editor.js, roteado via e.subTargets, testado ao
+   vivo com clique duplo real), fica consistente com todo o resto da ferramenta em vez de
+   ser o único texto com edição nativa. Como o texto pode mudar de largura ao editar e um
+   Group não re-mede a própria caixa quando um filho muda de tamanho por dentro, trocar o
+   texto RECONSTRÓI o carimbo inteiro (rebuildStamp, editor.js) em vez de tentar redimensionar
+   a borda/grão no lugar — mesmo padrão já usado pras ligações do diagrama de rede (descartar
+   e recriar com a mesma função é mais simples e robusto que mexer em geometria interna do
+   Fabric na mão). `__stampOptions` guarda o que a reconstrução precisa saber. Testado ao
+   vivo que multiply dentro de um Group composita contra o papel por baixo igual objeto
+   solto (não contra o cache interno do grupo) — não é óbvio, verificado antes de confiar. */
 function makeStampObjects(text, options){
   options = options || {};
   const color = options.color || '#7a2020';
   const fontSize = options.fontSize || 30;
   const angle = options.angle || -10;
   const opacity = options.opacity!=null ? options.opacity : 0.82;
+  const strokeWidth = options.strokeWidth || 3;
   const padX = 22, padY = 16;
 
   const txt = new fabric.IText(text, {
     fontFamily:"'Courier Prime'", fontWeight:'700', fontSize, fill:color,
     left: options.left||400, top: options.top||400, angle,
     originX:'center', originY:'center', textAlign:'center',
-    globalCompositeOperation:'multiply', opacity,
+    globalCompositeOperation:'multiply', opacity, editable:false,
   });
   const rect = new fabric.Rect({
     left: txt.left, top: txt.top, angle,
     width: txt.width+padX*2, height: txt.height+padY*2,
-    fill:'transparent', stroke:color, strokeWidth: options.strokeWidth||3,
-    originX:'center', originY:'center', selectable:false, evented:false,
+    fill:'transparent', stroke:color, strokeWidth,
+    originX:'center', originY:'center',
     globalCompositeOperation:'multiply', opacity,
   });
   txt.set('customType','stampText');
   rect.set('customType','stampBorder');
-  const oid = getOid(txt);
-  rect.__ownerOid = oid;
 
-  let grainImg = null;
+  const group = new fabric.Group([rect, txt], {subTargetCheck:true, interactive:false});
+  group.set('customType','stamp');
+  group.__labName = '🔖 Carimbo';
+  group.__stampOptions = {color, fontSize, angle, opacity, strokeWidth};
+
+  // Grão de tinta assíncrono: vira filho de verdade do grupo assim que carrega
+  // (group.add() recalcula a bounding box sozinho, testado ao vivo) — sem isso precisaria
+  // do mesmo padrão __ownerOid/sync manual que o resto da reescrita está eliminando.
   fabric.Image.fromURL(generateInkGrainURL(Math.floor(Math.random()*4294967296))).then(g=>{
-    if (!txt.canvas) return; // carimbo já foi removido antes da textura carregar
-    grainImg = g;
-    grainImg.set({selectable:false, evented:false, globalCompositeOperation:'multiply', opacity:0.7});
-    grainImg.set('customType','stampGrain');
-    grainImg.__ownerOid = oid;
-    syncGrain();
-    txt.canvas.add(grainImg);
-    txt.canvas.renderAll();
+    if (!group.canvas) return; // carimbo já foi removido antes da textura carregar
+    const w = rect.width, h = rect.height;
+    g.set({
+      left: rect.left, top: rect.top, angle,
+      originX:'center', originY:'center',
+      scaleX: w/g.width, scaleY: h/g.height,
+      selectable:false, evented:false, globalCompositeOperation:'multiply', opacity:0.7,
+    });
+    g.set('customType','stampGrain');
+    group.add(g);
+    group.canvas.renderAll();
   });
 
-  const syncGrain = ()=>{
-    if (!grainImg) return;
-    const w = (txt.width+padX*2)*(txt.scaleX||1), h = (txt.height+padY*2)*(txt.scaleY||1);
-    grainImg.set({left:txt.left, top:txt.top, angle:txt.angle, originX:'center', originY:'center', scaleX:w/grainImg.width, scaleY:h/grainImg.height});
-    grainImg.setCoords();
-  };
-  const sync = ()=>{
-    rect.set({width:txt.width+padX*2, height:txt.height+padY*2, left:txt.left, top:txt.top, angle:txt.angle});
-    rect.setCoords();
-    syncGrain();
-  };
-  txt.on('changed', sync);
-  txt.on('moving', sync);
-  txt.on('rotating', sync);
-  txt.on('scaling', sync);
-  txt.__stampRect = rect;
-  return [rect, txt];
+  return group;
+}
+/* Reconstrói o carimbo com texto novo, preservando posição/cor/ângulo/opacidade — chamado
+   pelo modal de edição (editor.js, closeTextEditor) quando o objeto editado é um stampText. */
+function rebuildStamp(oldGroup, newText){
+  const cv = oldGroup.canvas;
+  if (!cv) return oldGroup;
+  const br = oldGroup.getBoundingRect();
+  const opts = Object.assign({}, oldGroup.__stampOptions, {left: br.left+br.width/2, top: br.top+br.height/2});
+  const fresh = makeStampObjects(newText, opts);
+  const idx = cv.getObjects().indexOf(oldGroup);
+  cv.remove(oldGroup);
+  cv.insertAt(idx, fresh); // assinatura é (index, ...objetos) — confirmado no fonte vendorizado, não (objeto, index)
+  return fresh;
 }
 
 /* ===================== Marca d'água (texto diagonal, baixa opacidade) =====================
