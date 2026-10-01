@@ -9,6 +9,7 @@
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
 <script src="vendor/brand/brand-index.js"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
 <script src="print-dpi.js"></script>
 <style>
   *{box-sizing:border-box}
@@ -136,6 +137,19 @@
         <option value="blank">Em branco</option>
       </select>
       <button id="btnNewDoc" class="primary">Novo documento (apaga o atual)</button>
+      <div id="pageNavBlock">
+        <label>Páginas</label>
+        <div id="pageStatus" class="hint">Página 1 de 1</div>
+        <div class="grid2">
+          <button id="btnPagePrev">‹ Anterior</button>
+          <button id="btnPageNext">Próxima ›</button>
+        </div>
+        <div class="grid2">
+          <button id="btnPageAdd">+ Página</button>
+          <button id="btnPageDel" class="danger">🗑 Apagar página</button>
+        </div>
+        <div class="hint">Mais de uma página no mesmo documento (ex: relatório longo), pronto pra sair tudo num PDF só.</div>
+      </div>
       <label>Aparência do papel</label>
       <div class="grid2">
         <button id="bgModeTextured" class="bgModeBtn" data-bgmode="textured">🖼️ Texturizado</button>
@@ -159,6 +173,7 @@
         <option value="2" selected>Impressão (alta resolução) (2480×3508)</option>
       </select>
       <button id="btnExport" class="primary">⭳ Baixar PNG</button>
+      <button id="btnExportPDF">⭳ Baixar PDF (todas as páginas)</button>
     </fieldset>
 
     <div id="status" style="font-size:10.5px;color:#6a7080;white-space:pre-line"></div>
@@ -179,7 +194,8 @@
         <div id="sideBtnRow" class="toolgrid"></div>
         <div class="hint">Cada lado guarda as próprias edições e o próprio desfazer/refazer. Clique numa foto no documento e vá na aba Objeto pra trocar — funciona igual aos outros templates.</div>
         <button id="btnBrandExportBoth" class="primary">⭳ Baixar PNG</button>
-        <div class="hint">Usa a resolução escolhida em Documento → Exportar, já com o DPI certo pra sair no tamanho físico real. Pra duplex, imprima cada página no mesmo papel ou vire a folha.</div>
+        <button id="btnBrandExportPDF">⭳ Baixar PDF (todas as páginas)</button>
+        <div class="hint">Usa a resolução escolhida em Documento → Exportar, já com o DPI certo pra sair no tamanho físico real. PNG separado é pra duplex (imprima cada página no mesmo papel ou vire a folha); PDF já vem tudo num arquivo só.</div>
       </div>
     </fieldset>
 

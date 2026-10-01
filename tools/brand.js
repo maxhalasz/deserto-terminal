@@ -353,7 +353,8 @@ async function loadBrandDoc(docId, side){
   BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}};
   history = []; historyIndex = -1;
   pushHistory();
-  renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI();
+  PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
+  renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
 }
 async function brandSwitchSide(side){
   const c = BRAND.cur;
@@ -411,6 +412,38 @@ async function brandExportAll(mult){
     const label = brandSideLabel(c.meta.sides, i);
     setTimeout(()=>brandDownload(pngWithDpi(out[s], dpi), `${c.doc}_${brandSlug(label)}_${stamp}.png`), i*350);
   });
+}
+/* Mesma varredura de brandExportAll (canvas ao vivo pro lado atual + StaticCanvas pros
+   outros), só que junta tudo num PDF só em vez de N PNGs separados — pedido do Max
+   ("pronto pra impressão" pra documento de mais de uma página). */
+async function brandExportPDF(mult){
+  const c = BRAND.cur; if (!c) return;
+  if (c.meta.sides.length < 2){ alert('Documento de uma face só — use "Baixar PNG".'); return; }
+  canvas.discardActiveObject(); canvas.renderAll();
+  const out = [];
+  out[c.meta.sides.indexOf(c.side)] = canvas.toDataURL({format: 'png', multiplier: mult / canvas.getZoom()});
+  for (let i=0; i<c.meta.sides.length; i++){
+    const s = c.meta.sides[i];
+    if (s === c.side) continue;
+    const sc = new fabric.StaticCanvas(null, {width: c.W, height: c.H, backgroundColor: '#ffffff'});
+    const saved = c.sides[s];
+    if (saved) await sc.loadFromJSON(saved.json);
+    else await buildBrandSide(sc, await brandLoadPack(c.doc, s));
+    sc.renderAll();
+    out[i] = sc.toDataURL({format: 'png', multiplier: mult});
+    sc.dispose();
+  }
+  const dpi = getExportDpi(c.W*mult, 'brand:'+c.doc);
+  const [wIn, hIn] = docPhysicalSize('brand:'+c.doc);
+  const orientation = wIn >= hIn ? 'landscape' : 'portrait';
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({orientation, unit:'in', format:[wIn, hIn], compress:true});
+  out.forEach((dataUrl, i)=>{
+    const d = pngWithDpi(dataUrl, dpi);
+    if (i>0) pdf.addPage([wIn, hIn], orientation);
+    pdf.addImage(d, 'PNG', 0, 0, wIn, hIn);
+  });
+  pdf.save(`${c.doc}_${Date.now()}.pdf`);
 }
 
 /* ---------- inspetor do texto de marca ---------- */
@@ -546,5 +579,6 @@ function renderLoreRef(familyId){
     loadBrandDoc(doc.value, 'front').catch(e=>alert(e.message)).finally(()=>{ btn.disabled = false; });
   });
   document.getElementById('btnBrandExportBoth').addEventListener('click', ()=>brandExportAll(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
+  document.getElementById('btnBrandExportPDF').addEventListener('click', ()=>brandExportPDF(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
   brandUpdateUI();
 })();

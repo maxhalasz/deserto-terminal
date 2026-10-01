@@ -30,6 +30,17 @@ let currentTemplate = 'newspaper';
 let currentNewsContent = null;
 let currentNewsLayout = null;
 
+/* ===================== Páginas (documento com mais de uma folha) =====================
+   Pedido do Max: documentos de template (relatório, dossiê, carta etc, NÃO os de marca —
+   esses já têm o próprio sistema de frente/verso fixo) precisam poder crescer além de uma
+   folha só, pra ficar pronto pra impressão (ex: um relatório de 3 páginas). Cada página
+   guarda seu PRÓPRIO snapshot (json do canvas + histórico de desfazer/refazer), igual o
+   padrão já provado em BRAND.cur.sides — troca de página é só salvar a atual e carregar a
+   outra. `PAGES[i].pageW/pageH/template` existem pra o tamanho de folha (que já varia por
+   template, ver PAGE_SIZES) viajar junto com a página certa. */
+let PAGES = [];
+let curPageIdx = 0;
+
 /* ===================== Histórico (undo/redo) =====================
    Mesmo padrão de tools/image-lab.js: pilha de snapshots canvas.toObject(),
    guardando as propriedades customizadas que cada tipo de objeto usa fora do
@@ -205,6 +216,23 @@ function setBackgroundPaper(filename, opts){
   });
 }
 function getBackground(){ return canvas.getObjects().find(o=>o.customType==='background'); }
+
+/* computeFoldField/computeRuledLines (mais abaixo) escrevem em globais do MÓDULO
+   (currentFoldField/currentRuledLines) que HandwrittenText._render() lê a cada desenho —
+   setBackgroundPaper já os recalcula quando o papel muda ao vivo, mas trocar de PÁGINA
+   (pageGo) ou exportar várias páginas (collectPagePNGs) reconstrói o canvas via
+   loadFromJSON/StaticCanvas, que NÃO dispara isso sozinho. Sem recalcular aqui, o texto
+   manuscrito de uma página passaria a reagir à dobra/pauta da página ERRADA (a que estava
+   ativa antes da troca). */
+function recomputeBgFieldsFromObjects(objs){
+  const bg = objs.find(o=>o.customType==='background' && o.getElement && o.getElement());
+  if (bg){
+    computeFoldField(bg.getElement(), bg.cropX, bg.cropY, bg.width, bg.height);
+    computeRuledLines(bg.getElement(), bg.cropX, bg.cropY, bg.width, bg.height);
+  } else {
+    currentFoldField = null; currentRuledLines = null;
+  }
+}
 
 /* ---- fundo digital: sem foto, sem envelhecimento/dobra/pauta — um documento
    "renderizado" em vez de fotografado (pedido do Max pro crachá: "ao invés de
@@ -548,6 +576,22 @@ function clearDoc(){
   canvas.backgroundColor = '#ffffff';
 }
 
+/* Extraído do template "terminal" pra ser reaproveitado por pageAdd (uma página nova no
+   mesmo documento precisa do mesmo "monitor" de fundo, sem repetir o log de texto —
+   esse cada página escreve o seu). */
+async function buildTerminalScreenBg(){
+  currentFoldField = null; currentRuledLines = null;
+  const screenC = document.createElement('canvas'); screenC.width=PAGE_W; screenC.height=PAGE_H;
+  screenC.getContext('2d').fillStyle = '#0a1512';
+  screenC.getContext('2d').fillRect(0,0,PAGE_W,PAGE_H);
+  const screen = await fabric.Image.fromURL(screenC.toDataURL());
+  screen.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
+  screen.filters = [new ScanlinesFilter({intensity:0.35, density:1400}), new VignetteFilter({amount:0.55, inner:0.2})];
+  screen.applyFilters();
+  screen.set('customType','background');
+  canvas.add(screen);
+}
+
 async function loadTemplate(name){
   if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
   currentTemplate = name;
@@ -559,6 +603,9 @@ async function loadTemplate(name){
     restoringHistory = __wasRestoring;
     pushHistory();
   }
+  PAGES = [pageSnapshot()];
+  curPageIdx = 0;
+  updatePageNavUI();
 }
 async function loadTemplateBody(name){
   applyPageSize(name);
@@ -665,16 +712,7 @@ async function loadTemplateBody(name){
     // nem pauta detectável — reseta os dois pra não sobrar estado de um template
     // anterior (esse aqui não usa texto manuscrito, mas se o Max adicionar um na
     // mão o campo teria ficado velho).
-    currentFoldField = null; currentRuledLines = null;
-    const screenC = document.createElement('canvas'); screenC.width=PAGE_W; screenC.height=PAGE_H;
-    screenC.getContext('2d').fillStyle = '#0a1512';
-    screenC.getContext('2d').fillRect(0,0,PAGE_W,PAGE_H);
-    const screen = await fabric.Image.fromURL(screenC.toDataURL());
-    screen.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
-    screen.filters = [new ScanlinesFilter({intensity:0.35, density:1400}), new VignetteFilter({amount:0.55, inner:0.2})];
-    screen.applyFilters();
-    screen.set('customType','background');
-    canvas.add(screen);
+    await buildTerminalScreenBg();
     const lines = [
       'NEUROSTAT FIELD DIVISION — SYSTEM LOG',
       'NODE: DES-PLATFORM-01          BUILD 4.7.2',
@@ -715,6 +753,139 @@ async function loadTemplateBody(name){
   canvas.renderAll();
   renderLayerList();
   syncNewsLayoutUI();
+}
+
+/* ===================== Páginas: navegação/adicionar/apagar/exportar =====================
+   Não se aplica a documentos de marca (aba Marcas) — esses já têm o próprio sistema de
+   lados fixos pré-autorados (BRAND.cur.sides). Esse aqui é pros templates de documento
+   (relatório, carta, dossiê...), pra um documento GM poder crescer além de uma folha só. */
+function pageSnapshot(){
+  return {
+    json: JSON.parse(JSON.stringify(canvas.toObject(HISTORY_PROPS))),
+    history: history.slice(), historyIndex,
+    pageW: PAGE_W, pageH: PAGE_H, template: currentTemplate,
+  };
+}
+function pageSaveCurrent(){
+  if (PAGES.length) PAGES[curPageIdx] = pageSnapshot();
+}
+function updatePageNavUI(){
+  const wrap = document.getElementById('pageNavBlock');
+  if (!wrap) return;
+  const isBrand = currentTemplate && currentTemplate.indexOf('brand:')===0;
+  wrap.style.display = isBrand ? 'none' : 'block';
+  if (isBrand) return;
+  document.getElementById('pageStatus').textContent = `Página ${curPageIdx+1} de ${PAGES.length}`;
+  document.getElementById('btnPagePrev').disabled = curPageIdx<=0;
+  document.getElementById('btnPageNext').disabled = curPageIdx>=PAGES.length-1;
+  document.getElementById('btnPageDel').disabled = PAGES.length<=1;
+}
+async function pageGo(idx){
+  if (idx<0 || idx>=PAGES.length || idx===curPageIdx) return;
+  pageSaveCurrent();
+  const p = PAGES[idx];
+  cancelCrop();
+  restoringHistory = true;
+  try {
+    currentTemplate = p.template;
+    PAGE_W = p.pageW; PAGE_H = p.pageH;
+    setZoom(canvas.getZoom());
+    updateExportLabels();
+    await canvas.loadFromJSON(p.json);
+    recomputeBgFieldsFromObjects(canvas.getObjects());
+    canvas.renderAll();
+  } finally { restoringHistory = false; }
+  history = p.history.slice(); historyIndex = p.historyIndex;
+  curPageIdx = idx;
+  renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+}
+/* Nova página em branco no MESMO documento: repete o fundo (mesma categoria de papel —
+   foto NOVA do mesmo tipo, ou tela de terminal, ou digital) sem repetir o conteúdo — o
+   Max escreve o que quiser em cada página. */
+async function pageAdd(){
+  pageSaveCurrent();
+  cancelCrop();
+  const wasRestoring = restoringHistory;
+  restoringHistory = true;
+  try {
+    clearDoc();
+    if (currentTemplate==='terminal') await buildTerminalScreenBg();
+    else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
+    else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
+    canvas.renderAll();
+  } finally { restoringHistory = wasRestoring; }
+  PAGES.splice(curPageIdx+1, 0, pageSnapshot());
+  curPageIdx++;
+  history = []; historyIndex = -1; pushHistory();
+  renderLayerList(); updateInspector(); syncNewsLayoutUI(); updatePageNavUI();
+}
+async function pageDelete(){
+  if (PAGES.length<=1) return;
+  if (!confirm('Apagar esta página? Não dá pra desfazer.')) return;
+  PAGES.splice(curPageIdx, 1);
+  const idx = Math.min(curPageIdx, PAGES.length-1);
+  const target = PAGES[idx];
+  cancelCrop();
+  restoringHistory = true;
+  try {
+    currentTemplate = target.template;
+    PAGE_W = target.pageW; PAGE_H = target.pageH;
+    setZoom(canvas.getZoom());
+    updateExportLabels();
+    await canvas.loadFromJSON(target.json);
+    recomputeBgFieldsFromObjects(canvas.getObjects());
+    canvas.renderAll();
+  } finally { restoringHistory = false; }
+  history = target.history.slice(); historyIndex = target.historyIndex;
+  curPageIdx = idx;
+  renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+}
+/* Renderiza CADA página num PNG — a atual pelo canvas ao vivo, as outras por um
+   StaticCanvas isolado (mesmo truque já provado em brandExportAll), sem navegar de
+   verdade (sem mexer em histórico/seleção/UI da página que o Max está editando). Salva e
+   restaura currentFoldField/currentRuledLines ao redor do laço: são globais do módulo que
+   HandwrittenText lê a cada desenho, e cada StaticCanvas precisa dos campos DA SUA PRÓPRIA
+   página, não os da página ativa. */
+async function collectPagePNGs(mult){
+  pageSaveCurrent();
+  const savedFold = currentFoldField, savedRuled = currentRuledLines;
+  const out = [];
+  for (let i=0; i<PAGES.length; i++){
+    const p = PAGES[i];
+    if (i===curPageIdx){
+      canvas.discardActiveObject(); canvas.renderAll();
+      let dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
+      out.push(pngWithDpi(dataUrl, getExportDpi(p.pageW*mult, p.template)));
+      continue;
+    }
+    const sc = new fabric.StaticCanvas(null, {width:p.pageW, height:p.pageH, backgroundColor:'#ffffff'});
+    await sc.loadFromJSON(p.json);
+    recomputeBgFieldsFromObjects(sc.getObjects());
+    sc.renderAll();
+    let dataUrl = sc.toDataURL({format:'png', multiplier: mult});
+    out.push(pngWithDpi(dataUrl, getExportDpi(p.pageW*mult, p.template)));
+    sc.dispose();
+  }
+  currentFoldField = savedFold; currentRuledLines = savedRuled;
+  return out;
+}
+async function exportPagesPDF(){
+  if (PAGES.length<2){ alert('Só tem uma página — use "Baixar PNG", ou adicione mais páginas primeiro (botão "+ Página").'); return; }
+  const btn = document.getElementById('btnExportPDF');
+  if (btn) btn.disabled = true;
+  try {
+    const mult = +document.getElementById('exportScale').value;
+    const pngs = await collectPagePNGs(mult);
+    const [wIn, hIn] = docPhysicalSize(currentTemplate);
+    const orientation = wIn >= hIn ? 'landscape' : 'portrait';
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({orientation, unit:'in', format:[wIn, hIn], compress:true});
+    pngs.forEach((dataUrl, i)=>{
+      if (i>0) pdf.addPage([wIn, hIn], orientation);
+      pdf.addImage(dataUrl, 'PNG', 0, 0, wIn, hIn);
+    });
+    pdf.save(`prop_${currentTemplate.replace(/[^a-z0-9_-]/gi,'_')}_${Date.now()}.pdf`);
+  } finally { if (btn) btn.disabled = false; }
 }
 
 async function makePhotoPlaceholder(opts){
@@ -762,6 +933,10 @@ document.getElementById('btnNewDoc').addEventListener('click', ()=>{
   if (!confirm('Isso apaga o documento atual. Continuar?')) return;
   loadTemplate(document.getElementById('templateSel').value);
 });
+document.getElementById('btnPagePrev').addEventListener('click', ()=>pageGo(curPageIdx-1));
+document.getElementById('btnPageNext').addEventListener('click', ()=>pageGo(curPageIdx+1));
+document.getElementById('btnPageAdd').addEventListener('click', ()=>pageAdd());
+document.getElementById('btnPageDel').addEventListener('click', ()=>pageDelete());
 
 /* ===================== Layout do jornal (presets + colunas) ===================== */
 const newsPresetRow = document.getElementById('newsPresetRow');
@@ -1375,6 +1550,7 @@ document.getElementById('btnExport').addEventListener('click', ()=>{
   a.click();
   document.body.removeChild(a);
 });
+document.getElementById('btnExportPDF').addEventListener('click', ()=>exportPagesPDF().catch(e=>alert(e.message)));
 
 /* ===================== Init ===================== */
 document.fonts.ready.then(()=>{
