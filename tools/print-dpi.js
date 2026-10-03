@@ -13,6 +13,13 @@ const PAGE_PHYS_IN = { // polegadas [largura, altura] de cada template antigo (l
   diary:[16.54,11.69],  // duas páginas A4 lado a lado (livro aberto)
   terminal:[11,8.5],    // impressão de terminal em papel contínuo — aproxima papel ofício
   badge:[3.375,2.125],  // crachá NeuroStat do template antigo — tamanho real de cartão CR80
+  // Prints de tela não têm "tamanho físico" real — a proporção abaixo só precisa bater
+  // exatamente com PAGE_SIZES (editor.js) pra não distorcer no PDF (orientação É decidida
+  // por essa proporção lá: docPhysicalSize -> largura>=altura => paisagem).
+  whatsapp:[3,6.17], email_mobile:[3,6.17],   // 1080×2220 — retrato de celular
+  email_desktop:[10,6.25],                    // 1600×1000 — paisagem de monitor
+  email_90s:[8,6],                            // 1200×900 — monitor CRT 4:3
+  menu_fine:[8.27,11.69], menu_diner:[8.27,11.69], menu_fastfood:[8.27,11.69], // A4 retrato
 };
 const BRAND_PHYS_IN = { // por doc id dos documentos de marca — default A4 se não listado
   od_badge:[3.375,2.125], // cartão CR80 real

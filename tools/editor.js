@@ -247,6 +247,22 @@ const PAGE_SIZES = {
   diary:[2480,1754],   // duas páginas retrato lado a lado — proporção real de livro aberto
   terminal:[1600,1200], // paisagem 4:3, proporção de tela CRT
   badge:[860,540],      // cartão de crachá, ~1.6:1
+  whatsapp:[1080,2220], email_mobile:[1080,2220], // print de celular, proporção ~19.5:9
+  email_desktop:[1600,1000], // tela de computador, paisagem 16:10
+  email_90s:[1200,900],      // monitor CRT 4:3 (era do Outlook Express)
+  menu_fine:[1240,1754], menu_diner:[1240,1754], menu_fastfood:[1240,1754], // A4 retrato, mesma folha dos outros impressos
+};
+// Templates que são print de tela (sem papel físico algum) — nascem no modo Digital,
+// igual ao crachá, mas por um motivo diferente: não existe versão "fotografada" possível.
+const DIGITAL_SCREEN_TEMPLATES = ['badge','whatsapp','email_mobile','email_desktop','email_90s','menu_fastfood'];
+// Cor(es) do fundo liso de cada print de tela (buildFlatScreenBg) — fonte única usada tanto
+// por loadTemplateBody (primeira página) quanto por pageAdd (páginas extras do mesmo doc),
+// pro mesmo motivo que 'terminal'/'digital' já precisavam de um caso especial ali: sem isso
+// uma página nova nesses templates nasceria sem fundo nenhum (nenhuma das 3 condições que
+// pageAdd já checava — terminal, digital com categoria, papel com categoria — bateria).
+const FLAT_SCREEN_BG = {
+  whatsapp:['#ECE5DD'], email_mobile:['#ffffff'], email_desktop:['#ffffff'], email_90s:['#c0c0c0'],
+  menu_fastfood:['#d41c1c','#a81414'],
 };
 function applyPageSize(name){
   const [w,h] = PAGE_SIZES[name] || PAGE_SIZES.blank;
@@ -682,6 +698,50 @@ async function buildTerminalScreenBg(){
   canvas.add(screen);
 }
 
+/* Fundo liso (cor sólida ou degradê) pra prints de tela/app — mesma técnica de
+   buildTerminalScreenBg (desenha num canvas solto, vira fabric.Image, customType
+   'background') mas SEM a grade clínica azulada do setDigitalBackground: aquela
+   grade é a linguagem visual específica da NeuroStat/estacao.html, não faz sentido
+   atrás de um app de chat ou menu de fast-food. */
+async function buildFlatScreenBg(color1, color2){
+  currentFoldField = null; currentRuledLines = null;
+  const c = document.createElement('canvas'); c.width=PAGE_W; c.height=PAGE_H;
+  const ctx = c.getContext('2d');
+  if (color2){
+    const grd = ctx.createLinearGradient(0,0,0,PAGE_H);
+    grd.addColorStop(0,color1); grd.addColorStop(1,color2);
+    ctx.fillStyle = grd;
+  } else ctx.fillStyle = color1;
+  ctx.fillRect(0,0,PAGE_W,PAGE_H);
+  const bg = await fabric.Image.fromURL(c.toDataURL());
+  bg.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
+  bg.set('customType','background');
+  canvas.add(bg);
+  return bg;
+}
+/* Barra de status de celular (hora + sinal + bateria) — reaproveitada pelo print de
+   WhatsApp e pelo print de e-mail no celular, os dois "screenshot de telefone". Ícones
+   são formas Fabric simples (Rects), não glifos de fonte — ficam nítidos em qualquer
+   tamanho de export, sem depender de uma fonte de ícone carregada. */
+function buildPhoneStatusBar(fg){
+  fg = fg || '#111111';
+  const time = new fabric.Textbox('9:41', {left:56, top:28, width:200, fontFamily:"'Arimo'", fontWeight:700, fontSize:32, fill:fg});
+  const bars = [0,1,2,3].map(i=> new fabric.Rect({left:PAGE_W-224+i*20, top:52-i*7, width:11, height:13+i*7, rx:2, ry:2, fill:fg}));
+  const battBody = new fabric.Rect({left:PAGE_W-110, top:32, width:66, height:30, rx:7, ry:7, fill:'transparent', stroke:fg, strokeWidth:3});
+  const battTip = new fabric.Rect({left:PAGE_W-42, top:40, width:6, height:14, rx:2, ry:2, fill:fg});
+  const battFill = new fabric.Rect({left:PAGE_W-104, top:38, width:54, height:18, rx:3, ry:3, fill:fg});
+  return [time, ...bars, battBody, battTip, battFill];
+}
+/* Par nome+preço alinhado (nome na margem esquerda, preço na direita) — usado pelos
+   dois cardápios de papel (fine dining e galley); o de fast-food usa caixas de combo
+   em vez de linha, então não reaproveita essa função. */
+function menuRow(name, price, left, top, width, opts){
+  opts = opts||{};
+  const nameBox = new fabric.Textbox(name, {left, top, width:width-160, fontFamily:opts.fontFamily||"'PT Serif'", fontSize:opts.fontSize||22, fill:opts.fill||'#141414', lineHeight:1.3});
+  const priceBox = new fabric.Textbox(price, {left:left+width-150, top, width:150, originX:'left', textAlign:'right', fontFamily:opts.fontFamily||"'PT Serif'", fontWeight:700, fontSize:opts.fontSize||22, fill:opts.fill||'#141414'});
+  return [nameBox, priceBox];
+}
+
 async function loadTemplate(name){
   return withSceneLock(async ()=>{
     if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
@@ -700,7 +760,7 @@ async function loadTemplateBody(name){
   // Crachá é digital por padrão (pedido do Max: "ao invés de usar uma textura pro
   // cartão de acesso, faz ele digital") — os outros mantêm o comportamento antigo
   // (papel fotografado), mas o alternador continua disponível pros dois lados.
-  bgMode = (name==='badge') ? 'digital' : 'textured';
+  bgMode = (DIGITAL_SCREEN_TEMPLATES.includes(name)) ? 'digital' : 'textured';
   currentBgCategory = null; currentBgOpts = null; // reseta pra não sobrar categoria do template anterior (ex: 'terminal' não usa papel algum)
   updateBgModeUI();
 
@@ -835,6 +895,226 @@ async function loadTemplateBody(name){
     barcode.scaleToWidth(PAGE_W-72);
     [headerBar, org, photo, name2, role, level, id, barcode].forEach(o=>canvas.add(o));
   }
+  else if (name==='whatsapp'){
+    // Print de app de chat — fundo liso (cor de parede clássica do WhatsApp), sem papel
+    // nenhum. Cada balão é RECT (fundo) + Textbox (texto) + Textbox (hora) — três objetos
+    // editáveis de verdade, não uma imagem; o Max troca o texto de qualquer fala direto.
+    await buildFlatScreenBg(...FLAT_SCREEN_BG.whatsapp);
+    const HEADER_H = 190;
+    const header = new fabric.Rect({left:0, top:0, width:PAGE_W, height:HEADER_H, fill:'#075E54'});
+    const back = new fabric.Textbox('←', {left:30, top:HEADER_H-96, width:70, fontFamily:"'Arimo'", fontSize:48, fill:'#ffffff'});
+    const avatar = new fabric.Circle({left:120, top:HEADER_H-90, radius:36, fill:'#cfd8d6'});
+    const cName = new fabric.Textbox('DIVE CREW — CH.3', {left:210, top:HEADER_H-96, width:700, fontFamily:"'Source Sans 3'", fontWeight:700, fontSize:30, fill:'#ffffff'});
+    const cStatus = new fabric.Textbox('last seen today at 04:19', {left:210, top:HEADER_H-54, width:700, fontFamily:"'Source Sans 3'", fontSize:20, fill:'#d8ece6'});
+    const icons = new fabric.Textbox('📹  📞  ⋮', {left:PAGE_W-260, top:HEADER_H-90, width:220, fontSize:34, fill:'#ffffff', textAlign:'right'});
+    const statusBar = buildPhoneStatusBar('#ffffff');
+    const msgs = [
+      {me:false, text:'you up?', time:'03:58'},
+      {me:true,  text:"yeah. can't sleep", time:'03:59'},
+      {me:false, text:"radio's doing that thing again", time:'04:01'},
+      {me:false, text:'the low one, not static', time:'04:01'},
+      {me:true,  text:"i hear it through the floor now, not the speaker", time:'04:03'},
+      {me:false, text:"don't go near the moonpool", time:'04:04'},
+      {me:false, text:'i mean it', time:'04:04'},
+      {me:true,  text:"wasn't going to. why", time:'04:06'},
+      {me:true,  text:'hey', time:'05:02', unread:true},
+      {me:true,  text:'please answer', time:'05:14', unread:true},
+    ];
+    const objs = [header, back, avatar, cName, cStatus, icons, ...statusBar];
+    let y = HEADER_H + 40;
+    const MARGIN = 40, MAXW = 660, PAD = 28;
+    msgs.forEach(m=>{
+      // Textbox nunca encolhe abaixo da largura que a gente passa (ao contrário de
+      // fabric.Text, que cresce pro conteúdo mas não quebra linha) — sem medir o texto
+      // primeiro, toda bolha sairia do mesmo tamanho (MAXW), mesmo um "hey" sozinho.
+      // Mede a largura natural com o canvas 2D (_mctx, de layout.js, mesmo truque que
+      // o motor de coluna do jornal já usa) e só usa MAXW quando o texto de fato precisa.
+      _mctx.font = "27px 'Source Sans 3'";
+      const naturalW = _mctx.measureText(m.text).width;
+      const boxW = Math.min(MAXW, Math.max(60, Math.ceil(naturalW)+4));
+      const textBox = new fabric.Textbox(m.text, {left:0, top:0, width:boxW, fontFamily:"'Source Sans 3'", fontSize:27, fill:'#111111', lineHeight:1.32});
+      const bubbleW = textBox.width + PAD*2;
+      const bubbleH = textBox.height + PAD*2 + 26;
+      const bubbleLeft = m.me ? (PAGE_W - MARGIN - bubbleW) : MARGIN;
+      const bubble = new fabric.Rect({left:bubbleLeft, top:y, width:bubbleW, height:bubbleH, rx:22, ry:22, fill: m.me ? '#DCF8C6' : '#ffffff'});
+      textBox.set({left:bubbleLeft+PAD, top:y+PAD});
+      const tick = m.me ? (m.unread ? '✓ ' : '✓✓ ') : '';
+      const stamp = new fabric.Textbox(tick+m.time, {left:bubbleLeft+PAD, top:y+bubbleH-40, width:bubbleW-PAD*2, fontFamily:"'Source Sans 3'", fontSize:18, fill: m.unread ? '#8a8a8a' : '#53bdeb', textAlign:'right'});
+      objs.push(bubble, textBox, stamp);
+      y += bubbleH + 24;
+    });
+    const inputBar = new fabric.Rect({left:0, top:PAGE_H-150, width:PAGE_W, height:150, fill:'#f0f0f0'});
+    const inputPill = new fabric.Rect({left:40, top:PAGE_H-120, width:PAGE_W-220, height:90, rx:45, ry:45, fill:'#ffffff'});
+    const inputPh = new fabric.Textbox('Message', {left:76, top:PAGE_H-100, width:500, fontFamily:"'Source Sans 3'", fontSize:26, fill:'#9a9a9a'});
+    const sendBtn = new fabric.Circle({left:PAGE_W-120, top:PAGE_H-120, radius:45, fill:'#075E54'});
+    const sendIco = new fabric.Textbox('➤', {left:PAGE_W-108, top:PAGE_H-104, width:60, fontSize:30, fill:'#ffffff'});
+    objs.push(inputBar, inputPill, inputPh, sendBtn, sendIco);
+    objs.forEach(o=>canvas.add(o));
+  }
+  else if (name==='email_mobile'){
+    // Print de e-mail no celular (estilo iOS Mail): fundo branco liso, mesma barra de
+    // status do whatsapp (reaproveitada, agora em preto já que o fundo aqui é claro).
+    await buildFlatScreenBg(...FLAT_SCREEN_BG.email_mobile);
+    const statusBar = buildPhoneStatusBar('#111111');
+    const back = new fabric.Textbox('‹ Inbox', {left:40, top:140, width:300, fontFamily:"'Arimo'", fontSize:30, fill:'#007aff'});
+    const subject = new fabric.Textbox('Re: shift log — attach radio transcript?', {left:40, top:210, width:PAGE_W-80, fontFamily:"'Arimo'", fontWeight:700, fontSize:40, fill:'#111111', lineHeight:1.2});
+    const avatar = new fabric.Circle({left:40, top:360, radius:40, fill:'#8a8f98'});
+    const avatarInit = new fabric.Textbox('O', {left:62, top:382, width:60, fontFamily:"'Arimo'", fontWeight:700, fontSize:32, fill:'#ffffff'});
+    const sender = new fabric.Textbox('J. Okafor', {left:140, top:362, width:500, fontFamily:"'Arimo'", fontWeight:700, fontSize:28, fill:'#111111'});
+    const toLine = new fabric.Textbox('to Dive Team — Channel 3', {left:140, top:402, width:500, fontFamily:"'Arimo'", fontSize:22, fill:'#8a8f98'});
+    const date = new fabric.Textbox('Thu, Mar 13 at 23:41', {left:PAGE_W-340, top:362, width:300, fontFamily:"'Arimo'", fontSize:22, fill:'#8a8f98', textAlign:'right'});
+    const divider = new fabric.Rect({left:40, top:470, width:PAGE_W-80, height:2, fill:'#e3e3e3'});
+    const body = new fabric.Textbox(
+      "Holt —\n\nPutting this on the record since the printer's down again and I don't trust the shared drive.\n\nWe lost the 03:12 channel like I told you, but it came back at 04:58 on its own. Nobody touched it.\n\nWhen it came back there was already something recorded on it. I'm not transcribing it over email.\n\nCome down and listen yourself before the next shift change.\n\n— Okafor",
+      {left:40, top:510, width:PAGE_W-80, fontFamily:"'Arimo'", fontSize:27, fill:'#1a1a1a', lineHeight:1.5}
+    );
+    [...statusBar, back, subject, avatar, avatarInit, sender, toLine, date, divider, body].forEach(o=>canvas.add(o));
+  }
+  else if (name==='email_desktop'){
+    // Print de e-mail no computador (estilo Outlook clássico): painel de pastas à
+    // esquerda + barra de ferramentas + cabeçalho + corpo. Paisagem — monitor, não papel.
+    await buildFlatScreenBg(...FLAT_SCREEN_BG.email_desktop);
+    const sidebar = new fabric.Rect({left:0, top:0, width:280, height:PAGE_H, fill:'#f3f2f1'});
+    const folders = ['Inbox','Drafts','Sent Items','Archive','Deleted Items'];
+    const folderObjs = [];
+    folders.forEach((f,i)=>{
+      const topY = 110 + i*56;
+      if (i===0) folderObjs.push(new fabric.Rect({left:10, top:topY-8, width:260, height:46, rx:6, ry:6, fill:'#dbe6fb'}));
+      folderObjs.push(new fabric.Textbox(f, {left:30, top:topY, width:230, fontFamily:"'Arimo'", fontWeight:i===0?700:400, fontSize:22, fill:'#202020'}));
+    });
+    const acct = new fabric.Textbox('DES-PLATFORM-01 MAIL', {left:24, top:30, width:240, fontFamily:"'Arimo'", fontWeight:700, fontSize:18, fill:'#444444'});
+    const toolbar = new fabric.Rect({left:280, top:0, width:PAGE_W-280, height:74, fill:'#ffffff', stroke:'#e1e1e1', strokeWidth:1});
+    const toolbarTxt = new fabric.Textbox('↩ Reply     ↪ Reply All     ➜ Forward     🗑 Delete     🖨 Print', {left:310, top:22, width:PAGE_W-340, fontFamily:"'Arimo'", fontSize:24, fill:'#333333'});
+    const subject = new fabric.Textbox('RE: Re: shift log — attach radio transcript?', {left:310, top:104, width:PAGE_W-340, fontFamily:"'Arimo'", fontWeight:700, fontSize:32, fill:'#111111'});
+    const fromLbl = new fabric.Textbox('From:', {left:310, top:164, width:90, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#555555'});
+    const fromVal = new fabric.Textbox('M. Holt <m.holt@neurostat-fd.local>', {left:400, top:164, width:700, fontFamily:"'Arimo'", fontSize:20, fill:'#111111'});
+    const toLbl = new fabric.Textbox('To:', {left:310, top:196, width:90, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#555555'});
+    const toVal = new fabric.Textbox('Dive Team — Channel 3', {left:400, top:196, width:700, fontFamily:"'Arimo'", fontSize:20, fill:'#111111'});
+    const dateLbl = new fabric.Textbox('Thu 03/14 06:02', {left:PAGE_W-330, top:164, width:300, fontFamily:"'Arimo'", fontSize:20, fill:'#555555', textAlign:'right'});
+    const divider = new fabric.Rect({left:310, top:234, width:PAGE_W-340, height:2, fill:'#e1e1e1'});
+    const body = new fabric.Textbox(
+      "Okafor,\n\nDo not play it for the rest of the crew. Bring the drive to my office directly, nobody else present.\n\nThis is not the first time hardware has recorded something during a dropout. Previous instances are documented and classified above your clearance, which is itself informative.\n\nStandard procedure applies: log the timestamp, do not loop the audio, do not describe its content in writing.\n\n— M. Holt\nNEUROSTAT — Field Division",
+      {left:310, top:270, width:PAGE_W-360, fontFamily:"'Source Sans 3'", fontSize:24, fill:'#1a1a1a', lineHeight:1.5}
+    );
+    [sidebar, acct, ...folderObjs, toolbar, toolbarTxt, subject, fromLbl, fromVal, toLbl, toVal, dateLbl, divider, body].forEach(o=>canvas.add(o));
+  }
+  else if (name==='email_90s'){
+    // Outlook Express / Windows 98 — a cor e o bisel 3D dos "botões" vendem a época, não a
+    // fonte (nenhuma fonte carregada imita MS Sans Serif de verdade). Dois Rects por botão
+    // (claro no topo/esquerda, escuro embaixo/direita) simulam o bevel clássico do Win98.
+    await buildFlatScreenBg(...FLAT_SCREEN_BG.email_90s);
+    const titleBar = new fabric.Rect({left:0, top:0, width:PAGE_W, height:40, fill:'#000080'});
+    const titleTxt = new fabric.Textbox('Inbox - Message  (Plain Text)', {left:14, top:8, width:700, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#ffffff'});
+    const winBtns = new fabric.Textbox('_  □  X', {left:PAGE_W-110, top:6, width:100, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#ffffff'});
+    const menuBar = new fabric.Textbox('File   Edit   View   Insert   Format   Tools   Actions   Help', {left:14, top:46, width:PAGE_W-28, fontFamily:"'Arimo'", fontSize:18, fill:'#111111'});
+    const toolDivider = new fabric.Rect({left:0, top:78, width:PAGE_W, height:2, fill:'#808080'});
+    const btnObjs = [];
+    const btnLabels = ['↩ Reply','↪ Fwd','🖨 Print','🗑 Delete','⏎ Send'];
+    btnLabels.forEach((lab,i)=>{
+      const bx = 14+i*110, by = 86, bw = 100, bh = 50;
+      btnObjs.push(new fabric.Rect({left:bx, top:by, width:bw, height:bh, fill:'#c0c0c0', stroke:'#808080', strokeWidth:2}));
+      btnObjs.push(new fabric.Rect({left:bx, top:by, width:bw-2, height:bh-2, fill:'transparent', stroke:'#ffffff', strokeWidth:2}));
+      btnObjs.push(new fabric.Textbox(lab, {left:bx+6, top:by+14, width:bw-12, fontFamily:"'Arimo'", fontSize:15, fill:'#111111', textAlign:'center'}));
+    });
+    const headerPanel = new fabric.Rect({left:0, top:148, width:PAGE_W, height:150, fill:'#c0c0c0', stroke:'#808080', strokeWidth:1});
+    const hdrRows = [
+      ['From:','sysnotify@des-platform-01.internal'],
+      ['To:','maintenance-dist@neurostat-fd.local'],
+      ['Subject:','AUTOMATED ALERT: hull_array[12] THRESHOLD EXCEEDED'],
+      ['Date:','Fri 03/14 05:15 AM'],
+    ];
+    const hdrObjs = [];
+    hdrRows.forEach((r,i)=>{
+      hdrObjs.push(new fabric.Textbox(r[0], {left:20, top:158+i*34, width:110, fontFamily:"'Arimo'", fontWeight:700, fontSize:17, fill:'#111111'}));
+      hdrObjs.push(new fabric.Textbox(r[1], {left:140, top:158+i*34, width:PAGE_W-160, fontFamily:"'Arimo'", fontSize:17, fill:'#111111'}));
+    });
+    const bodyPanel = new fabric.Rect({left:0, top:298, width:PAGE_W, height:PAGE_H-298, fill:'#ffffff'});
+    const body = new fabric.Textbox(
+      "THIS IS AN AUTOMATED MESSAGE. DO NOT REPLY.\n\nSENSOR NODE DES-PLATFORM-01 HAS LOGGED 40+ ANOMALY EVENTS ON HULL ARRAY CHANNEL 12 IN THE LAST SIX MINUTES.\n\nTHRESHOLD FOR AUTOMATIC SUPERVISOR NOTIFICATION: 3 EVENTS / HOUR.\nOBSERVED RATE: EXCEEDS SCALE.\n\nLOGGING HAS BEEN SUSPENDED BY SUPERVISOR OVERRIDE AT 05:15:00.\nTHIS SYSTEM WILL NOT SEND FURTHER ALERTS UNTIL LOGGING RESUMES.\n\n-- END OF MESSAGE --",
+      {left:24, top:318, width:PAGE_W-48, fontFamily:"'Courier Prime'", fontSize:19, fill:'#111111', lineHeight:1.5}
+    );
+    [titleBar, titleTxt, winBtns, menuBar, toolDivider, ...btnObjs, headerPanel, ...hdrObjs, bodyPanel, body].forEach(o=>canvas.add(o));
+  }
+  else if (name==='menu_fine'){
+    await setTemplateBackground('paper_aged', {age:0.1});
+    const title = new fabric.Textbox('EXECUTIVE SERVICE', {left:0, top:140, width:PAGE_W, originX:'left', fontFamily:"'Playfair Display'", fontWeight:900, fontSize:56, fill:'#141414', textAlign:'center', charSpacing:200});
+    const subtitle = new fabric.Textbox('PLATFORM DESERTO — DINING DECK', {left:0, top:220, width:PAGE_W, fontFamily:"'Courier Prime'", fontSize:18, fill:'#5a5240', textAlign:'center', charSpacing:150});
+    const ruleTop = new fabric.Rect({left:PAGE_W/2-180, top:290, width:360, height:2, fill:'#9a8a5a'});
+    const sections = [
+      {label:'AMUSE-BOUCHE', items:[['Smoked roe, crème fraîche','']]},
+      {label:'FIRST', items:[['Scallop crudo, brown butter, sea lettuce','']]},
+      {label:'SECOND', items:[['Dry-aged beef, bone marrow jus, charred onion','']]},
+      {label:'DESSERT', items:[['Dark chocolate, salt caramel, burnt citrus','']]},
+    ];
+    const objs = [title, subtitle, ruleTop];
+    let y = 360;
+    sections.forEach(sec=>{
+      objs.push(new fabric.Textbox(sec.label, {left:0, top:y, width:PAGE_W, fontFamily:"'Playfair Display'", fontWeight:700, fontSize:24, fill:'#7a6a34', textAlign:'center', charSpacing:120}));
+      y += 60;
+      sec.items.forEach(([itemName])=>{
+        objs.push(new fabric.Textbox(itemName, {left:140, top:y, width:PAGE_W-280, fontFamily:"'PT Serif'", fontStyle:'italic', fontSize:22, fill:'#141414', textAlign:'center'}));
+        y += 70;
+      });
+      y += 30;
+    });
+    const ruleBot = new fabric.Rect({left:PAGE_W/2-180, top:y, width:360, height:2, fill:'#9a8a5a'});
+    const price = new fabric.Textbox('FIXED MENU — $340 PER GUEST', {left:0, top:y+40, width:PAGE_W, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:20, fill:'#141414', textAlign:'center', charSpacing:100});
+    const footer = new fabric.Textbox('Wine pairing available upon request. Please advise of dietary restrictions 48 hours prior to crew rotation.', {left:160, top:y+110, width:PAGE_W-320, fontFamily:"'PT Serif'", fontStyle:'italic', fontSize:15, fill:'#5a5240', textAlign:'center', lineHeight:1.4});
+    objs.push(ruleBot, price, footer);
+    objs.forEach(o=>canvas.add(o));
+  }
+  else if (name==='menu_diner'){
+    await setTemplateBackground('paper_aged', {age:0.2});
+    const band = new fabric.Rect({left:0, top:0, width:PAGE_W, height:150, fill:'#c79a2b'});
+    const title = new fabric.Textbox('GALLEY — WEEKLY BOARD', {left:0, top:36, width:PAGE_W, fontFamily:"'Oswald'", fontWeight:700, fontSize:52, fill:'#1a1a1a', textAlign:'center'});
+    const sections = [
+      {label:'HOT', color:'#9a2d20', items:[['Chili (Mon/Thu)','4'],['Grilled cheese','3'],['Soup of the day — ask your supervisor','—']]},
+      {label:'COLD', color:'#1c5a3a', items:[['Tuna salad','3'],['Fruit cup','2']]},
+      {label:'ALWAYS AVAILABLE', color:'#1c3a5e', items:[['Coffee — bottomless','0'],['Crackers','0'],['Earplugs — see supply locker','0']]},
+    ];
+    const objs = [band, title];
+    let y = 210;
+    sections.forEach(sec=>{
+      objs.push(new fabric.Rect({left:90, top:y, width:PAGE_W-180, height:46, fill:sec.color}));
+      objs.push(new fabric.Textbox(sec.label, {left:90, top:y+8, width:PAGE_W-180, fontFamily:"'Oswald'", fontWeight:700, fontSize:26, fill:'#ffffff', textAlign:'center'}));
+      y += 70;
+      sec.items.forEach(([name2, price])=>{
+        menuRow(name2, price, 120, y, PAGE_W-240, {fontFamily:"'Source Sans 3'", fontSize:24, fill:'#1a1a1a'}).forEach(o=>objs.push(o));
+        y += 50;
+      });
+      y += 50;
+    });
+    const footer = new fabric.Textbox('Comment card box located outside galley. Messages regarding noise complaints should be directed to supervision directly, not posted here.', {left:120, top:y+10, width:PAGE_W-240, fontFamily:"'Source Sans 3'", fontStyle:'italic', fontSize:16, fill:'#4a4a4a', textAlign:'center', lineHeight:1.4});
+    objs.push(footer);
+    objs.forEach(o=>canvas.add(o));
+  }
+  else if (name==='menu_fastfood'){
+    await buildFlatScreenBg(...FLAT_SCREEN_BG.menu_fastfood);
+    const title = new fabric.Textbox('ANCHOR BASKET', {left:0, top:60, width:PAGE_W, fontFamily:"'Oswald'", fontWeight:700, fontSize:72, fill:'#ffec3d', textAlign:'center'});
+    const sub = new fabric.Textbox('DOCKSIDE LOCATION — OPEN 24H', {left:0, top:150, width:PAGE_W, fontFamily:"'Oswald'", fontSize:24, fill:'#ffffff', textAlign:'center'});
+    const ribbon = new fabric.Rect({left:PAGE_W-420, top:220, width:460, height:70, fill:'#ffec3d', angle:-8});
+    const ribbonTxt = new fabric.Textbox('NEW! DEEP-SEA PLATFORM BASKET', {left:PAGE_W-420, top:238, width:460, angle:-8, fontFamily:"'Oswald'", fontWeight:700, fontSize:18, fill:'#a81414', textAlign:'center'});
+    const combos = [
+      {n:'1', name:'CAPTAIN COMBO', desc:'Fish basket, fries, soda', price:'$9.99'},
+      {n:'2', name:'DOUBLE ANCHOR', desc:'Double burger, fries, soda', price:'$11.49'},
+      {n:'3', name:'CREW SPECIAL', desc:'Chicken tenders, fries, soda', price:'$8.99'},
+    ];
+    const objs = [title, sub, ribbon, ribbonTxt];
+    let y = 400;
+    combos.forEach(c=>{
+      const box = new fabric.Rect({left:90, top:y, width:PAGE_W-180, height:170, rx:16, ry:16, fill:'#ffffff'});
+      const num = new fabric.Circle({left:116, top:y+26, radius:36, fill:'#d41c1c'});
+      const numTxt = new fabric.Textbox(c.n, {left:116, top:y+44, width:72, fontFamily:"'Oswald'", fontWeight:700, fontSize:36, fill:'#ffffff', textAlign:'center'});
+      const nameTxt = new fabric.Textbox(c.name, {left:210, top:y+24, width:640, fontFamily:"'Oswald'", fontWeight:700, fontSize:30, fill:'#1a1a1a'});
+      const descTxt = new fabric.Textbox(c.desc, {left:210, top:y+70, width:640, fontFamily:"'Source Sans 3'", fontSize:20, fill:'#4a4a4a'});
+      const priceTxt = new fabric.Textbox(c.price, {left:PAGE_W-260, top:y+55, width:160, fontFamily:"'Oswald'", fontWeight:700, fontSize:34, fill:'#d41c1c', textAlign:'right'});
+      objs.push(box, num, numTxt, nameTxt, descTxt, priceTxt);
+      y += 200;
+    });
+    const footer = new fabric.Textbox('** Shuttle to platform departs 0600 sharp. Missing the shuttle is not grounds for reimbursement.', {left:90, top:y+10, width:PAGE_W-180, fontFamily:"'Source Sans 3'", fontStyle:'italic', fontSize:16, fill:'#ffffff', textAlign:'center', lineHeight:1.4});
+    objs.push(footer);
+    objs.forEach(o=>canvas.add(o));
+  }
 
   canvas.renderAll();
   renderLayerList();
@@ -889,6 +1169,7 @@ async function pageAdd(){
     await sceneSwitchTo({}, {
       buildFresh: async ()=>{
         if (currentTemplate==='terminal') await buildTerminalScreenBg();
+        else if (FLAT_SCREEN_BG[currentTemplate]) await buildFlatScreenBg(...FLAT_SCREEN_BG[currentTemplate]);
         else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
         else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
       },
