@@ -510,38 +510,21 @@ function brandFontChoices(){
   return [...set];
 }
 function renderBrandTextInspector(obj, body){
-  const lab1 = document.createElement('label'); lab1.textContent = 'Texto';
-  const editBtn = document.createElement('button'); editBtn.textContent = '✎ Abrir editor';
-  editBtn.addEventListener('click', ()=>openTextEditor(obj));
-  body.appendChild(lab1); body.appendChild(editBtn);
-  const hint = document.createElement('div'); hint.className = 'hint';
-  hint.textContent = 'No editor: **negrito** e [[trecho censurado]]. Quebras de linha originais valem até você mudar texto, fonte ou largura.';
-  body.appendChild(hint);
+  const editWrap = document.createElement('div');
+  editWrap.appendChild(field.label('Texto'));
+  editWrap.appendChild(field.button('✎ Abrir editor', ()=>openTextEditor(obj)));
+  body.appendChild(editWrap);
+  body.appendChild(field.hint('No editor: **negrito** e [[trecho censurado]]. Quebras de linha originais valem até você mudar texto, fonte ou largura.'));
 
-  const lab = document.createElement('label'); lab.textContent = 'Fonte';
-  const sel = document.createElement('select');
-  brandFontChoices().forEach(f=>{
-    const o = document.createElement('option'); o.value = f; o.textContent = f.split(',')[0].replace(/['"]/g, ''); sel.appendChild(o);
-  });
-  sel.value = obj.fontFamily;
-  sel.addEventListener('change', ()=>{ obj.set('fontFamily', sel.value); canvas.renderAll(); pushHistory(); });
-  body.appendChild(lab); body.appendChild(sel);
+  const fontOptions = brandFontChoices().map(f=>({value:f, label:f.split(',')[0].replace(/['"]/g, '')}));
+  body.appendChild(field.select('Fonte', fontOptions, obj.fontFamily, v=>{ obj.set('fontFamily', v); canvas.renderAll(); pushHistory(); }));
 
-  body.appendChild(labeledRange('Tamanho', obj.fontSize, 5, 120, 0.5, v=>{ obj.set('fontSize', v); canvas.renderAll(); }));
-  const colorLab = document.createElement('label'); colorLab.textContent = 'Cor';
-  const colorInp = document.createElement('input'); colorInp.type = 'color'; colorInp.value = rgbToHex(obj.fill);
-  colorInp.addEventListener('input', ()=>{ obj.set('fill', colorInp.value); canvas.renderAll(); });
-  body.appendChild(colorLab); body.appendChild(colorInp);
-  const boldLab = document.createElement('label'); boldLab.className = 'inline';
-  const boldCb = document.createElement('input'); boldCb.type = 'checkbox'; boldCb.checked = (+obj.fontWeight||400) >= 600;
-  boldCb.addEventListener('change', ()=>{ obj.set('fontWeight', boldCb.checked ? 700 : 400); canvas.renderAll(); pushHistory(); });
-  boldLab.appendChild(boldCb); boldLab.appendChild(document.createTextNode(' Negrito no bloco todo'));
-  body.appendChild(boldLab);
+  body.appendChild(field.range('Tamanho', obj.fontSize, 5, 120, 0.5, v=>{ obj.set('fontSize', v); canvas.renderAll(); }));
+  body.appendChild(field.color('Cor', rgbToHex(obj.fill), v=>{ obj.set('fill', v); canvas.renderAll(); }));
+  body.appendChild(field.checkbox('Negrito no bloco todo', (+obj.fontWeight||400) >= 600, v=>{ obj.set('fontWeight', v ? 700 : 400); canvas.renderAll(); pushHistory(); }));
 }
 function renderBrandArtInspector(obj, body){
-  const h = document.createElement('div'); h.className = 'hint';
-  h.textContent = 'Arte do documento (travada): papel, réguas, tabelas, logos e textura. Os textos são camadas separadas por cima — dê duplo clique neles pra editar.';
-  body.appendChild(h);
+  body.appendChild(field.hint('Arte do documento (travada): papel, réguas, tabelas, logos e textura. Os textos são camadas separadas por cima — dê duplo clique neles pra editar.'));
 }
 
 /* ---------- UI (aba "Marcas") ---------- */

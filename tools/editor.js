@@ -1371,35 +1371,17 @@ function updateInspector(){
   }
   renderLayerProps(obj, body);
 
-  if (obj.customType!=='brandArt'){
-    const dup = document.createElement('button');
-    dup.textContent = 'Duplicar';
-    dup.addEventListener('click', duplicateActiveSelection);
-    body.appendChild(dup);
-  }
-  if (!isLockedBase(obj)){
-    const del = document.createElement('button');
-    del.textContent = 'Excluir'; del.className='danger';
-    del.addEventListener('click', deleteActiveSelection);
-    body.appendChild(del);
-  }
+  if (obj.customType!=='brandArt') body.appendChild(field.button('Duplicar', duplicateActiveSelection));
+  if (!isLockedBase(obj)) body.appendChild(field.button('Excluir', deleteActiveSelection, {className:'danger'}));
 }
 /* Seleção múltipla (marquee/shift-click): os inspetores por tipo acima não fazem sentido
    pra um grupo heterogêneo de objetos — mostra só a contagem e as duas ações que fazem
    sentido em lote (duplicar/excluir todos), via os mesmos helpers que o teclado usa. */
 function renderMultiSelectInspector(sel, body){
   const members = sel.getObjects();
-  const info = document.createElement('div'); info.className='hint';
-  info.textContent = `${members.length} objetos selecionados.`;
-  body.appendChild(info);
-  const dup = document.createElement('button');
-  dup.textContent = 'Duplicar todos';
-  dup.addEventListener('click', duplicateActiveSelection);
-  body.appendChild(dup);
-  const del = document.createElement('button');
-  del.textContent = 'Excluir todos'; del.className = 'danger';
-  del.addEventListener('click', deleteActiveSelection);
-  body.appendChild(del);
+  body.appendChild(field.hint(`${members.length} objetos selecionados.`));
+  body.appendChild(field.button('Duplicar todos', duplicateActiveSelection));
+  body.appendChild(field.button('Excluir todos', deleteActiveSelection, {className:'danger'}));
 }
 
 function labeledRange(labelText, val, min, max, step, onInput){
@@ -1421,65 +1403,32 @@ function renderLayerProps(obj, body){
   const details = document.createElement('details');
   const summary = document.createElement('summary'); summary.textContent = 'Opacidade / mescla'; summary.style.cursor='pointer'; summary.style.color='#9ea6b3'; summary.style.fontSize='11.5px'; summary.style.margin='6px 0 2px';
   details.appendChild(summary);
-  details.appendChild(labeledRange('Opacidade', obj.opacity!=null?obj.opacity:1, 0, 1, 0.01, v=>{ obj.set('opacity', v); canvas.renderAll(); }));
-  const lab = document.createElement('label'); lab.textContent='Modo de mescla';
-  const sel = document.createElement('select');
-  ['source-over','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','difference','exclusion'].forEach(m=>{
-    const o = document.createElement('option'); o.value=m; o.textContent=m;
-    if ((obj.globalCompositeOperation||'source-over')===m) o.selected=true;
-    sel.appendChild(o);
-  });
-  sel.addEventListener('change', ()=>{ obj.set('globalCompositeOperation', sel.value); canvas.renderAll(); pushHistory(); });
-  details.appendChild(lab); details.appendChild(sel);
+  details.appendChild(field.range('Opacidade', obj.opacity!=null?obj.opacity:1, 0, 1, 0.01, v=>{ obj.set('opacity', v); canvas.renderAll(); }));
+  const blendOptions = ['source-over','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','difference','exclusion'].map(m=>({value:m, label:m}));
+  details.appendChild(field.select('Modo de mescla', blendOptions, obj.globalCompositeOperation||'source-over', v=>{ obj.set('globalCompositeOperation', v); canvas.renderAll(); pushHistory(); }));
   body.appendChild(details);
 }
 
 function renderTextInspector(obj, body){
-  const lab1 = document.createElement('label'); lab1.textContent='Texto';
-  const editBtn = document.createElement('button'); editBtn.textContent='✎ Abrir editor';
-  editBtn.addEventListener('click', ()=>openTextEditor(obj));
-  body.appendChild(lab1); body.appendChild(editBtn);
+  const editWrap = document.createElement('div');
+  editWrap.appendChild(field.label('Texto'));
+  editWrap.appendChild(field.button('✎ Abrir editor', ()=>openTextEditor(obj)));
+  body.appendChild(editWrap);
 
   if (obj.type==='handwrittentext'){
-    const lab = document.createElement('label'); lab.textContent='Estilo de letra';
-    const sel = document.createElement('select');
-    HANDWRITING_PERSONA_LIST.forEach(p=>{ const o=document.createElement('option'); o.value=p.id; o.textContent=p.label; sel.appendChild(o); });
-    sel.value = obj.personaId;
-    sel.addEventListener('change', ()=>{ obj.personaId = sel.value; canvas.renderAll(); });
-    body.appendChild(lab); body.appendChild(sel);
-
-    const fatLab = document.createElement('label'); fatLab.className='inline';
-    const fatCb = document.createElement('input'); fatCb.type='checkbox'; fatCb.checked = obj.fatigue;
-    fatCb.addEventListener('change', ()=>{ obj.fatigue = fatCb.checked; canvas.renderAll(); });
-    fatLab.appendChild(fatCb); fatLab.appendChild(document.createTextNode(' Piora ao longo do texto'));
-    body.appendChild(fatLab);
-
-    const reseed = document.createElement('button'); reseed.textContent='🎲 Novo aspecto';
-    reseed.addEventListener('click', ()=>{ obj.seed = Math.floor(Math.random()*4294967296); canvas.renderAll(); });
-    body.appendChild(reseed);
+    body.appendChild(field.select('Estilo de letra', HANDWRITING_PERSONA_LIST.map(p=>({value:p.id, label:p.label})), obj.personaId, v=>{ obj.personaId=v; canvas.renderAll(); }));
+    body.appendChild(field.checkbox('Piora ao longo do texto', obj.fatigue, v=>{ obj.fatigue=v; canvas.renderAll(); }));
+    body.appendChild(field.button('🎲 Novo aspecto', ()=>{ obj.seed = Math.floor(Math.random()*4294967296); canvas.renderAll(); }));
   } else {
-    const lab = document.createElement('label'); lab.textContent='Fonte';
-    const sel = document.createElement('select');
-    ["'PT Serif'","'Playfair Display'","'Courier Prime'","'UnifrakturCook'"].forEach(f=>{
-      const o=document.createElement('option'); o.value=f; o.textContent=f.replace(/'/g,''); sel.appendChild(o);
-    });
-    sel.value = obj.fontFamily;
-    sel.addEventListener('change', ()=>{ obj.set('fontFamily', sel.value); canvas.renderAll(); });
-    body.appendChild(lab); body.appendChild(sel);
-
-    body.appendChild(labeledRange('Tamanho', obj.fontSize, 8, 90, 1, v=>{ obj.set('fontSize', v); canvas.renderAll(); }));
-
-    const colorLab = document.createElement('label'); colorLab.textContent='Cor';
-    const colorInp = document.createElement('input'); colorInp.type='color'; colorInp.value = rgbToHex(obj.fill);
-    colorInp.addEventListener('input', ()=>{ obj.set('fill', colorInp.value); canvas.renderAll(); });
-    body.appendChild(colorLab); body.appendChild(colorInp);
+    const fontOptions = ["'PT Serif'","'Playfair Display'","'Courier Prime'","'UnifrakturCook'"].map(f=>({value:f, label:f.replace(/'/g,'')}));
+    body.appendChild(field.select('Fonte', fontOptions, obj.fontFamily, v=>{ obj.set('fontFamily', v); canvas.renderAll(); }));
+    body.appendChild(field.range('Tamanho', obj.fontSize, 8, 90, 1, v=>{ obj.set('fontSize', v); canvas.renderAll(); }));
+    body.appendChild(field.color('Cor', rgbToHex(obj.fill), v=>{ obj.set('fill', v); canvas.renderAll(); }));
   }
 
   if (obj.type==='redactedtext'){
-    body.appendChild(labeledRange('Censura (%)', obj.redactPct, 0, 85, 1, v=>{ obj.redactPct=v; canvas.renderAll(); }));
-    const reseed = document.createElement('button'); reseed.textContent='🎲 Nova censura';
-    reseed.addEventListener('click', ()=>{ obj.seed = Math.floor(Math.random()*4294967296); canvas.renderAll(); });
-    body.appendChild(reseed);
+    body.appendChild(field.range('Censura (%)', obj.redactPct, 0, 85, 1, v=>{ obj.redactPct=v; canvas.renderAll(); }));
+    body.appendChild(field.button('🎲 Nova censura', ()=>{ obj.seed = Math.floor(Math.random()*4294967296); canvas.renderAll(); }));
   }
 }
 
@@ -1558,7 +1507,8 @@ function flipSelected(obj, axis){
 
 function renderImageInspector(obj, body){
   if (obj.customType==='photoPlaceholder' || obj.customType==='photo'){
-    const lab = document.createElement('label'); lab.textContent='Trocar foto';
+    const swapWrap = document.createElement('div');
+    swapWrap.appendChild(field.label('Trocar foto'));
     const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
     inp.addEventListener('change', (e)=>{
       const f = e.target.files[0]; if (!f) return;
@@ -1582,114 +1532,78 @@ function renderImageInspector(obj, body){
       };
       reader.readAsDataURL(f);
     });
-    body.appendChild(lab); body.appendChild(inp);
+    swapWrap.appendChild(inp);
+    body.appendChild(swapWrap);
 
-    const transformRow = document.createElement('div'); transformRow.className='grid2';
-    const cropBtn = document.createElement('button'); cropBtn.textContent='▧ Recortar';
-    cropBtn.addEventListener('click', ()=>startCrop(obj));
-    const flipHBtn = document.createElement('button'); flipHBtn.textContent='⇋ Espelhar H';
-    flipHBtn.addEventListener('click', ()=>flipSelected(obj,'h'));
-    transformRow.appendChild(cropBtn); transformRow.appendChild(flipHBtn);
-    body.appendChild(transformRow);
-    const flipVBtn = document.createElement('button'); flipVBtn.textContent='⇵ Espelhar V';
-    flipVBtn.addEventListener('click', ()=>flipSelected(obj,'v'));
-    body.appendChild(flipVBtn);
+    body.appendChild(field.buttonRow([
+      field.button('▧ Recortar', ()=>startCrop(obj)),
+      field.button('⇋ Espelhar H', ()=>flipSelected(obj,'h')),
+    ]));
+    body.appendChild(field.button('⇵ Espelhar V', ()=>flipSelected(obj,'v')));
 
-    const compositeLab = document.createElement('div'); compositeLab.className='hint'; compositeLab.textContent='Moldura / overlay:';
-    body.appendChild(compositeLab);
-    const compositeRow = document.createElement('div'); compositeRow.className='grid2';
-    const polaroidBtn = document.createElement('button'); polaroidBtn.textContent='🖼 Polaroid';
-    polaroidBtn.addEventListener('click', ()=>{ addPolaroidFrame(canvas, obj); pushHistory(); });
-    const cctvBtn = document.createElement('button'); cctvBtn.textContent='📹 HUD CCTV';
-    cctvBtn.addEventListener('click', ()=>{ addCCTVHud(canvas, obj); pushHistory(); });
-    compositeRow.appendChild(polaroidBtn); compositeRow.appendChild(cctvBtn);
-    body.appendChild(compositeRow);
-    const vhsBtn = document.createElement('button'); vhsBtn.textContent='▬ Barras VHS';
-    vhsBtn.addEventListener('click', ()=>{ addVHSBars(canvas, obj); pushHistory(); });
-    body.appendChild(vhsBtn);
+    body.appendChild(field.hint('Moldura / overlay:'));
+    body.appendChild(field.buttonRow([
+      field.button('🖼 Polaroid', ()=>{ addPolaroidFrame(canvas, obj); pushHistory(); }),
+      field.button('📹 HUD CCTV', ()=>{ addCCTVHud(canvas, obj); pushHistory(); }),
+    ]));
+    body.appendChild(field.button('▬ Barras VHS', ()=>{ addVHSBars(canvas, obj); pushHistory(); }));
   }
 
   const filterPanelHost = document.createElement('div');
   body.appendChild(filterPanelHost);
   renderFilterPanel(canvas, obj, filterPanelHost);
 
-  const grungeBtn = document.createElement('button'); grungeBtn.textContent='🪨 Adicionar camada de sujeira';
-  grungeBtn.addEventListener('click', applyGrungeOverlay);
-  body.appendChild(grungeBtn);
-  const bloomBtn = document.createElement('button'); bloomBtn.textContent='✨ Aplicar glow/bloom (nesta imagem)';
-  bloomBtn.addEventListener('click', applyBloomToSelected);
-  body.appendChild(bloomBtn);
+  body.appendChild(field.button('🪨 Adicionar camada de sujeira', applyGrungeOverlay));
+  body.appendChild(field.button('✨ Aplicar glow/bloom (nesta imagem)', applyBloomToSelected));
 }
 
 function renderNetworkInspector(obj, body){
   if (obj.customType==='netLink'){
-    const lab = document.createElement('label'); lab.className='inline';
-    const cb = document.createElement('input'); cb.type='checkbox'; cb.checked = !!obj.strokeDashArray;
-    cb.addEventListener('change', ()=>{ obj.set('strokeDashArray', cb.checked ? [4,3] : null); canvas.renderAll(); pushHistory(); });
-    lab.appendChild(cb); lab.appendChild(document.createTextNode(' Linha tracejada (backup/baixa banda)'));
-    body.appendChild(lab);
-    const colorLab = document.createElement('label'); colorLab.textContent='Cor';
-    const colorInp = document.createElement('input'); colorInp.type='color'; colorInp.value = rgbToHex(obj.stroke);
-    colorInp.addEventListener('input', ()=>{ obj.set('stroke', colorInp.value); canvas.renderAll(); });
-    body.appendChild(colorLab); body.appendChild(colorInp);
-    const hint = document.createElement('div'); hint.className='hint'; hint.textContent = 'Ligação entre dois nós — some sozinha se um dos dois for apagado.';
-    body.appendChild(hint);
+    body.appendChild(field.checkbox('Linha tracejada (backup/baixa banda)', !!obj.strokeDashArray, v=>{ obj.set('strokeDashArray', v ? [4,3] : null); canvas.renderAll(); pushHistory(); }));
+    body.appendChild(field.color('Cor', rgbToHex(obj.stroke), v=>{ obj.set('stroke', v); canvas.renderAll(); }));
+    body.appendChild(field.hint('Ligação entre dois nós — some sozinha se um dos dois for apagado.'));
     return;
   }
   // obj é o Group (caixa+rótulo+acento) — a cor em si está no filho da caixa, não no grupo.
   const box = obj.getObjects().find(o=>o.customType==='netNodeBox');
-  const lab = document.createElement('label'); lab.textContent='Cor da borda';
-  const colorInp = document.createElement('input'); colorInp.type='color'; colorInp.value = rgbToHex(box.stroke);
-  colorInp.addEventListener('input', ()=>{ box.set('stroke', colorInp.value); canvas.renderAll(); });
-  body.appendChild(lab); body.appendChild(colorInp);
-  const hint = document.createElement('div'); hint.className='hint'; hint.textContent = 'Arraste pra mover/redimensionar. Duplo clique no rótulo edita. Arraste do pontinho laranja na borda direita até outro nó pra ligar.';
-  body.appendChild(hint);
+  body.appendChild(field.color('Cor da borda', rgbToHex(box.stroke), v=>{ box.set('stroke', v); canvas.renderAll(); }));
+  body.appendChild(field.hint('Arraste pra mover/redimensionar. Duplo clique no rótulo edita. Arraste do pontinho laranja na borda direita até outro nó pra ligar.'));
 }
 function renderBackgroundInspector(obj, body){
-  const lab = document.createElement('div'); lab.className='hint'; lab.textContent='Papel de fundo';
-  body.appendChild(lab);
+  body.appendChild(field.hint('Papel de fundo'));
 
   // Controles de categoria/reroll/mancha só fazem sentido no modo Texturizado —
   // o fundo Digital não é uma foto (não tem categoria pra trocar, mancha em cima
   // de um degradê vetorial ficaria errado). Modo se troca no alternador da aba
   // Documento, não aqui.
   if (bgMode === 'digital'){
-    const digitalLab = document.createElement('div'); digitalLab.className='hint';
-    digitalLab.textContent = 'Fundo digital (sem foto) — troque pra Texturizado na aba Documento pra ver categoria de papel e manchas.';
-    body.appendChild(digitalLab);
+    body.appendChild(field.hint('Fundo digital (sem foto) — troque pra Texturizado na aba Documento pra ver categoria de papel e manchas.'));
     return;
   }
 
-  const catLab = document.createElement('label'); catLab.textContent='Categoria';
-  const catSel = document.createElement('select');
   const CAT_LABELS = {paper_aged:'Envelhecido', paper_notebook_ruled:'Caderno pautado', paper_notebook_plain:'Caderno liso', paper_newsprint:'Jornal'};
-  Object.keys(CAT_LABELS).forEach(c=>{
-    const o=document.createElement('option'); o.value=c; o.textContent=CAT_LABELS[c]; catSel.appendChild(o);
-  });
-  if (currentBgCategory && CAT_LABELS[currentBgCategory]) catSel.value = currentBgCategory;
-  body.appendChild(catLab); body.appendChild(catSel);
-  const swapBtn = document.createElement('button'); swapBtn.textContent='🎲 Trocar papel';
-  swapBtn.addEventListener('click', async ()=>{
+  const catOptions = Object.keys(CAT_LABELS).map(c=>({value:c, label:CAT_LABELS[c]}));
+  const catValue = (currentBgCategory && CAT_LABELS[currentBgCategory]) ? currentBgCategory : catOptions[0].value;
+  const catField = field.select('Categoria', catOptions, catValue, ()=>{});
+  body.appendChild(catField);
+  body.appendChild(field.button('🎲 Trocar papel', async ()=>{
     const age = (obj.filters[0]&&obj.filters[0].amount)||0.4;
-    await setTemplateBackground(catSel.value, {age});
+    await setTemplateBackground(catField.__input.value, {age});
     canvas.renderAll(); updateInspector();
-  });
-  body.appendChild(swapBtn);
+  }));
   // "Idade do papel" não tem slider próprio aqui de propósito — obj.type==='image'
   // já faz updateInspector chamar renderImageInspector ANTES desta função (o fundo
   // é ao mesmo tempo type:'image' e customType:'background'), que já desenha um
   // slider de "Idade do papel" pra esse mesmo AgeTintFilter via renderFilterPanel.
   // Ter os dois era bug cosmético confirmado (dois controles pro mesmo valor).
 
-  const stainLab = document.createElement('div'); stainLab.className='hint'; stainLab.textContent='Adicionar mancha:';
-  body.appendChild(stainLab);
-  const stainRow = document.createElement('div'); stainRow.className='toolgrid';
-  [['Água','water'],['Café','coffee'],['Sangue','blood'],['Mofo','mold']].forEach(([lbl,val])=>{
-    const b = document.createElement('button'); b.textContent=lbl;
-    b.addEventListener('click', ()=>addStain(val));
-    stainRow.appendChild(b);
-  });
-  body.appendChild(stainRow);
+  body.appendChild(field.hint('Adicionar mancha:'));
+  body.appendChild(field.buttonRow([
+    field.button('Água', ()=>addStain('water')),
+    field.button('Café', ()=>addStain('coffee')),
+    field.button('Sangue', ()=>addStain('blood')),
+    field.button('Mofo', ()=>addStain('mold')),
+  ], 'toolgrid'));
 }
 
 /* ===================== Exportar texto (pra editar fora, tipo Google Docs) =====================
