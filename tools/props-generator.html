@@ -192,7 +192,11 @@
       <div id="brandActive" style="display:none">
         <label>Lado da folha</label>
         <div id="sideBtnRow" class="toolgrid"></div>
-        <div class="hint">Cada lado guarda as próprias edições e o próprio desfazer/refazer. Clique numa foto no documento e vá na aba Objeto pra trocar — funciona igual aos outros templates.</div>
+        <div class="grid2">
+          <button id="btnBrandPageAdd">+ Página</button>
+          <button id="btnBrandPageDel" class="danger">🗑 Apagar página</button>
+        </div>
+        <div class="hint">Cada lado guarda as próprias edições e o próprio desfazer/refazer. Clique numa foto no documento e vá na aba Objeto pra trocar — funciona igual aos outros templates. "+ Página" acrescenta uma folha extra em branco (papel liso, sem a arte do mockup — só os lados originais têm); "Apagar página" só funciona nessas páginas extras, os lados originais do documento não saem.</div>
         <button id="btnBrandExportBoth" class="primary">⭳ Baixar PNG</button>
         <button id="btnBrandExportPDF">⭳ Baixar PDF (todas as páginas)</button>
         <div class="hint">Usa a resolução escolhida em Documento → Exportar, já com o DPI certo pra sair no tamanho físico real. PNG separado é pra duplex (imprima cada página no mesmo papel ou vire a folha); PDF já vem tudo num arquivo só.</div>
@@ -203,6 +207,12 @@
       <legend>Referência rápida — lore da organização</legend>
       <div class="hint">O que já está estabelecido nos documentos desta família (nomes, datas, numeração). Atualiza sozinho quando você troca a organização acima.</div>
       <div id="loreRef"></div>
+    </fieldset>
+
+    <fieldset id="mythosBlock">
+      <legend>Cosmologia / Mythos (geral)</legend>
+      <div class="hint">Não muda com a organização selecionada acima — é o pano de fundo que vale pra qualquer documento. Tudo aqui é spoiler, só pro GM.</div>
+      <div id="mythosRef"></div>
     </fieldset>
   </div>
 
@@ -287,6 +297,7 @@
 <script src="network-diagram.js"></script>
 <script src="layout.js"></script>
 <script src="scene-stack.js"></script>
+<script src="ui-kit.js"></script>
 <script src="editor.js"></script>
 <script src="brand.js"></script>
 </body>

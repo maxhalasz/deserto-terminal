@@ -345,25 +345,71 @@ async function loadBrandDoc(docId, side){
     currentBgCategory = null; currentBgOpts = null; currentFoldField = null; currentRuledLines = null;
     currentNewsContent = null; currentNewsLayout = null;
     await sceneSwitchTo({}, { buildFresh: ()=>buildBrandSide(canvas, pack) });
-    BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}};
+    BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}, extraSides: []};
     PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
     renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
   });
 }
+/* Lados de um doc de marca = os autorados (c.meta.sides, fixos, vêm do pack) + os que o
+   Max adicionou à mão (c.extraSides) — combinados pra navegação/label/export verem uma
+   lista só. Pedido do Max: "continua não tendo a opção de adicionar e remover páginas dos
+   documentos de marca" — faltava justamente isso, só os docs de template tinham. */
+function brandAllSides(c){ return [...c.meta.sides, ...(c.extraSides||[])]; }
 async function brandSwitchSide(side){
   const c = BRAND.cur;
-  if (!c || c.side === side || !c.meta.sides.includes(side)) return;
+  if (!c || c.side === side) return;
+  const isCore = c.meta.sides.includes(side);
+  if (!isCore && !(c.extraSides||[]).includes(side)) return;
   return withSceneLock(async ()=>{
     cancelCrop(); // antes do snapshot — senão o retângulo de recorte temporário vira parte permanente do lado salvo
     canvas.discardActiveObject();
     c.sides[c.side] = makeSceneSnapshot();
-    const pack = await brandLoadPack(c.doc, side);
-    await sceneSwitchTo(c.sides[side] || {}, {
-      buildFresh: ()=>buildBrandSide(canvas, pack),
+    const saved = c.sides[side];
+    await sceneSwitchTo(saved || {}, {
+      buildFresh: ()=>brandBuildSideOnCanvas(canvas, c, side),
     });
     c.side = side;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); brandUpdateUI();
   });
+}
+/* Nova página em branco DEPOIS da atual, no mesmo documento de marca — mesmo tamanho de
+   folha, papel envelhecido liso (sem arte travada, já que não existe mockup pra uma página
+   inventada). Max escreve o que quiser nela. */
+async function brandAddPage(){
+  const c = BRAND.cur; if (!c) return;
+  return withSceneLock(async ()=>{
+    cancelCrop();
+    canvas.discardActiveObject();
+    c.sides[c.side] = makeSceneSnapshot();
+    const newSide = 'extra_' + Date.now();
+    beginBatch();
+    try {
+      clearDoc();
+      await setBackgroundPaper(pickFile('paper_aged', Math.random), {age:0.3});
+      canvas.renderAll();
+    } finally { endBatch(); }
+    c.extraSides = c.extraSides || [];
+    c.extraSides.push(newSide);
+    c.side = newSide;
+    history = []; historyIndex = -1; pushHistory();
+    renderLayerList(); updateInspector(); brandUpdateUI();
+  });
+}
+/* Só apaga página EXTRA (adicionada pelo Max) — os lados autorados do pack nunca somem
+   por aqui, são o documento em si. */
+async function brandDeletePage(){
+  const c = BRAND.cur; if (!c || !(c.extraSides||[]).includes(c.side)) return;
+  if (!confirm('Apagar esta página? Não dá pra desfazer.')) return;
+  // NÃO embrulha em withSceneLock aqui — brandSwitchSide (chamado embaixo) já faz isso, e
+  // um withSceneLock dentro de outro vira no-op silencioso (o de dentro vê sceneBusy=true
+  // e sai sem fazer nada). A mutação dos arrays abaixo é síncrona, não precisa de trava.
+  const all = brandAllSides(c);
+  const idx = all.indexOf(c.side);
+  c.extraSides.splice(c.extraSides.indexOf(c.side), 1);
+  delete c.sides[c.side];
+  const target = all[Math.min(idx, all.length-2)] || c.meta.sides[0];
+  c.side = null; // força brandSwitchSide a não dar no-op por "já tá nesse lado"
+  await brandSwitchSide(target);
 }
 function brandDownload(dataUrl, name){
   const a = document.createElement('a');
@@ -381,25 +427,33 @@ function brandSideLabel(sides, i){
 function brandSlug(s){
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
+/* Reconstrói UM lado que não está salvo em c.sides — lado autorado busca o pack (como
+   sempre); página extra (sem pack, o Max inventou) vira papel envelhecido liso, mesmo
+   fallback de brandAddPage/brandSwitchSide. Compartilhado pelos dois exports abaixo. */
+async function brandBuildSideOnCanvas(cv, c, side){
+  if (c.meta.sides.includes(side)) await buildBrandSide(cv, await brandLoadPack(c.doc, side));
+  else await setBackgroundPaper(pickFile('paper_aged', Math.random), {age:0.3});
+}
 async function brandExportAll(mult){
   const c = BRAND.cur; if (!c) return;
+  const allSides = brandAllSides(c);
   canvas.discardActiveObject(); canvas.renderAll();
   const out = {};
   out[c.side] = canvas.toDataURL({format: 'png', multiplier: mult / canvas.getZoom()});
-  for (const other of c.meta.sides){
+  for (const other of allSides){
     if (other === c.side) continue;
     const sc = new fabric.StaticCanvas(null, {width: c.W, height: c.H, backgroundColor: '#ffffff'});
     const saved = c.sides[other];
     if (saved) await sc.loadFromJSON(saved.json);
-    else await buildBrandSide(sc, await brandLoadPack(c.doc, other));
+    else await brandBuildSideOnCanvas(sc, c, other);
     sc.renderAll();
     out[other] = sc.toDataURL({format: 'png', multiplier: mult});
     sc.dispose();
   }
   const dpi = getExportDpi(c.W*mult, 'brand:'+c.doc);
   const stamp = Date.now();
-  c.meta.sides.forEach((s, i)=>{
-    const label = brandSideLabel(c.meta.sides, i);
+  allSides.forEach((s, i)=>{
+    const label = brandSideLabel(allSides, i);
     setTimeout(()=>brandDownload(pngWithDpi(out[s], dpi), `${c.doc}_${brandSlug(label)}_${stamp}.png`), i*350);
   });
 }
@@ -408,17 +462,18 @@ async function brandExportAll(mult){
    ("pronto pra impressão" pra documento de mais de uma página). */
 async function brandExportPDF(mult){
   const c = BRAND.cur; if (!c) return;
-  if (c.meta.sides.length < 2){ alert('Documento de uma face só — use "Baixar PNG".'); return; }
+  const allSides = brandAllSides(c);
+  if (allSides.length < 2){ alert('Documento de uma face só — use "Baixar PNG".'); return; }
   canvas.discardActiveObject(); canvas.renderAll();
   const out = [];
-  out[c.meta.sides.indexOf(c.side)] = canvas.toDataURL({format: 'png', multiplier: mult / canvas.getZoom()});
-  for (let i=0; i<c.meta.sides.length; i++){
-    const s = c.meta.sides[i];
+  out[allSides.indexOf(c.side)] = canvas.toDataURL({format: 'png', multiplier: mult / canvas.getZoom()});
+  for (let i=0; i<allSides.length; i++){
+    const s = allSides[i];
     if (s === c.side) continue;
     const sc = new fabric.StaticCanvas(null, {width: c.W, height: c.H, backgroundColor: '#ffffff'});
     const saved = c.sides[s];
     if (saved) await sc.loadFromJSON(saved.json);
-    else await buildBrandSide(sc, await brandLoadPack(c.doc, s));
+    else await brandBuildSideOnCanvas(sc, c, s);
     sc.renderAll();
     out[i] = sc.toDataURL({format: 'png', multiplier: mult});
     sc.dispose();
@@ -480,10 +535,10 @@ function renderBrandArtInspector(obj, body){
 /* ---------- UI (aba "Marcas") ---------- */
 function brandRenderSideButtons(){
   const row = document.getElementById('sideBtnRow');
-  if (!row) return;
+  if (!row || !BRAND.cur) return;
   row.innerHTML = '';
   const c = BRAND.cur;
-  const sides = c ? c.meta.sides : [];
+  const sides = brandAllSides(c);
   sides.forEach((s, i)=>{
     const b = document.createElement('button');
     b.className = 'sideBtn' + (c.side === s ? ' active' : '');
@@ -491,17 +546,26 @@ function brandRenderSideButtons(){
     b.addEventListener('click', ()=>brandSwitchSide(s).catch(e=>alert(e.message)));
     row.appendChild(b);
   });
+  const isExtra = (c.extraSides||[]).includes(c.side);
+  const delBtn = document.getElementById('btnBrandPageDel');
+  if (delBtn) delBtn.disabled = !isExtra;
 }
 function brandUpdateUI(){
   const c = BRAND.cur;
   const act = document.getElementById('brandActive'); if (!act) return;
   act.style.display = c ? 'block' : 'none';
   brandRenderSideButtons();
+  if (!c){
+    const status = document.getElementById('brandStatus'); if (status) status.textContent = '';
+    document.querySelectorAll('.bgModeBtn').forEach(b=>{ b.disabled = false; });
+    return;
+  }
+  const allSides = brandAllSides(c);
   const status = document.getElementById('brandStatus');
-  if (status) status.textContent = c ? `${c.meta.familyLabel} — ${c.meta.label} · ${brandSideLabel(c.meta.sides, c.meta.sides.indexOf(c.side)).toUpperCase()}${c.meta.sides.length < 2 ? ' (documento de uma face só)' : ''}` : '';
+  if (status) status.textContent = `${c.meta.familyLabel} — ${c.meta.label} · ${brandSideLabel(allSides, allSides.indexOf(c.side)).toUpperCase()}${allSides.length < 2 ? ' (documento de uma face só)' : ''}`;
   const btnAll = document.getElementById('btnBrandExportBoth');
-  if (btnAll) btnAll.textContent = c && c.meta.sides.length > 1 ? `⭳ Baixar todas as ${c.meta.sides.length} páginas (${c.meta.sides.length} PNGs)` : '⭳ Baixar PNG';
-  document.querySelectorAll('.bgModeBtn').forEach(b=>{ b.disabled = !!c; });
+  if (btnAll) btnAll.textContent = allSides.length > 1 ? `⭳ Baixar todas as ${allSides.length} páginas (${allSides.length} PNGs)` : '⭳ Baixar PNG';
+  document.querySelectorAll('.bgModeBtn').forEach(b=>{ b.disabled = true; });
 }
 /* ---------- Referência rápida de lore (pedido do Max: "lembrete de nomenclaturas e lore
    na lateral pra eu ter tudo das famílias e organizações em fácil acesso") — só o que já
@@ -514,10 +578,14 @@ const LORE_REF = {
     'Termos / detalhes': [['MS Nordvakt', 'embarcação de suprimento regular'], ['Mørketid', 'temporada de trevas (NOV–ABR) — vigia dobrada, luzes sempre acesas, regra de duas pessoas no moonpool']],
   },
   neurostat: {
-    'Pessoas': [['M. Holt', 'Field Division Supervisor'], ['R. Okafor', 'Dive Support, NS-F-0212'], ['T. Lindqvist', 'Comms Technician, NS-F-0344 — desligado 02 ABR'], ['Dr. A. Fenn', 'Clinical Psychologist'], ['Dr. R. Achebe', 'Staff Physician'], ['K. Vance', 'Facilities Engineering']],
+    '⚠ O que a fundação realmente é (spoiler, só pro GM)': [['Fachada pública', 'instituto de risco cognitivo, neurociência aplicada e segurança da informação humana — registro público real, mas é fachada'], ['Por baixo', 'localiza, reabre e explora a herança operacional da @DRE — trata os escombros como propriedade intelectual a recuperar'], ['A petroleira de O Deserto', 'subsidiária industrial da fundação — pessoal de fachada que desconhece pra quem trabalha'], ['Os soldados que desceram', 'mandados pela NeuroStat pra confirmar se a anomalia do fundo voltou'], ['A hipótese de trabalho (ERRADA)', 'contato direto com @Hastur via Serra dos Pesares + um "paciente zero" identificado — mas o rastro de Krause foi consumido junto com o resto, essa identidade não existe mais'], ['Vantagem sobre a DRE', 'comunicação moderna + capacidade de correlação de dados que a DRE nunca teve, fora de qualquer tranca — a condição que conteve o Coro em 1991 (isolamento técnico) não se repete aqui']],
+    'Hierarquia (wiki)': [['A Diretoria', 'corpo decisório — define onde o capital entra e o que se busca; nenhum membro em registro público; nunca contato com o que a fundação extrai'], ['Gestão de Projeto', 'responde por UMA operação do início ao fim (orçamento/pessoal/prazo/resultado), reporta direto à Diretoria — quem assinou a ordem de descer à trincheira em O Deserto'], ['Os Técnicos', 'Operador, Verdugos, Cinzas, Analista, Custódio, Escolta — níveis N1 (campo), N2 (técnico), N3 (arquivo/dados), N0 (não-liberado)'], ['Consultoria de Campo', 'especialistas contratados por projeto sob NDA, maioria dispensada ao fim — a maior parte do trabalho de risco é feita por quem não sabe o tamanho do que toca'], ['Fachada', 'funcionários das subsidiárias/institutos que trabalham pra NeuroStat SEM SABER — o quadro da petroleira de O Deserto é pessoal de fachada']],
+    'Equipes de campo (wiki)': [['Verdugo', 'extração de espécimes anômalos VIVOS de sítios comprometidos — foi Verdugo que desceu à trincheira'], ['Cinza', 'limpeza e remoção — apaga rastro de operação, neutraliza testemunha, sanitiza um sítio'], ['Cardume', 'escolta e segurança de instalação ativa']],
+    'Membros conhecidos (wiki)': [['Marcus Holt', 'sem cargo listado na wiki — ver @Marcus Holt'], ['A. Fischer', 'sem cargo listado na wiki'], ['Félix Carvalho', 'sem cargo listado na wiki']],
+    'Pessoas (docs já publicados)': [['M. Holt', 'Field Division Supervisor'], ['R. Okafor', 'Dive Support, NS-F-0212'], ['T. Lindqvist', 'Comms Technician, NS-F-0344 — desligado 02 ABR'], ['Dr. A. Fenn', 'Clinical Psychologist'], ['Dr. R. Achebe', 'Staff Physician'], ['K. Vance', 'Facilities Engineering']],
     'Numeração de documentos': [['NS-DES-####', 'relatório de incidente'], ['NS-PSY-####', 'avaliação psicológica'], ['NS-MED-####', 'exame físico'], ['NS-REQ-####', 'requisição de equipamento'], ['NS-HR-####', 'RH / desligamento'], ['NS-FE-####', 'facilities / rede'], ['NS-INT-####', 'transcrição de entrevista']],
-    'Linha do tempo': [['21 MAR, 03:12', 'perda de contato com a equipe de mergulho (incidente NS-DES-0451)'], ['24 MAR', 'avaliação psicológica de Okafor + Adendo A'], ['26 MAR', 'entrevista de acompanhamento com Okafor'], ['02 ABR', 'exame físico de Lindqvist + desligamento']],
-    'Termos / lore': [['Contagem em sete', 'padrão cognitivo recorrente — Okafor e Lindqvist, independentemente'], ['Terminal Room 3', 'nós 09–12, maior concentração de sessões fora de horário na topologia de rede'], ['Cortisol elevado', 'achado em ao menos 2 funcionários do mesmo turno da noite de 21 MAR']],
+    'Linha do tempo (docs já publicados)': [['21 MAR, 03:12', 'perda de contato com a equipe de mergulho (incidente NS-DES-0451)'], ['24 MAR', 'avaliação psicológica de Okafor + Adendo A'], ['26 MAR', 'entrevista de acompanhamento com Okafor'], ['02 ABR', 'exame físico de Lindqvist + desligamento']],
+    'Termos / lore (docs já publicados)': [['Contagem em sete', 'padrão cognitivo recorrente — Okafor e Lindqvist, independentemente'], ['Terminal Room 3', 'nós 09–12, maior concentração de sessões fora de horário na topologia de rede'], ['Cortisol elevado', 'achado em ao menos 2 funcionários do mesmo turno da noite de 21 MAR']],
   },
   dre: {
     '⚠ Conflito de datas (não resolvido)': [['Docs antigos (memo/personnel/briefing/terminal)', '2009–2010 — contradiz "documentação para em 1991"'], ['dre_tag / dre_audio', '1998 — idem'], ['ANSELM.K no log de terminal (dre_terminal, 14 MAR 2010)', 'colide com o nome do Anselm Krause real da wiki (arquivista, paciente zero do Coro, apagado em 1991) — não editado ainda, perguntar ao Max se é erro ou gancho intencional'], ['Catalog cards novos (ARC/Anomaly)', 'já respeitam 1991 — únicos alinhados com a wiki até agora']],
@@ -529,7 +597,8 @@ const LORE_REF = {
     'Tolerância T0–T3 (wiki)': [['T0', 'Inerte'], ['T1', 'Contido'], ['T2', 'Manutenção constante necessária'], ['T3', 'Impossível de conter, ou ainda não contido — ex. da wiki: "A Colônia é um BLOOM T2"']],
     'Instalações conhecidas (wiki)': [['Complexo Heisenberg', '@Schwarzwald-Süd, sul da Alemanha, erguido 1929–34 sobre ponto de Véu fino; DRE não abriu @O Outro Mundo, só conectou a cidade a ele; depois virou fachada Heisenberg Pharmaceutical pela @Aegis Corporation'], ['Complexo Serra dos Pesares', 'Santa Catarina, Brasil, subterrâneo sob fachada de mineração de carvão; conduziu o @Projeto SOMA e a mineração em direção a @Hastur; incidente catastrófico de 1987']],
     'Membros conhecidos (wiki, sem doc ainda)': [['Dra. Elena Voss', 'sem cargo listado na wiki'], ['Dr. Adrian Mühler', 'chefe científico do Setor Heisenberg durante o incidente'], ['Dr. Leo Fischer', 'sem cargo listado na wiki'], ['Dr. Elias Hartwich', 'sem cargo listado na wiki'], ['Dra. Sabine Reitz', 'sem cargo listado na wiki'], ['L. Häuser', 'sem cargo listado na wiki']],
-    '⚠ O que realmente aconteceu em 1991 (spoiler, só pro GM)': [['Causa real', '@O Coro chegou à DRE como desaparecimentos tratados como anomalias menores em várias instalações; Setor de Correlação cruzou os registros pela rede fechada'], ['Anselm Krause', 'arquivista de base (Setor de Arquivos), paciente zero do Coro — fechou o entendimento sobre o material consolidado'], ['O apagamento', 'em 1991 TODOS os membros da DRE foram apagados no mesmo instante, em TODAS as instalações — algumas anomalias contidas sumiram junto'], ['Hipótese da NeuroStat', 'contato direto com @Hastur via Serra dos Pesares — a própria wiki diz que essa hipótese ESTÁ ERRADA']],
+    '⚠ O que realmente aconteceu em 1991 (spoiler, só pro GM)': [['Causa real', '@O Coro chegou à DRE como desaparecimentos tratados como anomalias menores em várias instalações; Setor de Correlação cruzou os registros pela rede fechada'], ['Anselm Krause', 'arquivista de BASE (baixa liberação), encarregado da documentação física pré-digitalização — manuseou o material já consolidado e fechou a contemplação; a palavra saiu dele, não por escolha'], ['O apagamento', 'TODOS os membros da DRE, ligados pela mesma rede, apagados no mesmo instante em TODAS as instalações — algumas anomalias contidas sumiram junto; a seção de O Deserto foi a ÚLTIMA a cair, isolada no Atlântico, só percebeu pelo silêncio das outras'], ['Por que não se repete', 'a condição que conteve o Coro foi o ISOLAMENTO TÉCNICO da DRE (tecnologia pré-90 não alcançava além dos muros da organização) — a NeuroStat tem comunicação moderna e correlação de dados real, essa condição não existe mais pra ela'], ['Hipótese da NeuroStat', 'contato direto com @Hastur via Serra dos Pesares + um "paciente zero" identificado — a própria wiki diz que essa hipótese ESTÁ ERRADA (o rastro de Krause foi consumido com o resto, essa identidade não existe mais pra seguir)']],
+    '⚠ O Coro / væl.juˈeɪn — mecânica (spoiler, só pro GM)': [['O que é', 'um CONCEITO — informação que existe na realidade sem corpo nem origem, se aloja em mentes humanas de grande força de vontade, em pontos fixos da Terra; chega fragmentado (imagem, som, estrutura) e se monta aos poucos'], ['Não é invocado', 'a fração chega sozinha; mentes fortes RESISTEM à compulsão de espalhar o fragmento — o fragmento que para numa mente resistente nunca completa, e sem completar não dispara. Dá pra carregar um pedaço a vida inteira sem cruzar o limiar'], ['O gatilho é ACÚMULO', 'o salto de fragmento pra contemplação inteira exige pedaços de MENTES DIFERENTES, captados em LUGARES diferentes, reunidos num mesmo entendimento — é a integridade que mata, não o fragmento isolado'], ['Geografia própria', 'distinta das Feridas do Véu (tipo @Schwarzwald-Süd — "de carne e ruptura"); a geografia do Coro é "de silêncio", sobreposta e independente — @Serra dos Pesares é um ponto tocado conhecido'], ['væl.juˈeɪn', 'o nome da fração — sem grafia, sem registro, sem fonte; já está em TODA mente humana abaixo da consciência; compreender = articular, e a articulação não passa por escolha — no instante em que a contemplação se completa, a palavra sai sozinha'], ['O apagamento em si', 'dita uma vez, por uma só pessoa, a palavra apaga SIMULTANEAMENTE todos os que têm consciência do Coro — inclusive quem nunca ouviu a palavra, porque a CONSCIÊNCIA da fração já é a condição, não a audição dela']],
     'Pessoas (lore dos documentos já publicados)': [['R.K.', 'Sublevel Command — iniciais em várias assinaturas/carimbos'], ['K. Marchetti', 'Director, Sublevel'], ['T. Reyes (SL-0338)', 'Sr. Network Analyst — acesso noturno ao Terminal 11 desde 1996'], ['M. Osei', 'Audio Laboratory'], ['Dir. Halloran', 'Records']],
     'Numeração de documentos': [['SL-YY-####', 'memorando / briefing'], ['AL-YY-####', 'Audio Laboratory'], ['DRE-####', 'caso de evidência'], ['FORM DRE-##', 'formulário interno (personnel, evidência, tramitação)'], ['FORM DRE-63', 'catalog card de artefato (ARC)'], ['FORM DRE-64', 'catalog card de anomalia']],
     'Linha do tempo (docs já publicados)': [['1996', 'T. Reyes começa na DRE (Facilities)'], ['11/1998', 'gravador recuperado — etiqueta DRE-0447/003'], ['12/1998', 'gravação examinada pelo Audio Lab'], ['02–10 JAN', 'janela de auditoria do acesso ao Terminal 11'], ['14 MAR 2010', 'memorando de rede + log de terminal (ANSELM.K) — ver conflito de datas acima'], ['06 JUL 2009', 'ficha de pessoal de Reyes reemitida'], ['09/11/88', 'recuperação do ARC-0891 (Equipe Sudário)'], ['03/1989', 'ANOM-0447 registrada, Complexo Heisenberg Setor Erebo']],
@@ -542,12 +611,11 @@ const LORE_REF = {
     'Termos / lore': [['Operada pela Kelvara', 'Ødemark A. é uma plataforma da Kelvara Petrochemicals'], ['Regra de duas pessoas', 'ninguém trabalha sozinho no corrimão do moonpool'], ['Sinais de alarme', 'Generalalarm (contínuo) · Gassalarm (intermitente) · Evakuering (só por ordem no PA)']],
   },
 };
-function renderLoreRef(familyId){
-  const box = document.getElementById('loreRef');
+function renderLoreData(boxId, data, emptyMsg){
+  const box = document.getElementById(boxId);
   if (!box) return;
-  const data = LORE_REF[familyId];
   box.innerHTML = '';
-  if (!data){ box.textContent = 'Sem referência ainda pra esta organização.'; return; }
+  if (!data){ box.textContent = emptyMsg || 'Sem referência.'; return; }
   Object.entries(data).forEach(([section, rows])=>{
     const det = document.createElement('details'); det.className = 'loreSec';
     const sum = document.createElement('summary'); sum.textContent = section; det.appendChild(sum);
@@ -560,6 +628,46 @@ function renderLoreRef(familyId){
     det.appendChild(dl);
     box.appendChild(det);
   });
+}
+function renderLoreRef(familyId){
+  renderLoreData('loreRef', LORE_REF[familyId], 'Sem referência ainda pra esta organização.');
+}
+/* Cosmologia/Mythos: pano de fundo geral (Azathoth, Hastur, O Coro, a trama atual) — não
+   muda com a organização selecionada em #brandFamily, por isso não vive dentro de
+   LORE_REF (que é por família) e é renderizado UMA vez só, não a cada troca de dropdown. */
+const MYTHOS_REF = {
+  'Núcleo — Deuses Antigos': [
+    ['Azathoth', 'Sultão-Demônio, Caos Nuclear, deus cego e idiota no CENTRO de tudo — a realidade é o sonho informe que emana dele. Os Deuses Exteriores tocam música dissonante sem parar pra mantê-lo dormindo; o despertar dele seria a dissolução de tudo que o sonho sustenta'],
+    ['Yog-Sothoth', 'o Tudo-em-Um e o Um-em-Tudo, o Portão e a Chave — coextensivo a todo espaço e tempo sem pertencer ao universo que permeia. Onde uma camada da realidade toca outra, é ele o limiar'],
+    ['Nyarlathotep', 'o Caos Rastejante — alma e arauto dos Outros Deuses; diferente dos demais, CAMINHA entre os homens, sob mil faces'],
+    ['Cthulhu', 'jaz sonhando na cidadela submersa de R\'lyeh, à espera de quando as estrelas se alinhem'],
+    ['Shub-Niggurath', 'a Cabra Negra dos Bosques de Mil Filhotes — prolifera nas margens da fertilidade monstruosa'],
+    ['Hastur', 'o Inominável, Rei de Amarelo — reina sobre a cidade morta de Carcosa, à margem do lago de Hali, sob estrelas negras. ÚNICO Grande Antigo que fala direto com os seus (o Signo Amarelo, a peça maldita que leva o título dele) — os outros recebem devoção em silêncio, ele instrui. Diz reconhecer uma afinidade com a humanidade, "como um filósofo que pensa na existência de formigas com a moralidade de suas ações"'],
+  ],
+  '⚠ Trama atual (spoiler, pra onde a campanha vai)': [
+    ['Ubbo-Sathla', 'deixou de existir sem motivo no centro da terra, espalhando restos de si — um desses restos virou @A Colônia (WIP), que teve influência de Hastur. Isso avisou Hastur de que tem algo errado acontecendo na Terra'],
+    ['O culpado real', '@Nyarlathotep — está preparando o nascimento de um novo deus, e a Terra se apresentou como berço perfeito (vida pra consumir/cativar + vidas manipuláveis)'],
+    ['Hastur', 'preferia ficar neutro nisso até Nyarlathotep manipular O Círculo pra abrir os portões de Azathoth e enfraquecer Ubbo-Sathla, deixando a nova entidade parasitária tomar o lugar dele'],
+    ['Os Sonhadores das Máscara', 'culto paratecnológico que Nyarlathotep criou manipulando residentes de cidades isoladas, pra preparar a chegada do novo deus'],
+    ['Gancho pra próxima campanha', 'o culto do Signo Amarelo tomou posse de um agente do FBI que está investigando isso'],
+  ],
+  '⚠ O Coro / væl.juˈeɪn — mecânica (spoiler, cognitohazard)': [
+    ['O que é', 'um CONCEITO — informação que existe na realidade sem corpo nem origem, se aloja em mentes humanas de grande força de vontade, em pontos fixos da Terra; chega fragmentado (imagem, som, estrutura) e se monta aos poucos'],
+    ['Não é invocado', 'a fração chega sozinha; mentes fortes RESISTEM à compulsão de espalhar o fragmento — o fragmento que para numa mente resistente nunca completa, e sem completar não dispara. Dá pra carregar um pedaço a vida inteira sem cruzar o limiar'],
+    ['O gatilho é ACÚMULO', 'o salto de fragmento pra contemplação inteira exige pedaços de MENTES DIFERENTES, captados em LUGARES diferentes, reunidos num mesmo entendimento — é a integridade que mata, não o fragmento isolado'],
+    ['Geografia própria', 'distinta das Feridas do Véu (tipo @Schwarzwald-Süd — "de carne e ruptura"); a geografia do Coro é "de silêncio", sobreposta e independente — @Serra dos Pesares é um ponto tocado conhecido'],
+    ['væl.juˈeɪn', 'o nome da fração — sem grafia, sem registro, sem fonte; já está em TODA mente humana abaixo da consciência; compreender = articular, e a articulação não passa por escolha — no instante em que a contemplação se completa, a palavra sai sozinha'],
+    ['O apagamento em si', 'dita uma vez, por uma só pessoa, a palavra apaga SIMULTANEAMENTE todos os que têm consciência do Coro — inclusive quem nunca ouviu a palavra, porque a CONSCIÊNCIA da fração já é a condição, não a audição dela'],
+  ],
+  'Entidades do Mythos encontradas': [
+    ['@Necronomicon (Al Azif)', 'citado só pelo nome na wiki, sem detalhe ainda'],
+    ['@Shoggoth', 'citado só pelo nome na wiki, sem detalhe ainda'],
+    ['@O Observador Eterno', 'citado só pelo nome na wiki, sem detalhe ainda'],
+    ['@O Outro Mundo (Hohlschicht)', 'citado só pelo nome na wiki, sem detalhe ainda — ver @Schwarzwald-Süd pro contexto de como a DRE o conectou à cidade'],
+  ],
+};
+function renderMythosRef(){
+  renderLoreData('mythosRef', MYTHOS_REF);
 }
 
 (function brandInitUI(){
@@ -580,5 +688,8 @@ function renderLoreRef(familyId){
   });
   document.getElementById('btnBrandExportBoth').addEventListener('click', ()=>brandExportAll(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
   document.getElementById('btnBrandExportPDF').addEventListener('click', ()=>brandExportPDF(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
+  document.getElementById('btnBrandPageAdd').addEventListener('click', ()=>brandAddPage().catch(e=>alert(e.message)));
+  document.getElementById('btnBrandPageDel').addEventListener('click', ()=>brandDeletePage().catch(e=>alert(e.message)));
+  renderMythosRef();
   brandUpdateUI();
 })();
