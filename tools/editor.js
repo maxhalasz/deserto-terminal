@@ -1722,8 +1722,12 @@ function extractTextEntries(objOrJsonList){
   return out;
 }
 const TEXT_ENTRY_LABELS = {
+  // customType próprio (brandText, stampText, ...) preserva a caixa exata que o resto do
+  // código já usa (confirmado em brand.js/handwriting.js/network-diagram.js) — já o `type`
+  // nativo do Fabric (textbox, handwrittentext, redactedtext) chega sempre minúsculo aqui
+  // porque extractTextEntries já normaliza isso antes de guardar.
   textbox: 'Texto', handwrittentext: 'Texto manuscrito', redactedtext: 'Texto censurado',
-  brandtext: 'Campo do documento', stampText: 'Carimbo', polaroidCaption: 'Legenda Polaroid',
+  brandText: 'Campo do documento', stampText: 'Carimbo', polaroidCaption: 'Legenda Polaroid',
   cctvHudText: 'HUD câmera', netNodeLabel: 'Rótulo do nó de rede', watermark: "Marca d'água",
 };
 function textEntryLabel(type){ return TEXT_ENTRY_LABELS[type] || type; }
