@@ -58,6 +58,12 @@
   .loreSec dl{margin:4px 0 2px;padding-left:14px;font-size:11px;line-height:1.55}
   .loreSec dt{color:#8fb0dc;font-weight:600;margin-top:5px}
   .loreSec dd{margin:0;color:#c7cdd6}
+  .loreFam{margin-top:10px;border-top:1px solid #2b2f38;padding-top:8px}
+  .loreFam summary{cursor:pointer;color:#e8ebf0;font-size:13px;font-weight:700;padding:4px 0;list-style:none}
+  .loreFam summary::-webkit-details-marker{display:none}
+  .loreFam summary::before{content:'▸ ';color:#e0a72e}
+  .loreFam[open] summary::before{content:'▾ ';color:#e0a72e}
+  .loreFam > div{padding-left:6px}
 
   #layerList{display:flex;flex-direction:column;gap:2px;max-height:170px;overflow-y:auto}
   .layerRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11.5px}
@@ -116,6 +122,7 @@
   <div class="tabs">
     <button class="tabBtn" data-tab="doc">Documento</button>
     <button class="tabBtn" data-tab="brand">Marcas</button>
+    <button class="tabBtn" data-tab="lore">Lore</button>
     <button class="tabBtn" data-tab="add">Adicionar</button>
     <button class="tabBtn" data-tab="layers">Camadas</button>
     <button class="tabBtn" data-tab="object">Objeto</button>
@@ -206,15 +213,18 @@
       </div>
     </fieldset>
 
-    <fieldset id="loreBlock">
-      <legend>Referência rápida — lore da organização</legend>
-      <div class="hint">O que já está estabelecido nos documentos desta família (nomes, datas, numeração). Atualiza sozinho quando você troca a organização acima.</div>
-      <div id="loreRef"></div>
+  </div>
+
+  <div class="tabPanel" data-tab-panel="lore">
+    <fieldset>
+      <legend>Referência rápida — todas as organizações</legend>
+      <div class="hint">Independente de qual documento você vai carregar na aba Marcas — consulta aqui sem mexer em nada lá. Cada organização é uma seção própria, clique pra abrir.</div>
+      <div id="loreAllRef"></div>
     </fieldset>
 
-    <fieldset id="mythosBlock">
+    <fieldset>
       <legend>Cosmologia / Mythos (geral)</legend>
-      <div class="hint">Não muda com a organização selecionada acima — é o pano de fundo que vale pra qualquer documento. Tudo aqui é spoiler, só pro GM.</div>
+      <div class="hint">Não é de nenhuma organização específica — é o pano de fundo que vale pra qualquer documento. Tudo aqui é spoiler, só pro GM.</div>
       <div id="mythosRef"></div>
     </fieldset>
   </div>

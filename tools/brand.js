@@ -623,11 +623,7 @@ const LORE_REF = {
     'Termos / lore': [['Operada pela Kelvara', 'Ødemark A. é uma plataforma da Kelvara Petrochemicals'], ['Regra de duas pessoas', 'ninguém trabalha sozinho no corrimão do moonpool'], ['Sinais de alarme', 'Generalalarm (contínuo) · Gassalarm (intermitente) · Evakuering (só por ordem no PA)']],
   },
 };
-function renderLoreData(boxId, data, emptyMsg){
-  const box = document.getElementById(boxId);
-  if (!box) return;
-  box.innerHTML = '';
-  if (!data){ box.textContent = emptyMsg || 'Sem referência.'; return; }
+function renderLoreSections(container, data){
   Object.entries(data).forEach(([section, rows])=>{
     const det = document.createElement('details'); det.className = 'loreSec';
     const sum = document.createElement('summary'); sum.textContent = section; det.appendChild(sum);
@@ -638,11 +634,35 @@ function renderLoreData(boxId, data, emptyMsg){
       dl.appendChild(dt); dl.appendChild(dd);
     });
     det.appendChild(dl);
-    box.appendChild(det);
+    container.appendChild(det);
   });
 }
-function renderLoreRef(familyId){
-  renderLoreData('loreRef', LORE_REF[familyId], 'Sem referência ainda pra esta organização.');
+function renderLoreData(boxId, data, emptyMsg){
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.innerHTML = '';
+  if (!data){ box.textContent = emptyMsg || 'Sem referência.'; return; }
+  renderLoreSections(box, data);
+}
+/* Pedido do Max: poder checar a lore de QUALQUER organização sem mexer no seletor que
+   decide qual documento você vai carregar (antes os dois eram o mesmo dropdown — checar
+   NeuroStat enquanto ia carregar um doc da DRE trocava o que ia ser carregado). Aba "Lore"
+   própria, sempre mostra TODAS as famílias juntas (cada uma um <details> que abre/fecha),
+   nada aqui depende de #brandFamily. */
+function renderAllLoreRef(){
+  const box = document.getElementById('loreAllRef');
+  if (!box || !window.BRAND_INDEX) return;
+  box.innerHTML = '';
+  window.BRAND_INDEX.forEach(f=>{
+    const data = LORE_REF[f.id];
+    if (!data) return;
+    const famDet = document.createElement('details'); famDet.className = 'loreFam';
+    const famSum = document.createElement('summary'); famSum.textContent = f.label; famDet.appendChild(famSum);
+    const inner = document.createElement('div');
+    renderLoreSections(inner, data);
+    famDet.appendChild(inner);
+    box.appendChild(famDet);
+  });
 }
 /* Cosmologia/Mythos: pano de fundo geral (Azathoth, Hastur, O Coro, a trama atual) — não
    muda com a organização selecionada em #brandFamily, por isso não vive dentro de
@@ -690,7 +710,6 @@ function renderMythosRef(){
     doc.innerHTML = '';
     const f = window.BRAND_INDEX.find(x=>x.id === fam.value);
     f.docs.forEach(d=>{ const o = document.createElement('option'); o.value = d.id; o.textContent = d.label + (d.sides.length > 1 ? ` (${d.sides.length} páginas)` : ''); doc.appendChild(o); });
-    renderLoreRef(fam.value);
   };
   fam.addEventListener('change', fill); fill();
   document.getElementById('btnBrandLoad').addEventListener('click', ()=>{
@@ -704,5 +723,6 @@ function renderMythosRef(){
   document.getElementById('btnBrandPageDel').addEventListener('click', ()=>brandDeletePage().catch(e=>alert(e.message)));
   document.getElementById('btnBrandExportText').addEventListener('click', brandExportText);
   renderMythosRef();
+  renderAllLoreRef();
   brandUpdateUI();
 })();
