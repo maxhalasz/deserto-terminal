@@ -490,6 +490,18 @@ async function brandExportPDF(mult){
   });
   pdf.save(`${c.doc}_${Date.now()}.pdf`);
 }
+/* Mesma ideia de exportTextForDocs (editor.js), só que varrendo os LADOS de um doc de
+   marca (autorados + extras) em vez de PAGES. */
+function brandExportText(){
+  const c = BRAND.cur; if (!c) return;
+  const allSides = brandAllSides(c);
+  canvas.discardActiveObject();
+  const sections = allSides.map((s, i)=>({
+    label: brandSideLabel(allSides, i),
+    entries: extractTextEntries(s===c.side ? canvas.getObjects() : (c.sides[s] ? c.sides[s].json.objects : [])),
+  }));
+  downloadTextSections(c.doc, sections);
+}
 
 /* ---------- inspetor do texto de marca ---------- */
 function brandFontChoices(){
@@ -690,6 +702,7 @@ function renderMythosRef(){
   document.getElementById('btnBrandExportPDF').addEventListener('click', ()=>brandExportPDF(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
   document.getElementById('btnBrandPageAdd').addEventListener('click', ()=>brandAddPage().catch(e=>alert(e.message)));
   document.getElementById('btnBrandPageDel').addEventListener('click', ()=>brandDeletePage().catch(e=>alert(e.message)));
+  document.getElementById('btnBrandExportText').addEventListener('click', brandExportText);
   renderMythosRef();
   brandUpdateUI();
 })();

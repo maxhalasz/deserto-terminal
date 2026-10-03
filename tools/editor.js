@@ -1692,6 +1692,55 @@ function renderBackgroundInspector(obj, body){
   body.appendChild(stainRow);
 }
 
+/* ===================== Exportar texto (pra editar fora, tipo Google Docs) =====================
+   Pedido do Max: poder editar o TEXTO de um documento num editor de verdade (Google Docs)
+   sem a ferramenta de Props deixar de ser a ferramenta principal — só de mão única por
+   enquanto (baixa um .txt, ele sobe/abre onde quiser e cola de volta na mão depois).
+   Considerei integrar direto com a API do Google Docs, mas isso pediria o Max criar um
+   projeto no Google Cloud e autorizar a ferramenta a cada uso (props-generator é uma
+   página estática, sem servidor — não dá pra guardar credencial nenhuma) só pra um recurso
+   que na prática só precisa TIRAR o texto de dentro. Um .txt bem organizado resolve o
+   mesmo problema sem esse custo: o Google Drive já abre/converte .txt direto.
+   `objOrJson` aceita tanto objetos Fabric AO VIVO (página atual) quanto o array de objetos
+   já serializado em JSON (páginas/lados salvos, não ao vivo) — os dois têm `.text` nos nós
+   de texto e, pra Group, `.getObjects()` (ao vivo) ou `.objects` (JSON) com os filhos. */
+function extractTextEntries(objOrJsonList){
+  const out = [];
+  (objOrJsonList||[]).forEach(o=>{
+    const children = typeof o.getObjects === 'function' ? o.getObjects() : o.objects;
+    if (Array.isArray(children)){ out.push(...extractTextEntries(children)); return; }
+    if (typeof o.text === 'string' && o.text.trim()) out.push({type: o.customType || o.type, text: o.text});
+  });
+  return out;
+}
+const TEXT_ENTRY_LABELS = {
+  textbox: 'Texto', handwrittentext: 'Texto manuscrito', redactedtext: 'Texto censurado',
+  brandtext: 'Campo do documento', stampText: 'Carimbo', polaroidCaption: 'Legenda Polaroid',
+  cctvHudText: 'HUD câmera', netNodeLabel: 'Rótulo do nó de rede', watermark: "Marca d'água",
+};
+function textEntryLabel(type){ return TEXT_ENTRY_LABELS[type] || type; }
+function downloadTextSections(docName, sections){
+  let out = `${docName}\n${'='.repeat(docName.length)}\n`;
+  sections.forEach(sec=>{
+    out += `\n--- ${sec.label} ---\n\n`;
+    if (!sec.entries.length){ out += '(sem texto nesta página)\n'; return; }
+    sec.entries.forEach(e=>{ out += `[${textEntryLabel(e.type)}]\n${e.text}\n\n`; });
+  });
+  const blob = new Blob([out], {type: 'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${docName.replace(/[^a-z0-9_-]/gi,'_')}_texto_${Date.now()}.txt`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function exportTextForDocs(){
+  canvas.discardActiveObject();
+  const sections = PAGES.length
+    ? PAGES.map((p, i)=>({label: `Página ${i+1}`, entries: extractTextEntries(i===curPageIdx ? canvas.getObjects() : (p.json ? p.json.objects : []))}))
+    : [{label: 'Documento', entries: extractTextEntries(canvas.getObjects())}];
+  downloadTextSections(currentTemplate, sections);
+}
+
 /* ===================== Exportar ===================== */
 document.getElementById('btnExport').addEventListener('click', ()=>{
   const mult = +document.getElementById('exportScale').value;
@@ -1706,6 +1755,7 @@ document.getElementById('btnExport').addEventListener('click', ()=>{
   document.body.removeChild(a);
 });
 document.getElementById('btnExportPDF').addEventListener('click', ()=>exportPagesPDF().catch(e=>alert(e.message)));
+document.getElementById('btnExportText').addEventListener('click', exportTextForDocs);
 
 /* ===================== Init ===================== */
 document.fonts.ready.then(()=>{
