@@ -40,6 +40,15 @@
   .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .toolgrid button{margin-top:0}
 
+  /* Grade de ícones (aba Adicionar) — pedido do Max na rodada "refaz do zero": botão de
+     texto puro numa lista comprida parecia formulário, não ferramenta. Reusa os MESMOS
+     glifos que já aparecem do lado de cada objeto na lista de Camadas (objLabel, editor.js)
+     — o mesmo símbolo nos dois lugares, não um vocabulário visual novo pra decorar. */
+  .iconGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .iconBtn{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:4px;height:58px;margin-top:0;padding:6px 4px;font-size:10.5px;line-height:1.15}
+  .iconBtn .ico{font-size:19px;line-height:1}
+
   .tabs{display:flex;gap:3px}
   .tabs .tabBtn{width:auto;flex:1;margin:0;padding:8px 4px;font-size:11px;border-radius:6px 6px 0 0;
     background:#161820;border-color:#2b2f38;color:#767c88}
@@ -232,15 +241,15 @@
   <div class="tabPanel" data-tab-panel="add">
     <fieldset>
       <legend>Adicionar</legend>
-      <div class="toolgrid">
-        <button id="btnAddText">+ Texto</button>
-        <button id="btnAddHandwritten">+ Texto manuscrito</button>
-        <button id="btnAddRedacted">+ Texto censurado</button>
-        <button id="btnAddStamp">+ Carimbo</button>
-        <button id="btnAddWatermark">+ Marca d'água</button>
-        <button id="btnAddBarcode">+ Código de barras</button>
-        <button id="btnAddPhotoPlaceholder">+ Placeholder de foto</button>
-        <button id="btnAddNetNode" class="netLinkModeBtn">+ Nó de rede</button>
+      <div class="iconGrid">
+        <button id="btnAddText" class="iconBtn"><span class="ico">📝</span><span>Texto</span></button>
+        <button id="btnAddHandwritten" class="iconBtn"><span class="ico">✎</span><span>Manuscrito</span></button>
+        <button id="btnAddRedacted" class="iconBtn"><span class="ico">▬</span><span>Censurado</span></button>
+        <button id="btnAddStamp" class="iconBtn"><span class="ico">🔖</span><span>Carimbo</span></button>
+        <button id="btnAddWatermark" class="iconBtn"><span class="ico">💧</span><span>Marca d'água</span></button>
+        <button id="btnAddBarcode" class="iconBtn"><span class="ico">▮</span><span>Código de barras</span></button>
+        <button id="btnAddPhotoPlaceholder" class="iconBtn"><span class="ico">🖼</span><span>Foto</span></button>
+        <button id="btnAddNetNode" class="iconBtn netLinkModeBtn"><span class="ico">▭</span><span>Nó de rede</span></button>
       </div>
       <div class="hint">Nó de rede: clique no botão, depois clique no canvas onde quer colocar. Duplo clique no rótulo edita, arraste pra mover. Pra ligar dois nós, arraste do pontinho laranja na borda de um até o outro.</div>
       <label>Imagem (arquivo local)</label>
