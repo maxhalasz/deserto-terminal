@@ -1709,7 +1709,15 @@ function extractTextEntries(objOrJsonList){
   (objOrJsonList||[]).forEach(o=>{
     const children = typeof o.getObjects === 'function' ? o.getObjects() : o.objects;
     if (Array.isArray(children)){ out.push(...extractTextEntries(children)); return; }
-    if (typeof o.text === 'string' && o.text.trim()) out.push({type: o.customType || o.type, text: o.text});
+    if (typeof o.text === 'string' && o.text.trim()){
+      // customType (string minha, tipo 'stampText') não muda de caixa entre ao-vivo e JSON.
+      // o `type` nativo do Fabric muda: toObject() serializa this.constructor.type (ex.
+      // "Textbox", maiúsculo original — confirmado no fonte vendorizado), mas o getter .type
+      // de um objeto AO VIVO devolve minúsculo. Sem normalizar, o mesmo texto virava duas
+      // chaves diferentes ("Textbox" vs "textbox") dependendo de qual página/lado veio.
+      const type = o.customType || (o.type||'').toLowerCase();
+      out.push({type, text: o.text});
+    }
   });
   return out;
 }
