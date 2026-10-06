@@ -48,7 +48,7 @@ let curPageIdx = 0;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup'];
 let history = [];
 let historyIndex = -1;
 /* Contador de profundidade, NÃO boolean — uma operação em lote (trocar de página, trocar
@@ -1418,6 +1418,7 @@ function objLabel(o){
   if (o.customType==='polaroidCaption') return '✏️ Legenda';
   if (o.customType==='cctvHud') return '📹 HUD câmera';
   if (o.customType==='vhsBar') return '▬ Barra VHS';
+  if (o.type==='group' && o.__userGroup) return '📦 Grupo';
   if (o.type==='handwrittentext') return '✎ ' + (o.text||'').slice(0,18);
   if (o.type==='redactedtext') return '▬ ' + (o.text||'').slice(0,18);
   if (o.type==='textbox') return 'T ' + (o.text||'').slice(0,18);
@@ -1452,11 +1453,19 @@ function renderLayerList(){
     row.appendChild(nm);
 
     if (!isLockedBase(o)){
-      const up = document.createElement('button'); up.textContent='↑'; up.title='Trazer pra frente';
-      up.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.bringObjectForward(o); canvas.renderAll(); renderLayerList(); pushHistory(); });
+      const up = document.createElement('button'); up.textContent='↑'; up.title='Avançar um nível (Shift+clique: trazer pra frente de tudo)';
+      up.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        if (ev.shiftKey) canvas.bringObjectToFront(o); else canvas.bringObjectForward(o);
+        canvas.renderAll(); renderLayerList(); pushHistory();
+      });
       row.appendChild(up);
-      const down = document.createElement('button'); down.textContent='↓'; down.title='Mandar pra trás';
-      down.addEventListener('click', (ev)=>{ ev.stopPropagation(); canvas.sendObjectBackwards(o); canvas.renderAll(); renderLayerList(); pushHistory(); });
+      const down = document.createElement('button'); down.textContent='↓'; down.title='Recuar um nível (Shift+clique: mandar pra trás de tudo)';
+      down.addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        if (ev.shiftKey) canvas.sendObjectToBack(o); else canvas.sendObjectBackwards(o);
+        canvas.renderAll(); renderLayerList(); pushHistory();
+      });
       row.appendChild(down);
       const del = document.createElement('button'); del.textContent='✕';
       del.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteObjectCascade(canvas, o); canvas.renderAll(); });
@@ -1592,6 +1601,73 @@ function duplicateActiveSelection(){
     canvas.renderAll();
   });
 }
+
+/* ---- Clipboard (Ctrl+C/Ctrl+V): diferente de Duplicar (Ctrl+D, mesmo canvas, instantâneo),
+   o clipboard PERSISTE — guarda um snapshot serializado (mesma serialização HISTORY_PROPS
+   que pageSnapshot/histórico já usam em todo lugar do projeto, não uma referência Fabric
+   viva) então sobrevive a trocar de página ou até de documento antes de colar. Reconstrução
+   via fabric.util.enlivenObjects (confirmado ao vivo: round-trip preserva customType/
+   personaId/instância de classe certa — mesmo mecanismo que canvas.loadFromJSON usa por
+   baixo pro histórico). */
+let editorClipboard = null;
+function copyActiveSelection(){
+  const obj = canvas.getActiveObject();
+  if (!obj) return;
+  const members = activeSelectionMembers(obj).filter(m=>m!==cropRect && m.customType!=='brandArt');
+  if (!members.length) return;
+  editorClipboard = members.map(m=>m.toObject(HISTORY_PROPS));
+}
+function pasteClipboard(){
+  if (!editorClipboard || !editorClipboard.length) return;
+  fabric.util.enlivenObjects(editorClipboard).then(objs=>{
+    objs.forEach(o=>{ o.set({left:(o.left||0)+20, top:(o.top||0)+20}); canvas.add(o); });
+    if (objs.length===1) canvas.setActiveObject(objs[0]);
+    else canvas.setActiveObject(new fabric.ActiveSelection(objs, {canvas}));
+    canvas.renderAll();
+    updateInspector();
+  });
+}
+
+/* ---- Agrupar/Desagrupar persistente (Ctrl+G/Ctrl+Shift+G, convenção Figma/Canva) ----
+   `toGroup()`/`toActiveSelection()` NÃO existem nesta build vendorizada do Fabric 6.4.3
+   (confirmado por grep direto no fonte — API documentada em versões mais novas, não nesta).
+   Grupo: reusa a técnica já comprovada dos composites fixos (composites.js) — remove os
+   objetos (posição absoluta) do canvas, `new fabric.Group([...])` já converte sozinho pra
+   coordenada relativa ao grupo. Desagrupar: `group.exitGroup(filho, false)` é um método
+   PÚBLICO do Fabric (achado lendo o fonte vendorizado, não documentado nos resultados de
+   busca) que aplica a transformação inversa — testado ao vivo, round-trip exato (mesmo
+   left/top/angle/scale de antes de agrupar). `__userGroup:true` distingue esse grupo
+   genérico do usuário dos composites fixos (carimbo/polaroid/HUD/nó de rede), que têm seu
+   próprio customType e inspector dedicado — um grupo de usuário cai no inspector genérico
+   (opacidade/mescla + Desagrupar), não em nenhum desses. subTargetCheck+interactive:false
+   reusa o mesmo padrão dos composites: arrasta como peça única, mas duplo clique ainda
+   alcança um filho de texto pra editar (mouse:dblclick já trata isso genericamente pra
+   qualquer Group, nenhuma mudança necessária ali). */
+function groupActiveSelection(){
+  const obj = canvas.getActiveObject();
+  if (!obj || obj.type!=='activeselection') return;
+  const members = activeSelectionMembers(obj).filter(m=>m!==cropRect && !isLockedBase(m));
+  if (members.length<2) return;
+  canvas.discardActiveObject();
+  members.forEach(m=>canvas.remove(m));
+  const group = new fabric.Group(members, {__userGroup:true, subTargetCheck:true, interactive:false});
+  canvas.add(group);
+  canvas.setActiveObject(group);
+  canvas.renderAll();
+  updateInspector();
+  pushHistory();
+}
+function ungroupSelection(){
+  const obj = canvas.getActiveObject();
+  if (!obj || obj.type!=='group' || !obj.__userGroup) return;
+  const members = obj.getObjects().slice();
+  canvas.remove(obj);
+  members.forEach(m=>{ obj.exitGroup(m, false); canvas.add(m); });
+  canvas.setActiveObject(new fabric.ActiveSelection(members, {canvas}));
+  canvas.renderAll();
+  updateInspector();
+  pushHistory();
+}
 const NUDGE_STEP = 1, NUDGE_STEP_SHIFT = 10;
 document.addEventListener('keydown', e=>{
   if (!document.getElementById('editorModal').hidden){
@@ -1605,6 +1681,22 @@ document.addEventListener('keydown', e=>{
     e.preventDefault(); deleteActiveSelection();
   } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
     e.preventDefault(); duplicateActiveSelection();
+  } else if (e.ctrlKey && e.key.toLowerCase()==='c'){
+    e.preventDefault(); copyActiveSelection();
+  } else if (e.ctrlKey && e.key.toLowerCase()==='v'){
+    e.preventDefault(); pasteClipboard();
+  } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='g'){
+    e.preventDefault(); ungroupSelection();
+  } else if (e.ctrlKey && e.key.toLowerCase()==='g'){
+    e.preventDefault(); groupActiveSelection();
+  } else if (e.ctrlKey && e.shiftKey && e.key===']'){
+    e.preventDefault(); if (obj && !isLockedBase(obj)){ canvas.bringObjectToFront(obj); canvas.renderAll(); renderLayerList(); pushHistory(); }
+  } else if (e.ctrlKey && e.shiftKey && e.key==='['){
+    e.preventDefault(); if (obj && !isLockedBase(obj)){ canvas.sendObjectToBack(obj); canvas.renderAll(); renderLayerList(); pushHistory(); }
+  } else if (e.ctrlKey && e.key===']'){
+    e.preventDefault(); if (obj && !isLockedBase(obj)){ canvas.bringObjectForward(obj); canvas.renderAll(); renderLayerList(); pushHistory(); }
+  } else if (e.ctrlKey && e.key==='['){
+    e.preventDefault(); if (obj && !isLockedBase(obj)){ canvas.sendObjectBackwards(obj); canvas.renderAll(); renderLayerList(); pushHistory(); }
   } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='z'){
     e.preventDefault(); redo();
   } else if (e.ctrlKey && e.key.toLowerCase()==='z'){
@@ -1672,6 +1764,10 @@ function updateInspector(){
   if (obj.customType==='netNode' || obj.customType==='netLink'){
     renderNetworkInspector(obj, body);
   }
+  if (obj.type==='group' && obj.__userGroup){
+    body.appendChild(field.hint('Grupo de objetos.'));
+    body.appendChild(field.button('📦 Desagrupar (Ctrl+Shift+G)', ungroupSelection));
+  }
   renderLayerProps(obj, body);
 
   if (obj.customType!=='brandArt') body.appendChild(field.button('Duplicar', duplicateActiveSelection));
@@ -1683,6 +1779,7 @@ function updateInspector(){
 function renderMultiSelectInspector(sel, body){
   const members = sel.getObjects();
   body.appendChild(field.hint(`${members.length} objetos selecionados.`));
+  body.appendChild(field.button('📦 Agrupar (Ctrl+G)', groupActiveSelection));
   body.appendChild(field.button('Duplicar todos', duplicateActiveSelection));
   body.appendChild(field.button('Excluir todos', deleteActiveSelection, {className:'danger'}));
 }
