@@ -264,6 +264,27 @@ const FLAT_SCREEN_BG = {
   whatsapp:['#ECE5DD'], email_mobile:['#ffffff'], email_desktop:['#ffffff'], email_90s:['#c0c0c0'],
   menu_fastfood:['#d41c1c','#a81414'],
 };
+/* Arimo/Source Sans 3/Oswald são fontes NOVAS nesse arquivo — nenhum template antigo
+   (newspaper/report/badge/...) as usa, então nenhuma delas é "esquentada" pelo
+   loadTemplate('newspaper') do carregamento inicial (document.fonts.ready, fim do
+   arquivo). Mesmo bug que brand.js já tinha resolvido (ver brandEnsureFonts lá): o
+   navegador só baixa um @font-face quando alguém pede pra desenhar texto nele, e
+   canvas não redesenha sozinho quando a fonte termina de chegar depois — sem esperar
+   aqui, o PRIMEIRO documento desses sai com a fonte reserva do sistema (confirmado ao
+   vivo: cardápio "diner" saiu em serifada em vez de Oswald condensada na primeira carga).
+*/
+const SCREEN_TEMPLATE_FONTS = [
+  "400 16px 'Arimo'", "700 16px 'Arimo'",
+  "400 16px 'Source Sans 3'", "italic 400 16px 'Source Sans 3'",
+  "500 16px 'Oswald'", "700 16px 'Oswald'",
+];
+let _screenFontsReady = null;
+function ensureScreenTemplateFonts(){
+  if (!_screenFontsReady){
+    _screenFontsReady = Promise.all(SCREEN_TEMPLATE_FONTS.map(s=>document.fonts.load(s, 'AaØøÅåÆæ0123456789—·×').catch(()=>{})));
+  }
+  return _screenFontsReady;
+}
 function applyPageSize(name){
   const [w,h] = PAGE_SIZES[name] || PAGE_SIZES.blank;
   PAGE_W = w; PAGE_H = h;
@@ -763,6 +784,7 @@ async function loadTemplateBody(name){
   bgMode = (DIGITAL_SCREEN_TEMPLATES.includes(name)) ? 'digital' : 'textured';
   currentBgCategory = null; currentBgOpts = null; // reseta pra não sobrar categoria do template anterior (ex: 'terminal' não usa papel algum)
   updateBgModeUI();
+  if (FLAT_SCREEN_BG[name] || name==='menu_diner' || name==='menu_fastfood') await ensureScreenTemplateFonts();
 
   if (name==='blank'){
     await setTemplateBackground('paper_aged');
