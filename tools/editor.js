@@ -48,7 +48,7 @@ let curPageIdx = 0;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup','__userLocked'];
 let history = [];
 let historyIndex = -1;
 /* Contador de profundidade, NÃO boolean — uma operação em lote (trocar de página, trocar
@@ -172,6 +172,26 @@ function initCanvas(){
 function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext' || o.type==='itext'; }
 function isLockedBase(o){ return o.customType==='background' || o.customType==='brandArt'; }
 
+/* ---- Travar/esconder por objeto (ícones na lista de Camadas) — diferente de
+   isLockedBase (objetos de SISTEMA fixos tipo papel de fundo, que nunca mostram os
+   botões de reordenar/apagar): __userLocked é um estado que o PRÓPRIO usuário liga/
+   desliga em qualquer objeto, só afeta interação no CANVAS (selectable/evented), a
+   linha na lista de Camadas continua com todos os botões (inclusive o cadeado, pra
+   destravar de novo). Clicar na linha da lista ainda seleciona um objeto travado —
+   setActiveObject é chamada direta, não depende de selectable (que só controla
+   clique/arrasto NO CANVAS). */
+function toggleObjectLock(o){
+  o.__userLocked = !o.__userLocked;
+  o.set({selectable: !o.__userLocked, evented: !o.__userLocked, hoverCursor: o.__userLocked ? 'default' : 'move'});
+  if (o.__userLocked && canvas.getActiveObject()===o){ canvas.discardActiveObject(); updateInspector(); }
+  canvas.renderAll(); renderLayerList(); pushHistory();
+}
+function toggleObjectHide(o){
+  o.visible = !o.visible;
+  if (!o.visible && canvas.getActiveObject()===o){ canvas.discardActiveObject(); updateInspector(); }
+  canvas.renderAll(); renderLayerList(); pushHistory();
+}
+
 /* ===================== Guias de alinhamento =====================
    Substitui o grid fixo de 20px que só o diagrama de rede tinha (ver network-diagram.js)
    — ao arrastar QUALQUER objeto, procura bordas/centro de outros objetos (e do canvas)
@@ -232,9 +252,10 @@ function setZoom(z){
   canvas.setZoom(z);
   canvas.setDimensions({width:PAGE_W*z, height:PAGE_H*z});
 }
-document.querySelectorAll('.zoomrow button').forEach(b=>{
+document.querySelectorAll('.zoomrow button[data-z]').forEach(b=>{
   b.addEventListener('click', ()=>setZoom(+b.dataset.z));
 });
+document.getElementById('btnZoomFit').addEventListener('click', zoomToFit);
 
 /* ---- tamanho de página por template: cada formato de documento tem sua
    proporção física real (folha A4 retrato, página dupla de livro aberto em
@@ -1467,6 +1488,14 @@ function renderLayerList(){
         canvas.renderAll(); renderLayerList(); pushHistory();
       });
       row.appendChild(down);
+      const lock = document.createElement('button'); lock.textContent = o.__userLocked?'🔒':'🔓';
+      lock.title = o.__userLocked ? 'Destravar (permite mover/selecionar no canvas de novo)' : 'Travar (impede mover/selecionar sem querer no canvas)';
+      lock.addEventListener('click', (ev)=>{ ev.stopPropagation(); toggleObjectLock(o); });
+      row.appendChild(lock);
+      const hide = document.createElement('button'); hide.textContent = o.visible===false?'🙈':'👁';
+      hide.title = o.visible===false ? 'Mostrar de novo' : 'Esconder (some do canvas, continua na lista)';
+      hide.addEventListener('click', (ev)=>{ ev.stopPropagation(); toggleObjectHide(o); });
+      row.appendChild(hide);
       const del = document.createElement('button'); del.textContent='✕';
       del.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteObjectCascade(canvas, o); canvas.renderAll(); });
       row.appendChild(del);
@@ -1668,6 +1697,90 @@ function ungroupSelection(){
   updateInspector();
   pushHistory();
 }
+
+/* ---- Alinhar/distribuir multi-seleção (convenção Figma: Alt+A/H/D/W/V/S — não
+   implementado como atalho aqui de propósito, colide com atalhos comuns de
+   navegador/SO; só botão). `getBoundingRect()` já devolve coordenada de DOCUMENTO
+   absoluta mesmo pra um objeto dentro de ActiveSelection (mesmo fato que
+   applyAlignmentSnap já usa) — a matemática de bbox combinado/delta foi validada
+   em Node isolada antes de integrar (ver histórico de commits). Somar o delta
+   (puramente relativo) em m.left/m.top funciona mesmo quando esses valores estão
+   em coordenada relativa à ActiveSelection, porque é uma DIFERENÇA, não uma
+   posição absoluta, e a seleção não tem rotação/escala própria no caso normal
+   (confirmado ao vivo). */
+function selectionBBox(members){
+  const rects = members.map(m=>m.getBoundingRect());
+  const left = Math.min(...rects.map(r=>r.left));
+  const top = Math.min(...rects.map(r=>r.top));
+  const right = Math.max(...rects.map(r=>r.left+r.width));
+  const bottom = Math.max(...rects.map(r=>r.top+r.height));
+  return {left, top, right, bottom, width:right-left, height:bottom-top};
+}
+function alignSelection(mode){
+  const obj = canvas.getActiveObject();
+  if (!obj) return;
+  const members = activeSelectionMembers(obj).filter(m=>m!==cropRect);
+  if (members.length<2) return;
+  const bbox = selectionBBox(members);
+  members.forEach(m=>{
+    const r = m.getBoundingRect();
+    let dx=0, dy=0;
+    if (mode==='left') dx = bbox.left - r.left;
+    else if (mode==='right') dx = bbox.right - (r.left+r.width);
+    else if (mode==='centerH') dx = (bbox.left+bbox.width/2) - (r.left+r.width/2);
+    else if (mode==='top') dy = bbox.top - r.top;
+    else if (mode==='bottom') dy = bbox.bottom - (r.top+r.height);
+    else if (mode==='centerV') dy = (bbox.top+bbox.height/2) - (r.top+r.height/2);
+    m.set({left:m.left+dx, top:m.top+dy});
+    m.setCoords();
+  });
+  canvas.renderAll();
+  pushHistory();
+}
+function distributeSelection(axis){
+  const obj = canvas.getActiveObject();
+  if (!obj) return;
+  const members = activeSelectionMembers(obj).filter(m=>m!==cropRect);
+  if (members.length<3) return;
+  const withBox = members.map(m=>({m, box:m.getBoundingRect()}));
+  const key = axis==='h' ? (b=>b.left+b.width/2) : (b=>b.top+b.height/2);
+  withBox.sort((a,b)=>key(a.box)-key(b.box));
+  const firstC = key(withBox[0].box), lastC = key(withBox[withBox.length-1].box);
+  const step = (lastC-firstC)/(withBox.length-1);
+  withBox.forEach((item,pos)=>{
+    if (pos===0 || pos===withBox.length-1) return;
+    const targetC = firstC + step*pos;
+    const delta = targetC - key(item.box);
+    if (axis==='h') item.m.set({left:item.m.left+delta});
+    else item.m.set({top:item.m.top+delta});
+    item.m.setCoords();
+  });
+  canvas.renderAll();
+  pushHistory();
+}
+
+/* ---- Zoom-to-fit / zoom-to-seleção: um botão só, contextual — ajusta pra caber a
+   SELEÇÃO ativa se houver uma, senão a página inteira. Calcula a partir do espaço
+   visível de #main (menos a .zoomrow e um respiro), não tenta centralizar o scroll
+   (a composição de flexbox centralizado + scroll overflow de #main não dá pra
+   resolver com uma conta simples de scrollLeft/Top sem arriscar errar em algum
+   caso — o zoom certo já resolve a maior parte do uso real). */
+function zoomToFit(){
+  const main = document.getElementById('main');
+  const zoomrow = document.querySelector('.zoomrow');
+  const active = canvas.getActiveObject();
+  let w = PAGE_W, h = PAGE_H;
+  if (active && active!==cropRect){
+    const r = active.getBoundingRect();
+    w = r.width; h = r.height;
+  }
+  const PAD = 44;
+  const availW = Math.max(100, main.clientWidth - PAD);
+  const availH = Math.max(100, main.clientHeight - (zoomrow?zoomrow.offsetHeight:0) - PAD);
+  const z = Math.max(0.05, Math.min(2, Math.min(availW/w, availH/h)));
+  setZoom(z);
+}
+
 const NUDGE_STEP = 1, NUDGE_STEP_SHIFT = 10;
 document.addEventListener('keydown', e=>{
   if (!document.getElementById('editorModal').hidden){
@@ -1780,6 +1893,26 @@ function renderMultiSelectInspector(sel, body){
   const members = sel.getObjects();
   body.appendChild(field.hint(`${members.length} objetos selecionados.`));
   body.appendChild(field.button('📦 Agrupar (Ctrl+G)', groupActiveSelection));
+
+  body.appendChild(field.hint('Alinhar:'));
+  body.appendChild(field.buttonRow([
+    field.button('← Esquerda', ()=>alignSelection('left')),
+    field.button('↔ Centro', ()=>alignSelection('centerH')),
+    field.button('→ Direita', ()=>alignSelection('right')),
+  ], 'grid3'));
+  body.appendChild(field.buttonRow([
+    field.button('↑ Topo', ()=>alignSelection('top')),
+    field.button('↕ Centro', ()=>alignSelection('centerV')),
+    field.button('↓ Base', ()=>alignSelection('bottom')),
+  ], 'grid3'));
+  if (members.length>=3){
+    body.appendChild(field.hint('Distribuir (precisa de 3+):'));
+    body.appendChild(field.buttonRow([
+      field.button('↔ Horizontal', ()=>distributeSelection('h')),
+      field.button('↕ Vertical', ()=>distributeSelection('v')),
+    ]));
+  }
+
   body.appendChild(field.button('Duplicar todos', duplicateActiveSelection));
   body.appendChild(field.button('Excluir todos', deleteActiveSelection, {className:'danger'}));
 }

@@ -19,6 +19,10 @@
   #side{width:340px;flex:0 0 340px;background:#1b1e24;border-right:1px solid #2b2f38;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
   #side h1{font-size:15px;color:#e8ebf0;margin:0 0 2px}
   #side .sub{color:#767c88;font-size:11px;margin-bottom:4px}
+  .shortcutsBox{margin-top:6px;font-size:11px;color:#9ea6b3}
+  .shortcutsBox summary{cursor:pointer;color:#6d93c9;padding:2px 0}
+  .shortcutsList{display:flex;flex-direction:column;gap:3px;padding:6px 2px 2px;border-top:1px solid #2b2f38;margin-top:4px}
+  .shortcutsList b{color:#dbe0e8;font-family:monospace}
   fieldset{border:1px solid #2b2f38;border-radius:6px;margin:0;padding:10px 12px 12px}
   legend{color:#9ea6b3;font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding:0 6px}
   label{display:block;margin:8px 0 3px;color:#9ea6b3;font-size:11.5px}
@@ -37,6 +41,8 @@
   button.ghost{background:transparent}
   button.danger{border-color:#6a3030;color:#e0a0a0}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .grid3 button{margin-top:0}
   .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .toolgrid button{margin-top:0}
 
@@ -126,6 +132,20 @@
   <div>
     <h1>GERADOR DE PROPS</h1>
     <div class="sub">O Deserto — editor de documentos/jornais pra imprimir ou "digitalizar" nos HDs da DRE. Ferramenta de GM, não é acessada pelos jogadores.</div>
+    <details class="shortcutsBox">
+      <summary>？ Atalhos de teclado</summary>
+      <div class="shortcutsList">
+        <div><b>Ctrl+D</b> duplicar</div>
+        <div><b>Ctrl+C</b> / <b>Ctrl+V</b> copiar / colar (entre páginas também)</div>
+        <div><b>Ctrl+G</b> / <b>Ctrl+Shift+G</b> agrupar / desagrupar</div>
+        <div><b>Ctrl+]</b> / <b>Ctrl+[</b> avançar / recuar um nível</div>
+        <div><b>Ctrl+Shift+]</b> / <b>Ctrl+Shift+[</b> trazer pra frente / mandar pra trás de tudo</div>
+        <div><b>Delete</b> apagar</div>
+        <div><b>Setas</b> mover 1px (<b>Shift</b>+seta: 10px)</div>
+        <div><b>Escape</b> desselecionar</div>
+        <div><b>Ctrl+Z</b> / <b>Ctrl+Shift+Z</b> desfazer / refazer</div>
+      </div>
+    </details>
   </div>
 
   <div class="tabs">
@@ -269,7 +289,7 @@
     <fieldset>
       <legend>Camadas</legend>
       <div id="layerList"></div>
-      <div class="hint">Clique pra selecionar (pula pra aba Objeto sozinho). Duplo clique no nome pra renomear. Ctrl+D duplica, Delete apaga.</div>
+      <div class="hint">Clique pra selecionar (pula pra aba Objeto sozinho). Duplo clique no nome pra renomear. 🔓/🔒 trava, 👁/🙈 esconde (sem apagar).</div>
       <div class="grid2">
         <button id="btnUndo" title="Ctrl+Z">↶ Desfazer</button>
         <button id="btnRedo" title="Ctrl+Shift+Z">↷ Refazer</button>
@@ -297,6 +317,7 @@
     <button data-z="0.55">55%</button>
     <button data-z="0.75">75%</button>
     <button data-z="1">100%</button>
+    <button id="btnZoomFit" title="Ajusta o zoom pra caber a seleção (ou a página inteira, se nada selecionado)">⤢ Ajustar</button>
   </div>
   <div id="canvasWrap">
     <canvas id="editorCanvas"></canvas>
