@@ -2075,16 +2075,26 @@ function renderImageInspector(obj, body){
     body.appendChild(field.button('⇵ Espelhar V', ()=>flipSelected(obj,'v')));
 
     body.appendChild(field.hint('Moldura / overlay:'));
+    // Sem pushHistory() explícito aqui de propósito: addPolaroidFrame/addCCTVHud/addVHSBars
+    // chamam canvas.add(group) por dentro, que já dispara o listener object:added (uma
+    // chamada extra aqui duplicava o histórico — um Ctrl+Z não desfazia, precisava de dois).
+    // Bloom/Grunge (acima) já estavam certos; só esses três tinham o bug.
     body.appendChild(field.buttonRow([
-      field.button('🖼 Polaroid', ()=>{ addPolaroidFrame(canvas, obj); pushHistory(); }),
-      field.button('📹 HUD CCTV', ()=>{ addCCTVHud(canvas, obj); pushHistory(); }),
+      field.button('🖼 Polaroid', ()=>addPolaroidFrame(canvas, obj)),
+      field.button('📹 HUD CCTV', ()=>addCCTVHud(canvas, obj)),
     ]));
-    body.appendChild(field.button('▬ Barras VHS', ()=>{ addVHSBars(canvas, obj); pushHistory(); }));
+    body.appendChild(field.button('▬ Barras VHS', ()=>addVHSBars(canvas, obj)));
   }
 
   const filterPanelHost = document.createElement('div');
   body.appendChild(filterPanelHost);
-  renderFilterPanel(canvas, obj, filterPanelHost);
+  renderFilterPanel(canvas, obj, filterPanelHost, pushHistory);
+  // Solta-de-slider e o <select> de adicionar filtro disparam 'change' nativo — pega por
+  // delegação aqui (mesmo padrão que image-lab.js já tinha). Ações de botão puro (preset/
+  // reroll/remover/reordenar) usam o onCommit explícito passado acima, já que um <button
+  // click> nunca dispara 'change'. Sem nenhum dos dois, editor.js não tinha undo pra
+  // filtro algum (bug real, confirmado lendo o código antes desta correção).
+  filterPanelHost.addEventListener('change', ()=>pushHistory());
 
   body.appendChild(field.button('🪨 Adicionar camada de sujeira', applyGrungeOverlay));
   body.appendChild(field.button('✨ Aplicar glow/bloom (nesta imagem)', applyBloomToSelected));
@@ -2120,7 +2130,10 @@ function renderBackgroundInspector(obj, body){
   const catField = field.select('Categoria', catOptions, catValue, ()=>{});
   body.appendChild(catField);
   body.appendChild(field.button('🎲 Trocar papel', async ()=>{
-    const age = (obj.filters[0]&&obj.filters[0].amount)||0.4;
+    // Busca por TIPO, não por índice — obj.filters[0] assumia que AgeTint é sempre o
+    // primeiro filtro da pilha, o que quebra se a ordem mudar (agora reordenável, Fase 4).
+    const ageFilter = (obj.filters||[]).find(f=>f.constructor.type==='AgeTint');
+    const age = (ageFilter && ageFilter.amount) || 0.4;
     await setTemplateBackground(catField.__input.value, {age});
     canvas.renderAll(); updateInspector();
   }));

@@ -232,7 +232,7 @@ function updateFilterPanel(){
   renderLayerProps(obj);
   if (obj.type!=='image'){ filterFieldset.style.display='none'; return; }
   filterFieldset.style.display='block';
-  renderFilterPanel(canvas, obj, document.getElementById('filterPanelHost'));
+  renderFilterPanel(canvas, obj, document.getElementById('filterPanelHost'), pushHistory);
 }
 function renderLayerProps(obj){
   const host = document.getElementById('layerPropsHost');
@@ -343,23 +343,24 @@ document.getElementById('btnGrunge').addEventListener('click', ()=>{
   if (typeof TEXTURE_PACK_GRUNGE === 'undefined'){ alert('Texturas de sujeira não carregadas.'); return; }
   addGrungeOverlay(canvas, canvasW, canvasH, TEXTURE_PACK_GRUNGE, Object.keys(TEXTURE_PACK_GRUNGE)).catch(e=>alert(e.message));
 });
+// Sem pushHistory() explícito nos três de baixo, de propósito: addPolaroidFrame/
+// addCCTVHud/addVHSBars chamam canvas.add(group) por dentro, que já dispara object:added
+// (uma chamada extra aqui duplicava o histórico — Ctrl+Z precisava de dois toques). Bloom/
+// Grunge (acima) já estavam certos; só esses três tinham o bug, nas duas ferramentas.
 document.getElementById('btnPolaroid').addEventListener('click', ()=>{
   const obj = canvas.getActiveObject();
   if (!obj || obj.type!=='image'){ alert('Selecione uma foto primeiro.'); return; }
   addPolaroidFrame(canvas, obj);
-  pushHistory();
 });
 document.getElementById('btnCCTV').addEventListener('click', ()=>{
   const obj = canvas.getActiveObject();
   if (!obj || obj.type!=='image'){ alert('Selecione uma foto primeiro.'); return; }
   addCCTVHud(canvas, obj);
-  pushHistory();
 });
 document.getElementById('btnVHSBars').addEventListener('click', ()=>{
   const obj = canvas.getActiveObject();
   if (!obj || obj.type!=='image'){ alert('Selecione uma foto primeiro.'); return; }
   addVHSBars(canvas, obj);
-  pushHistory();
 });
 
 /* ===================== Antes/depois (segurar espaço) ===================== */

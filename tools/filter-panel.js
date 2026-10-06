@@ -233,7 +233,7 @@ function renderPresetThumbnail(imgEl, preset, w, h){
   } catch(e){ return null; }
 }
 
-function renderFilterRow(canvasRef, obj, filterInst, idx, onChange){
+function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit){
   const type = filterInst.constructor.type;
   const def = FILTER_REGISTRY[type];
   const row = document.createElement('div'); row.className='filterRow';
@@ -241,14 +241,35 @@ function renderFilterRow(canvasRef, obj, filterInst, idx, onChange){
   const b = document.createElement('b'); b.textContent = def?def.label:type;
   head.appendChild(b);
   const btns = document.createElement('span');
+  // Reordenar pilha (padrão Snapseed Stacks/Photoshop): índice no array = ordem de
+  // aplicação do shader (primeiro = mais embaixo). Só troca com o vizinho, sem controle
+  // de arrastar — mais simples de implementar certo que um drag-and-drop de verdade.
+  if (idx>0){
+    const up = document.createElement('button'); up.textContent='↑'; up.title='Mover pra baixo na pilha (aplica antes)';
+    up.style.marginRight='2px';
+    up.addEventListener('click', ()=>{
+      [obj.filters[idx-1], obj.filters[idx]] = [obj.filters[idx], obj.filters[idx-1]];
+      obj.applyFilters(); canvasRef.renderAll(); onChange(); if (onCommit) onCommit();
+    });
+    btns.appendChild(up);
+  }
+  if (idx<obj.filters.length-1){
+    const down = document.createElement('button'); down.textContent='↓'; down.title='Mover pra cima na pilha (aplica depois)';
+    down.style.marginRight='4px';
+    down.addEventListener('click', ()=>{
+      [obj.filters[idx], obj.filters[idx+1]] = [obj.filters[idx+1], obj.filters[idx]];
+      obj.applyFilters(); canvasRef.renderAll(); onChange(); if (onCommit) onCommit();
+    });
+    btns.appendChild(down);
+  }
   if (def && def.seedKey){
     const roll = document.createElement('button'); roll.textContent='🎲'; roll.title='Rerolar padrão aleatório';
     roll.style.marginRight='4px';
-    roll.addEventListener('click', ()=>{ filterInst[def.seedKey]=Math.random(); obj.applyFilters(); canvasRef.renderAll(); });
+    roll.addEventListener('click', ()=>{ filterInst[def.seedKey]=Math.random(); obj.applyFilters(); canvasRef.renderAll(); onChange(); if (onCommit) onCommit(); });
     btns.appendChild(roll);
   }
   const rm = document.createElement('button'); rm.textContent='✕';
-  rm.addEventListener('click', ()=>{ obj.filters.splice(idx,1); obj.applyFilters(); canvasRef.renderAll(); onChange(); });
+  rm.addEventListener('click', ()=>{ obj.filters.splice(idx,1); obj.applyFilters(); canvasRef.renderAll(); onChange(); if (onCommit) onCommit(); });
   btns.appendChild(rm);
   head.appendChild(btns);
   row.appendChild(head);
@@ -277,11 +298,17 @@ function renderFilterRow(canvasRef, obj, filterInst, idx, onChange){
 /* Monta o painel inteiro (presets + intensidade + lista de filtros aplicados +
    adicionar novo, agrupado) dentro de `body` (um elemento já existente na página)
    pra `obj` (fabric.Image), usando `canvasRef` pra re-renderizar. Chama de novo
-   pra atualizar a lista. */
-function renderFilterPanel(canvasRef, obj, body){
+   pra atualizar a lista. `onCommit` (opcional) é o hook de histórico/undo do host
+   (editor.js/image-lab.js passam `pushHistory`) — chamado nas ações que são clique
+   de botão puro (preset, reroll, remover, reordenar, adicionar), que nunca disparam
+   o evento nativo `change` que o host já escuta por delegação no container pra
+   pegar solta-de-slider. Sem isso essas ações não entravam no histórico em NENHUMA
+   das duas ferramentas (bug real, achado lendo o código, não só suspeita). */
+function renderFilterPanel(canvasRef, obj, body, onCommit){
   body.innerHTML = '';
 
   const presetLab = document.createElement('div'); presetLab.className='hint'; presetLab.textContent='Presets:';
+  const presetHint = document.createElement('div'); presetHint.className='hint'; presetHint.textContent = 'Presets substituem os filtros manuais atuais — Ctrl+Z desfaz.';
   const presetRow = document.createElement('div'); presetRow.className='presetRow';
   const srcEl = getPristineThumbSource(obj);
   Object.entries(PRESETS).forEach(([key,p])=>{
@@ -296,10 +323,14 @@ function renderFilterPanel(canvasRef, obj, body){
     }
     const span = document.createElement('span'); span.textContent = p.label;
     b.appendChild(span);
-    b.addEventListener('click', ()=>{ applyPreset(canvasRef, obj, p, +intensityInput.value); renderFilterPanel(canvasRef, obj, body); });
+    b.addEventListener('click', ()=>{
+      applyPreset(canvasRef, obj, p, +intensityInput.value);
+      renderFilterPanel(canvasRef, obj, body, onCommit);
+      if (onCommit) onCommit();
+    });
     presetRow.appendChild(b);
   });
-  body.appendChild(presetLab); body.appendChild(presetRow);
+  body.appendChild(presetLab); body.appendChild(presetHint); body.appendChild(presetRow);
 
   const intensityWrap = document.createElement('div');
   const intensityInput = document.createElement('input');
@@ -318,7 +349,7 @@ function renderFilterPanel(canvasRef, obj, body){
   const filterListLab = document.createElement('div'); filterListLab.className='hint'; filterListLab.textContent='Filtros aplicados:';
   body.appendChild(filterListLab);
   (obj.filters||[]).forEach((f, idx)=>{
-    body.appendChild(renderFilterRow(canvasRef, obj, f, idx, ()=>renderFilterPanel(canvasRef, obj, body)));
+    body.appendChild(renderFilterRow(canvasRef, obj, f, idx, ()=>renderFilterPanel(canvasRef, obj, body, onCommit), onCommit));
   });
 
   const addLab = document.createElement('label'); addLab.textContent='+ Adicionar filtro';
@@ -341,7 +372,9 @@ function renderFilterPanel(canvasRef, obj, body){
     obj.filters.push(new def.cls());
     obj.applyFilters();
     canvasRef.renderAll();
-    renderFilterPanel(canvasRef, obj, body);
+    renderFilterPanel(canvasRef, obj, body, onCommit);
+    // addSel é um <select> — dispara 'change' nativo, já pego pelo listener delegado
+    // do host (editor.js/image-lab.js) no container. Não precisa de onCommit() aqui.
   });
   body.appendChild(addLab); body.appendChild(addSel);
 }

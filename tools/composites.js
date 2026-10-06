@@ -54,8 +54,17 @@ function addBloomToObject(canvas, obj){
 
 /* ---- Sujeira/grunge: uma textura de metal arranhado/enferrujado por cima,
    multiply ou screen, opacidade baixa. `files` é a lista de nomes já resolvida
-   pelo chamador (props-generator usa TEX_CATS.grunge; image-lab usa a mesma
-   lista, ambos lendo de TEXTURE_PACK). */
+   pelo chamador. Comentário antigo aqui dizia que as duas ferramentas liam do
+   MESMO pack (TEXTURE_PACK) — não é verdade: props-generator usa TEX_CATS.grunge
+   (editor.js) dentro de vendor/texture-pack.js (6.9MB, tudo: papel/mancha/jornal/
+   grunge); image-lab usa vendor/texture-pack-grunge.js (1.5MB, só os 4 arquivos
+   de grunge) — DE PROPÓSITO, não por descuido: a ferramenta é usada "possivelmente
+   sem wifi" na mesa (ver CLAUDE.md), carregar o pack de 6.9MB inteiro só pelos 4
+   arquivos de grunge não compensa. HOJE as duas listas têm EXATAMENTE os mesmos 4
+   arquivos (metal_brushed_1/2, metal_rusted_1, metal_scratched_1 — conferido
+   direto nos dois arquivos vendorizados), mas são duas fontes de verdade mesmo
+   assim: se um dia adicionar/trocar uma textura de grunge, atualizar os DOIS
+   lugares — TEX_CATS.grunge (editor.js) E vendor/texture-pack-grunge.js. */
 function addGrungeOverlay(canvas, w, h, texturePack, files){
   if (!files || !files.length) return Promise.reject(new Error('Sem texturas de sujeira carregadas.'));
   const fname = files[Math.floor(Math.random()*files.length)];
