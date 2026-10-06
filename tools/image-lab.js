@@ -7,13 +7,6 @@
 let canvas;
 let canvasW = 1400, canvasH = 1000;
 
-const CANVAS_PRESETS = {
-  livre:    {w:1400, h:1000, label:'Livre'},
-  polaroid: {w:1000, h:1000, label:'Quadrado Polaroid'},
-  celular:  {w:900,  h:1600, label:'Retrato celular 9:16'},
-  paisagem: {w:1600, h:1200, label:'Paisagem 4:3'},
-};
-
 /* ---- Histórico (undo/redo): pilha de snapshots canvas.toObject(). Guarda
    customType/__labName (propriedades nossas, fora do schema padrão do Fabric)
    pra sobreviver ao round-trip. `restoringHistory` evita que a própria restauração
@@ -79,12 +72,41 @@ document.querySelectorAll('.zoomrow button[data-z]').forEach(b=>{
   b.addEventListener('click', ()=>setZoom(+b.dataset.z));
 });
 
-document.getElementById('canvasAspect').addEventListener('change', e=>{
-  const p = CANVAS_PRESETS[e.target.value] || CANVAS_PRESETS.livre;
-  canvasW = p.w; canvasH = p.h;
+/* ---- Tamanho do canvas: modelo "Canvas Size" do Photoshop, não "Image Size" — muda só
+   o LIMITE do espaço de trabalho, objetos existentes mantêm left/top/escala como estavam
+   (podem sobrar fora da nova borda, ou sobrar área vazia). Mesmo modelo que `applyPageSize`
+   do props-generator (editor.js) já usa pra troca de tamanho de página — não foi escolhido
+   à toa, é consistência deliberada com o resto do projeto. Consequência conhecida: uma
+   camada de Sujeira (addGrungeOverlay, composites.js) já escalada pro tamanho ANTIGO do
+   canvas fica com a escala antiga depois de redimensionar — não é bug, é a foto mantendo
+   seu tamanho igual a qualquer outra camada; reaplique Sujeira depois de redimensionar se
+   quiser que ela cubra o canvas novo. */
+function setCanvasSize(w, h){
+  w = Math.max(10, Math.round(w)); h = Math.max(10, Math.round(h));
+  canvasW = w; canvasH = h;
   setZoom(canvas.getZoom());
   canvas.renderAll();
   pushHistory();
+}
+/* "Ajustar à foto" = padrão "Hug Contents" do Figma, aplicado à foto selecionada: o
+   canvas vira do tamanho NATIVO real da foto (obj.width/height — o pixel verdadeiro do
+   arquivo, que .scale() nunca toca, só scaleX/scaleY mudam). Sem resetar a escala/posição
+   DESSA foto especificamente, uma foto que entrou rebaixada pelo downscale de import
+   (maxDim=900) ficaria minúscula num canto do canvas agora gigante. */
+function fitCanvasToImage(obj){
+  if (!obj || obj.type!=='image'){ alert('Selecione uma foto primeiro.'); return; }
+  obj.set({scaleX:1, scaleY:1, left:0, top:0});
+  obj.setCoords();
+  setCanvasSize(obj.width, obj.height);
+}
+document.getElementById('btnFitToPhoto').addEventListener('click', ()=>{
+  fitCanvasToImage(canvas.getActiveObject());
+});
+document.getElementById('btnApplySize').addEventListener('click', ()=>{
+  const w = +document.getElementById('canvasWInput').value;
+  const h = +document.getElementById('canvasHInput').value;
+  if (!w || !h || w<10 || h<10){ alert('Digite largura e altura válidas.'); return; }
+  setCanvasSize(w, h);
 });
 
 /* ===================== Importar fotos ===================== */
