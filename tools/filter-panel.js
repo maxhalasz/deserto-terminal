@@ -233,11 +233,24 @@ function renderPresetThumbnail(imgEl, preset, w, h){
   } catch(e){ return null; }
 }
 
-function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit){
+function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit, startCollapsed){
   const type = filterInst.constructor.type;
   const def = FILTER_REGISTRY[type];
   const row = document.createElement('div'); row.className='filterRow';
   const head = document.createElement('div'); head.className='filterHead';
+  // Bloco de parâmetro colapsável (clique no ▸/▾, não no nome — nome é só rótulo, não
+  // botão, evita qualquer ambiguidade de clique). Começa fechado quando a pilha já tem
+  // 3+ filtros (fica alto rápido), aberto com 1-2 (early game, quer ver tudo de cara).
+  const paramsWrap = document.createElement('div');
+  paramsWrap.style.display = startCollapsed ? 'none' : '';
+  const toggle = document.createElement('button'); toggle.textContent = startCollapsed?'▸':'▾';
+  toggle.title = 'Mostrar/esconder parâmetros'; toggle.style.marginRight='4px';
+  toggle.addEventListener('click', ()=>{
+    const hidden = paramsWrap.style.display==='none';
+    paramsWrap.style.display = hidden ? '' : 'none';
+    toggle.textContent = hidden ? '▾' : '▸';
+  });
+  head.appendChild(toggle);
   const b = document.createElement('b'); b.textContent = def?def.label:type;
   head.appendChild(b);
   const btns = document.createElement('span');
@@ -275,7 +288,7 @@ function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit){
   row.appendChild(head);
   if (def){
     def.params.forEach(p=>{
-      row.appendChild(labeledRange(p.label, filterInst[p.key], p.min, p.max, p.step, v=>{
+      paramsWrap.appendChild(labeledRange(p.label, filterInst[p.key], p.min, p.max, p.step, v=>{
         filterInst[p.key]=v; obj.applyFilters(); canvasRef.renderAll();
       }));
     });
@@ -283,15 +296,16 @@ function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit){
       const range = def.vec3Range || [-1,1];
       def.vec3.forEach(vk=>{
         const sub = document.createElement('div'); sub.className='hint'; sub.textContent=vk.toUpperCase();
-        row.appendChild(sub);
+        paramsWrap.appendChild(sub);
         ['R','G','B'].forEach((ch,ci)=>{
-          row.appendChild(labeledRange(vk+'.'+ch, filterInst[vk][ci], range[0], range[1], 0.01, v=>{
+          paramsWrap.appendChild(labeledRange(vk+'.'+ch, filterInst[vk][ci], range[0], range[1], 0.01, v=>{
             filterInst[vk][ci]=v; obj.applyFilters(); canvasRef.renderAll();
           }));
         });
       });
     }
   }
+  row.appendChild(paramsWrap);
   return row;
 }
 
@@ -306,14 +320,32 @@ function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit){
    das duas ferramentas (bug real, achado lendo o código, não só suspeita). */
 function renderFilterPanel(canvasRef, obj, body, onCommit){
   body.innerHTML = '';
+  const hasFilters = !!(obj.filters && obj.filters.length);
 
-  const presetLab = document.createElement('div'); presetLab.className='hint'; presetLab.textContent='Presets:';
+  // Busca única filtrando TANTO a grade de preset QUANTO o <select> de adicionar filtro
+  // (17 filtros + 14 presets numa lista só compensa ter um campo de busca — padrão
+  // Lightroom: presets ficam num painel PRÓPRIO, separado dos ajustes manuais, não
+  // misturados numa lista comprida só).
+  const searchWrap = document.createElement('div');
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text'; searchInput.placeholder = '🔍 Buscar filtro ou preset…';
+  searchWrap.appendChild(searchInput);
+  body.appendChild(searchWrap);
+
+  // ---- Presets (painel próprio, colapsa) ----
+  const presetsDetails = document.createElement('details');
+  presetsDetails.className = 'filterSection';
+  presetsDetails.open = !hasFilters; // primeira vez na imagem: mostra de cara. Já tem filtro: some do caminho.
+  const presetsSummary = document.createElement('summary'); presetsSummary.textContent = 'Presets';
+  presetsDetails.appendChild(presetsSummary);
   const presetHint = document.createElement('div'); presetHint.className='hint'; presetHint.textContent = 'Presets substituem os filtros manuais atuais — Ctrl+Z desfaz.';
+  presetsDetails.appendChild(presetHint);
   const presetRow = document.createElement('div'); presetRow.className='presetRow';
   const srcEl = getPristineThumbSource(obj);
   Object.entries(PRESETS).forEach(([key,p])=>{
     const b = document.createElement('button'); b.className='presetBtn';
     b.title = p.label;
+    b.dataset.search = p.label.toLowerCase();
     if (srcEl){
       const thumb = renderPresetThumbnail(srcEl, p, 72, 50);
       if (thumb){
@@ -330,7 +362,7 @@ function renderFilterPanel(canvasRef, obj, body, onCommit){
     });
     presetRow.appendChild(b);
   });
-  body.appendChild(presetLab); body.appendChild(presetHint); body.appendChild(presetRow);
+  presetsDetails.appendChild(presetRow);
 
   const intensityWrap = document.createElement('div');
   const intensityInput = document.createElement('input');
@@ -344,12 +376,21 @@ function renderFilterPanel(canvasRef, obj, body, onCommit){
     if (obj.__lastPreset) applyPreset(canvasRef, obj, obj.__lastPreset, +intensityInput.value);
   });
   intensityWrap.appendChild(intensityLab); intensityWrap.appendChild(intensityInput);
-  body.appendChild(intensityWrap);
+  presetsDetails.appendChild(intensityWrap);
+  body.appendChild(presetsDetails);
+
+  // ---- Filtros manuais (painel próprio, sempre aberto — é onde o trabalho acontece) ----
+  const manualDetails = document.createElement('details');
+  manualDetails.className = 'filterSection';
+  manualDetails.open = true;
+  const manualSummary = document.createElement('summary'); manualSummary.textContent = 'Filtros manuais';
+  manualDetails.appendChild(manualSummary);
 
   const filterListLab = document.createElement('div'); filterListLab.className='hint'; filterListLab.textContent='Filtros aplicados:';
-  body.appendChild(filterListLab);
+  manualDetails.appendChild(filterListLab);
+  const total = (obj.filters||[]).length;
   (obj.filters||[]).forEach((f, idx)=>{
-    body.appendChild(renderFilterRow(canvasRef, obj, f, idx, ()=>renderFilterPanel(canvasRef, obj, body, onCommit), onCommit));
+    manualDetails.appendChild(renderFilterRow(canvasRef, obj, f, idx, ()=>renderFilterPanel(canvasRef, obj, body, onCommit), onCommit, total>=3));
   });
 
   const addLab = document.createElement('label'); addLab.textContent='+ Adicionar filtro';
@@ -361,7 +402,9 @@ function renderFilterPanel(canvasRef, obj, body, onCommit){
     if (!entries.length) return;
     const og = document.createElement('optgroup'); og.label = group;
     entries.forEach(([key,def])=>{
-      const o=document.createElement('option'); o.value=key; o.textContent=def.label; og.appendChild(o);
+      const o=document.createElement('option'); o.value=key; o.textContent=def.label;
+      o.dataset.search = def.label.toLowerCase();
+      og.appendChild(o);
     });
     addSel.appendChild(og);
   });
@@ -376,5 +419,23 @@ function renderFilterPanel(canvasRef, obj, body, onCommit){
     // addSel é um <select> — dispara 'change' nativo, já pego pelo listener delegado
     // do host (editor.js/image-lab.js) no container. Não precisa de onCommit() aqui.
   });
-  body.appendChild(addLab); body.appendChild(addSel);
+  manualDetails.appendChild(addLab); manualDetails.appendChild(addSel);
+  body.appendChild(manualDetails);
+
+  // Busca filtra a grade de preset (esconde os que não combinam, abre o painel se tinha
+  // fechado) e o <select> de adicionar (esconde opções via `hidden`, suportado em todo
+  // navegador moderno — degrada bem, no pior caso mostra opção a mais, nunca quebra).
+  searchInput.addEventListener('input', ()=>{
+    const q = searchInput.value.trim().toLowerCase();
+    let anyPresetMatch = false;
+    presetRow.querySelectorAll('.presetBtn').forEach(b=>{
+      const match = !q || b.dataset.search.includes(q);
+      b.style.display = match ? '' : 'none';
+      if (match) anyPresetMatch = true;
+    });
+    if (q && anyPresetMatch) presetsDetails.open = true;
+    addSel.querySelectorAll('option[data-search]').forEach(o=>{
+      o.hidden = !!q && !o.dataset.search.includes(q);
+    });
+  });
 }

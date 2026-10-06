@@ -106,6 +106,14 @@
   .presetRow{display:flex;flex-wrap:wrap;gap:5px}
   .presetRow button{width:auto;flex:1 1 calc(50% - 5px);font-size:10.5px;padding:6px 4px}
   .hint{color:#5b6170;font-size:10.5px;margin-top:2px}
+  /* Painel de filtro (Fase 5): Presets e Filtros manuais viram seções próprias que
+     colapsam — mesmo padrão visual já usado pra Lore (.loreSec/.loreFam), marcador
+     ▸/▾ customizado em vez do triângulo padrão do navegador. */
+  .filterSection{border:1px solid #23262d;border-radius:6px;padding:6px 8px;margin-top:6px}
+  .filterSection summary{cursor:pointer;color:#c7cdd6;font-size:11.5px;font-weight:600;padding:2px 0;list-style:none}
+  .filterSection summary::-webkit-details-marker{display:none}
+  .filterSection summary::before{content:'▸ ';color:#6d93c9}
+  .filterSection[open] summary::before{content:'▾ '}
 
   .modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.68);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
   .modalOverlay[hidden]{display:none}
