@@ -1,0 +1,90 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>paper sheet</title>
+<link rel="stylesheet" href="../vendor/fonts.css">
+<style>
+body{margin:0;background:#2a2a2a;color:#eee;font:14px 'Source Sans 3',Arial,sans-serif;padding:14px}
+.grid{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}
+.tile{display:flex;flex-direction:column;gap:4px}
+.tile img,.tile canvas{display:block}
+.cap{font-weight:600;font-size:15px;max-width:640px}
+h2{margin:6px 0 10px;font-size:20px}
+</style></head><body>
+<script src="../vendor/fabric.min.js"></script>
+<script>const PAGE_W=1240, PAGE_H=1754;</script>
+<script src="../paper-gen.js"></script>
+<script>
+const Q = new URLSearchParams(location.search);
+const sheet = Q.get('sheet') || 'types';
+const S = +(Q.get('s') || 0.5);
+const body = document.body;
+const h2 = document.createElement('h2'); h2.textContent = Q.get('title') || sheet; body.appendChild(h2);
+const grid = document.createElement('div'); grid.className = 'grid'; body.appendChild(grid);
+
+async function ready(){
+  const fams = ["700 20px 'Playfair Display'","900 20px 'Playfair Display'","400 20px 'PT Serif'","italic 400 20px 'PT Serif'","700 20px 'Courier Prime'","400 20px 'Courier Prime'","700 20px 'Oswald'"];
+  await Promise.all(fams.map(f=>document.fonts.load(f,'AaBb0123')));
+}
+function sample(sc, spec, opts){
+  opts = opts||{};
+  const cv = new fabric.StaticCanvas(null, {width:PAGE_W, height:PAGE_H, backgroundColor:'#fff'});
+  const bg = new PaperBackground({width:PAGE_W, height:PAGE_H, paperSpec:spec});
+  cv.add(bg);
+  const ink = '#1b1a18';
+  const T = (str,o)=>{ const t = new fabric.Textbox(str, Object.assign({fill:ink, globalCompositeOperation:'multiply', fontFamily:"'PT Serif'", fontSize:20, width:PAGE_W-220, left:110, lineHeight:1.3}, o)); cv.add(t); return t; };
+  const mast = T('THE ABYSSAL POST', {top:90, fontFamily:"'Playfair Display'", fontWeight:900, fontSize:64, textAlign:'center'});
+  cv.add(new fabric.Line([110,190,PAGE_W-110,190], {stroke:ink, strokeWidth:3, globalCompositeOperation:'multiply'}));
+  cv.add(new fabric.Line([110,198,PAGE_W-110,198], {stroke:ink, strokeWidth:1, globalCompositeOperation:'multiply'}));
+  T('MARCH 14 — EDITION NO. 118', {top:212, fontSize:15, fontFamily:"'Courier Prime'", fontWeight:700});
+  T('PLATFORM LOSES CONTACT WITH DIVE TEAM', {top:270, fontFamily:"'Playfair Display'", fontWeight:900, fontSize:46, lineHeight:1.08});
+  T('Radio still transmitting static on the same channel since 03:12', {top:420, fontStyle:'italic', fontSize:22});
+  const body1 = 'The dive team failed to return to the deck yesterday morning. Contact with base was lost at 03:12, according to night-shift logs. No bodies have been recovered. The company operating the platform declined to comment on the incident.\n\nCoastal residents report hearing a continuous sound coming from the sea overnight, described as "a low choir, almost a breathing." Drilling operations continue as normal, according to an internal memo. Independent experts have questioned the official account.\n\nThe dive team failed to return to the deck yesterday morning. Contact with base was lost at 03:12, according to night-shift logs.';
+  T(body1, {top:500, fontSize:19, width:(PAGE_W-260)/2, left:110});
+  T(body1, {top:500, fontSize:19, width:(PAGE_W-260)/2, left:PAGE_W/2+20});
+  cv.add(new fabric.Rect({left:110, top:1100, width:PAGE_W-220, height:230, fill:'#8a2a1f', globalCompositeOperation:'multiply'}));
+  T('RESTRICTED — LEVEL 3', {top:1150, fill:'#f1e9d8', globalCompositeOperation:'source-over', fontFamily:"'Oswald'", fontWeight:700, fontSize:52, textAlign:'center'});
+  T('ref. NS-DES-0447', {top:1230, fill:'#f1e9d8', globalCompositeOperation:'source-over', fontFamily:"'Courier Prime'", fontWeight:700, fontSize:22, textAlign:'center'});
+  T(body1, {top:1380, fontSize:17, width:PAGE_W-220});
+  cv.renderAll();
+  const out = cv.toCanvasElement(sc);
+  cv.dispose();
+  return out;
+}
+function tile(label, spec, sc, crop){
+  const d = document.createElement('div'); d.className = 'tile';
+  let c = sample(sc, spec);
+  if (crop){
+    const cc = document.createElement('canvas'); cc.width = crop.w; cc.height = crop.h;
+    cc.getContext('2d').drawImage(c, crop.x*sc, crop.y*sc, crop.w, crop.h, 0, 0, crop.w, crop.h);
+    c = cc;
+  }
+  d.appendChild(c);
+  const cap = document.createElement('div'); cap.className='cap'; cap.textContent = label; d.appendChild(cap);
+  grid.appendChild(d);
+}
+(async ()=>{
+  await ready();
+  if (sheet==='types'){
+    ['liso','sulfite','jornal','cartao','creme','verge','fotocopia','pardo','termico'].forEach(t=>tile(PAPER_TYPES[t].label+' — nível 50', {type:t, level:0.5, seed:11}, S));
+  } else if (sheet==='levels'){
+    [0,0.25,0.5,0.75,1].forEach(l=>tile('Papel-jornal — nível '+Math.round(l*100), {type:'jornal', level:l, seed:11}, S));
+  } else if (sheet==='atmos'){
+    [['cartao','Cartão'],['creme','Bloco/creme'],['fotocopia','Fotocópia']].forEach(([t,n])=>{
+      ['neutra','twin','silent'].forEach(a=>tile(n+' — '+PAPER_ATMOS[a].label+' (nível 45)', {type:t, level:0.45, atmos:a, seed:11}, S));
+    });
+  } else if (sheet==='folds'){
+    tile('Verge, dobra em três (carta)', {type:'verge', level:0.5, fold:'tres', seed:5}, S);
+    tile('Papel-jornal, dobra ao meio', {type:'jornal', level:0.5, fold:'meio', seed:5}, S);
+    tile('Creme sem dobra', {type:'creme', level:0.5, fold:'nenhuma', seed:5}, S);
+  } else if (sheet==='detail'){
+    // recortes 1:1 de escala 1 (cada tile ~ 560×380 px da página)
+    const mk = (n, spec)=>tile(n, spec, 1, {x:100, y:480, w:560, h:420});
+    mk('Jornal nível 35 — 1:1', {type:'jornal', level:0.35, seed:11});
+    mk('Jornal nível 70 — 1:1', {type:'jornal', level:0.70, seed:11});
+    mk('Creme nível 40 — 1:1', {type:'creme', level:0.40, seed:11});
+    mk('Fotocópia nível 50 Silent Hill — 1:1', {type:'fotocopia', level:0.5, atmos:'silent', seed:11});
+    mk('Cartão nível 30 — 1:1', {type:'cartao', level:0.30, seed:11});
+    mk('Pardo nível 50 — 1:1', {type:'pardo', level:0.5, seed:11});
+  }
+  document.title = 'done';
+})();
+</script></body></html>

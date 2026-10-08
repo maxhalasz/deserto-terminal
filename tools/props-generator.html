@@ -6,6 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Gerador de Props — O Deserto</title>
 <link rel="stylesheet" href="vendor/fonts.css">
+<link rel="stylesheet" href="vendor/fonts-docs.css">
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
 <script src="vendor/brand/brand-index.js"></script>
@@ -227,12 +228,26 @@
         </div>
         <div class="hint">Mais de uma página no mesmo documento (ex: relatório longo), pronto pra sair tudo num PDF só.</div>
       </div>
-      <label>Aparência do papel</label>
-      <div class="grid2">
-        <button id="bgModeTextured" class="bgModeBtn" data-bgmode="textured">🖼️ Texturizado</button>
-        <button id="bgModeDigital" class="bgModeBtn" data-bgmode="digital">💻 Digital</button>
+    </div></div>
+
+    <div class="panel" id="paperBlock"><div class="panel-head"><span class="ico">🗒</span><span class="ttl">Papel</span></div><div class="panel-body">
+      <label>Tipo</label>
+      <select id="paperType"></select>
+      <label id="paperLevelLbl">Intensidade <span class="rangeval" id="paperLevelVal">0</span></label>
+      <input type="range" id="paperLevel" min="0" max="100" step="1" value="30">
+      <div id="paperProcOnly">
+        <div class="grid2">
+          <div><label>Dobra</label><select id="paperFold"></select></div>
+          <div><label>Atmosfera</label><select id="paperAtmos"></select></div>
+        </div>
+        <button id="btnPaperSeed" class="ghost">🎲 Outra textura</button>
       </div>
-      <div class="hint">Só troca o fundo — carimbos, fotos e outros props continuam texturizados nos dois modos.</div>
+      <div id="paperPhotoOnly" style="display:none">
+        <label>Foto</label>
+        <select id="paperPhotoCat"></select>
+      </div>
+      <div class="hint">Intensidade 0 = papel liso 100% digital. Textura de papel só aparece embaixo; mancha, carimbo e foto entram por cima (aba Adicionar). A atmosfera muda cor, borda e sujeira juntas.</div>
+      <div class="hint" id="paperHint"></div>
     </div></div>
 
     <div class="panel" id="newsLayoutBlock" style="display:none"><div class="panel-head"><span class="ico">📰</span><span class="ttl">Layout do jornal</span></div><div class="panel-body">
@@ -246,6 +261,12 @@
       <select id="exportScale">
         <option value="1">Tela / digitalizado (1240×1754)</option>
         <option value="2" selected>Impressão (alta resolução) (2480×3508)</option>
+      </select>
+      <label>Papel na exportação</label>
+      <select id="exportPaperMode">
+        <option value="textura">Com textura do papel</option>
+        <option value="cor">Só a cor do papel</option>
+        <option value="branco">Branco (pra imprimir em papel de verdade)</option>
       </select>
       <button id="btnExport" class="primary">⭳ Baixar PNG</button>
       <button id="btnExportPDF">⭳ Baixar PDF (todas as páginas)</button>
@@ -307,6 +328,13 @@
         <button id="btnAddNetNode" class="iconBtn netLinkModeBtn"><span class="ico">▭</span><span>Nó de rede</span></button>
       </div>
       <div class="hint">Nó de rede: clique no botão, depois clique no canvas onde quer colocar. Duplo clique no rótulo edita, arraste pra mover. Pra ligar dois nós, arraste do pontinho laranja na borda de um até o outro.</div>
+      <label>Manchas (por cima do papel)</label>
+      <div class="toolgrid">
+        <button id="btnStainWater">💧 Água</button>
+        <button id="btnStainCoffee">☕ Café</button>
+        <button id="btnStainBlood">🟤 Ferrugem/sangue</button>
+        <button id="btnStainMold">🍂 Mofo</button>
+      </div>
       <label>Imagem (arquivo local)</label>
       <input type="file" id="fileAddImage" accept="image/*">
       <div class="hint">Também dá pra arrastar uma imagem direto pro canvas.</div>
@@ -372,6 +400,9 @@
 <script src="composites.js"></script>
 <script src="network-diagram.js"></script>
 <script src="layout.js"></script>
+<script src="paper-gen.js"></script>
+<script src="doc-kit.js"></script>
+<script src="doc-templates.js"></script>
 <script src="scene-stack.js"></script>
 <script src="ui-kit.js"></script>
 <script src="editor.js"></script>

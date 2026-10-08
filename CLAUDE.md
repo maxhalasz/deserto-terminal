@@ -140,6 +140,12 @@ Migrar o mundo de FÓRMULA (`corridorAt`) pra GRADE DE TILES 2D estilo Doom/Wolf
 
 **O toca-fitas (`cassette-player.html`) foi deletado** — não retentar, Max achou ruim mesmo com fotos reais e pediu foco total no props.
 
+## Roadmap do gerador de props em 3 fases (definido por Max em 2026-10-08)
+- **Fase 1 (EM ANDAMENTO):** redesenho dos 17 modelos da aba Documento como documentos DIGITAIS (layout/tipografia limpos, pra imprimir ou PNG), com **papel procedural sutil e opcional** por baixo (sistema `PaperBackground`, bloco "Papel": tipo/intensidade/dobra/atmosfera) e detalhes (mancha/carimbo/foto) por cima. Jornal: papel-jornal sutil já no digital + versão Texturizada (foto) + presets completos + objeto "caixa de jornal" (`NewsBox`). Atmosfera forte de **Twin Peaks** e **Silent Hill 3** (RE7, SH2 remake, Gravity Falls só como detalhe). Bilhete/Diário/Carta saem sem manuscrito pronto (Max imprime e escreve à mão). Plano completo: `C:\Users\max\.claude\plans\faz-o-plano-com-cozy-muffin.md`.
+- **Fase 2:** revisar TODO o código atrás de bugs, otimizações e melhorias de lógica.
+- **Fase 3:** reorganizar a barra esquerda da ferramenta (juntar o que não precisa estar separado, repensar como cada elemento funciona: o que dá pra simplificar, o que não). Inclui melhorar o zoom do prop.
+- Dívidas já achadas pra Fase 2: `withSceneLock` ignora chamadas simultâneas; `HandwrittenText` ignora `fontSize` (usa `persona.baseSize`); texturas de papel antigas pequenas (~1000px) ampliadas ×2; lista de fontes própria em `brand.js`; terminal 1600×1200 cadastrado como 11×8,5 pol. (distorce ~3% no PDF).
+
 ## Histórico de versões (pra não repetir erro)
 - v1/v2 (canvas puro, sem lib): o jornal com fotos reais e o motor de layout de colunas ficaram muito bons — Max elogiou explicitamente.
 - v3 (primeira reescrita em Fabric.js): resolveu bugs reais (export quebrado, manchas com borda quadrada, letra capitular colidindo) mas **regrediu duro em qualidade visual** — trocou o motor de layout de 5 presets por Textbox soltos sem coluna, e comprimiu as texturas agressivamente (820px/q70) pra caber num limite de tamanho que só existia no MEU ambiente de teste (o preview `file://` da ferramenta de browser usada nas sessões tem um teto de arquivo de ~700KB-1MB pro documento navegado — não é uma restrição de navegador real). Max: "os visuais iniciais estavam MIL VEZES melhores antes... fico até ofendido". Lição: não sacrificar qualidade do ENTREGÁVEL por uma limitação do MEU ambiente de teste — testar de outro jeito (servidor local) em vez de comprimir o produto.

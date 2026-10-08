@@ -1,0 +1,64 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>paper test</title>
+<style>
+body{margin:0;background:#222;color:#ddd;font:12px sans-serif}
+.row{display:flex;gap:8px;padding:6px;align-items:flex-start;border-bottom:1px solid #444}
+.cell{display:flex;flex-direction:column;gap:2px}
+canvas{display:block}
+#info{padding:6px}
+</style></head><body>
+<div id="info">carregando…</div>
+<div id="out"></div>
+<script src="../vendor/fabric.min.js"></script>
+<script>const PAGE_W=1240, PAGE_H=1754;</script>
+<script src="../paper-gen.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const mode = q.get('mode') || 'types';
+const out = document.getElementById('out');
+function addRow(label, cells){
+  const row = document.createElement('div'); row.className='row';
+  const lab = document.createElement('div'); lab.style.width='70px'; lab.textContent=label; row.appendChild(lab);
+  cells.forEach(c=>{
+    const d = document.createElement('div'); d.className='cell';
+    const cv = document.createElement('canvas'); cv.width=c.canvas.width; cv.height=c.canvas.height;
+    cv.getContext('2d').drawImage(c.canvas,0,0); d.appendChild(cv);
+    const t = document.createElement('div'); t.textContent = c.label; d.appendChild(t);
+    row.appendChild(d);
+  });
+  out.appendChild(row);
+}
+function overview(spec, s){ return paperRender(spec, 1240, 1754, s); }
+const DSC = +(q.get('scale')||1);
+function detail(spec, x, y, w, h){
+  const full = paperRender(spec, 1240, 1754, DSC);
+  const c = document.createElement('canvas'); c.width=w; c.height=h;
+  c.getContext('2d').drawImage(full, x*DSC, y*DSC, w, h, 0, 0, w, h);
+  return c;
+}
+const t0 = performance.now();
+if (mode==='types'){
+  const lv = (q.get('levels')||'0.35,0.8').split(',').map(Number);
+  const types = (q.get('types')||'').split(',').filter(Boolean);
+  (types.length?types:PAPER_TYPE_ORDER).forEach(t=>{
+    const cells = [];
+    lv.forEach(l=>{ cells.push({canvas:overview({type:t,level:l,seed:7},0.2), label:`${t} ${l} (0.2×)`}); });
+    lv.forEach(l=>{ cells.push({canvas:detail({type:t,level:l,seed:7},420,520,300,300), label:`${t} ${l} (1:1)`}); });
+    addRow(t, cells);
+  });
+} else if (mode==='atmos'){
+  const types = (q.get('types')||'cartao,jornal,fotocopia').split(',');
+  types.forEach(t=>{
+    const cells = [];
+    Object.keys(PAPER_ATMOS).forEach(a=>{ cells.push({canvas:overview({type:t,level:0.5,atmos:a,seed:7},0.2), label:`${t} ${a}`}); });
+    Object.keys(PAPER_ATMOS).forEach(a=>{ cells.push({canvas:detail({type:t,level:0.5,atmos:a,seed:7},420,520,260,260), label:`${a} 1:1`}); });
+    addRow(t, cells);
+  });
+} else if (mode==='fold'){
+  const cells = [];
+  ['nenhuma','meio','tres'].forEach(f=>{ cells.push({canvas:overview({type:'verge',level:0.5,fold:f,seed:3},0.25), label:'verge '+f}); });
+  addRow('fold', cells);
+}
+document.getElementById('info').textContent = 'gerado em '+Math.round(performance.now()-t0)+' ms; WebGL ok='+!PaperGL.failed;
+</script>
+</body></html>

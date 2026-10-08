@@ -26,6 +26,7 @@ const BRAND_PHYS_IN = { // por doc id dos documentos de marca — default A4 se 
   dre_tag:[2.75,4.75],    // etiqueta de embarque/evidência tamanho "3" real
 };
 function docPhysicalSize(templateName){
+  if (typeof DOC_TEMPLATES!=='undefined' && DOC_TEMPLATES[templateName] && DOC_TEMPLATES[templateName].phys) return DOC_TEMPLATES[templateName].phys;
   if (PAGE_PHYS_IN[templateName]) return PAGE_PHYS_IN[templateName];
   if (templateName && templateName.indexOf('brand:')===0){
     return BRAND_PHYS_IN[templateName.slice(6)] || [8.27,11.69];

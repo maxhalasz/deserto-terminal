@@ -306,8 +306,29 @@ function ensureScreenTemplateFonts(){
   }
   return _screenFontsReady;
 }
+/* Carrega as fontes de UM modelo ANTES de montar (o navegador só baixa a fonte quando alguém
+   pede pra desenhar com ela, e o canvas não redesenha sozinho depois). Depois limpa o cache de
+   largura de letra do Fabric (ele guarda por fonte: se um texto mediu com a fonte reserva, o erro
+   fica guardado pra sempre) e remede todo texto já criado. `specs`: strings de document.fonts.load,
+   ex. "700 16px 'Jost'". */
+const _fontLoads = new Map();
+async function ensureFonts(specs){
+  const list = (specs||[]).filter(Boolean);
+  await Promise.all(list.map(s=>{
+    if (!_fontLoads.has(s)) _fontLoads.set(s, document.fonts.load(s, 'AaØøÅåÆæ0123456789—·×').catch(()=>{}));
+    return _fontLoads.get(s);
+  }));
+  settleFonts();
+}
+function settleFonts(){
+  if (fabric.cache && fabric.cache.clearFontCache) fabric.cache.clearFontCache();
+  if (typeof canvas==='undefined' || !canvas) return;
+  canvas.getObjects().forEach(o=>{ if (typeof o.initDimensions==='function' && /text/i.test(o.type||'')) o.initDimensions(); });
+  canvas.requestRenderAll();
+}
+document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', ()=>settleFonts());
 function applyPageSize(name){
-  const [w,h] = PAGE_SIZES[name] || PAGE_SIZES.blank;
+  const [w,h] = (typeof DOC_TEMPLATES!=='undefined' && DOC_TEMPLATES[name] && DOC_TEMPLATES[name].page) || PAGE_SIZES[name] || PAGE_SIZES.blank;
   PAGE_W = w; PAGE_H = h;
   setZoom(canvas.getZoom());
   updateExportLabels();
@@ -380,6 +401,113 @@ function recomputeBgFieldsFromObjects(objs){
   } else {
     currentFoldField = null; currentRuledLines = null;
   }
+}
+
+/* ===================== Papel (bloco "Papel" da aba Documento) =====================
+   O fundo de TODO modelo novo é um PaperBackground (paper-gen.js): papel procedural que só
+   guarda parâmetros. Tipo "Foto de papel" continua existindo (pacote antigo de fotos, via
+   setBackgroundPaper) — a barra "Intensidade" vira a idade da foto nesse caso. */
+const PAPER_PHOTO_CATS = {paper_aged:'Envelhecido', paper_notebook_ruled:'Caderno pautado', paper_notebook_plain:'Caderno liso', paper_newsprint:'Jornal', paper_aged_bookspread:'Livro aberto'};
+function randomSeed32(){ return Math.floor(Math.random()*4294967295)+1; }
+function getPaperBg(){ const b = getBackground(); return (b && b.type==='paperbackground') ? b : null; }
+/* Coloca (ou troca) o fundo procedural. Sempre na base da pilha. */
+function setPaper(spec){
+  const s = paperNormalizeSpec(Object.assign({seed: randomSeed32()}, spec||{}));
+  const old = getBackground();
+  if (old) canvas.remove(old);
+  const bg = new PaperBackground({width:PAGE_W, height:PAGE_H, paperSpec:s});
+  canvas.add(bg);
+  canvas.sendObjectToBack(bg);
+  currentFoldField = null; currentRuledLines = null;
+  return bg;
+}
+function paperPhotoCatOf(file){ return Object.keys(TEX_CATS).find(c=>PAPER_PHOTO_CATS[c] && TEX_CATS[c].includes(file)) || 'paper_aged'; }
+function readPaperUIState(){
+  const bg = getBackground();
+  if (!bg) return null;
+  if (bg.type==='paperbackground') return Object.assign({kind:'proc'}, paperNormalizeSpec(bg.paperSpec));
+  if (bg.type==='image' && bg.__paperFile){
+    const f = (bg.filters||[]).find(x=>x.constructor.type==='AgeTint');
+    return {kind:'foto', cat: paperPhotoCatOf(bg.__paperFile), level: f ? f.amount : 0.4};
+  }
+  return {kind:'flat'};
+}
+function syncPaperUI(){
+  const block = document.getElementById('paperBlock');
+  if (!block) return;
+  const brand = currentTemplate && currentTemplate.indexOf('brand:')===0;
+  const st = brand ? null : readPaperUIState();
+  const def = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate];
+  const screen = def ? !!def.screen : (FLAT_SCREEN_BG[currentTemplate] || currentTemplate==='terminal');
+  block.style.display = (!st || st.kind==='flat' || screen) ? 'none' : 'block';
+  if (block.style.display==='none') return;
+  document.getElementById('paperType').value = st.kind==='foto' ? 'foto' : st.type;
+  document.getElementById('paperLevel').value = Math.round(st.level*100);
+  document.getElementById('paperLevelVal').textContent = Math.round(st.level*100);
+  document.getElementById('paperLevelLbl').firstChild.textContent = st.kind==='foto' ? 'Idade do papel ' : 'Intensidade ';
+  document.getElementById('paperProcOnly').style.display = st.kind==='foto' ? 'none' : 'block';
+  document.getElementById('paperPhotoOnly').style.display = st.kind==='foto' ? 'block' : 'none';
+  if (st.kind==='foto') document.getElementById('paperPhotoCat').value = st.cat;
+  else { document.getElementById('paperFold').value = st.fold; document.getElementById('paperAtmos').value = st.atmos; }
+  document.getElementById('paperHint').textContent = (PaperGL && PaperGL.failed) ? 'Sem WebGL neste navegador: o papel procedural cai em cor lisa.' : '';
+}
+function paperCommit(){ canvas.requestRenderAll(); pushHistory(); renderLayerList(); }
+function paperApply(mut, commit){
+  const st = readPaperUIState();
+  if (!st) return;
+  if (st.kind==='proc'){
+    const bg = getPaperBg();
+    bg.set('paperSpec', paperNormalizeSpec(Object.assign({}, bg.paperSpec, mut)));
+    canvas.requestRenderAll();
+    if (commit) paperCommit();
+  }
+}
+function paperSwitchKind(value){
+  const st = readPaperUIState() || {};
+  beginBatch();
+  try {
+    if (value==='foto'){
+      const cat = (currentBgCategory && PAPER_PHOTO_CATS[currentBgCategory]) ? currentBgCategory : 'paper_aged';
+      currentBgCategory = cat;
+      return setBackgroundPaper(pickFile(cat), {age: 0.4}).then(()=>{ canvas.renderAll(); }).finally(()=>{ endBatch(); paperCommit(); syncPaperUI(); });
+    }
+    const old = st.kind==='proc' ? st : {};
+    setPaper({type:value, level: st.kind==='proc' ? old.level : 0.35, fold: old.fold||'nenhuma', atmos: old.atmos||'neutra', seed: old.seed});
+  } finally { if (value!=='foto') endBatch(); }
+  if (value!=='foto'){ paperCommit(); syncPaperUI(); }
+}
+function initPaperUI(){
+  const T = document.getElementById('paperType');
+  if (!T) return;
+  PAPER_TYPE_ORDER.forEach(id=>{ const o = document.createElement('option'); o.value = id; o.textContent = PAPER_TYPES[id].label; T.appendChild(o); });
+  const fo = document.createElement('option'); fo.value = 'foto'; fo.textContent = 'Foto de papel (antigo)'; T.appendChild(fo);
+  const F = document.getElementById('paperFold'); Object.keys(PAPER_FOLDS).forEach(k=>{ const o = document.createElement('option'); o.value = k; o.textContent = PAPER_FOLDS[k].label; F.appendChild(o); });
+  const A = document.getElementById('paperAtmos'); Object.keys(PAPER_ATMOS).forEach(k=>{ const o = document.createElement('option'); o.value = k; o.textContent = PAPER_ATMOS[k].label; A.appendChild(o); });
+  const C = document.getElementById('paperPhotoCat'); Object.keys(PAPER_PHOTO_CATS).forEach(k=>{ const o = document.createElement('option'); o.value = k; o.textContent = PAPER_PHOTO_CATS[k]; C.appendChild(o); });
+  T.addEventListener('change', ()=>paperSwitchKind(T.value));
+  F.addEventListener('change', ()=>paperApply({fold:F.value}, true));
+  A.addEventListener('change', ()=>paperApply({atmos:A.value}, true));
+  document.getElementById('btnPaperSeed').addEventListener('click', ()=>paperApply({seed: randomSeed32()}, true));
+  const L = document.getElementById('paperLevel');
+  let lvTimer = null;
+  L.addEventListener('input', ()=>{
+    document.getElementById('paperLevelVal').textContent = L.value;
+    const st = readPaperUIState();
+    if (st && st.kind==='proc') paperApply({level: L.value/100}, false);
+    else if (st && st.kind==='foto'){
+      const bg = getBackground(), f = (bg.filters||[]).find(x=>x.constructor.type==='AgeTint');
+      if (f){ f.amount = L.value/100; clearTimeout(lvTimer); lvTimer = setTimeout(()=>{ bg.applyFilters(); canvas.requestRenderAll(); }, 60); }
+    }
+  });
+  L.addEventListener('change', ()=>{ const st = readPaperUIState(); if (st && st.kind!=='flat') paperCommit(); });
+  C.addEventListener('change', ()=>{
+    const st = readPaperUIState() || {};
+    currentBgCategory = C.value;
+    beginBatch();
+    setBackgroundPaper(pickFile(C.value), {age: st.level!=null ? st.level : 0.4}).then(()=>canvas.renderAll()).finally(()=>{ endBatch(); paperCommit(); syncPaperUI(); });
+  });
+  const ex = document.getElementById('exportPaperMode');
+  if (ex) ex.value = 'textura';
 }
 
 /* ---- fundo digital: sem foto, sem envelhecimento/dobra/pauta — um documento
@@ -678,8 +806,12 @@ function makeFeatheredStainURL(imgEl, tintRGB, seed){
   ctx.globalCompositeOperation='source-over';
   return c.toDataURL();
 }
-function addStain(type){
-  const rng = mulberry32(Math.floor(Math.random()*4294967296));
+/* Mancha por cima do papel. `o` (tudo opcional) fixa posição/tamanho/ângulo/opacidade/semente — os
+   modelos usam isso pra colocar o "detalhe" sempre no mesmo lugar (kit.stain); sem `o` é a mancha
+   aleatória de sempre, já selecionada. Devolve uma Promise com a imagem. */
+function addStainAt(type, o){
+  o = o || {};
+  const rng = mulberry32(o.seed || Math.floor(Math.random()*4294967296));
   // Café e sangue agora têm foto dedicada de verdade (já na cor certa, sem precisar
   // de tinta por cima) — mistura com o pool genérico tingido pra manter diversidade
   // de formato em vez de repetir sempre a mesma mancha.
@@ -688,26 +820,31 @@ function addStain(type){
   const cat = type==='mold' ? 'stain_mold' : useDedicated ? dedicatedCat : 'stain_shape';
   const fname = pickFile(cat, rng);
   const tint = (cat==='stain_shape') ? (STAIN_TINT[type] || null) : null;
-  const imgEl = new Image();
-  imgEl.onload = ()=>{
-    const url = makeFeatheredStainURL(imgEl, tint, Math.floor(rng()*4294967296));
-    fabric.Image.fromURL(url).then(img=>{
-      const s = 160+rng()*260;
-      img.set({
-        left: PAGE_W*0.15+rng()*PAGE_W*0.7, top: PAGE_H*0.15+rng()*PAGE_H*0.7,
-        scaleX: s/img.width, scaleY: s/img.height,
-        angle: rng()*360, flipX: rng()<0.5, flipY: rng()<0.5,
-        globalCompositeOperation:'multiply', opacity: 0.55+rng()*0.3,
-        originX:'center', originY:'center',
+  return new Promise(resolve=>{
+    const imgEl = new Image();
+    imgEl.onload = ()=>{
+      const url = makeFeatheredStainURL(imgEl, tint, Math.floor(rng()*4294967296));
+      fabric.Image.fromURL(url).then(img=>{
+        const s = o.size || (160+rng()*260);
+        const rx = rng(), ry = rng(), rAng = rng(), rFx = rng(), rFy = rng(), rOp = rng();
+        img.set({
+          left: o.x!=null ? o.x : PAGE_W*0.15+rx*PAGE_W*0.7, top: o.y!=null ? o.y : PAGE_H*0.15+ry*PAGE_H*0.7,
+          scaleX: s/img.width, scaleY: s/img.height,
+          angle: o.angle!=null ? o.angle : rAng*360, flipX: o.flip!=null ? !!o.flip : rFx<0.5, flipY: rFy<0.5,
+          globalCompositeOperation:'multiply', opacity: o.opacity!=null ? o.opacity : 0.55+rOp*0.3,
+          originX:'center', originY:'center',
+        });
+        img.set('customType','stain');
+        canvas.add(img);
+        if (!o.quiet){ canvas.setActiveObject(img); canvas.renderAll(); }
+        resolve(img);
       });
-      img.set('customType','stain');
-      canvas.add(img);
-      canvas.setActiveObject(img);
-      canvas.renderAll();
-    });
-  };
-  imgEl.src = TEXTURE_PACK[fname];
+    };
+    imgEl.onerror = ()=>resolve(null);
+    imgEl.src = TEXTURE_PACK[fname];
+  });
 }
+function addStain(type){ return addStainAt(type); }
 
 /* ---- grunge/dirt e bloom: composição de objetos (não shader duplo-textura),
    implementação real em composites.js (compartilhada com o image-lab) ---- */
@@ -796,7 +933,24 @@ async function loadTemplate(name){
 }
 /* clearDoc() não roda mais aqui dentro — o único chamador (loadTemplate, acima) já passa
    por sceneSwitchTo, que limpa o canvas antes de chamar buildFresh. */
+/* Modelos do registry (doc-templates.js): fundo de papel procedural + fontes carregadas antes
+   de montar + `build(kit)` que usa o kit (doc-kit.js). Os que ainda não migraram seguem na
+   cadeia antiga de else-if logo abaixo. */
+async function buildDoc(name){
+  const def = DOC_TEMPLATES[name];
+  applyPageSize(name);
+  bgMode = 'textured'; currentBgCategory = null; currentBgOpts = null;
+  await ensureFonts(def.fonts);
+  setPaper(Object.assign({}, def.paper));
+  const kit = new DocKit(canvas);
+  await def.build(kit, {name, rng: mulberry32(Math.floor(Math.random()*4294967296))});
+}
 async function loadTemplateBody(name){
+  if (typeof DOC_TEMPLATES!=='undefined' && DOC_TEMPLATES[name]){
+    await buildDoc(name);
+    canvas.renderAll(); renderLayerList(); syncNewsLayoutUI();
+    return;
+  }
   applyPageSize(name);
   const rng = mulberry32(Math.floor(Math.random()*4294967296));
   // Crachá é digital por padrão (pedido do Max: "ao invés de usar uma textura pro
@@ -1209,9 +1363,12 @@ async function pageGo(idx){
 async function pageAdd(){
   return withSceneLock(async ()=>{
     pageSaveCurrent();
+    const keep = readPaperUIState(); // o canvas é limpo dentro do sceneSwitchTo, então guarda o papel antes
     await sceneSwitchTo({}, {
       buildFresh: async ()=>{
-        if (currentTemplate==='terminal') await buildTerminalScreenBg();
+        if (keep && keep.kind==='proc') setPaper(Object.assign({}, keep, {seed: randomSeed32()}));
+        else if (keep && keep.kind==='foto') await setBackgroundPaper(pickFile(keep.cat), {age: keep.level});
+        else if (currentTemplate==='terminal') await buildTerminalScreenBg();
         else if (FLAT_SCREEN_BG[currentTemplate]) await buildFlatScreenBg(...FLAT_SCREEN_BG[currentTemplate]);
         else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
         else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
@@ -1243,6 +1400,11 @@ async function pageDelete(){
    HandwrittenText lê a cada desenho, e cada StaticCanvas precisa dos campos DA SUA PRÓPRIA
    página, não os da página ativa. */
 async function collectPagePNGs(mult){
+  const prevPaperMode = PAPER_EXPORT_MODE;
+  PAPER_EXPORT_MODE = exportPaperModeValue();
+  try { return await collectPagePNGsInner(mult); } finally { PAPER_EXPORT_MODE = prevPaperMode; }
+}
+async function collectPagePNGsInner(mult){
   pageSaveCurrent();
   const savedFold = currentFoldField, savedRuled = currentRuledLines;
   const out = [];
@@ -1355,6 +1517,7 @@ function syncNewsLayoutUI(){
   const show = currentTemplate==='newspaper';
   document.getElementById('newsLayoutBlock').style.display = show?'block':'none';
   if (show && currentNewsLayout) document.getElementById('newsCols').value = currentNewsLayout.nCols;
+  syncPaperUI();
 }
 
 document.getElementById('btnAddText').addEventListener('click', ()=>{
@@ -1386,6 +1549,9 @@ document.getElementById('btnAddWatermark').addEventListener('click', ()=>{
   canvas.add(t); canvas.setActiveObject(t); canvas.renderAll();
 });
 document.getElementById('btnAddNetNode').addEventListener('click', ()=>armPlaceNetNode());
+[['btnStainWater','water'],['btnStainCoffee','coffee'],['btnStainBlood','blood'],['btnStainMold','mold']].forEach(([id,type])=>{
+  const b = document.getElementById(id); if (b) b.addEventListener('click', ()=>addStain(type));
+});
 
 function loadImageFileToCanvas(file, atPoint){
   const reader = new FileReader();
@@ -1953,8 +2119,15 @@ function renderTextInspector(obj, body){
     body.appendChild(field.checkbox('Piora ao longo do texto', obj.fatigue, v=>{ obj.fatigue=v; canvas.renderAll(); }));
     body.appendChild(field.button('🎲 Novo aspecto', ()=>{ obj.seed = Math.floor(Math.random()*4294967296); canvas.renderAll(); }));
   } else {
-    const fontOptions = ["'PT Serif'","'Playfair Display'","'Courier Prime'","'UnifrakturCook'"].map(f=>({value:f, label:f.replace(/'/g,'')}));
-    body.appendChild(field.select('Fonte', fontOptions, obj.fontFamily, v=>{ obj.set('fontFamily', v); canvas.renderAll(); }));
+    // Lista única de fontes (DOC_FONTS, doc-kit.js). Se o objeto usa uma fonte fora da lista, ela entra no topo.
+    const fams = DOC_FONTS.map(f=>`'${f}'`);
+    if (obj.fontFamily && !fams.includes(obj.fontFamily)) fams.unshift(obj.fontFamily);
+    const fontOptions = fams.map(f=>({value:f, label:f.replace(/'/g,'')}));
+    body.appendChild(field.select('Fonte', fontOptions, obj.fontFamily, v=>{ obj.set('fontFamily', v); canvas.renderAll(); pushHistory(); }));
+    if (obj.type==='textbox'){
+      body.appendChild(field.checkbox('Negrito', +obj.fontWeight>=600 || obj.fontWeight==='bold', v=>{ obj.set('fontWeight', v ? 700 : 400); canvas.renderAll(); pushHistory(); }));
+      body.appendChild(field.checkbox('Itálico', obj.fontStyle==='italic', v=>{ obj.set('fontStyle', v ? 'italic' : 'normal'); canvas.renderAll(); pushHistory(); }));
+    }
     body.appendChild(field.range('Tamanho', obj.fontSize, 8, 90, 1, v=>{ obj.set('fontSize', v); canvas.renderAll(); }));
     body.appendChild(field.color('Cor', rgbToHex(obj.fill), v=>{ obj.set('fill', v); canvas.renderAll(); }));
   }
@@ -2114,6 +2287,10 @@ function renderNetworkInspector(obj, body){
 }
 function renderBackgroundInspector(obj, body){
   body.appendChild(field.hint('Papel de fundo'));
+  if (obj.type==='paperbackground'){
+    body.appendChild(field.hint('Papel procedural: tipo, intensidade, dobra e atmosfera ficam no bloco "Papel" da aba Documento. Manchas e carimbos: aba Adicionar.'));
+    return;
+  }
 
   // Controles de categoria/reroll/mancha só fazem sentido no modo Texturizado —
   // o fundo Digital não é uma foto (não tem categoria pra trocar, mancha em cima
@@ -2214,10 +2391,27 @@ function exportTextForDocs(){
 }
 
 /* ===================== Exportar ===================== */
+/* Lista de modelos: o <select> do HTML traz os modelos antigos; os do registry (doc-templates.js)
+   entram com o rótulo deles, na ordem de TEMPLATE_ORDER (os que ainda não migraram ficam como estão). */
+function populateTemplateSelect(){
+  const sel = document.getElementById('templateSel');
+  if (!sel || typeof DOC_TEMPLATES==='undefined' || typeof TEMPLATE_ORDER==='undefined') return;
+  const legacy = {};
+  [...sel.options].forEach(o=>{ legacy[o.value] = o.textContent; });
+  const keep = sel.value;
+  sel.innerHTML = '';
+  TEMPLATE_ORDER.forEach(id=>{
+    const label = (DOC_TEMPLATES[id] && DOC_TEMPLATES[id].label) || legacy[id];
+    if (!label) return;
+    const o = document.createElement('option'); o.value = id; o.textContent = label; sel.appendChild(o);
+  });
+  if ([...sel.options].some(o=>o.value===keep)) sel.value = keep;
+}
+function exportPaperModeValue(){ const s = document.getElementById('exportPaperMode'); return s ? s.value : 'textura'; }
 document.getElementById('btnExport').addEventListener('click', ()=>{
   const mult = +document.getElementById('exportScale').value;
   canvas.discardActiveObject(); canvas.renderAll();
-  let dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
+  let dataUrl = paperWithExportMode(exportPaperModeValue(), ()=>canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()}));
   dataUrl = pngWithDpi(dataUrl, getExportDpi(PAGE_W*mult));
   const a = document.createElement('a');
   a.href = dataUrl;
@@ -2232,6 +2426,8 @@ document.getElementById('btnExportText').addEventListener('click', exportTextFor
 /* ===================== Init ===================== */
 document.fonts.ready.then(()=>{
   switchTab('doc');
+  populateTemplateSelect();
+  initPaperUI();
   initCanvas();
   loadTemplate('newspaper');
 });
