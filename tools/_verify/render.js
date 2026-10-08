@@ -19,8 +19,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function launch(w, h) {
   const ud = path.join(process.env.SCRATCH || os.tmpdir(), 'edge_profile_' + Date.now());
+  const gpuArgs = process.env.NOGL ? ['--disable-gpu', '--disable-3d-apis', '--disable-software-rasterizer'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
   const proc = spawn(EDGE, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${ud}`,
-    '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--hide-scrollbars',
+    ...gpuArgs, '--hide-scrollbars',
     '--force-color-profile=srgb', '--force-device-scale-factor=1', `--window-size=${Math.round(w)},${Math.round(h)}`,
     '--no-first-run', '--no-default-browser-check', 'about:blank'], { stdio: 'ignore' });
   let ws;

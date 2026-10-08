@@ -449,7 +449,13 @@ function syncPaperUI(){
   document.getElementById('paperPhotoOnly').style.display = st.kind==='foto' ? 'block' : 'none';
   if (st.kind==='foto') document.getElementById('paperPhotoCat').value = st.cat;
   else { document.getElementById('paperFold').value = st.fold; document.getElementById('paperAtmos').value = st.atmos; }
-  document.getElementById('paperHint').textContent = (PaperGL && PaperGL.failed) ? 'Sem WebGL neste navegador: o papel procedural cai em cor lisa.' : '';
+  paperReportMode();
+}
+/* Aviso visível quando o WebGL não funciona: o papel continua aparecendo (modo lento em CPU), mas o Max sabe por quê. */
+function paperReportMode(){
+  const h = document.getElementById('paperHint'); if (!h) return;
+  const msg = PaperGL.usedCPU ? ('WebGL indisponível neste navegador' + (PaperGL.error ? ' (' + PaperGL.error + ')' : '') + ': usando o modo lento (CPU), com resolução menor. Ative a aceleração de hardware do navegador pra qualidade total.') : '';
+  if (h.textContent !== msg) h.textContent = msg;
 }
 function paperCommit(){ canvas.requestRenderAll(); pushHistory(); renderLayerList(); }
 function paperApply(mut, commit){
@@ -547,9 +553,16 @@ function setDigitalBackground(opts){
    (loadTemplateBody inteiro apagaria edições do Max). ---- */
 let bgMode = 'textured';
 let currentBgCategory = null, currentBgOpts = null;
+/* Modelos que ainda não migraram pro registry já nascem com o papel procedural (visível em tudo);
+   caderno pautado e livro aberto seguem em foto porque o texto manuscrito deles lê a pauta da foto. */
+const LEGACY_PAPER_MAP = {
+  paper_newsprint: {type:'jornal', level:0.4, fold:'meio', atmos:'neutra'},
+  paper_aged:      {type:'creme',  level:0.4, fold:'nenhuma', atmos:'neutra'},
+};
 function setTemplateBackground(category, opts){
   currentBgCategory = category; currentBgOpts = opts||{};
   if (bgMode === 'digital') return setDigitalBackground(currentBgOpts);
+  if (LEGACY_PAPER_MAP[category]){ setPaper(Object.assign({}, LEGACY_PAPER_MAP[category])); return Promise.resolve(); }
   const rng = mulberry32(Math.floor(Math.random()*4294967296));
   return setBackgroundPaper(pickFile(category, rng), currentBgOpts);
 }

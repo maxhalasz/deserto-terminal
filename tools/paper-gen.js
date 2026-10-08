@@ -74,7 +74,8 @@ float heightAt(vec2 p){
 float crease(float y, float y0){
   float d = y - y0;
   float line = exp(-d*d/(2.0*2.4*2.4));
-  float ridge = exp(-pow((d+8.0)/13.0, 2.0)) - exp(-pow((d-8.0)/13.0, 2.0));
+  float r1 = (d+8.0)/13.0, r2 = (d-8.0)/13.0;
+  float ridge = exp(-r1*r1) - exp(-r2*r2);
   return -0.11*line + 0.045*ridge;
 }
 void main(){
@@ -133,7 +134,7 @@ void main(){
   gl_FragColor = vec4(clamp(col,0.0,1.0), 1.0);
 }`;
 
-const PaperGL = {canvas:null, gl:null, prog:null, loc:{}, failed:false};
+const PaperGL = {canvas:null, gl:null, prog:null, loc:{}, failed:false, error:'', usedCPU:false};
 function paperGLInit(){
   if (PaperGL.failed) return false;
   if (PaperGL.gl && !PaperGL.gl.isContextLost()) return true;
@@ -166,7 +167,7 @@ function paperGLInit(){
     return true;
   } catch(e){
     console.warn('Papel procedural indisponível (WebGL):', e);
-    PaperGL.failed = true;
+    PaperGL.failed = true; PaperGL.error = String((e && e.message) || e).slice(0, 200);
     return false;
   }
 }
@@ -192,46 +193,179 @@ function paperTintCSS(spec){
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
-/* Renderiza o papel pra um canvas 2D de (w*scale)×(h*scale). Devolve null se não der (sem WebGL). */
-function paperRender(specIn, w, h, scale){
-  const spec = paperNormalizeSpec(specIn);
+/* Parâmetros do papel (iguais pro caminho WebGL e pro plano B em CPU). */
+function paperParams(spec, w, h, pw, ph){
   const T = PAPER_TYPES[spec.type], A = PAPER_ATMOS[spec.atmos];
+  const sr = (n)=>{ let x = (spec.seed*2654435761 + n*40503) >>> 0; x ^= x>>>13; x = Math.imul(x, 1274126177)>>>0; return (x%100000)/100000; };
+  const g = T.grain||[0,1], f = T.fiber||[0,0.03,0.9,0.7], c = T.cloud||[0,0.005], sk = T.speck||[0,0.8,0.97], e = T.edge||[0,40];
+  return {
+    res:[pw,ph], scale:pw/w, page:[w,h], seed:[sr(1)*4000, sr(2)*4000], tint:paperTintOf(spec), level:spec.level,
+    grain:[g[0]*A.grain, g[1]], fiber:[f[0]*A.grain, f[1], f[2], f[3]], cloud:[c[0]*A.cloud, c[1]], relief:T.relief||0,
+    speck:[sk[0]*A.speck, sk[1], sk[2]], edge:[e[0]*A.edge, e[1]], vig:A.vig, rust:A.rust, ageColor:A.ageColor,
+    laid:T.laid||0, fold:PAPER_FOLDS[spec.fold].n, light:2.35,
+  };
+}
+
+function paperRenderGL(P){
   if (!paperGLInit()) return null;
   const gl = PaperGL.gl, cv = PaperGL.canvas, L = PaperGL.loc;
-  const maxSz = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)||4096, gl.getParameter(gl.MAX_VIEWPORT_DIMS)[0]||4096, 8192);
-  let sc = scale;
-  if (w*sc > maxSz) sc = maxSz/w;
-  if (h*sc > maxSz) sc = Math.min(sc, maxSz/h);
-  const pw = Math.max(1, Math.round(w*sc)), ph = Math.max(1, Math.round(h*sc));
-  if (cv.width !== pw || cv.height !== ph){ cv.width = pw; cv.height = ph; }
-  gl.viewport(0, 0, pw, ph);
-  const tint = paperTintOf(spec);
-  const sr = (n)=>{ let x = (spec.seed*2654435761 + n*40503) >>> 0; x ^= x>>>13; x = Math.imul(x, 1274126177)>>>0; return (x%100000)/100000; };
-  gl.uniform2f(L.uRes, pw, ph);
-  gl.uniform1f(L.uScale, pw/w);
-  gl.uniform2f(L.uPage, w, h);
-  gl.uniform2f(L.uSeed, sr(1)*4000, sr(2)*4000);
-  gl.uniform3f(L.uTint, tint[0], tint[1], tint[2]);
-  gl.uniform1f(L.uLevel, spec.level);
-  const g = T.grain||[0,1], f = T.fiber||[0,0.03,0.9,0.7], c = T.cloud||[0,0.005], sk = T.speck||[0,0.8,0.97], e = T.edge||[0,40];
-  gl.uniform2f(L.uGrain, g[0]*A.grain, g[1]);
-  gl.uniform4f(L.uFiber, f[0]*A.grain, f[1], f[2], f[3]);
-  gl.uniform2f(L.uCloud, c[0]*A.cloud, c[1]);
-  gl.uniform1f(L.uRelief, T.relief||0);
-  gl.uniform3f(L.uSpeck, sk[0]*A.speck, sk[1], sk[2]);
-  gl.uniform2f(L.uEdge, e[0]*A.edge, e[1]);
-  gl.uniform1f(L.uVig, A.vig);
-  gl.uniform1f(L.uRust, A.rust);
+  if (cv.width !== P.res[0] || cv.height !== P.res[1]){ cv.width = P.res[0]; cv.height = P.res[1]; }
+  gl.viewport(0, 0, P.res[0], P.res[1]);
+  gl.uniform2f(L.uRes, P.res[0], P.res[1]);
+  gl.uniform1f(L.uScale, P.scale);
+  gl.uniform2f(L.uPage, P.page[0], P.page[1]);
+  gl.uniform2f(L.uSeed, P.seed[0], P.seed[1]);
+  gl.uniform3f(L.uTint, P.tint[0], P.tint[1], P.tint[2]);
+  gl.uniform1f(L.uLevel, P.level);
+  gl.uniform2f(L.uGrain, P.grain[0], P.grain[1]);
+  gl.uniform4f(L.uFiber, P.fiber[0], P.fiber[1], P.fiber[2], P.fiber[3]);
+  gl.uniform2f(L.uCloud, P.cloud[0], P.cloud[1]);
+  gl.uniform1f(L.uRelief, P.relief);
+  gl.uniform3f(L.uSpeck, P.speck[0], P.speck[1], P.speck[2]);
+  gl.uniform2f(L.uEdge, P.edge[0], P.edge[1]);
+  gl.uniform1f(L.uVig, P.vig);
+  gl.uniform1f(L.uRust, P.rust);
   gl.uniform1f(L.uAge, 0);
-  gl.uniform3f(L.uAgeColor, A.ageColor[0], A.ageColor[1], A.ageColor[2]);
-  gl.uniform1f(L.uLaid, T.laid||0);
-  gl.uniform1f(L.uFold, PAPER_FOLDS[spec.fold].n);
-  gl.uniform1f(L.uLight, 2.35);
+  gl.uniform3f(L.uAgeColor, P.ageColor[0], P.ageColor[1], P.ageColor[2]);
+  gl.uniform1f(L.uLaid, P.laid);
+  gl.uniform1f(L.uFold, P.fold);
+  gl.uniform1f(L.uLight, P.light);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   const out = document.createElement('canvas');
-  out.width = pw; out.height = ph;
+  out.width = P.res[0]; out.height = P.res[1];
   out.getContext('2d').drawImage(cv, 0, 0);
   return out;
+}
+
+/* Plano B (sem WebGL): o mesmo desenho do shader, pixel a pixel em JS. Mais lento, então a
+   resolução é limitada (o canvas sai menor e é esticado ao desenhar). */
+const PaperCPU = (function(){
+  const fract = x=>x-Math.floor(x);
+  function hash(x, y){
+    let a = fract(x*0.1031), b = fract(y*0.1031), c = a;
+    const d = a*(b+33.33) + b*(c+33.33) + c*(a+33.33);
+    a += d; b += d; c += d;
+    return fract((a+b)*c);
+  }
+  function vnoise(x, y){
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x-ix, fy = y-iy;
+    const ux = fx*fx*(3-2*fx), uy = fy*fy*(3-2*fy);
+    const a = hash(ix,iy), b = hash(ix+1,iy), c = hash(ix,iy+1), d = hash(ix+1,iy+1);
+    const top = a+(b-a)*ux, bot = c+(d-c)*ux;
+    return top + (bot-top)*uy;
+  }
+  function fbm(x, y){
+    let s = 0, a = 0.5;
+    for (let i=0;i<4;i++){ s += a*vnoise(x,y); x = x*2.03+17.3; y = y*2.03+9.1; a *= 0.5; }
+    return s;
+  }
+  const sstep = (e0,e1,x)=>{ const t = Math.min(1,Math.max(0,(x-e0)/(e1-e0))); return t*t*(3-2*t); };
+  function fiberLayer(px, py, seed, lenF, widF, thr){
+    const wx = vnoise(px*0.02+seed, py*0.02+seed) - 0.5, wy = vnoise(px*0.02+seed+31.7, py*0.02+seed+31.7) - 0.5;
+    px += wx*7; py += wy*7;
+    const ang = vnoise(px*0.003+seed*1.7, py*0.003+seed*1.7)*6.2832 + seed;
+    const dx = Math.cos(ang), dy = Math.sin(ang);
+    const qx = (px*dx+py*dy)*lenF, qy = (px*(-dy)+py*dx)*widF;
+    return sstep(thr, thr+0.22, vnoise(qx+seed*13, qy+seed*13));
+  }
+  function crease(y, y0){
+    const d = y-y0, line = Math.exp(-d*d/(2*2.4*2.4));
+    const r1 = (d+8)/13, r2 = (d-8)/13;
+    return -0.11*line + 0.045*(Math.exp(-r1*r1)-Math.exp(-r2*r2));
+  }
+  function render(P){
+    const W = P.res[0], H = P.res[1];
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const cx = cv.getContext('2d'), img = cx.createImageData(W, H), d = img.data;
+    const lod = Math.min(1, Math.max(0.3, P.scale));
+    const Lx = Math.cos(P.light), Ly = Math.sin(P.light);
+    const hAt = (x,y)=>{
+      const g = vnoise(x*P.grain[1], y*P.grain[1])*0.65 + vnoise(x*P.grain[1]*2.7+5.1, y*P.grain[1]*2.7+5.1)*0.35;
+      const f = Math.max(fiberLayer(x,y,1,P.fiber[1],P.fiber[2],P.fiber[3]), 0.8*fiberLayer(x+43,y+43,2,P.fiber[1],P.fiber[2],P.fiber[3]));
+      return P.grain[0]*g + P.fiber[0]*f;
+    };
+    const lv = P.level;
+    for (let j=0;j<H;j++){
+      for (let i=0;i<W;i++){
+        const px = (i+0.5)/P.scale, py = (j+0.5)/P.scale, sx = px+P.seed[0], sy = py+P.seed[1];
+        let r = P.tint[0], g = P.tint[1], b = P.tint[2];
+        if (lv > 0){
+          const c = fbm(sx*P.cloud[1], sy*P.cloud[1]);
+          const tone = (c-0.5)*2*P.cloud[0]*lv*5;
+          r *= 1+tone; g *= 1+tone*0.92; b *= 1+tone*0.80;
+          if (P.relief > 0){
+            const h0 = hAt(sx,sy), h1 = hAt(sx+Lx*0.9, sy+Ly*0.9);
+            const k = 1 + (h0-h1)*P.relief*lv*0.11*lod; r *= k; g *= k; b *= k;
+          }
+          if (P.laid > 0){
+            const l1 = Math.sin(sy*6.2832/3.8)*0.5+0.5;
+            const k1 = 1 - P.laid*lv*0.10*l1*(0.55+0.45*vnoise(sx*0.4, sy*0.4));
+            const k2 = 1 - P.laid*lv*0.035*Math.pow(Math.abs(Math.sin(sx*3.1416/62)), 40);
+            r *= k1*k2; g *= k1*k2; b *= k1*k2;
+          }
+          if (P.speck[0] > 0){
+            const sp = vnoise(sx*P.speck[1]+91, sy*P.speck[1]+91)*0.7 + vnoise(sx*P.speck[1]*3.1, sy*P.speck[1]*3.1)*0.3;
+            const sm = sstep(P.speck[2], P.speck[2]+0.025, sp)*P.speck[0]*lv*0.55;
+            r *= 1-sm*0.55; g *= 1-sm*0.62; b *= 1-sm*0.78;
+          }
+        }
+        const edgeDist = Math.min(Math.min(px, P.page[0]-px), Math.min(py, P.page[1]-py));
+        if (lv > 0){
+          if (P.rust > 0){
+            const rr = fbm(sx*0.0045+3, sy*0.0045+3);
+            const edgeW = 1 - sstep(0, 300, edgeDist);
+            const rm = sstep(0.52, 0.84, rr+edgeW*0.30)*P.rust*lv*0.60;
+            r += (r*0.62*1.18 - r)*rm; g += (g*0.42*1.18 - g)*rm; b += (b*0.24*1.18 - b)*rm;
+          }
+          const en = vnoise(sx*0.05, sy*0.05)*0.6 + vnoise(sx*0.17, sy*0.17)*0.4;
+          const ed = sstep(0, P.edge[1], edgeDist + (en-0.5)*P.edge[1]*0.45);
+          const ek = 1 - P.edge[0]*lv*(1-ed);
+          r *= ek; g *= ek; b *= ek;
+          const u = px/P.page[0]-0.5, v = (py/P.page[1]-0.5)*0.92;
+          const vk = 1 - P.vig*lv*sstep(0.38, 0.88, Math.sqrt(u*u+v*v));
+          r *= vk; g *= vk; b *= vk;
+        }
+        if (P.fold > 0.5){
+          const y = py + (vnoise(px*0.012, 3)-0.5)*3, fa = 0.45 + 0.55*lv;
+          const k = P.fold < 1.5 ? crease(y, P.page[1]*0.5) : crease(y, P.page[1]/3) + crease(y, P.page[1]*2/3);
+          const kk = 1 + k*fa; r *= kk; g *= kk; b *= kk;
+        }
+        const o = (j*W+i)*4;
+        d[o] = Math.max(0,Math.min(255,r*255)); d[o+1] = Math.max(0,Math.min(255,g*255)); d[o+2] = Math.max(0,Math.min(255,b*255)); d[o+3] = 255;
+      }
+    }
+    cx.putImageData(img, 0, 0);
+    return cv;
+  }
+  return {render};
+})();
+
+/* Renderiza o papel pra um canvas 2D de (w*scale)×(h*scale). Tenta WebGL; se não houver (ou falhar),
+   usa o plano B em CPU com resolução limitada. Devolve null só se tudo falhar. */
+function paperRender(specIn, w, h, scale){
+  const spec = paperNormalizeSpec(specIn);
+  if (!PaperGL.failed && paperGLInit()){
+    const gl = PaperGL.gl;
+    const maxSz = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)||4096, gl.getParameter(gl.MAX_VIEWPORT_DIMS)[0]||4096, 8192);
+    let sc = scale;
+    if (w*sc > maxSz) sc = maxSz/w;
+    if (h*sc > maxSz) sc = Math.min(sc, maxSz/h);
+    const pw = Math.max(1, Math.round(w*sc)), ph = Math.max(1, Math.round(h*sc));
+    try {
+      const out = paperRenderGL(paperParams(spec, w, h, pw, ph));
+      // Alguns drivers "funcionam" mas devolvem preto/transparente: confere o centro contra a cor esperada.
+      const d = out.getContext('2d').getImageData(Math.floor(pw/2), Math.floor(ph/2), 1, 1).data;
+      const exp = paperTintOf(spec).reduce((a,b)=>a+b, 0)*255;
+      if (exp > 300 && (d[0]+d[1]+d[2] < exp*0.35 || d[3] === 0)) throw new Error('WebGL devolveu imagem inválida');
+      return out;
+    }
+    catch(e){ PaperGL.failed = true; PaperGL.error = String((e && e.message) || e).slice(0, 200); }
+  }
+  PaperGL.usedCPU = true;
+  const sc = Math.min(scale, 0.75);
+  const pw = Math.max(1, Math.round(w*sc)), ph = Math.max(1, Math.round(h*sc));
+  try { return PaperCPU.render(paperParams(spec, w, h, pw, ph)); }
+  catch(e){ console.warn('Papel em CPU falhou', e); return null; }
 }
 
 /* Cache global (instâncias novas nascem a cada desfazer/troca de página; sem isso o papel seria
@@ -281,6 +415,7 @@ class PaperBackground extends fabric.Rect {
     const t = ctx.getTransform(), s = Math.hypot(t.a, t.b) || 1;
     const q = s <= 0.6 ? 0.5 : (s <= 1.25 ? 1 : (s <= 2.5 ? 2 : 3));
     const cv = paperCached(spec, W, H, q);
+    if (typeof paperReportMode==='function') paperReportMode();
     if (!cv){ ctx.fillStyle = paperTintCSS(spec); ctx.fillRect(-W/2, -H/2, W, H); return; }
     ctx.drawImage(cv, -W/2, -H/2, W, H);
   }
