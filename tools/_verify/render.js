@@ -108,7 +108,7 @@ async function cmdTemplates(dir, mult = 1, ids = []) {
   const c = await launch(1500, 1000);
   try {
     await open(c, BASE + 'props-generator.html?cb=' + Date.now());
-    await waitFor(c, "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && currentTemplate==='newspaper' && canvas.getObjects().length>3", 60000);
+    await waitFor(c, "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && typeof currentTemplate!=='undefined' && canvas.getObjects().length>3 && !sceneBusy", 90000);
     await sleep(800);
     if (!ids.length) ids = await evalJS(c, "[...document.getElementById('templateSel').options].map(o=>o.value)", false);
     fs.mkdirSync(dir, { recursive: true });
@@ -136,9 +136,14 @@ async function cmdEval(file, url) {
   const c = await launch(1500, 1000);
   try {
     await open(c, url || (BASE + 'props-generator.html?cb=' + Date.now()));
-    await waitFor(c, "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3", 60000);
+    await waitFor(c, "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3 && !sceneBusy", 90000);
     await sleep(500);
     const out = await evalJS(c, '(async()=>{' + fs.readFileSync(file, 'utf8') + '})()');
+    if (out && out.__files){
+      const dir = process.env.OUTDIR || '.'; fs.mkdirSync(dir, { recursive: true });
+      for (const [name, url] of Object.entries(out.__files)) { fs.writeFileSync(path.join(dir, name), Buffer.from(String(url).split(',')[1], 'base64')); console.log('arquivo', name); }
+      delete out.__files;
+    }
     console.log(typeof out === 'string' ? out : JSON.stringify(out, null, 1));
   } finally { cleanup(c); }
 }
