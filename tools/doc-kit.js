@@ -38,6 +38,7 @@ class DocKit {
     const nm = o=> o.__labName || (typeof o.text === 'string' ? '"' + o.text.replace(/\s+/g,' ').slice(0, 26) + '"' : o.type);
     const objs = cv.getObjects().filter(o=>o.customType !== 'background' && o.excludeFromExport !== true && o.visible !== false && o.customType !== 'stain' && o.customType !== 'grunge');
     objs.forEach(o=>{
+      if (o.__bleedOk) return;
       const r = o.getBoundingRect();
       if (r.left < -2 || r.top < -2 || r.left + r.width > W + 2 || r.top + r.height > H + 2)
         out.push({kind:'fora-da-pagina', obj:nm(o), x:Math.round(r.left), y:Math.round(r.top), w:Math.round(r.width), h:Math.round(r.height)});
@@ -86,6 +87,7 @@ class DocKit {
       angle: o.angle || 0, opacity: o.opacity != null ? o.opacity : 1,
       globalCompositeOperation: o.blend || docBlendFor(fill),
     });
+    if (o.shadow) t.set('shadow', new fabric.Shadow({color:o.shadow.color, blur:o.shadow.blur != null ? o.shadow.blur : 12, offsetX:0, offsetY:0}));
     if (o.label) t.__labName = o.label;
     this.cv.add(t);
     return t;
@@ -259,7 +261,7 @@ class DocKit {
   _overlayImage(cv, x, y, size, o){
     return fabric.Image.fromURL(cv.toDataURL()).then(img=>{
       img.set({left: x, top: y, originX: 'center', originY: 'center', scaleX: size/cv.width, scaleY: size/cv.width,
-        angle: o.angle || 0, opacity: o.opacity != null ? o.opacity : 0.55, globalCompositeOperation: 'multiply'});
+        angle: o.angle || 0, opacity: o.opacity != null ? o.opacity : 0.55, globalCompositeOperation: o.blend || 'multiply'});
       img.set('customType', 'stain');
       img.__labName = o.label;
       this.cv.add(img);
@@ -297,7 +299,7 @@ class DocKit {
       const a = rng()*TAU, rr = r + 10 + rng()*r*0.5, pr = 1.5 + rng()*3.2;
       g.fillStyle = `rgba(${col},${0.3 + rng()*0.3})`; g.beginPath(); g.arc(c + Math.cos(a)*rr, c + Math.sin(a)*rr, pr, 0, TAU); g.fill();
     }
-    return this._overlayImage(cv, x, y, size, {angle: o.angle, opacity: o.opacity, label: o.label || 'Detalhe — anel de copo'});
+    return this._overlayImage(cv, x, y, size, {angle: o.angle, opacity: o.opacity, blend: o.blend, label: o.label || 'Detalhe — anel de copo'});
   }
   /* Mancha de gordura/umidade: borda irregular, centro mais escuro, uns respingos. */
   smudge(x, y, r, o){
@@ -322,7 +324,7 @@ class DocKit {
       const a = rng()*TAU, rr = r*(1.0 + rng()*0.35), pr = 2 + rng()*5;
       g.fillStyle = `rgba(${col},${0.25 + rng()*0.3})`; g.beginPath(); g.arc(c + Math.cos(a)*rr, c + Math.sin(a)*rr, pr, 0, TAU); g.fill();
     }
-    return this._overlayImage(cv, x, y, size, {angle: o.angle, opacity: o.opacity, label: o.label || 'Detalhe — mancha de gordura'});
+    return this._overlayImage(cv, x, y, size, {angle: o.angle, opacity: o.opacity, blend: o.blend, label: o.label || 'Detalhe — mancha de gordura'});
   }
 
   /* Coluna com cursor vertical: cada texto entra onde o anterior terminou. */

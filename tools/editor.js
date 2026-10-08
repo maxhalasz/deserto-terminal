@@ -48,7 +48,7 @@ let curPageIdx = 0;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__newsRole','__flowIdx','__flowPara','__newsState','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup','__userLocked'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__docVariant','__newsGenerated','__newsRole','__flowIdx','__flowPara','__newsState','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup','__userLocked'];
 let history = [];
 let historyIndex = -1;
 /* Contador de profundidade, NÃO boolean — uma operação em lote (trocar de página, trocar
@@ -401,10 +401,11 @@ function getPaperBg(){ const b = getBackground(); return (b && b.type==='paperba
 function setPaper(spec){
   const s = paperNormalizeSpec(Object.assign({seed: randomSeed32()}, spec||{}));
   const old = getBackground();
-  const keepNews = old && old.__newsState;
+  const keepNews = old && old.__newsState, keepVar = old && old.__docVariant;
   if (old) canvas.remove(old);
   const bg = new PaperBackground({width:PAGE_W, height:PAGE_H, paperSpec:s});
   if (keepNews) bg.__newsState = keepNews;
+  if (keepVar) bg.__docVariant = keepVar;
   canvas.add(bg);
   canvas.sendObjectToBack(bg);
   currentFoldField = null; currentRuledLines = null;
@@ -923,11 +924,11 @@ function menuRow(name, price, left, top, width, opts){
   return [nameBox, priceBox];
 }
 
-async function loadTemplate(name){
+async function loadTemplate(name, opts){
   return withSceneLock(async ()=>{
     if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
     currentTemplate = name;
-    await sceneSwitchTo({}, { buildFresh: ()=>loadTemplateBody(name) });
+    await sceneSwitchTo({}, { buildFresh: ()=>loadTemplateBody(name, opts) });
     PAGES = [pageSnapshot()];
     curPageIdx = 0;
     updatePageNavUI();
@@ -938,18 +939,26 @@ async function loadTemplate(name){
 /* Modelos do registry (doc-templates.js): fundo de papel procedural + fontes carregadas antes
    de montar + `build(kit)` que usa o kit (doc-kit.js). Os que ainda não migraram seguem na
    cadeia antiga de else-if logo abaixo. */
-async function buildDoc(name){
+/* Estilo (variante) de um modelo: cada um traz o próprio layout, papel e fontes. Sem `variants`, o próprio modelo. */
+function docVariantOf(def, id){
+  if (!def.variants || !def.variants.length) return Object.assign({id:null}, {paper:def.paper, fonts:def.fonts, build:def.build});
+  const v = def.variants.find(x=>x.id===id) || def.variants[0];
+  return Object.assign({}, v, {paper: v.paper || def.paper, fonts: v.fonts || def.fonts});
+}
+async function buildDoc(name, variantId){
   const def = DOC_TEMPLATES[name];
+  const v = docVariantOf(def, variantId);
   applyPageSize(name);
   bgMode = 'textured'; currentBgCategory = null; currentBgOpts = null;
-  await ensureFonts(def.fonts);
-  setPaper(Object.assign({}, def.paper));
+  await ensureFonts(v.fonts);
+  const bg = setPaper(Object.assign({}, v.paper));
+  if (v.id) bg.__docVariant = v.id;
   const kit = new DocKit(canvas);
-  await def.build(kit, {name, rng: mulberry32(Math.floor(Math.random()*4294967296))});
+  await v.build(kit, {name, variant:v.id, rng: mulberry32(Math.floor(Math.random()*4294967296))});
 }
-async function loadTemplateBody(name){
+async function loadTemplateBody(name, opts){
   if (typeof DOC_TEMPLATES!=='undefined' && DOC_TEMPLATES[name]){
-    await buildDoc(name);
+    await buildDoc(name, opts && opts.variant);
     canvas.renderAll(); renderLayerList(); syncNewsLayoutUI();
     return;
   }
@@ -1497,7 +1506,28 @@ function addNewsBox(){
   canvas.add(nb); canvas.setActiveObject(nb); canvas.renderAll();
 }
 ['btnAddNewsBox','btnNewsBoxHere'].forEach(id=>{ const b = document.getElementById(id); if (b) b.addEventListener('click', addNewsBox); });
+/* Seletor "Estilo" (só aparece nos modelos que têm mais de um estilo, ex.: cardápios). */
+function syncDocVariantUI(){
+  const blk = document.getElementById('docVariantBlock'); if (!blk) return;
+  const def = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate];
+  if (!def || !def.variants || def.variants.length < 2){ blk.style.display = 'none'; return; }
+  blk.style.display = 'block';
+  const sel = document.getElementById('docVariantSel');
+  const sig = def.variants.map(v=>v.id).join(',');
+  if (sel.dataset.sig !== currentTemplate + ':' + sig){
+    sel.innerHTML = ''; def.variants.forEach(v=>{ const o = document.createElement('option'); o.value = v.id; o.textContent = v.label; sel.appendChild(o); });
+    sel.dataset.sig = currentTemplate + ':' + sig;
+  }
+  const bg = getBackground();
+  sel.value = (bg && bg.__docVariant) || def.variants[0].id;
+}
+document.getElementById('docVariantSel').addEventListener('change', async (e)=>{
+  const want = e.target.value;
+  if (!confirm('Trocar o estilo refaz o cardápio do zero (apaga as edições deste documento). Continuar?')){ syncDocVariantUI(); return; }
+  await loadTemplate(currentTemplate, {variant:want});
+});
 function syncNewsLayoutUI(){
+  syncDocVariantUI();
   const show = currentTemplate==='newspaper';
   document.getElementById('newsLayoutBlock').style.display = show?'block':'none';
   const st = show ? getNewsState() : null;
