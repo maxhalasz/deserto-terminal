@@ -329,7 +329,7 @@ fabric.classRegistry.setClass(FringingFilter, 'Fringing');
 class HalftoneFilter extends fabric.filters.BaseFilter {
   getFragmentSource(){
     return `precision highp float;
-    uniform sampler2D uTexture; uniform float uSize; varying vec2 vTexCoord;
+    uniform sampler2D uTexture; uniform float uSize; uniform vec3 uPaper; uniform vec3 uInk; varying vec2 vTexCoord;
     void main(){
       vec2 cellUV = floor(vTexCoord/uSize)*uSize + uSize*0.5;
       vec4 color = texture2D(uTexture, cellUV);
@@ -338,11 +338,12 @@ class HalftoneFilter extends fabric.filters.BaseFilter {
       float d = length(local);
       float r = sqrt(max(0.0,1.0-lum))*0.5;
       float dotM = 1.0 - smoothstep(r-0.06, r+0.06, d);
-      vec3 bw = mix(vec3(0.90,0.88,0.82), vec3(0.10,0.09,0.08), dotM);
+      vec3 bw = mix(uPaper, uInk, dotM);
       gl_FragColor = vec4(bw, color.a);
     }`;
   }
   applyTo2d({imageData:{data,width,height}}){
+    const paper = this.paper || [0.90,0.88,0.82], ink = this.ink || [0.10,0.09,0.08];
     const cell = Math.max(2, Math.round(this.size*width));
     for (let cy=0; cy<height; cy+=cell){
       for (let cx=0; cx<width; cx+=cell){
@@ -354,8 +355,8 @@ class HalftoneFilter extends fabric.filters.BaseFilter {
             const dx=x-(cx+cell/2), dy=y-(cy+cell/2);
             const dot = Math.sqrt(dx*dx+dy*dy)<=r;
             const i=(y*width+x)*4;
-            const v = dot?26:230;
-            data[i]=v; data[i+1]=v*0.98; data[i+2]=v*0.93;
+            const c = dot ? ink : paper;
+            data[i]=c[0]*255; data[i+1]=c[1]*255; data[i+2]=c[2]*255;
           }
         }
       }
@@ -363,9 +364,12 @@ class HalftoneFilter extends fabric.filters.BaseFilter {
   }
 }
 HalftoneFilter.type = 'Halftone';
-HalftoneFilter.defaults = {size:0.012};
-HalftoneFilter.uniformLocations = ['uSize'];
-HalftoneFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uSize,this.size); };
+HalftoneFilter.defaults = {size:0.012, paper:[0.90,0.88,0.82], ink:[0.10,0.09,0.08]};
+HalftoneFilter.uniformLocations = ['uSize','uPaper','uInk'];
+HalftoneFilter.prototype.sendUniformData = function(gl,loc){
+  const p = this.paper || [0.90,0.88,0.82], k = this.ink || [0.10,0.09,0.08];
+  gl.uniform1f(loc.uSize,this.size); gl.uniform3f(loc.uPaper,p[0],p[1],p[2]); gl.uniform3f(loc.uInk,k[0],k[1],k[2]);
+};
 fabric.classRegistry.setClass(HalftoneFilter, 'Halftone');
 
 // Idade do papel — tinta sépia progressiva; não dá pra "rejuvenescer" uma foto real,

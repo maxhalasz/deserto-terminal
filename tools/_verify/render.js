@@ -45,6 +45,11 @@ async function launch(w, h) {
   const send = (method, params = {}) => new Promise((res, rej) => { const i = ++id; pend.set(i, { res, rej }); sock.send(JSON.stringify({ id: i, method, params })); });
   const waitEvent = (name) => new Promise((res) => { const l = (d) => { if (d.method === name) { listeners.splice(listeners.indexOf(l), 1); res(d); } }; listeners.push(l); });
   await send('Page.enable'); await send('Runtime.enable');
+  if (process.env.DEBUG) listeners.push((d)=>{
+    if (d.method === 'Runtime.exceptionThrown') console.log('EXC', JSON.stringify(d.params.exceptionDetails).slice(0, 500));
+    if (d.method === 'Runtime.consoleAPICalled') console.log('LOG', d.params.type, (d.params.args||[]).map(x=>x.value||x.description||'').join(' ').slice(0, 300));
+  });
+  global.__cur = { proc, sock, ud };
   return { proc, sock, send, waitEvent, ud };
 }
 /* Encerra SÓ o Edge que este script abriu (o perfil dele é identificado pelo --user-data-dir; nunca
@@ -148,11 +153,14 @@ async function cmdEval(file, url) {
   } finally { cleanup(c); }
 }
 
+/* Vigia: se o script passar de TIMEOUT_S (padrão 240 s), mata o Edge e apaga o perfil antes de sair
+   (um Edge pendurado deixa ~120 MB de perfil e processos vivos). */
+const __wd = setTimeout(() => { console.error('TIMEOUT: passou de ' + (process.env.TIMEOUT_S || 240) + ' s'); if (global.__cur) cleanup(global.__cur); process.exit(3); }, (+process.env.TIMEOUT_S || 240) * 1000);
 (async () => {
   const [cmd, ...a] = process.argv.slice(2);
   if (cmd === 'shot') await cmdShot(a[0], a[1], a[2] ? +a[2] : undefined, a[3] ? +a[3] : undefined, a[4]);
   else if (cmd === 'templates') await cmdTemplates(a[0], a[1] ? +a[1] : 1, a.slice(2));
   else if (cmd === 'eval') await cmdEval(a[0], a[1]);
   else console.log('uso: render.js shot|templates|eval ...');
-  process.exit(0);
+  clearTimeout(__wd); process.exit(0);
 })().catch((e) => { console.error('FALHOU', e.message); process.exit(1); });

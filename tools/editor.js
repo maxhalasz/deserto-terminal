@@ -48,7 +48,7 @@ let curPageIdx = 0;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup','__userLocked'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__newsGenerated','__newsRole','__flowIdx','__flowPara','__newsState','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup','__userLocked'];
 let history = [];
 let historyIndex = -1;
 /* Contador de profundidade, NÃO boolean — uma operação em lote (trocar de página, trocar
@@ -107,22 +107,6 @@ function updateUndoRedoButtons(){
   if (br) br.disabled = historyIndex>=history.length-1;
 }
 
-/* Reconstrói só a parte do jornal gerada pelo motor de layout (customType
-   'newspaperPart'), preservando qualquer outro objeto que o Max tenha adicionado
-   à mão (o fundo de papel nunca é tocado). Usado pelos presets/controles de coluna. */
-async function rebuildNewspaperLayout(){
-  if (!currentNewsContent || !currentNewsLayout) return;
-  beginBatch(); // troca de preset é UMA ação do usuário, não N pushes por objeto removido/adicionado
-  try {
-    canvas.getObjects().filter(o=>o.__newsGenerated).forEach(o=>canvas.remove(o));
-    const objs = await buildNewspaperObjects(currentNewsContent, currentNewsLayout);
-    objs.forEach(o=>canvas.add(o));
-    canvas.renderAll();
-    renderLayerList();
-  } finally { endBatch(); }
-  pushHistory();
-}
-
 function initCanvas(){
   canvas = new fabric.Canvas('editorCanvas', {
     width: PAGE_W, height: PAGE_H,
@@ -169,7 +153,7 @@ function initCanvas(){
   setZoom(0.5);
   pushHistory();
 }
-function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext' || o.type==='itext'; }
+function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext' || o.type==='itext' || o.type==='newsbox'; }
 function isLockedBase(o){ return o.customType==='background' || o.customType==='brandArt'; }
 
 /* ---- Travar/esconder por objeto (ícones na lista de Camadas) — diferente de
@@ -322,8 +306,9 @@ async function ensureFonts(specs){
 }
 function settleFonts(){
   if (fabric.cache && fabric.cache.clearFontCache) fabric.cache.clearFontCache();
+  if (typeof newsClearMeasureCache==='function') newsClearMeasureCache();
   if (typeof canvas==='undefined' || !canvas) return;
-  canvas.getObjects().forEach(o=>{ if (typeof o.initDimensions==='function' && /text/i.test(o.type||'')) o.initDimensions(); });
+  canvas.getObjects().forEach(o=>{ if (typeof o.initDimensions==='function' && /text|newsbox/i.test(o.type||'')) o.initDimensions(); });
   canvas.requestRenderAll();
 }
 document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', ()=>settleFonts());
@@ -362,7 +347,9 @@ function setBackgroundPaper(filename, opts){
   return new Promise(resolve=>{
     fabric.Image.fromURL(TEXTURE_PACK[filename], {crossOrigin:'anonymous'}).then(img=>{
       const old = canvas.getObjects().find(o=>o.customType==='background');
+      const keepNews = old && old.__newsState;
       if (old) canvas.remove(old);
+      if (keepNews) img.__newsState = keepNews;
       const ir = img.width/img.height, tr = PAGE_W/PAGE_H;
       let sw=img.width, sh=img.height;
       if (ir>tr) sw = img.height*tr; else sh = img.width/tr;
@@ -414,8 +401,10 @@ function getPaperBg(){ const b = getBackground(); return (b && b.type==='paperba
 function setPaper(spec){
   const s = paperNormalizeSpec(Object.assign({seed: randomSeed32()}, spec||{}));
   const old = getBackground();
+  const keepNews = old && old.__newsState;
   if (old) canvas.remove(old);
   const bg = new PaperBackground({width:PAGE_W, height:PAGE_H, paperSpec:s});
+  if (keepNews) bg.__newsState = keepNews;
   canvas.add(bg);
   canvas.sendObjectToBack(bg);
   currentFoldField = null; currentRuledLines = null;
@@ -979,26 +968,7 @@ async function loadTemplateBody(name){
     canvas.renderAll(); renderLayerList(); return;
   }
 
-  if (name==='newspaper'){
-    await setTemplateBackground('paper_newsprint');
-    const content = {
-      orgao: 'THE ABYSSAL POST',
-      data: 'MARCH 14 — EDITION NO. 118',
-      kicker: '',
-      headline: 'PLATFORM LOSES CONTACT WITH DIVE TEAM',
-      subhead: 'Radio still transmitting static on the same channel since 03:12',
-      byline: 'STAFF REPORT',
-      body: 'The dive team failed to return to the deck yesterday morning. Contact with base was lost at 03:12, according to night-shift logs.\n\nNo bodies have been recovered. The company operating the platform declined to comment on the incident.\n\nCoastal residents report hearing a continuous sound coming from the sea overnight, described as "a low choir, almost a breathing."\n\nDrilling operations continue as normal, according to an internal memo. Independent experts have questioned the official account.',
-      photo: 'The platform, photographed on a clear day. No rescue team was dispatched to the site.',
-      pullquoteText: '', sidebarTitle: '', sidebarText: '',
-      gothic: true,
-    };
-    currentNewsContent = content;
-    currentNewsLayout = JSON.parse(JSON.stringify(NEWS_PRESETS.p2));
-    const objs = await buildNewspaperObjects(content, currentNewsLayout);
-    objs.forEach(o=>canvas.add(o));
-  }
-  else if (name==='report'){
+  if (name==='report'){
     await setTemplateBackground('paper_aged');
     const head = new fabric.Textbox('CONFIDENTIAL — INTERNAL USE ONLY\nNEUROSTAT — FIELD DIVISION\nREF: NS-DES-0447\nDATE: 03/14', {left:90, top:90, width:500, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:14, fill:'#141414', lineHeight:1.5});
     const body = new RedactedText('INCIDENT REPORT — NIGHT SHIFT\n\nAt 03:12 radio contact with the dive team was lost. The last recorded transmission consisted of broadband noise, no identifiable verbal content.\n\nSurface crew not authorized to descend without direct order from supervision.', {left:90, top:220, width:PAGE_W-180, redactPct:0, fontSize:16});
@@ -1509,27 +1479,33 @@ document.getElementById('btnPageNext').addEventListener('click', ()=>pageGo(curP
 document.getElementById('btnPageAdd').addEventListener('click', ()=>pageAdd());
 document.getElementById('btnPageDel').addEventListener('click', ()=>pageDelete());
 
-/* ===================== Layout do jornal (presets + colunas) ===================== */
+/* ===================== Layout do jornal (presets, título, justificar, caixa) =====================
+   O texto e as fotos vivem nos próprios objetos (news-engine.js: __newsRole); trocar de preset colhe o que
+   está no canvas e refaz o layout, então nada do que o Max editou se perde. */
 const newsPresetRow = document.getElementById('newsPresetRow');
-Object.entries(NEWS_PRESETS).forEach(([key, preset])=>{
+NEWS_PRESET_ORDER.forEach(key=>{
   const b = document.createElement('button');
-  b.textContent = preset.label;
-  b.addEventListener('click', ()=>{
-    currentNewsLayout = JSON.parse(JSON.stringify(preset));
-    document.getElementById('newsCols').value = currentNewsLayout.nCols;
-    rebuildNewspaperLayout();
-  });
+  b.textContent = NEWS_PRESETS[key].label; b.dataset.preset = key;
+  b.addEventListener('click', ()=>{ if (!sceneBusy) newsRebuild({preset:key}); });
   newsPresetRow.appendChild(b);
 });
-document.getElementById('newsCols').addEventListener('change', (e)=>{
-  if (!currentNewsLayout) return;
-  currentNewsLayout.nCols = +e.target.value;
-  rebuildNewspaperLayout();
-});
+document.getElementById('newsMast').addEventListener('change', e=>{ if (!sceneBusy) newsRebuild({mast:e.target.value}); });
+document.getElementById('newsJustify').addEventListener('change', e=>{ if (!sceneBusy) newsRebuild({justify:e.target.checked}); });
+document.getElementById('btnNewsReflow').addEventListener('click', ()=>{ if (!sceneBusy) newsRebuild({}); });
+function addNewsBox(){
+  const nb = new NewsBox('Write here. The box grows with the text.', {left:PAGE_W/2-150, top:PAGE_H/2-70, width:300, frame:'box', title:'NOTICE', globalCompositeOperation:'multiply'});
+  canvas.add(nb); canvas.setActiveObject(nb); canvas.renderAll();
+}
+['btnAddNewsBox','btnNewsBoxHere'].forEach(id=>{ const b = document.getElementById(id); if (b) b.addEventListener('click', addNewsBox); });
 function syncNewsLayoutUI(){
   const show = currentTemplate==='newspaper';
   document.getElementById('newsLayoutBlock').style.display = show?'block':'none';
-  if (show && currentNewsLayout) document.getElementById('newsCols').value = currentNewsLayout.nCols;
+  const st = show ? getNewsState() : null;
+  if (st){
+    document.getElementById('newsMast').value = st.mast || 'gothic';
+    document.getElementById('newsJustify').checked = !!st.justify;
+  }
+  document.querySelectorAll('#newsPresetRow button').forEach(b=>b.classList.toggle('active', !!st && b.dataset.preset===st.preset));
   syncPaperUI();
 }
 
@@ -1621,6 +1597,7 @@ function objLabel(o){
   if (o.type==='group' && o.__userGroup) return '📦 Grupo';
   if (o.type==='handwrittentext') return '✎ ' + (o.text||'').slice(0,18);
   if (o.type==='redactedtext') return '▬ ' + (o.text||'').slice(0,18);
+  if (o.type==='newsbox') return '📰 ' + (o.title || o.text || '').toString().replace(/\s+/g,' ').slice(0,22);
   if (o.type==='textbox') return 'T ' + (o.text||'').slice(0,18);
   if (o.type==='image') return '🖼 Imagem';
   return o.type;
@@ -1713,6 +1690,9 @@ function renderEditorPreview(targetObj, text){
   } else if (targetObj.type==='redactedtext'){
     const tmp = new RedactedText(text||' ', {width:w, redactPct:targetObj.redactPct, seed:targetObj.seed, fontFamily:targetObj.fontFamily, fontSize:targetObj.fontSize, fill:targetObj.fill});
     tmp._render(ctx);
+  } else if (targetObj.type==='newsbox'){
+    const tmp = new NewsBox(text||' ', Object.assign(targetObj.newsOptions(), {title: document.getElementById('editorTitleInput').value}));
+    tmp._render(ctx);
   } else {
     ctx.font = `${targetObj.fontSize||16}px ${targetObj.fontFamily||"'PT Serif'"}`;
     ctx.fillStyle = targetObj.fill||'#181410';
@@ -1742,6 +1722,9 @@ function openTextEditor(targetObj){
   document.getElementById('editorTitle').textContent = 'Editando texto';
   const ta = document.getElementById('editorTextarea');
   ta.value = targetObj.text;
+  const ti = document.getElementById('editorTitleInput');
+  if (targetObj.type==='newsbox'){ ti.style.display = 'block'; ti.value = targetObj.title || ''; document.getElementById('editorTitle').textContent = 'Editando caixa de jornal'; }
+  else ti.style.display = 'none';
   document.getElementById('editorModal').hidden = false;
   updateEditorCount();
   renderEditorPreview(targetObj, ta.value);
@@ -1760,6 +1743,11 @@ function closeTextEditor(){
       canvas.setActiveObject(fresh);
       canvas.renderAll(); renderLayerList();
       pushHistory();
+    } else if (editorTarget.type==='newsbox'){
+      const newTitle = document.getElementById('editorTitleInput').value, beforeTitle = editorTarget.title;
+      editorTarget.set({title:newTitle, text:newText});
+      canvas.renderAll(); renderLayerList();
+      if (newText !== before || newTitle !== beforeTitle) pushHistory();
     } else {
       editorTarget.set('text', newText);
       canvas.renderAll(); renderLayerList();
@@ -1771,6 +1759,9 @@ function closeTextEditor(){
 }
 document.getElementById('editorTextarea').addEventListener('input', ()=>{
   updateEditorCount();
+  if (editorTarget) renderEditorPreview(editorTarget, document.getElementById('editorTextarea').value);
+});
+document.getElementById('editorTitleInput').addEventListener('input', ()=>{
   if (editorTarget) renderEditorPreview(editorTarget, document.getElementById('editorTextarea').value);
 });
 document.getElementById('editorClose').addEventListener('click', closeTextEditor);
@@ -2039,7 +2030,9 @@ function updateInspector(){
     return;
   }
 
-  if (obj.type==='brandtext'){
+  if (obj.type==='newsbox'){
+    renderNewsBoxInspector(obj, body);
+  } else if (obj.type==='brandtext'){
     renderBrandTextInspector(obj, body);
   } else if (obj.type==='textbox' || obj.type==='handwrittentext' || obj.type==='redactedtext'){
     renderTextInspector(obj, body);
@@ -2121,6 +2114,17 @@ function renderLayerProps(obj, body){
   body.appendChild(details);
 }
 
+function renderNewsBoxInspector(obj, body){
+  body.appendChild(field.button('✎ Editar título e texto', ()=>openTextEditor(obj)));
+  const frames = [{value:'box',label:'Moldura simples'},{value:'bar',label:'Faixa preta no título'},{value:'ad',label:'Anúncio (linha dupla)'},{value:'rules',label:'Só filetes'},{value:'none',label:'Sem moldura'}];
+  body.appendChild(field.select('Estilo da caixa', frames, obj.frame, v=>{ obj.set('frame', v); canvas.renderAll(); pushHistory(); }));
+  body.appendChild(field.range('Tamanho do texto', obj.fontSize, 9, 40, 0.5, v=>{ obj.set('fontSize', v); canvas.renderAll(); }));
+  body.appendChild(field.range('Entrelinha', obj.lineHeight, 1, 1.8, 0.02, v=>{ obj.set('lineHeight', v); canvas.renderAll(); }));
+  body.appendChild(field.checkbox('Texto justificado', !!obj.justify, v=>{ obj.set('justify', v); canvas.renderAll(); pushHistory(); }));
+  body.appendChild(field.checkbox('Texto em itálico', obj.bodyStyle==='italic', v=>{ obj.set('bodyStyle', v ? 'italic' : 'normal'); canvas.renderAll(); pushHistory(); }));
+  body.appendChild(field.color('Cor da tinta', rgbToHex(obj.fill), v=>{ obj.set('fill', v); canvas.renderAll(); }));
+  body.appendChild(field.hint('A altura segue o texto sozinha. Arraste as alças do meio (esquerda/direita) pra mudar a largura.'));
+}
 function renderTextInspector(obj, body){
   const editWrap = document.createElement('div');
   editWrap.appendChild(field.label('Texto'));
@@ -2240,6 +2244,12 @@ function renderImageInspector(obj, body){
           newImg.applyFilters();
           newImg.set('customType', obj.customType==='photoPlaceholder'?'photo':obj.customType);
           if (obj.__labName) newImg.__labName = obj.__labName;
+          if (obj.__newsRole){
+            // foto de jornal: mantém o papel (role) e reencaixa na caixa (cover), senão o rebuild perde a foto
+            newImg.__newsRole = obj.__newsRole; newImg.__newsGenerated = obj.__newsGenerated;
+            newImg.set('globalCompositeOperation', obj.globalCompositeOperation);
+            newsFitCover(newImg, obj.left, obj.top, obj.getScaledWidth(), obj.getScaledHeight());
+          }
           applyPhotoCornerRadius(newImg, obj.__cornerRadiusPx||0);
           const idx = canvas.getObjects().indexOf(obj);
           canvas.remove(obj);
@@ -2367,6 +2377,7 @@ function extractTextEntries(objOrJsonList){
       // chaves diferentes ("Textbox" vs "textbox") dependendo de qual página/lado veio.
       const type = o.customType || (o.type||'').toLowerCase();
       out.push({type, text: o.text});
+      if (o.title && String(o.title).trim()) out.push({type:'newsboxTitle', text:String(o.title)});
     }
   });
   return out;
@@ -2376,7 +2387,7 @@ const TEXT_ENTRY_LABELS = {
   // código já usa (confirmado em brand.js/handwriting.js/network-diagram.js) — já o `type`
   // nativo do Fabric (textbox, handwrittentext, redactedtext) chega sempre minúsculo aqui
   // porque extractTextEntries já normaliza isso antes de guardar.
-  textbox: 'Texto', handwrittentext: 'Texto manuscrito', redactedtext: 'Texto censurado',
+  textbox: 'Texto', newsbox: 'Caixa de jornal', newsboxTitle: 'Título da caixa', handwrittentext: 'Texto manuscrito', redactedtext: 'Texto censurado',
   brandText: 'Campo do documento', stampText: 'Carimbo', polaroidCaption: 'Legenda Polaroid',
   cctvHudText: 'HUD câmera', netNodeLabel: 'Rótulo do nó de rede', watermark: "Marca d'água",
 };

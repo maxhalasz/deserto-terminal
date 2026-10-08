@@ -1,11 +1,11 @@
-# Servidor estático local SEM cache (o navegador do app insiste em reaproveitar JS velho).
-import http.server, socketserver, sys, os
+# Servidor estático local SEM cache e com várias conexões ao mesmo tempo
+# (o navegador do app e o Edge sem janela batem juntos; um servidor de uma conexão só travava).
+import http.server, sys
 port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 class H(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store, max-age=0')
         super().end_headers()
     def log_message(self, *a): pass
-socketserver.TCPServer.allow_reuse_address = True
-with socketserver.TCPServer(('', port), H) as s:
-    s.serve_forever()
+http.server.ThreadingHTTPServer.allow_reuse_address = True
+http.server.ThreadingHTTPServer(('', port), H).serve_forever()
