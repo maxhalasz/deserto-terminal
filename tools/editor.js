@@ -1713,6 +1713,65 @@ function renderEditorPreview(targetObj, text){
   }
   ctx.restore();
 }
+/* Barra de formatação do modal (duplo clique no texto): fonte, tamanho, negrito, itálico, alinhamento e cor.
+   Aplica ao vivo no objeto (a prévia já lê dele) e o desfazer entra no fechar do modal.
+   Cada tipo tem os nomes de propriedade dele (NewsBox: bodyFont/bodyWeight/bodyStyle). */
+let editorFormatDirty = false;
+function editorFmtProps(o){
+  if (o.type==='newsbox') return {font:'bodyFont', weight:'bodyWeight', style:'bodyStyle', align:'textAlign', fill:'fill', size:'fontSize', quotes:false};
+  return {font:'fontFamily', weight:'fontWeight', style:'fontStyle', align:'textAlign', fill:'fill', size:'fontSize', quotes:true};
+}
+function buildEditorFormat(o){
+  const bar = document.getElementById('editorFormat');
+  bar.innerHTML = '';
+  editorFormatDirty = false;
+  if (o.type==='handwrittentext'){
+    bar.style.display = 'flex';
+    const sel = document.createElement('select'); sel.title = 'Estilo de letra';
+    HANDWRITING_PERSONA_LIST.forEach(p=>{ const op = document.createElement('option'); op.value = p.id; op.textContent = p.label; sel.appendChild(op); });
+    sel.value = o.personaId;
+    sel.addEventListener('change', ()=>{ o.personaId = sel.value; editorFormatDirty = true; canvas.requestRenderAll(); renderEditorPreview(o, document.getElementById('editorTextarea').value); });
+    bar.appendChild(sel);
+    return;
+  }
+  if (o.customType==='stampText' || o.type==='group'){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const P = editorFmtProps(o);
+  const apply = (k, v)=>{ o.set(k, v); editorFormatDirty = true; canvas.requestRenderAll(); renderEditorPreview(o, document.getElementById('editorTextarea').value); };
+  // fonte
+  const fams = DOC_FONTS.map(f=>P.quotes ? `'${f}'` : f);
+  const cur = o[P.font];
+  if (cur && !fams.includes(cur)) fams.unshift(cur);
+  const fsel = document.createElement('select'); fsel.title = 'Fonte'; fsel.className = 'fmtFont';
+  fams.forEach(f=>{ const op = document.createElement('option'); op.value = f; op.textContent = String(f).replace(/'/g,''); op.style.fontFamily = P.quotes ? f : `'${f}'`; fsel.appendChild(op); });
+  fsel.value = cur;
+  fsel.addEventListener('change', ()=>apply(P.font, fsel.value));
+  bar.appendChild(fsel);
+  // tamanho
+  const size = document.createElement('input'); size.type = 'number'; size.min = 6; size.max = 400; size.step = 1; size.title = 'Tamanho'; size.className = 'fmtSize';
+  size.value = Math.round(o[P.size]*10)/10;
+  size.addEventListener('input', ()=>{ const v = +size.value; if (v >= 6) apply(P.size, v); });
+  bar.appendChild(size);
+  const tog = (label, title, on, fn, st)=>{
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.title = title; b.className = 'fmtBtn' + (on ? ' on' : ''); if (st) b.style.cssText = st;
+    b.addEventListener('click', ()=>{ const now = !b.classList.contains('on'); b.classList.toggle('on', now); fn(now); });
+    bar.appendChild(b); return b;
+  };
+  tog('B', 'Negrito', +o[P.weight] >= 600 || o[P.weight]==='bold', on=>apply(P.weight, on ? 700 : 400), 'font-weight:700');
+  tog('I', 'Itálico', o[P.style]==='italic', on=>apply(P.style, on ? 'italic' : 'normal'), 'font-style:italic');
+  ['left','center','right'].forEach((a, i)=>{
+    const b = document.createElement('button'); b.type = 'button'; b.title = 'Alinhar ' + ['à esquerda','ao centro','à direita'][i];
+    b.textContent = ['⇤','↔','⇥'][i]; b.className = 'fmtBtn' + ((o[P.align]||'left')===a ? ' on' : '');
+    b.addEventListener('click', ()=>{ bar.querySelectorAll('.fmtAlign').forEach(x=>x.classList.remove('on')); b.classList.add('on'); apply(P.align, a); });
+    b.classList.add('fmtAlign'); bar.appendChild(b);
+  });
+  if (typeof o[P.fill]==='string'){
+    const col = document.createElement('input'); col.type = 'color'; col.title = 'Cor do texto'; col.className = 'fmtColor';
+    col.value = rgbToHex(o[P.fill]);
+    col.addEventListener('input', ()=>apply(P.fill, col.value));
+    bar.appendChild(col);
+  }
+}
 function updateEditorCount(){
   const v = document.getElementById('editorTextarea').value;
   document.getElementById('editorCount').textContent = v.length+' caracteres, '+(v.trim()?v.trim().split(/\s+/).length:0)+' palavras';
@@ -1725,6 +1784,7 @@ function openTextEditor(targetObj){
   const ti = document.getElementById('editorTitleInput');
   if (targetObj.type==='newsbox'){ ti.style.display = 'block'; ti.value = targetObj.title || ''; document.getElementById('editorTitle').textContent = 'Editando caixa de jornal'; }
   else ti.style.display = 'none';
+  buildEditorFormat(targetObj);
   document.getElementById('editorModal').hidden = false;
   updateEditorCount();
   renderEditorPreview(targetObj, ta.value);
@@ -1754,6 +1814,7 @@ function closeTextEditor(){
       if (newText !== before) pushHistory();
     }
   }
+  if (editorFormatDirty){ canvas.renderAll(); renderLayerList(); pushHistory(); editorFormatDirty = false; }
   document.getElementById('editorModal').hidden = true;
   editorTarget = null;
 }
@@ -2118,6 +2179,12 @@ function renderNewsBoxInspector(obj, body){
   body.appendChild(field.button('✎ Editar título e texto', ()=>openTextEditor(obj)));
   const frames = [{value:'box',label:'Moldura simples'},{value:'bar',label:'Faixa preta no título'},{value:'ad',label:'Anúncio (linha dupla)'},{value:'rules',label:'Só filetes'},{value:'none',label:'Sem moldura'}];
   body.appendChild(field.select('Estilo da caixa', frames, obj.frame, v=>{ obj.set('frame', v); canvas.renderAll(); pushHistory(); }));
+  const nbFonts = DOC_FONTS.slice(); if (obj.bodyFont && !nbFonts.includes(obj.bodyFont)) nbFonts.unshift(obj.bodyFont);
+  body.appendChild(field.select('Fonte do texto', nbFonts.map(f=>({value:f, label:f})), obj.bodyFont, v=>{ obj.set('bodyFont', v); canvas.renderAll(); pushHistory(); }));
+  if (obj.title !== undefined && obj.frame !== 'none'){
+    const tFonts = DOC_FONTS.slice(); if (obj.titleFont && !tFonts.includes(obj.titleFont)) tFonts.unshift(obj.titleFont);
+    body.appendChild(field.select('Fonte do título', tFonts.map(f=>({value:f, label:f})), obj.titleFont, v=>{ obj.set('titleFont', v); canvas.renderAll(); pushHistory(); }));
+  }
   body.appendChild(field.range('Tamanho do texto', obj.fontSize, 9, 40, 0.5, v=>{ obj.set('fontSize', v); canvas.renderAll(); }));
   body.appendChild(field.range('Entrelinha', obj.lineHeight, 1, 1.8, 0.02, v=>{ obj.set('lineHeight', v); canvas.renderAll(); }));
   body.appendChild(field.checkbox('Texto justificado', !!obj.justify, v=>{ obj.set('justify', v); canvas.renderAll(); pushHistory(); }));

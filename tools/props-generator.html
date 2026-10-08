@@ -6,12 +6,12 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Gerador de Props — O Deserto</title>
 <link rel="stylesheet" href="vendor/fonts.css">
-<link rel="stylesheet" href="vendor/fonts-docs.css?v=f1-06">
+<link rel="stylesheet" href="vendor/fonts-docs.css?v=f1-07">
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
 <script src="vendor/brand/brand-index.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="print-dpi.js?v=f1-06"></script>
+<script src="print-dpi.js?v=f1-07"></script>
 <style>
   /* Tokens de design (rework "visual de verdade" pedido pelo Max, depois do "continua
      exatamente igual a antes") — extrai cores JÁ usadas pro arquivo inteiro, não uma
@@ -154,6 +154,12 @@
   #editorTextarea{flex:1;width:100%;resize:none;font:16px/1.7 'Segoe UI',sans-serif;background:#0f1115;border:1.5px solid #333844;
     color:#f0f2f5;caret-color:#7fb0ff;border-radius:6px;padding:16px;outline:none}
   #editorTextarea:focus{border-color:#4a7ab5;box-shadow:0 0 0 3px rgba(74,122,181,.25)}
+  .fmtBar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+  .fmtBar select{width:auto;min-width:150px;flex:1;max-width:230px}
+  .fmtBar .fmtSize{width:64px}
+  .fmtBar .fmtBtn{width:34px;margin:0;padding:6px 0;font-size:13px}
+  .fmtBar .fmtBtn.on{background:#2c4a72;border-color:#3d6293;color:#fff}
+  .fmtBar .fmtColor{width:40px;height:32px;padding:2px}
   .modalPreviewCol{flex:0 0 300px;display:flex;flex-direction:column;gap:8px;min-width:0}
   .modalPreviewCol .hint{color:#767c88;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em}
   #editorPreviewWrap{flex:1;background:#0a0a0a;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;border:1px solid #2b2f38}
@@ -167,7 +173,7 @@
 <div id="side">
   <div>
     <h1>GERADOR DE PROPS</h1>
-    <div class="sub">O Deserto — editor de documentos/jornais pra imprimir ou "digitalizar" nos HDs da DRE. Ferramenta de GM, não é acessada pelos jogadores. <span style="color:#5b6170">· versão <span id="buildTag">f1-06</span></span></div>
+    <div class="sub">O Deserto — editor de documentos/jornais pra imprimir ou "digitalizar" nos HDs da DRE. Ferramenta de GM, não é acessada pelos jogadores. <span style="color:#5b6170">· versão <span id="buildTag">f1-07</span></span></div>
     <details class="shortcutsBox">
       <summary>？ Atalhos de teclado</summary>
       <div class="shortcutsList">
@@ -276,6 +282,27 @@
       <button id="btnExportPDF">⭳ Baixar PDF (todas as páginas)</button>
       <button id="btnExportText">📝 Baixar texto (editar fora, tipo Google Docs)</button>
       <div class="hint">Baixa um .txt com todo o texto do documento (todas as páginas), organizado por seção. Suba no Google Drive e abra — ele converte pra Docs sozinho. Edite lá e cole de volta aqui na mão depois.</div>
+    </div></div>
+
+    <div class="panel" id="saveBlock"><div class="panel-head"><span class="ico">💾</span><span class="ttl">Meus documentos</span></div><div class="panel-body">
+      <div class="hint">Salva o documento inteiro (todas as páginas) pra abrir e corrigir depois. Vai pro site (Firebase); se o site não responder, fica neste navegador. O arquivo .json é backup que não depende de nada.</div>
+      <label>Nome do documento</label>
+      <input type="text" id="docName" placeholder="ex: Jornal edição 118">
+      <button id="btnSaveDoc" class="primary">💾 Salvar no site</button>
+      <div class="grid2">
+        <button id="btnSaveFile" class="ghost">⭳ Baixar arquivo</button>
+        <button id="btnOpenFile" class="ghost">📂 Abrir arquivo</button>
+      </div>
+      <input type="file" id="fileOpenDoc" accept=".json,application/json" style="display:none">
+      <div id="saveStatus" class="hint"></div>
+      <details class="filterSection" id="saveRulesHelp">
+        <summary>Como liberar o salvamento no site (uma vez só)</summary>
+        <div class="hint">No console do Firebase: projeto deserto-terminal → Realtime Database → aba Regras. Dentro de "rules" (junto de "sessions"), acrescente os dois blocos abaixo e clique em Publicar:</div>
+        <pre style="white-space:pre-wrap;font-size:10.5px;color:#c7cdd6;background:#0f1115;border:1px solid #2b2f38;border-radius:4px;padding:8px;margin:6px 0 0">"props_docs": { ".read": "auth != null", ".write": "auth != null" },
+"props_docs_index": { ".read": "auth != null", ".write": "auth != null" }</pre>
+      </details>
+      <button id="btnRefreshDocs" class="ghost">↻ Atualizar lista</button>
+      <div id="docList" class="hint">Clique em "Atualizar lista" pra ver o que está salvo (site e este navegador).</div>
     </div></div>
 
     <div id="status" style="font-size:10.5px;color:#6a7080;white-space:pre-line"></div>
@@ -388,6 +415,7 @@
     <div class="modalHead"><span id="editorTitle">Editando</span><button id="editorClose" class="primary">✓ Fechar e aplicar (Esc)</button></div>
     <div class="modalSplit">
       <div class="modalEditCol">
+        <div id="editorFormat" class="fmtBar" style="display:none"></div>
         <input type="text" id="editorTitleInput" placeholder="Título da caixa" style="display:none;margin-bottom:6px">
         <textarea id="editorTextarea" spellcheck="false"></textarea>
       </div>
@@ -400,21 +428,22 @@
   </div>
 </div>
 
-<script src="handwriting.js?v=f1-06"></script>
-<script src="filters.js?v=f1-06"></script>
-<script src="filter-panel.js?v=f1-06"></script>
-<script src="composites.js?v=f1-06"></script>
-<script src="network-diagram.js?v=f1-06"></script>
-<script src="layout.js?v=f1-06"></script>
-<script src="paper-gen.js?v=f1-06"></script>
-<script src="doc-kit.js?v=f1-06"></script>
-<script src="doc-templates.js?v=f1-06"></script>
-<script src="doc-menus.js?v=f1-06"></script>
-<script src="news-text.js?v=f1-06"></script>
-<script src="news-engine.js?v=f1-06"></script>
-<script src="scene-stack.js?v=f1-06"></script>
-<script src="ui-kit.js?v=f1-06"></script>
-<script src="editor.js?v=f1-06"></script>
-<script src="brand.js?v=f1-06"></script>
+<script src="handwriting.js?v=f1-07"></script>
+<script src="filters.js?v=f1-07"></script>
+<script src="filter-panel.js?v=f1-07"></script>
+<script src="composites.js?v=f1-07"></script>
+<script src="network-diagram.js?v=f1-07"></script>
+<script src="layout.js?v=f1-07"></script>
+<script src="paper-gen.js?v=f1-07"></script>
+<script src="doc-kit.js?v=f1-07"></script>
+<script src="doc-templates.js?v=f1-07"></script>
+<script src="doc-menus.js?v=f1-07"></script>
+<script src="news-text.js?v=f1-07"></script>
+<script src="news-engine.js?v=f1-07"></script>
+<script src="scene-stack.js?v=f1-07"></script>
+<script src="ui-kit.js?v=f1-07"></script>
+<script src="editor.js?v=f1-07"></script>
+<script src="brand.js?v=f1-07"></script>
+<script src="save-docs.js?v=f1-07"></script>
 </body>
 </html>
