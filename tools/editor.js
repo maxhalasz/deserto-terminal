@@ -246,50 +246,7 @@ document.getElementById('btnZoomFit').addEventListener('click', zoomToFit);
    paisagem, tela de terminal 4:3, cartão de crachá) em vez de um canvas único
    pra tudo. PAGE_W/PAGE_H (layout.js) são lidos no momento do uso em todo o
    resto do código, então só trocar o valor e re-aplicar o zoom já propaga. ---- */
-const PAGE_SIZES = {
-  newspaper:[1240,1754], report:[1240,1754], note:[1240,1754], redacted:[1240,1754],
-  tag:[1240,1754], letter:[1240,1754], blank:[1240,1754],
-  diary:[2480,1754],   // duas páginas retrato lado a lado — proporção real de livro aberto
-  terminal:[1600,1200], // paisagem 4:3, proporção de tela CRT
-  badge:[860,540],      // cartão de crachá, ~1.6:1
-  whatsapp:[1080,2220], email_mobile:[1080,2220], // print de celular, proporção ~19.5:9
-  email_desktop:[1600,1000], // tela de computador, paisagem 16:10
-  email_90s:[1200,900],      // monitor CRT 4:3 (era do Outlook Express)
-  menu_fine:[1240,1754], menu_diner:[1240,1754], menu_fastfood:[1240,1754], // A4 retrato, mesma folha dos outros impressos
-};
-// Templates que são print de tela (sem papel físico algum) — nascem no modo Digital,
-// igual ao crachá, mas por um motivo diferente: não existe versão "fotografada" possível.
-const DIGITAL_SCREEN_TEMPLATES = ['badge','whatsapp','email_mobile','email_desktop','email_90s','menu_fastfood'];
-// Cor(es) do fundo liso de cada print de tela (buildFlatScreenBg) — fonte única usada tanto
-// por loadTemplateBody (primeira página) quanto por pageAdd (páginas extras do mesmo doc),
-// pro mesmo motivo que 'terminal'/'digital' já precisavam de um caso especial ali: sem isso
-// uma página nova nesses templates nasceria sem fundo nenhum (nenhuma das 3 condições que
-// pageAdd já checava — terminal, digital com categoria, papel com categoria — bateria).
-const FLAT_SCREEN_BG = {
-  whatsapp:['#ECE5DD'], email_mobile:['#ffffff'], email_desktop:['#ffffff'], email_90s:['#c0c0c0'],
-  menu_fastfood:['#d41c1c','#a81414'],
-};
-/* Arimo/Source Sans 3/Oswald são fontes NOVAS nesse arquivo — nenhum template antigo
-   (newspaper/report/badge/...) as usa, então nenhuma delas é "esquentada" pelo
-   loadTemplate('newspaper') do carregamento inicial (document.fonts.ready, fim do
-   arquivo). Mesmo bug que brand.js já tinha resolvido (ver brandEnsureFonts lá): o
-   navegador só baixa um @font-face quando alguém pede pra desenhar texto nele, e
-   canvas não redesenha sozinho quando a fonte termina de chegar depois — sem esperar
-   aqui, o PRIMEIRO documento desses sai com a fonte reserva do sistema (confirmado ao
-   vivo: cardápio "diner" saiu em serifada em vez de Oswald condensada na primeira carga).
-*/
-const SCREEN_TEMPLATE_FONTS = [
-  "400 16px 'Arimo'", "700 16px 'Arimo'",
-  "400 16px 'Source Sans 3'", "italic 400 16px 'Source Sans 3'",
-  "500 16px 'Oswald'", "700 16px 'Oswald'",
-];
-let _screenFontsReady = null;
-function ensureScreenTemplateFonts(){
-  if (!_screenFontsReady){
-    _screenFontsReady = Promise.all(SCREEN_TEMPLATE_FONTS.map(s=>document.fonts.load(s, 'AaØøÅåÆæ0123456789—·×').catch(()=>{})));
-  }
-  return _screenFontsReady;
-}
+const PAGE_SIZES = {blank:[1240,1754]};   // só o padrão (A4): o tamanho de cada modelo vem do registry (DOC_TEMPLATES[id].page); o brand.js acrescenta os dele
 /* Carrega as fontes de UM modelo ANTES de montar (o navegador só baixa a fonte quando alguém
    pede pra desenhar com ela, e o canvas não redesenha sozinho depois). Depois limpa o cache de
    largura de letra do Fabric (ele guarda por fonte: se um texto mediu com a fonte reserva, o erro
@@ -428,7 +385,7 @@ function syncPaperUI(){
   const brand = currentTemplate && currentTemplate.indexOf('brand:')===0;
   const st = brand ? null : readPaperUIState();
   const def = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate];
-  const screen = def ? !!def.screen : (FLAT_SCREEN_BG[currentTemplate] || currentTemplate==='terminal');
+  const screen = !!(def && def.screen);
   block.style.display = (!st || st.kind==='flat' || screen) ? 'none' : 'block';
   if (block.style.display==='none') return;
   document.getElementById('paperType').value = st.kind==='foto' ? 'foto' : st.type;
@@ -506,75 +463,19 @@ function initPaperUI(){
   if (ex) ex.value = 'textura';
 }
 
-/* ---- fundo digital: sem foto, sem envelhecimento/dobra/pauta — um documento
-   "renderizado" em vez de fotografado (pedido do Max pro crachá: "ao invés de
-   usar uma textura pro cartão de acesso, faz ele digital", generalizado num
-   alternador Texturizado/Digital pra qualquer template). Degradê frio + grade
-   fina (linguagem visual azul-clínica já estabelecida no estacao.html/NeuroStat)
-   em vez de papel real — os carimbos/fotos/composites por cima continuam
-   texturizados nos dois modos, porque não dependem do fundo pra nada. */
-function setDigitalBackground(opts){
-  opts = opts || {};
-  const old = canvas.getObjects().find(o=>o.customType==='background');
-  if (old) canvas.remove(old);
-  const c = document.createElement('canvas'); c.width=PAGE_W; c.height=PAGE_H;
-  const ctx = c.getContext('2d');
-  const grd = ctx.createLinearGradient(0,0,PAGE_W,PAGE_H);
-  grd.addColorStop(0, opts.color1||'#eef2f7');
-  grd.addColorStop(1, opts.color2||'#dbe2ec');
-  ctx.fillStyle = grd; ctx.fillRect(0,0,PAGE_W,PAGE_H);
-  ctx.strokeStyle = 'rgba(20,40,70,0.05)'; ctx.lineWidth = 1;
-  for (let x=0; x<PAGE_W; x+=40){ ctx.beginPath(); ctx.moveTo(x+0.5,0); ctx.lineTo(x+0.5,PAGE_H); ctx.stroke(); }
-  for (let y=0; y<PAGE_H; y+=40){ ctx.beginPath(); ctx.moveTo(0,y+0.5); ctx.lineTo(PAGE_W,y+0.5); ctx.stroke(); }
-  return fabric.Image.fromURL(c.toDataURL()).then(img=>{
-    img.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
-    img.set('customType','background');
-    img.__paperFile = null;
-    canvas.add(img);
-    canvas.sendObjectToBack(img);
-    currentFoldField = null; currentRuledLines = null;
-    return img;
-  });
-}
-
-/* ---- alternador Texturizado/Digital: cada template guarda a CATEGORIA de papel
-   (não o arquivo exato) que usaria se estivesse texturizado, então trocar o modo
-   depois de já ter conteúdo no documento só troca o fundo — não regenera o resto
-   (loadTemplateBody inteiro apagaria edições do Max). ---- */
-let bgMode = 'textured';
+/* Categoria de papel em FOTO do fundo atual (tipo "Foto de papel" do bloco Papel e inspetor do fundo em foto).
+   `LEGACY_PAPER_MAP`: categorias antigas que viram papel procedural. */
 let currentBgCategory = null, currentBgOpts = null;
-/* Modelos que ainda não migraram pro registry já nascem com o papel procedural (visível em tudo);
-   caderno pautado e livro aberto seguem em foto porque o texto manuscrito deles lê a pauta da foto. */
 const LEGACY_PAPER_MAP = {
   paper_newsprint: {type:'jornal', level:0.4, fold:'meio', atmos:'neutra'},
   paper_aged:      {type:'creme',  level:0.4, fold:'nenhuma', atmos:'neutra'},
 };
 function setTemplateBackground(category, opts){
   currentBgCategory = category; currentBgOpts = opts||{};
-  if (bgMode === 'digital') return setDigitalBackground(currentBgOpts);
   if (LEGACY_PAPER_MAP[category]){ setPaper(Object.assign({}, LEGACY_PAPER_MAP[category])); return Promise.resolve(); }
   const rng = mulberry32(Math.floor(Math.random()*4294967296));
   return setBackgroundPaper(pickFile(category, rng), currentBgOpts);
 }
-function updateBgModeUI(){
-  document.querySelectorAll('.bgModeBtn').forEach(b=>b.classList.toggle('active', b.dataset.bgmode===bgMode));
-}
-function setBgMode(mode){
-  if (mode===bgMode){ updateBgModeUI(); return; }
-  bgMode = mode;
-  updateBgModeUI();
-  if (!currentBgCategory) return; // documento ainda não tem fundo de papel (ex: terminal)
-  beginBatch();
-  Promise.resolve(setTemplateBackground(currentBgCategory, currentBgOpts)).then(()=>{
-    canvas.renderAll();
-  }).finally(()=>{
-    endBatch();
-    pushHistory();
-  });
-}
-document.querySelectorAll('.bgModeBtn').forEach(b=>{
-  b.addEventListener('click', ()=>setBgMode(b.dataset.bgmode));
-});
 
 /* ===================== Campo de dobra/vinco (pra texto seguir o relevo do papel) =====================
    Pesquisado: é o mesmo princípio do Displacement Map do Photoshop (Filter > Distort
@@ -864,66 +765,6 @@ function clearDoc(){
   canvas.backgroundColor = '#ffffff';
 }
 
-/* Extraído do template "terminal" pra ser reaproveitado por pageAdd (uma página nova no
-   mesmo documento precisa do mesmo "monitor" de fundo, sem repetir o log de texto —
-   esse cada página escreve o seu). */
-async function buildTerminalScreenBg(){
-  currentFoldField = null; currentRuledLines = null;
-  const screenC = document.createElement('canvas'); screenC.width=PAGE_W; screenC.height=PAGE_H;
-  screenC.getContext('2d').fillStyle = '#0a1512';
-  screenC.getContext('2d').fillRect(0,0,PAGE_W,PAGE_H);
-  const screen = await fabric.Image.fromURL(screenC.toDataURL());
-  screen.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
-  screen.filters = [new ScanlinesFilter({intensity:0.35, density:1400}), new VignetteFilter({amount:0.55, inner:0.2})];
-  screen.applyFilters();
-  screen.set('customType','background');
-  canvas.add(screen);
-}
-
-/* Fundo liso (cor sólida ou degradê) pra prints de tela/app — mesma técnica de
-   buildTerminalScreenBg (desenha num canvas solto, vira fabric.Image, customType
-   'background') mas SEM a grade clínica azulada do setDigitalBackground: aquela
-   grade é a linguagem visual específica da NeuroStat/estacao.html, não faz sentido
-   atrás de um app de chat ou menu de fast-food. */
-async function buildFlatScreenBg(color1, color2){
-  currentFoldField = null; currentRuledLines = null;
-  const c = document.createElement('canvas'); c.width=PAGE_W; c.height=PAGE_H;
-  const ctx = c.getContext('2d');
-  if (color2){
-    const grd = ctx.createLinearGradient(0,0,0,PAGE_H);
-    grd.addColorStop(0,color1); grd.addColorStop(1,color2);
-    ctx.fillStyle = grd;
-  } else ctx.fillStyle = color1;
-  ctx.fillRect(0,0,PAGE_W,PAGE_H);
-  const bg = await fabric.Image.fromURL(c.toDataURL());
-  bg.set({left:0, top:0, selectable:false, evented:true, hoverCursor:'pointer'});
-  bg.set('customType','background');
-  canvas.add(bg);
-  return bg;
-}
-/* Barra de status de celular (hora + sinal + bateria) — reaproveitada pelo print de
-   WhatsApp e pelo print de e-mail no celular, os dois "screenshot de telefone". Ícones
-   são formas Fabric simples (Rects), não glifos de fonte — ficam nítidos em qualquer
-   tamanho de export, sem depender de uma fonte de ícone carregada. */
-function buildPhoneStatusBar(fg){
-  fg = fg || '#111111';
-  const time = new fabric.Textbox('9:41', {left:56, top:28, width:200, fontFamily:"'Arimo'", fontWeight:700, fontSize:32, fill:fg});
-  const bars = [0,1,2,3].map(i=> new fabric.Rect({left:PAGE_W-224+i*20, top:52-i*7, width:11, height:13+i*7, rx:2, ry:2, fill:fg}));
-  const battBody = new fabric.Rect({left:PAGE_W-110, top:32, width:66, height:30, rx:7, ry:7, fill:'transparent', stroke:fg, strokeWidth:3});
-  const battTip = new fabric.Rect({left:PAGE_W-42, top:40, width:6, height:14, rx:2, ry:2, fill:fg});
-  const battFill = new fabric.Rect({left:PAGE_W-104, top:38, width:54, height:18, rx:3, ry:3, fill:fg});
-  return [time, ...bars, battBody, battTip, battFill];
-}
-/* Par nome+preço alinhado (nome na margem esquerda, preço na direita) — usado pelos
-   dois cardápios de papel (fine dining e galley); o de fast-food usa caixas de combo
-   em vez de linha, então não reaproveita essa função. */
-function menuRow(name, price, left, top, width, opts){
-  opts = opts||{};
-  const nameBox = new fabric.Textbox(name, {left, top, width:width-160, fontFamily:opts.fontFamily||"'PT Serif'", fontSize:opts.fontSize||22, fill:opts.fill||'#141414', lineHeight:1.3});
-  const priceBox = new fabric.Textbox(price, {left:left+width-150, top, width:150, originX:'left', textAlign:'right', fontFamily:opts.fontFamily||"'PT Serif'", fontWeight:700, fontSize:opts.fontSize||22, fill:opts.fill||'#141414'});
-  return [nameBox, priceBox];
-}
-
 async function loadTemplate(name, opts){
   return withSceneLock(async ()=>{
     if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
@@ -949,7 +790,7 @@ async function buildDoc(name, variantId){
   const def = DOC_TEMPLATES[name];
   const v = docVariantOf(def, variantId);
   applyPageSize(name);
-  bgMode = 'textured'; currentBgCategory = null; currentBgOpts = null;
+  currentBgCategory = null; currentBgOpts = null;
   await ensureFonts(v.fonts);
   const bg = setPaper(Object.assign({}, v.paper));
   if (v.id) bg.__docVariant = v.id;
@@ -957,357 +798,10 @@ async function buildDoc(name, variantId){
   await v.build(kit, {name, variant:v.id, rng: mulberry32(Math.floor(Math.random()*4294967296))});
 }
 async function loadTemplateBody(name, opts){
-  if (typeof DOC_TEMPLATES!=='undefined' && DOC_TEMPLATES[name]){
-    await buildDoc(name, opts && opts.variant);
-    canvas.renderAll(); renderLayerList(); syncNewsLayoutUI();
-    return;
-  }
-  applyPageSize(name);
-  const rng = mulberry32(Math.floor(Math.random()*4294967296));
-  // Crachá é digital por padrão (pedido do Max: "ao invés de usar uma textura pro
-  // cartão de acesso, faz ele digital") — os outros mantêm o comportamento antigo
-  // (papel fotografado), mas o alternador continua disponível pros dois lados.
-  bgMode = (DIGITAL_SCREEN_TEMPLATES.includes(name)) ? 'digital' : 'textured';
-  currentBgCategory = null; currentBgOpts = null; // reseta pra não sobrar categoria do template anterior (ex: 'terminal' não usa papel algum)
-  updateBgModeUI();
-  if (FLAT_SCREEN_BG[name] || name==='menu_diner' || name==='menu_fastfood') await ensureScreenTemplateFonts();
-
-  if (name==='blank'){
-    await setTemplateBackground('paper_aged');
-    canvas.renderAll(); renderLayerList(); return;
-  }
-
-  if (name==='report'){
-    await setTemplateBackground('paper_aged');
-    const head = new fabric.Textbox('CONFIDENTIAL — INTERNAL USE ONLY\nNEUROSTAT — FIELD DIVISION\nREF: NS-DES-0447\nDATE: 03/14', {left:90, top:90, width:500, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:14, fill:'#141414', lineHeight:1.5});
-    const body = new RedactedText('INCIDENT REPORT — NIGHT SHIFT\n\nAt 03:12 radio contact with the dive team was lost. The last recorded transmission consisted of broadband noise, no identifiable verbal content.\n\nSurface crew not authorized to descend without direct order from supervision.', {left:90, top:220, width:PAGE_W-180, redactPct:0, fontSize:16});
-    const stamp = makeStampObjects('CONFIDENTIAL', {left:PAGE_W-220, top:150, angle:-10, color:'#7a2020'});
-    const sig = new HandwrittenText('M. Holt', {left:90, top:620, width:260, personaId:'C', fontSize:26});
-    [head, body, stamp, sig].forEach(o=>canvas.add(o));
-  }
-  else if (name==='note'){
-    await setTemplateBackground('paper_notebook_ruled', {age:0.3});
-    const body = new HandwrittenText("if you find this\n\ndon't go down\n\nthe radio won't stop but there's no one talking\n\ni saw something near the moonpool yesterday and i'm not going to describe it\n\nstay in the machine room, lock the door", {left:110, top:220, width:PAGE_W-260, personaId:'A', fontSize:30, fatigue:true});
-    canvas.add(body);
-  }
-  else if (name==='redacted'){
-    await setTemplateBackground('paper_aged');
-    const band = new fabric.Rect({left:66, top:70, width:PAGE_W-132, height:34, fill:'#101010'});
-    const bandTxt = new fabric.Textbox('RESTRICTED — DO NOT DISTRIBUTE', {left:PAGE_W/2, top:78, originX:'center', width:900, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:15, fill:'#e6e2d8', textAlign:'center'});
-    const head = new fabric.Textbox('NEUROSTAT\nCASE NO. 0447-D', {left:90, top:130, width:500, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:15, fill:'#141414', lineHeight:1.4});
-    const body = new RedactedText('Subject was located near the coral formation. State of consciousness unknown. Immediate containment and notification of leadership recommended.\n\nThe identified sound pattern does not match any catalog known to the division. Preliminary analysis suggests uncatalogued biological origin.', {left:90, top:220, width:PAGE_W-180, redactPct:28, fontSize:16});
-    const stamp = makeStampObjects('CLASSIFIED', {left:PAGE_W/2, top:PAGE_H/2+150, angle:-18, color:'rgba(150,20,20,0.85)', fontSize:44});
-    [band, bandTxt, head, body, stamp].forEach(o=>canvas.add(o));
-  }
-  else if (name==='tag'){
-    await setTemplateBackground('paper_aged');
-    const border = new fabric.Rect({left:80, top:80, width:PAGE_W-160, height:PAGE_H-160-260, fill:'transparent', stroke:'#141414', strokeWidth:4});
-    const org = new fabric.Textbox('NEUROSTAT', {left:PAGE_W/2, top:130, originX:'center', width:600, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:22, fill:'#141414', textAlign:'center'});
-    const title = new fabric.Textbox('EVIDENCE — DO NOT REMOVE', {left:PAGE_W/2, top:180, originX:'center', width:700, fontFamily:"'Playfair Display'", fontWeight:900, fontSize:30, fill:'#141414', textAlign:'center'});
-    const ref = new fabric.Textbox('CASE 0447 / ITEM 12\nDATE: 03/14', {left:120, top:260, width:500, fontFamily:"'Courier Prime'", fontSize:16, fill:'#141414', lineHeight:1.5});
-    const obs = new fabric.Textbox('Recovered from lower deck. Smell of brackish water. Handle with gloves.', {left:120, top:340, width:PAGE_W-240, fontFamily:"'Courier Prime'", fontSize:14, fill:'#141414', lineHeight:1.4});
-    const barcode = await makeBarcodeImage({left:120, top:560, width:400, seed:Math.floor(rng()*1e9)});
-    barcode.scaleToWidth(400);
-    [border, org, title, ref, obs, barcode].forEach(o=>canvas.add(o));
-  }
-  else if (name==='diary'){
-    // Página dupla: paper_aged_2/3.jpg são fotos de livro ABERTO (lombada visível
-    // no meio) que saíram do pool comum por causa exatamente disso — aqui a
-    // lombada é a feature. Canvas em paisagem (applyPageSize já trocou pra
-    // 2480×1754 — duas páginas de 1240 de largura lado a lado, a lombada cai
-    // bem no meio, em x=1240). Dois blocos de texto, um por página, com margem
-    // suficiente pra não cruzar por cima dela.
-    await setTemplateBackground('paper_aged_bookspread', {age:0.35});
-    const leftEntry = new HandwrittenText(
-      "MARCH 09\n\nCrew rotation finished. Everyone settled in fine, no complaints. Weather held.\n\nRan the weekly radio check at 0600, channel clear both ways. Standard.\n\nOff to bed early tonight.",
-      {left:90, top:180, width:1000, personaId:'G', fontSize:26, fatigue:false}
-    );
-    const rightEntry = new HandwrittenText(
-      "MARCH 13\n\nNo radio check today. Second day in a row now. Base says it's atmospheric.\n\nDive team went down at noon and came back an hour early. Nobody's talking about why.\n\nI keep hearing something under the deck at night. Not the pumps.",
-      {left:PAGE_W/2+90, top:180, width:1000, personaId:'G', fontSize:26, fatigue:true}
-    );
-    [leftEntry, rightEntry].forEach(o=>canvas.add(o));
-  }
-  else if (name==='letter'){
-    await setTemplateBackground('paper_aged', {age:0.3});
-    const body = new fabric.Textbox(
-      "March 11\n\nDear Sarah,\n\nI know it's been a while. Work out here doesn't leave much room for letters, and honestly there isn't much to say that would clear the censor's desk anyway.\n\nThe platform is fine. Routine, mostly. I think about the house a lot, and the noise the boiler used to make, and how much I used to complain about it. I'd take that noise over what we've got out here.\n\nIf anything happens, the company has my paperwork in order. Don't let them tell you otherwise.\n\nTake care of yourself.\n\nYours,\nM.",
-      {left:120, top:150, width:PAGE_W-240, fontFamily:"'PT Serif'", fontSize:18, fill:'#181410', lineHeight:1.6}
-    );
-    const sig = new HandwrittenText('M.', {left:120, top:PAGE_H-220, width:200, personaId:'C', fontSize:28});
-    [body, sig].forEach(o=>canvas.add(o));
-  }
-  else if (name==='terminal'){
-    // Único template sem foto de papel: um "monitor" desenhado (retângulo escuro
-    // + scanlines/vinheta via filtro, mesmo padrão de makePhotoPlaceholder: desenha
-    // num canvas solto, vira fabric.Image, só assim dá pra usar ScanlinesFilter/
-    // VignetteFilter — filtro WebGL só funciona em cima de Image, não de Rect) em
-    // vez de fundo físico. Bate com a própria frase de efeito da ferramenta
-    // ("digitalizar nos HDs da DRE"). Sem foto de papel, então sem campo de dobra
-    // nem pauta detectável — reseta os dois pra não sobrar estado de um template
-    // anterior (esse aqui não usa texto manuscrito, mas se o Max adicionar um na
-    // mão o campo teria ficado velho).
-    await buildTerminalScreenBg();
-    const lines = [
-      'NEUROSTAT FIELD DIVISION — SYSTEM LOG',
-      'NODE: DES-PLATFORM-01          BUILD 4.7.2',
-      '----------------------------------------',
-      '03:11:58  radio.check() -> OK',
-      '03:12:04  radio.check() -> TIMEOUT',
-      '03:12:04  radio.retry(3) -> TIMEOUT',
-      '03:12:07  link.status = DEGRADED',
-      '04:00:00  dive_team.status = DEPLOYED',
-      '04:58:41  dive_team.status = RETURNED_EARLY',
-      '04:58:41  crew_log.entry = [REDACTED]',
-      '05:14:22  sensor.hull_array[12] -> ANOMALY',
-      '05:14:23  sensor.hull_array[12] -> ANOMALY',
-      '05:14:23  sensor.hull_array[12] -> ANOMALY',
-      '05:14:24  sensor.hull_array[*]  -> ANOMALY',
-      '05:15:00  supervisor.override = TRUE',
-      '05:15:00  logging.suspended',
-    ];
-    const txt = new fabric.Textbox(lines.join('\n'), {
-      left:70, top:60, width:PAGE_W-140, fontFamily:"'Courier Prime'", fontSize:20, fill:'#7fffb0', lineHeight:1.55,
-    });
-    canvas.add(txt);
-  }
-  else if (name==='badge'){
-    await setTemplateBackground('paper_aged', {age:0.15});
-    const headerBar = new fabric.Rect({left:0, top:0, width:PAGE_W, height:90, fill:'#1c3a5e'});
-    const org = new fabric.Textbox('NEUROSTAT', {left:24, top:22, width:400, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:26, fill:'#e6eef8'});
-    const photo = await makePhotoPlaceholder({left:36, top:140, width:220, height:280});
-    const name2 = new fabric.Textbox('J. OKAFOR', {left:300, top:150, width:520, fontFamily:"'Playfair Display'", fontWeight:900, fontSize:32, fill:'#141414'});
-    const role = new fabric.Textbox('FIELD DIVISION — DIVE SUPPORT', {left:300, top:200, width:520, fontFamily:"'Courier Prime'", fontSize:16, fill:'#3a3a3a'});
-    const level = new fabric.Textbox('ACCESS LEVEL: 2 — MOONPOOL DECK', {left:300, top:240, width:520, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:16, fill:'#7a2020'});
-    const id = new fabric.Textbox('ID 0447-M-12', {left:300, top:300, width:520, fontFamily:"'Courier Prime'", fontSize:14, fill:'#3a3a3a'});
-    const barcode = await makeBarcodeImage({left:36, top:PAGE_H-100, width:PAGE_W-72, seed:Math.floor(rng()*1e9)});
-    barcode.scaleToWidth(PAGE_W-72);
-    [headerBar, org, photo, name2, role, level, id, barcode].forEach(o=>canvas.add(o));
-  }
-  else if (name==='whatsapp'){
-    // Print de app de chat — fundo liso (cor de parede clássica do WhatsApp), sem papel
-    // nenhum. Cada balão é RECT (fundo) + Textbox (texto) + Textbox (hora) — três objetos
-    // editáveis de verdade, não uma imagem; o Max troca o texto de qualquer fala direto.
-    await buildFlatScreenBg(...FLAT_SCREEN_BG.whatsapp);
-    const HEADER_H = 190;
-    const header = new fabric.Rect({left:0, top:0, width:PAGE_W, height:HEADER_H, fill:'#075E54'});
-    const back = new fabric.Textbox('←', {left:30, top:HEADER_H-96, width:70, fontFamily:"'Arimo'", fontSize:48, fill:'#ffffff'});
-    const avatar = new fabric.Circle({left:120, top:HEADER_H-90, radius:36, fill:'#cfd8d6'});
-    const cName = new fabric.Textbox('DIVE CREW — CH.3', {left:210, top:HEADER_H-96, width:700, fontFamily:"'Source Sans 3'", fontWeight:700, fontSize:30, fill:'#ffffff'});
-    const cStatus = new fabric.Textbox('last seen today at 04:19', {left:210, top:HEADER_H-54, width:700, fontFamily:"'Source Sans 3'", fontSize:20, fill:'#d8ece6'});
-    const icons = new fabric.Textbox('📹  📞  ⋮', {left:PAGE_W-260, top:HEADER_H-90, width:220, fontSize:34, fill:'#ffffff', textAlign:'right'});
-    const statusBar = buildPhoneStatusBar('#ffffff');
-    const msgs = [
-      {me:false, text:'you up?', time:'03:58'},
-      {me:true,  text:"yeah. can't sleep", time:'03:59'},
-      {me:false, text:"radio's doing that thing again", time:'04:01'},
-      {me:false, text:'the low one, not static', time:'04:01'},
-      {me:true,  text:"i hear it through the floor now, not the speaker", time:'04:03'},
-      {me:false, text:"don't go near the moonpool", time:'04:04'},
-      {me:false, text:'i mean it', time:'04:04'},
-      {me:true,  text:"wasn't going to. why", time:'04:06'},
-      {me:true,  text:'hey', time:'05:02', unread:true},
-      {me:true,  text:'please answer', time:'05:14', unread:true},
-    ];
-    const objs = [header, back, avatar, cName, cStatus, icons, ...statusBar];
-    let y = HEADER_H + 40;
-    const MARGIN = 40, MAXW = 660, PAD = 28;
-    msgs.forEach(m=>{
-      // Textbox nunca encolhe abaixo da largura que a gente passa (ao contrário de
-      // fabric.Text, que cresce pro conteúdo mas não quebra linha) — sem medir o texto
-      // primeiro, toda bolha sairia do mesmo tamanho (MAXW), mesmo um "hey" sozinho.
-      // Mede a largura natural com o canvas 2D (_mctx, de layout.js, mesmo truque que
-      // o motor de coluna do jornal já usa) e só usa MAXW quando o texto de fato precisa.
-      _mctx.font = "27px 'Source Sans 3'";
-      const naturalW = _mctx.measureText(m.text).width;
-      const boxW = Math.min(MAXW, Math.max(60, Math.ceil(naturalW)+4));
-      const textBox = new fabric.Textbox(m.text, {left:0, top:0, width:boxW, fontFamily:"'Source Sans 3'", fontSize:27, fill:'#111111', lineHeight:1.32});
-      const bubbleW = textBox.width + PAD*2;
-      const bubbleH = textBox.height + PAD*2 + 26;
-      const bubbleLeft = m.me ? (PAGE_W - MARGIN - bubbleW) : MARGIN;
-      const bubble = new fabric.Rect({left:bubbleLeft, top:y, width:bubbleW, height:bubbleH, rx:22, ry:22, fill: m.me ? '#DCF8C6' : '#ffffff'});
-      textBox.set({left:bubbleLeft+PAD, top:y+PAD});
-      const tick = m.me ? (m.unread ? '✓ ' : '✓✓ ') : '';
-      const stamp = new fabric.Textbox(tick+m.time, {left:bubbleLeft+PAD, top:y+bubbleH-40, width:bubbleW-PAD*2, fontFamily:"'Source Sans 3'", fontSize:18, fill: m.unread ? '#8a8a8a' : '#53bdeb', textAlign:'right'});
-      objs.push(bubble, textBox, stamp);
-      y += bubbleH + 24;
-    });
-    const inputBar = new fabric.Rect({left:0, top:PAGE_H-150, width:PAGE_W, height:150, fill:'#f0f0f0'});
-    const inputPill = new fabric.Rect({left:40, top:PAGE_H-120, width:PAGE_W-220, height:90, rx:45, ry:45, fill:'#ffffff'});
-    const inputPh = new fabric.Textbox('Message', {left:76, top:PAGE_H-100, width:500, fontFamily:"'Source Sans 3'", fontSize:26, fill:'#9a9a9a'});
-    const sendBtn = new fabric.Circle({left:PAGE_W-120, top:PAGE_H-120, radius:45, fill:'#075E54'});
-    const sendIco = new fabric.Textbox('➤', {left:PAGE_W-108, top:PAGE_H-104, width:60, fontSize:30, fill:'#ffffff'});
-    objs.push(inputBar, inputPill, inputPh, sendBtn, sendIco);
-    objs.forEach(o=>canvas.add(o));
-  }
-  else if (name==='email_mobile'){
-    // Print de e-mail no celular (estilo iOS Mail): fundo branco liso, mesma barra de
-    // status do whatsapp (reaproveitada, agora em preto já que o fundo aqui é claro).
-    await buildFlatScreenBg(...FLAT_SCREEN_BG.email_mobile);
-    const statusBar = buildPhoneStatusBar('#111111');
-    const back = new fabric.Textbox('‹ Inbox', {left:40, top:140, width:300, fontFamily:"'Arimo'", fontSize:30, fill:'#007aff'});
-    const subject = new fabric.Textbox('Re: shift log — attach radio transcript?', {left:40, top:210, width:PAGE_W-80, fontFamily:"'Arimo'", fontWeight:700, fontSize:40, fill:'#111111', lineHeight:1.2});
-    const avatar = new fabric.Circle({left:40, top:360, radius:40, fill:'#8a8f98'});
-    const avatarInit = new fabric.Textbox('O', {left:62, top:382, width:60, fontFamily:"'Arimo'", fontWeight:700, fontSize:32, fill:'#ffffff'});
-    const sender = new fabric.Textbox('J. Okafor', {left:140, top:362, width:500, fontFamily:"'Arimo'", fontWeight:700, fontSize:28, fill:'#111111'});
-    const toLine = new fabric.Textbox('to Dive Team — Channel 3', {left:140, top:402, width:500, fontFamily:"'Arimo'", fontSize:22, fill:'#8a8f98'});
-    const date = new fabric.Textbox('Thu, Mar 13 at 23:41', {left:PAGE_W-340, top:362, width:300, fontFamily:"'Arimo'", fontSize:22, fill:'#8a8f98', textAlign:'right'});
-    const divider = new fabric.Rect({left:40, top:470, width:PAGE_W-80, height:2, fill:'#e3e3e3'});
-    const body = new fabric.Textbox(
-      "Holt —\n\nPutting this on the record since the printer's down again and I don't trust the shared drive.\n\nWe lost the 03:12 channel like I told you, but it came back at 04:58 on its own. Nobody touched it.\n\nWhen it came back there was already something recorded on it. I'm not transcribing it over email.\n\nCome down and listen yourself before the next shift change.\n\n— Okafor",
-      {left:40, top:510, width:PAGE_W-80, fontFamily:"'Arimo'", fontSize:27, fill:'#1a1a1a', lineHeight:1.5}
-    );
-    [...statusBar, back, subject, avatar, avatarInit, sender, toLine, date, divider, body].forEach(o=>canvas.add(o));
-  }
-  else if (name==='email_desktop'){
-    // Print de e-mail no computador (estilo Outlook clássico): painel de pastas à
-    // esquerda + barra de ferramentas + cabeçalho + corpo. Paisagem — monitor, não papel.
-    await buildFlatScreenBg(...FLAT_SCREEN_BG.email_desktop);
-    const sidebar = new fabric.Rect({left:0, top:0, width:280, height:PAGE_H, fill:'#f3f2f1'});
-    const folders = ['Inbox','Drafts','Sent Items','Archive','Deleted Items'];
-    const folderObjs = [];
-    folders.forEach((f,i)=>{
-      const topY = 110 + i*56;
-      if (i===0) folderObjs.push(new fabric.Rect({left:10, top:topY-8, width:260, height:46, rx:6, ry:6, fill:'#dbe6fb'}));
-      folderObjs.push(new fabric.Textbox(f, {left:30, top:topY, width:230, fontFamily:"'Arimo'", fontWeight:i===0?700:400, fontSize:22, fill:'#202020'}));
-    });
-    const acct = new fabric.Textbox('DES-PLATFORM-01 MAIL', {left:24, top:30, width:240, fontFamily:"'Arimo'", fontWeight:700, fontSize:18, fill:'#444444'});
-    const toolbar = new fabric.Rect({left:280, top:0, width:PAGE_W-280, height:74, fill:'#ffffff', stroke:'#e1e1e1', strokeWidth:1});
-    const toolbarTxt = new fabric.Textbox('↩ Reply     ↪ Reply All     ➜ Forward     🗑 Delete     🖨 Print', {left:310, top:22, width:PAGE_W-340, fontFamily:"'Arimo'", fontSize:24, fill:'#333333'});
-    const subject = new fabric.Textbox('RE: Re: shift log — attach radio transcript?', {left:310, top:104, width:PAGE_W-340, fontFamily:"'Arimo'", fontWeight:700, fontSize:32, fill:'#111111'});
-    const fromLbl = new fabric.Textbox('From:', {left:310, top:164, width:90, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#555555'});
-    const fromVal = new fabric.Textbox('M. Holt <m.holt@neurostat-fd.local>', {left:400, top:164, width:700, fontFamily:"'Arimo'", fontSize:20, fill:'#111111'});
-    const toLbl = new fabric.Textbox('To:', {left:310, top:196, width:90, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#555555'});
-    const toVal = new fabric.Textbox('Dive Team — Channel 3', {left:400, top:196, width:700, fontFamily:"'Arimo'", fontSize:20, fill:'#111111'});
-    const dateLbl = new fabric.Textbox('Thu 03/14 06:02', {left:PAGE_W-330, top:164, width:300, fontFamily:"'Arimo'", fontSize:20, fill:'#555555', textAlign:'right'});
-    const divider = new fabric.Rect({left:310, top:234, width:PAGE_W-340, height:2, fill:'#e1e1e1'});
-    const body = new fabric.Textbox(
-      "Okafor,\n\nDo not play it for the rest of the crew. Bring the drive to my office directly, nobody else present.\n\nThis is not the first time hardware has recorded something during a dropout. Previous instances are documented and classified above your clearance, which is itself informative.\n\nStandard procedure applies: log the timestamp, do not loop the audio, do not describe its content in writing.\n\n— M. Holt\nNEUROSTAT — Field Division",
-      {left:310, top:270, width:PAGE_W-360, fontFamily:"'Source Sans 3'", fontSize:24, fill:'#1a1a1a', lineHeight:1.5}
-    );
-    [sidebar, acct, ...folderObjs, toolbar, toolbarTxt, subject, fromLbl, fromVal, toLbl, toVal, dateLbl, divider, body].forEach(o=>canvas.add(o));
-  }
-  else if (name==='email_90s'){
-    // Outlook Express / Windows 98 — a cor e o bisel 3D dos "botões" vendem a época, não a
-    // fonte (nenhuma fonte carregada imita MS Sans Serif de verdade). Dois Rects por botão
-    // (claro no topo/esquerda, escuro embaixo/direita) simulam o bevel clássico do Win98.
-    await buildFlatScreenBg(...FLAT_SCREEN_BG.email_90s);
-    const titleBar = new fabric.Rect({left:0, top:0, width:PAGE_W, height:40, fill:'#000080'});
-    const titleTxt = new fabric.Textbox('Inbox - Message  (Plain Text)', {left:14, top:8, width:700, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#ffffff'});
-    const winBtns = new fabric.Textbox('_  □  X', {left:PAGE_W-110, top:6, width:100, fontFamily:"'Arimo'", fontWeight:700, fontSize:20, fill:'#ffffff'});
-    const menuBar = new fabric.Textbox('File   Edit   View   Insert   Format   Tools   Actions   Help', {left:14, top:46, width:PAGE_W-28, fontFamily:"'Arimo'", fontSize:18, fill:'#111111'});
-    const toolDivider = new fabric.Rect({left:0, top:78, width:PAGE_W, height:2, fill:'#808080'});
-    const btnObjs = [];
-    const btnLabels = ['↩ Reply','↪ Fwd','🖨 Print','🗑 Delete','⏎ Send'];
-    btnLabels.forEach((lab,i)=>{
-      const bx = 14+i*110, by = 86, bw = 100, bh = 50;
-      btnObjs.push(new fabric.Rect({left:bx, top:by, width:bw, height:bh, fill:'#c0c0c0', stroke:'#808080', strokeWidth:2}));
-      btnObjs.push(new fabric.Rect({left:bx, top:by, width:bw-2, height:bh-2, fill:'transparent', stroke:'#ffffff', strokeWidth:2}));
-      btnObjs.push(new fabric.Textbox(lab, {left:bx+6, top:by+14, width:bw-12, fontFamily:"'Arimo'", fontSize:15, fill:'#111111', textAlign:'center'}));
-    });
-    const headerPanel = new fabric.Rect({left:0, top:148, width:PAGE_W, height:150, fill:'#c0c0c0', stroke:'#808080', strokeWidth:1});
-    const hdrRows = [
-      ['From:','sysnotify@des-platform-01.internal'],
-      ['To:','maintenance-dist@neurostat-fd.local'],
-      ['Subject:','AUTOMATED ALERT: hull_array[12] THRESHOLD EXCEEDED'],
-      ['Date:','Fri 03/14 05:15 AM'],
-    ];
-    const hdrObjs = [];
-    hdrRows.forEach((r,i)=>{
-      hdrObjs.push(new fabric.Textbox(r[0], {left:20, top:158+i*34, width:110, fontFamily:"'Arimo'", fontWeight:700, fontSize:17, fill:'#111111'}));
-      hdrObjs.push(new fabric.Textbox(r[1], {left:140, top:158+i*34, width:PAGE_W-160, fontFamily:"'Arimo'", fontSize:17, fill:'#111111'}));
-    });
-    const bodyPanel = new fabric.Rect({left:0, top:298, width:PAGE_W, height:PAGE_H-298, fill:'#ffffff'});
-    const body = new fabric.Textbox(
-      "THIS IS AN AUTOMATED MESSAGE. DO NOT REPLY.\n\nSENSOR NODE DES-PLATFORM-01 HAS LOGGED 40+ ANOMALY EVENTS ON HULL ARRAY CHANNEL 12 IN THE LAST SIX MINUTES.\n\nTHRESHOLD FOR AUTOMATIC SUPERVISOR NOTIFICATION: 3 EVENTS / HOUR.\nOBSERVED RATE: EXCEEDS SCALE.\n\nLOGGING HAS BEEN SUSPENDED BY SUPERVISOR OVERRIDE AT 05:15:00.\nTHIS SYSTEM WILL NOT SEND FURTHER ALERTS UNTIL LOGGING RESUMES.\n\n-- END OF MESSAGE --",
-      {left:24, top:318, width:PAGE_W-48, fontFamily:"'Courier Prime'", fontSize:19, fill:'#111111', lineHeight:1.5}
-    );
-    [titleBar, titleTxt, winBtns, menuBar, toolDivider, ...btnObjs, headerPanel, ...hdrObjs, bodyPanel, body].forEach(o=>canvas.add(o));
-  }
-  else if (name==='menu_fine'){
-    await setTemplateBackground('paper_aged', {age:0.1});
-    const title = new fabric.Textbox('EXECUTIVE SERVICE', {left:0, top:140, width:PAGE_W, originX:'left', fontFamily:"'Playfair Display'", fontWeight:900, fontSize:56, fill:'#141414', textAlign:'center', charSpacing:200});
-    const subtitle = new fabric.Textbox('PLATFORM DESERTO — DINING DECK', {left:0, top:220, width:PAGE_W, fontFamily:"'Courier Prime'", fontSize:18, fill:'#5a5240', textAlign:'center', charSpacing:150});
-    const ruleTop = new fabric.Rect({left:PAGE_W/2-180, top:290, width:360, height:2, fill:'#9a8a5a'});
-    const sections = [
-      {label:'AMUSE-BOUCHE', items:[['Smoked roe, crème fraîche','']]},
-      {label:'FIRST', items:[['Scallop crudo, brown butter, sea lettuce','']]},
-      {label:'SECOND', items:[['Dry-aged beef, bone marrow jus, charred onion','']]},
-      {label:'DESSERT', items:[['Dark chocolate, salt caramel, burnt citrus','']]},
-    ];
-    const objs = [title, subtitle, ruleTop];
-    let y = 360;
-    sections.forEach(sec=>{
-      objs.push(new fabric.Textbox(sec.label, {left:0, top:y, width:PAGE_W, fontFamily:"'Playfair Display'", fontWeight:700, fontSize:24, fill:'#7a6a34', textAlign:'center', charSpacing:120}));
-      y += 60;
-      sec.items.forEach(([itemName])=>{
-        objs.push(new fabric.Textbox(itemName, {left:140, top:y, width:PAGE_W-280, fontFamily:"'PT Serif'", fontStyle:'italic', fontSize:22, fill:'#141414', textAlign:'center'}));
-        y += 70;
-      });
-      y += 30;
-    });
-    const ruleBot = new fabric.Rect({left:PAGE_W/2-180, top:y, width:360, height:2, fill:'#9a8a5a'});
-    const price = new fabric.Textbox('FIXED MENU — $340 PER GUEST', {left:0, top:y+40, width:PAGE_W, fontFamily:"'Courier Prime'", fontWeight:700, fontSize:20, fill:'#141414', textAlign:'center', charSpacing:100});
-    const footer = new fabric.Textbox('Wine pairing available upon request. Please advise of dietary restrictions 48 hours prior to crew rotation.', {left:160, top:y+110, width:PAGE_W-320, fontFamily:"'PT Serif'", fontStyle:'italic', fontSize:15, fill:'#5a5240', textAlign:'center', lineHeight:1.4});
-    objs.push(ruleBot, price, footer);
-    objs.forEach(o=>canvas.add(o));
-  }
-  else if (name==='menu_diner'){
-    await setTemplateBackground('paper_aged', {age:0.2});
-    const band = new fabric.Rect({left:0, top:0, width:PAGE_W, height:150, fill:'#c79a2b'});
-    const title = new fabric.Textbox('GALLEY — WEEKLY BOARD', {left:0, top:36, width:PAGE_W, fontFamily:"'Oswald'", fontWeight:700, fontSize:52, fill:'#1a1a1a', textAlign:'center'});
-    const sections = [
-      {label:'HOT', color:'#9a2d20', items:[['Chili (Mon/Thu)','4'],['Grilled cheese','3'],['Soup of the day — ask your supervisor','—']]},
-      {label:'COLD', color:'#1c5a3a', items:[['Tuna salad','3'],['Fruit cup','2']]},
-      {label:'ALWAYS AVAILABLE', color:'#1c3a5e', items:[['Coffee — bottomless','0'],['Crackers','0'],['Earplugs — see supply locker','0']]},
-    ];
-    const objs = [band, title];
-    let y = 210;
-    sections.forEach(sec=>{
-      objs.push(new fabric.Rect({left:90, top:y, width:PAGE_W-180, height:46, fill:sec.color}));
-      objs.push(new fabric.Textbox(sec.label, {left:90, top:y+8, width:PAGE_W-180, fontFamily:"'Oswald'", fontWeight:700, fontSize:26, fill:'#ffffff', textAlign:'center'}));
-      y += 70;
-      sec.items.forEach(([name2, price])=>{
-        menuRow(name2, price, 120, y, PAGE_W-240, {fontFamily:"'Source Sans 3'", fontSize:24, fill:'#1a1a1a'}).forEach(o=>objs.push(o));
-        y += 50;
-      });
-      y += 50;
-    });
-    const footer = new fabric.Textbox('Comment card box located outside galley. Messages regarding noise complaints should be directed to supervision directly, not posted here.', {left:120, top:y+10, width:PAGE_W-240, fontFamily:"'Source Sans 3'", fontStyle:'italic', fontSize:16, fill:'#4a4a4a', textAlign:'center', lineHeight:1.4});
-    objs.push(footer);
-    objs.forEach(o=>canvas.add(o));
-  }
-  else if (name==='menu_fastfood'){
-    await buildFlatScreenBg(...FLAT_SCREEN_BG.menu_fastfood);
-    const title = new fabric.Textbox('ANCHOR BASKET', {left:0, top:60, width:PAGE_W, fontFamily:"'Oswald'", fontWeight:700, fontSize:72, fill:'#ffec3d', textAlign:'center'});
-    const sub = new fabric.Textbox('DOCKSIDE LOCATION — OPEN 24H', {left:0, top:150, width:PAGE_W, fontFamily:"'Oswald'", fontSize:24, fill:'#ffffff', textAlign:'center'});
-    const ribbon = new fabric.Rect({left:PAGE_W-420, top:220, width:460, height:70, fill:'#ffec3d', angle:-8});
-    const ribbonTxt = new fabric.Textbox('NEW! DEEP-SEA PLATFORM BASKET', {left:PAGE_W-420, top:238, width:460, angle:-8, fontFamily:"'Oswald'", fontWeight:700, fontSize:18, fill:'#a81414', textAlign:'center'});
-    const combos = [
-      {n:'1', name:'CAPTAIN COMBO', desc:'Fish basket, fries, soda', price:'$9.99'},
-      {n:'2', name:'DOUBLE ANCHOR', desc:'Double burger, fries, soda', price:'$11.49'},
-      {n:'3', name:'CREW SPECIAL', desc:'Chicken tenders, fries, soda', price:'$8.99'},
-    ];
-    const objs = [title, sub, ribbon, ribbonTxt];
-    let y = 400;
-    combos.forEach(c=>{
-      const box = new fabric.Rect({left:90, top:y, width:PAGE_W-180, height:170, rx:16, ry:16, fill:'#ffffff'});
-      const num = new fabric.Circle({left:116, top:y+26, radius:36, fill:'#d41c1c'});
-      const numTxt = new fabric.Textbox(c.n, {left:116, top:y+44, width:72, fontFamily:"'Oswald'", fontWeight:700, fontSize:36, fill:'#ffffff', textAlign:'center'});
-      const nameTxt = new fabric.Textbox(c.name, {left:210, top:y+24, width:640, fontFamily:"'Oswald'", fontWeight:700, fontSize:30, fill:'#1a1a1a'});
-      const descTxt = new fabric.Textbox(c.desc, {left:210, top:y+70, width:640, fontFamily:"'Source Sans 3'", fontSize:20, fill:'#4a4a4a'});
-      const priceTxt = new fabric.Textbox(c.price, {left:PAGE_W-260, top:y+55, width:160, fontFamily:"'Oswald'", fontWeight:700, fontSize:34, fill:'#d41c1c', textAlign:'right'});
-      objs.push(box, num, numTxt, nameTxt, descTxt, priceTxt);
-      y += 200;
-    });
-    const footer = new fabric.Textbox('** Shuttle to platform departs 0600 sharp. Missing the shuttle is not grounds for reimbursement.', {left:90, top:y+10, width:PAGE_W-180, fontFamily:"'Source Sans 3'", fontStyle:'italic', fontSize:16, fill:'#ffffff', textAlign:'center', lineHeight:1.4});
-    objs.push(footer);
-    objs.forEach(o=>canvas.add(o));
-  }
-
-  canvas.renderAll();
-  renderLayerList();
-  syncNewsLayoutUI();
+  // Todos os modelos estão no registry (doc-templates.js e arquivos doc-*.js); nome desconhecido cai na folha em branco.
+  const id = (typeof DOC_TEMPLATES!=='undefined' && DOC_TEMPLATES[name]) ? name : 'blank';
+  await buildDoc(id, opts && opts.variant);
+  canvas.renderAll(); renderLayerList(); syncNewsLayoutUI();
 }
 
 /* ===================== Páginas: navegação/adicionar/apagar/exportar =====================
@@ -1388,9 +882,6 @@ async function pageAdd(kindId){
         if (kind) await buildDocPage(currentTemplate, variantId, kind, curPageIdx + 2, {news:prevNews});
         else if (keep && keep.kind==='proc') setPaper(Object.assign({}, keep, {seed: randomSeed32()}));
         else if (keep && keep.kind==='foto') await setBackgroundPaper(pickFile(keep.cat), {age: keep.level});
-        else if (currentTemplate==='terminal') await buildTerminalScreenBg();
-        else if (FLAT_SCREEN_BG[currentTemplate]) await buildFlatScreenBg(...FLAT_SCREEN_BG[currentTemplate]);
-        else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
         else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
         const nb = getBackground();
         if (nb && variantId && !nb.__docVariant) nb.__docVariant = variantId;   // página em branco continua do mesmo estilo
@@ -2477,15 +1968,6 @@ function renderBackgroundInspector(obj, body){
   body.appendChild(field.hint('Papel de fundo'));
   if (obj.type==='paperbackground'){
     body.appendChild(field.hint('Papel procedural: tipo, intensidade, dobra e atmosfera ficam no bloco "Papel" da aba Documento. Manchas e carimbos: aba Adicionar.'));
-    return;
-  }
-
-  // Controles de categoria/reroll/mancha só fazem sentido no modo Texturizado —
-  // o fundo Digital não é uma foto (não tem categoria pra trocar, mancha em cima
-  // de um degradê vetorial ficaria errado). Modo se troca no alternador da aba
-  // Documento, não aqui.
-  if (bgMode === 'digital'){
-    body.appendChild(field.hint('Fundo digital (sem foto) — troque pra Texturizado na aba Documento pra ver categoria de papel e manchas.'));
     return;
   }
 
