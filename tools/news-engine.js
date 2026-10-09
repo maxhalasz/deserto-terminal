@@ -83,6 +83,93 @@ const NEWS_DEFAULTS = {
     'FOR SALE. Hymnals, forty, in good condition. The choir no longer meets.\n' +
     'LOST. Brown terrier, answers to Pilot. If found, do not follow him.',
   'xl.kicker': 'EXTRA  ·  EXTRA  ·  EXTRA', 'xl.headline': 'Dive team missing', 'xl.deck': 'Platform silent for 30 hours. The company calls it “routine.”',
+
+  /* ---- páginas internas (A5 e A7) ---- */
+  'ih.l': 'THURSDAY, MARCH 14', 'ih.r': 'A5',
+  'lead2.kicker': 'CONTINUED FROM PAGE A1', 'lead2.headline': 'Platform loses contact with dive team',
+  'lead2.body': 'The first of the six divers entered the water at 02:40, according to the dive log seen by this newspaper. The last depth was logged at 03:09. After that the log lists no entries, only the time, written down once a minute until 04:20.\n' +
+    'A technician at the surface station, who asked not to be named, said the recording of the final transmission runs eleven seconds. “Nobody wants to hear it twice,” she said. She added that the tape has been locked in a safe.\n' +
+    'The operator has since restricted access to the lower deck. A notice posted at the shuttle landing states that all dives are “suspended pending review.” It does not say who is conducting the review.\n' +
+    'At the Harbor Office on Thursday, a clerk said that requests for the crew roster would be “processed in order.” The list of requests, she said, had been removed from the counter.\n' +
+    'Elias Brandt, the operations manager, did not return calls. His secretary said he was “in meetings on the platform.” The supply boat has not left since Tuesday.\n' +
+    'Relatives identified three of the six divers as Paul Reyes, Joseph Okafor and Ingrid Lindqvist. Ms. Lindqvist’s sister said she had spoken to her on Monday. “She said it was a routine descent,” she said. “She said she would be back for supper.”\n' +
+    'Dr. Anna Voss, the physician at the mainland clinic, said she was asked on Wednesday to prepare six beds. “I was told it was a precaution,” she said. “I was not told for whom.” The beds have not been used.\n' +
+    'The Harbor Office confirmed that the supply boat’s logbook for Tuesday night is missing a page. A clerk said the page “was never there.” The boat’s captain, Jonas Bell, could not be reached; his wife said he had gone to the pier to listen.\n' +
+    'Fishermen in the lower harbor say the sound began at 03:12 on Tuesday and was heard until sunrise. Several said it came from under the boats rather than from the platform. One said the water in his bucket was shaking, “in time.”\n' +
+    'Asked whether the town should be concerned, the Harbor Board chair, Edward Pruitt, said: “We are monitoring the situation.” Asked what the situation was, he said the Board would issue a statement “in due course.”\n' +
+    'A prayer service will be held at St. Brendan’s on Sunday. The organ will not be played.',
+  's5.headline': 'Fish fry raises $212 for Lamp Fund', 's5.byline': 'Staff',
+  's5.body': 'The Legion post’s Friday fish fry raised $212 for the Harbor Lamp Fund, the post said Wednesday. Forty-one plates were served. Mrs. Aldous played the piano. The fund treasurer, Mr. Kessler’s nephew, said the money would buy oil for the Harbor Street lamps through the end of April.\n' +
+    'The post announced that the next fry would be held “weather and tide permitting.” Attendance was lower than last year. Several regulars did not come, and the hall was closed at eight instead of ten. “People wanted to be home before dark,” said commander Frank Pilcher.',
+  's6.headline': 'Harbor League cancels spring season', 's6.byline': 'Sports',
+  's6.body': 'The Harbor League has cancelled its spring baseball season, citing the condition of the field. The diamond on the lower shore has been “unplayable” since Monday, according to the groundskeeper, who said the grass was wet “from underneath.” Players were offered refunds.\n' +
+    'The league’s treasurer said the decision was not related to events on the platform. The league’s president said the same thing, in the same words, an hour later.',
+  'church:title': 'CHURCH NOTICES', 'church': 'St. Brendan’s. Sunday service at 10. The organ will not be played.\nSt. Brendan’s. Choir practice cancelled until further notice.\nLegion Hall. Coffee Thursday, 7 p.m. Doors close at dusk.\nHarbor Chapel. Closed. Please use St. Brendan’s.',
+  'log:title': 'HARBOR LOG', 'log': 'Mon 11. Fog. Foghorn sounded three times.\nTue 12. Fog. Foghorn sounded at 03:12. Not by the keeper.\nWed 13. Clear. Boats in by four.\nThu 14. Fog. Foghorn not sounded.',
+  'ad.10:title': 'BAKERY', 'ad.10': 'Bread, pies and rolls daily at the chandlery. Orders after dark are not accepted.',
+  'ad.8:title': 'THE HARBOR CHANDLERY', 'ad.8': 'Rope, oil, lamps, tinned goods and black cloth. Open until dusk. We do not open after.',
+  'ad.9:title': 'SERVICE OF REMEMBRANCE', 'ad.9': 'St. Brendan’s, Friday at 7 p.m. All are welcome. Please bring a candle, and please do not come alone.',
+  'ed.band': 'EDITORIAL',
+  'ed': 'The platform has not answered the radio in thirty hours. It has not answered this newspaper in three days. The company says operations are normal. This newspaper has asked for the crew list, the dive log and the name of the supervisor on duty. It has received none of them.\n' +
+    'The Harbor Board has voted to wait. The Coast Guard has gone home. The mainland office is closed. We do not know who is left to ask.\n' +
+    'We remind our readers that in 1954 this town waited for the platform to be built, and was told it would bring work. It did. We do not recommend waiting again. We recommend that those with family aboard write to the company, in ink, and keep a copy.\n' +
+    'Our reporters on the pier report that the fog has not lifted in two days and that the sea is unusually quiet for the season. We have printed what we know. We will print what we learn.\n' +
+    'This newspaper will continue to publish on Thursdays. If a Thursday should pass without an issue, readers are asked to check the pier.',
+  'letters:title': 'LETTERS',
+  'letters': 'To the editor: I live on the lower shore road. I have not slept since Tuesday. Please ask them to turn it off. — H. Aldous\nTo the editor: My husband has not come home. The company says he is not on the roster. His boots are by the door. — Name withheld\nTo the editor: The foghorn has not sounded in six days. Someone should look into it. — A. Verne',
+  'photo.3.cap': 'The lower shore road, Wednesday. The road has been closed since Monday. Photo: Harbor Office',
+  'ad.4:title': 'NOTICE', 'ad.4': 'The Harbor Office closes at 17:00 sharp. Anyone on the pier after that hour does so at their own risk.',
+  'cls.page': 'FOR RENT. Two rooms over the chandlery, quiet. Inquire within. Not available after dark.\n' +
+    'FOR RENT. Cottage, Church Lane, three rooms and a stove. Tenant must not mind the sea.\n' +
+    'FOR SALE. Dinghy, 10 ft, oars included. Never used. Never will be.\n' +
+    'FOR SALE. Piano, upright, one key sticks. Hymns only. Mrs. Aldous, Church Lane.\n' +
+    'WANTED. Deckhand, six weeks, good pay. Apply at the Harbor Office, ask for Mr. Brandt.\n' +
+    'WANTED. Cook for the dining deck. Nights. No questions asked, none answered.\n' +
+    'WANTED. Lamp keeper for the harbor light. Must be able to work alone.\n' +
+    'LOST. Gold wedding band, Harbor Street, Tuesday night. Sentimental value.\n' +
+    'LOST. One diver’s watch, steel, engraved on the back. Reward. Ask at the Harbor Office.\n' +
+    'LOST. Brown terrier, answers to Pilot. If found, do not follow him.\n' +
+    'FOUND. A pair of diving boots on the lower shore road. Not claimed. Not ours.\n' +
+    'FOUND. Ring of seven keys, brass. The Legion post will hold them for thirty days.\n' +
+    'SERVICES. Boats hauled and painted. Engines cleaned. Nets mended. No work after sundown.\n' +
+    'SERVICES. Piano tuning. Clock repair. The harbor clock a specialty (runs eleven minutes slow).\n' +
+    'SERVICES. Letters written for those who cannot write. Letters read for those who cannot read them.\n' +
+    'NOTICE. The tide tables for the week of March 18 will be posted when received.\n' +
+    'NOTICE. The Friday fish fry resumes at the Legion post, 6 p.m. Bring your own chair.\n' +
+    'NOTICE. Choir practice at St. Brendan’s is cancelled until further notice. The organ has been moved.\n' +
+    'PERSONAL. To the man who rows out at night: please stop. We can hear the oars.\n' +
+    'PERSONAL. Sarah: write to us. We have received nothing since February.\n' +
+    'PERSONAL. M.: the house is as you left it. The boiler still knocks.\n' +
+    'SEEKING. Roommate to share house near the pier. Light sleeper preferred.\n' +
+    'FOR SALE. Hymnals, forty, in good condition. The choir no longer meets.\n' +
+    'FOR SALE. Foghorn, brass, working. Cash only. Will not deliver to the shore.\n' +
+    'WANTED. Used foghorn, any condition. Cash.\n' +
+    'HELP WANTED. Night watchman for the pier warehouse. Hours 20:00 to 03:12. Apply in person.\n' +
+    'FOR RENT. Boathouse, Harbor Street, dry. Sleeps two. Do not leave the lamp unlit.\n' +
+    'FOR SALE. Dining set, oak, six chairs. Seventh chair not included. Not needed.\n' +
+    'FOR SALE. Radio, marine, working. Receives one channel. Buyer to keep it switched off.\n' +
+    'WANTED. Diving gear, any size. No questions.\n' +
+    'WANTED. Boy or girl to run errands to the pier. Must be home by four.\n' +
+    'LOST. Rosary, silver, Church Lane. Please return to St. Brendan’s.\n' +
+    'LOST. Child’s mitten, red, on the Harbor Street steps. Also the child.\n' +
+    'FOUND. Diary, leather, no name inside. Held at the Harbor Office. Do not read past page 47.\n' +
+    'SERVICES. Knives sharpened. Locks changed. Doors rehung to open outward.\n' +
+    'SERVICES. Sewing and mending. Black cloth in stock.\n' +
+    'NOTICE. Anyone who has seen the supply boat after midnight is asked to tell no one.\n' +
+    'PERSONAL. Papa: the lamp is lit. Come home by the road.\n' +
+    'PERSONAL. To whoever is writing on the pier at night: the tide has taken it. Please stop.\n' +
+    'PERSONAL. The man in the grey coat, Harbor Street: we would like our boat back.',
+  'legal.title': 'PUBLIC NOTICES',
+  'legal': 'NOTICE OF HEARING. The Harbor Board will hear objections to the extension of docking hours at 7 p.m. on Tuesday, March 19, in the harbor office. Objections must be filed in writing. Objections filed after 3:12 a.m. will not be considered.\n' +
+    'NOTICE TO MARINERS. The channel markers between the pier and the platform have been moved without notice. Mariners are advised to disregard them. Mariners are advised not to proceed beyond the third marker under any circumstances.\n' +
+    'LEGAL NOTICE. Estate of Walter M. Kessler, late of Harbor Street, deceased. Creditors are asked to present claims within ninety days. The house will remain closed.\n' +
+    'PUBLIC NOTICE. The lower shore road is closed to all traffic from sunset to sunrise by order of the Harbor Board. This order is routine. It has been in effect since Monday.\n' +
+    'NOTICE. Owners of dogs are reminded that dogs must be kept indoors at night. The Board has received reports of dogs on the pier.\n' +
+    'NOTICE OF SALE. The contents of the chandlery shop on Quay Lane will be sold at auction on Saturday at noon, by order of the estate. The proprietor is not available to answer questions.\n' +
+    'NOTICE. The harbor clock has been stopped for repair. It will be restarted when the repair is complete. The time shown on the clock until then is not official.',
+  'ad.5:title': 'THE LEGION POST', 'ad.5': 'Friday fish fry, 6 p.m. All welcome. Coffee is on and the hall is warm.',
+  'ad.6:title': 'RADIO REPAIR', 'ad.6': 'Marine and household. Static removed. No repair attempted on sets tuned to the harbor channel.',
+  'ad.7:title': 'HARBOR LAMP FUND', 'ad.7': 'The lamps on Harbor Street must be kept lit. Donations accepted at the chandlery. Please give what you can.',
 };
 
 /* ---- foto-exemplo em cinza (cena genérica: plataforma no mar, cais na neblina, retrato) ---- */
@@ -337,6 +424,26 @@ class NewsBuilder {
     this.txt('foot.r', M + W - 200, NEWS_G.BOTTOM + 22, 200, {font:'Libre Franklin', weight:700, size:11, cs:100, lh:1.2, align:'right'});
     return Math.max(NEWS_G.TOP, fy + 20 + 16);
   }
+
+  /* Cabeçalho das páginas internas: folio, nome pequeno do jornal, filetes; mesmo rodapé da capa. Devolve o topo do conteúdo. */
+  innerHeader(label){
+    const M = NEWS_G.M, W = NEWS_G.W, gothic = this.st.mast !== 'serif';
+    if (label){
+      if (this.c['ih.r'] === NEWS_DEFAULTS['ih.r']) this.c['ih.r'] = label;
+      if (this.c['foot.r'] === NEWS_DEFAULTS['foot.r']) this.c['foot.r'] = label;
+    }
+    this.txt('ih.l', M, 78, 300, {font:'Libre Franklin', weight:600, size:11, cs:110, lh:1.2});
+    this.txt('ih.r', M + W - 300, 76, 300, {font:'Libre Franklin', weight:700, size:14, cs:110, lh:1.2, align:'right'});
+    const name = gothic
+      ? this.txt('mast.name', M + 330, 48, W - 660, {font:'UnifrakturCook', weight:700, size:50, lh:1.0, align:'center', fit:true, minSize:28})
+      : this.txt('mast.name', M + 330, 58, W - 660, {font:'Old Standard TT', weight:700, size:44, lh:1.0, align:'center', upper:true, cs:30, fit:true, minSize:26});
+    const ry = Math.max(name.obj ? name.bottom : 112, 112) + 8;
+    this.rule(M, ry, M + W, ry, 3); this.rule(M, ry + 5, M + W, ry + 5, 1);
+    this.rule(M, NEWS_G.BOTTOM + 14, M + W, NEWS_G.BOTTOM + 14, 1);
+    this.txt('foot.l', M, NEWS_G.BOTTOM + 22, 600, {font:'Libre Franklin', weight:600, size:10, cs:100, lh:1.2, fill:'#4a4540'});
+    this.txt('foot.r', M + W - 200, NEWS_G.BOTTOM + 22, 200, {font:'Libre Franklin', weight:700, size:11, cs:100, lh:1.2, align:'right'});
+    return ry + 30;
+  }
 }
 
 const NEWS_AD = {frame:'ad', title:true, size:14, lh:1.25, align:'center', titleSize:21, titleFont:'Barlow Condensed'};
@@ -445,8 +552,44 @@ const NEWS_PRESETS = {
     B.vline(RX - NEWS_G.GUT/2, T, split - 8);
     B.rule(LX, lim + 8, LX + NEWS_G.W, lim + 8, 1.3);
   }},
+  interna: {label:'Página interna (continuação)', build: async (B)=>{
+    const T = B.innerHeader('A5'), BT = NEWS_G.BOTTOM, LX = newsX(0), LW = newsW(4), RX = newsX(4), RW = newsW(2), HW = newsW(2);
+    let ry = await B.photo('photo.3', RX, T, RW, 210, {variant:1});
+    const adTop = B.boxAtBottom('ad.4', RX, RW, BT, NEWS_AD);
+    const tideTop = B.boxAtBottom('tide', RX, RW, adTop - 14, {frame:'box', title:true, rows:true, size:13.5, lh:1.35});
+    const lt = B.txt('letters', RX, ry, RW, {frame:'box', title:true, size:14, lh:1.3}); ry = lt.bottom + 14;
+    const ch = B.txt('church', RX, ry, RW, {frame:'bar', title:true, size:14, lh:1.3}); ry = ch.bottom + 14;
+    const lg = B.txt('log', RX, ry, RW, {frame:'box', title:true, size:14, lh:1.3}); ry = lg.bottom + 14;
+    B.boxAtBottom('ad.10', RX, RW, tideTop - 14, NEWS_AD);
+    let y = B.head('lead2', LX, T, LW, {size:32, lh:1.04, rule:true});
+    y = B.flow('lead2.body', LX, y, LW, {cols:2, size:17.5, bottom:900, minSize:12.5});
+    y = Math.max(y, 890) + 12; B.rule(LX, y, LX + LW, y, 1.3); y += 14;
+    const lim = 1270;
+    const a = B.head('s5', LX, y, HW, {size:22, rule:false}); B.flow('s5.body', LX, a, HW, {size:16, bottom:lim, minSize:12.5});
+    const b = B.head('s6', newsX(2), y, HW, {size:22, rule:false}); B.flow('s6.body', newsX(2), b, HW, {size:16, bottom:lim, minSize:12.5});
+    B.vline(newsX(2) - NEWS_G.GUT/2, y, lim);
+    B.rule(LX, lim + 10, LX + LW, lim + 10, 1.3);
+    const e = B.band('ed.band', LX, lim + 22, LW);
+    B.flow('ed', LX, e, LW, {cols:2, size:17, bottom:BT, minSize:12.5});
+    B.vline(RX - NEWS_G.GUT/2, T, BT);
+  }},
+  classificados: {label:'Classificados (contracapa)', build: async (B)=>{
+    const T = B.innerHeader('A7'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W;
+    const a1 = B.boxAtBottom('ad.5', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.6', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.7', newsX(4), newsW(2), BT, NEWS_AD);
+    const adsTop = Math.min(a1, a2, a3) - 18;
+    let y = B.band('cls.title', LX, T, FW);
+    const e = B.flow('cls.page', LX, y, FW, Object.assign({cols:4, bottom:adsTop - 520}, NEWS_CLS, {size:20.5, minSize:12}));
+    const s1 = Math.max(e, T + 300) + 14;
+    B.rule(LX, s1, LX + FW, s1, 1.3);
+    const BIG = Object.assign({}, NEWS_AD, {size:17, titleSize:30, lh:1.3});
+    const d1 = B.txt('ad.8', LX, s1 + 16, newsW(3) - 8, BIG), d2 = B.txt('ad.9', newsX(3) + 8, s1 + 16, newsW(3) - 8, BIG);
+    const s2 = Math.max(d1.bottom, d2.bottom) + 16;
+    y = B.band('legal.title', LX, s2, FW);
+    B.flow('legal', LX, y, FW, Object.assign({cols:3, bottom:adsTop - 6}, NEWS_CLS, {size:20.5, minSize:12}));
+    B.rule(LX, adsTop - 8, LX + FW, adsTop - 8, 1.3);
+  }},
 };
-const NEWS_PRESET_ORDER = ['classica', 'larga', 'extra', 'duas', 'denso'];
+const NEWS_PRESET_ORDER = ['classica', 'larga', 'extra', 'duas', 'denso', 'interna', 'classificados'];
 
 /* Refaz o layout: colhe o texto/fotos atuais, apaga o que o motor gerou, monta o preset e guarda o estado.
    patch = {preset, mast, justify}. */

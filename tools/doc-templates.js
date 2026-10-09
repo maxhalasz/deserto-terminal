@@ -8,7 +8,7 @@ const DOC_TEMPLATES = {};
 function registerDoc(id, def){ DOC_TEMPLATES[id] = Object.assign({id}, def); }
 
 /* Ordem de exibição no <select> (ids que não existem no registry nem no HTML antigo são ignorados). */
-const TEMPLATE_ORDER = ['newspaper','report','note','redacted','tag','letter','diary','terminal','badge','whatsapp','email_mobile','email_desktop','email_90s','menu_fine','menu_diner','menu_fastfood','blank','blank_ruled','blank_grid'];
+const TEMPLATE_ORDER = ['newspaper','report','note','redacted','tag','letter','envelope','diary','terminal','badge','whatsapp','email_mobile','email_desktop','email_90s','menu_fine','menu_diner','menu_fastfood','blank','blank_ruled','blank_grid'];
 
 const A4 = {page:[1240,1754], phys:[8.27,11.69]};
 

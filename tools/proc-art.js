@@ -6,6 +6,7 @@
      wood    — tábuas verticais com veios, nós e juntas (opts: base [r,g,b], plank, vig)
      frame   — moldura de madeira em esquadria (cantos a 45°), chanfro, sombra projetada pra dentro e parafusos
                (opts: t espessura, base [r,g,b]); o miolo fica transparente
+     leather — couro de capa de caderno: manchas, grão pebble, arranhões, vinheta (opts: base [r,g,b])
      slate   — quadro-negro: degradê, borrões de apagador, riscos, grão (opts: base [r,g,b])
      erode   — camada de "giz gasto" POR CIMA do texto: falhas minúsculas na cor do quadro (opts: color [r,g,b], density)
    Tudo em unidades de página, então tem o mesmo tamanho físico em ×1 e ×2. Mesma semente = mesma textura.
@@ -130,6 +131,30 @@ function procFrame(g, w, h, a){
   });
 }
 
+function procLeather(g, w, h, a){
+  const rng = _paRng(a.seed*31 + 7), o = a.opts || {}, b = o.base || [64,26,22];
+  g.fillStyle = `rgb(${b[0]},${b[1]},${b[2]})`; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 26; i++){   // manchas largas: o couro nunca tem a mesma cor em toda parte
+    const x = rng()*w, y = rng()*h, r = 140 + rng()*360, rg = g.createRadialGradient(x, y, 0, x, y, r), dark = rng() < 0.55;
+    rg.addColorStop(0, dark ? 'rgba(0,0,0,0.20)' : 'rgba(255,170,140,0.10)'); rg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = rg; g.fillRect(x - r, y - r, r*2, r*2);
+  }
+  const N = Math.round(w*h/150);   // grão "pebble": pontos claros e escuros pequenos
+  for (let i = 0; i < N; i++){
+    const x = rng()*w, y = rng()*h, r = 0.9 + rng()*1.9, dark = rng() < 0.6;
+    g.fillStyle = dark ? `rgba(10,2,0,${0.18 + rng()*0.28})` : `rgba(255,190,160,${0.05 + rng()*0.10})`;
+    g.beginPath(); g.arc(x, y, r, 0, 6.28); g.fill();
+  }
+  for (let i = 0; i < 14; i++){   // arranhões
+    g.strokeStyle = `rgba(255,200,170,${0.05 + rng()*0.08})`; g.lineWidth = 0.8 + rng()*1.4;
+    const x = rng()*w, y = rng()*h, l = 60 + rng()*240, an = rng()*6.28;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(an)*l, y + Math.sin(an)*l); g.stroke();
+  }
+  const v = g.createRadialGradient(w/2, h/2, Math.min(w, h)*0.35, w/2, h/2, Math.max(w, h)*0.72);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.45)');
+  g.fillStyle = v; g.fillRect(0, 0, w, h);
+}
+
 function procSlate(g, w, h, a, q){
   const rng = _paRng(a.seed*13 + 5), o = a.opts || {}, b = o.base || [34,46,41];
   const gr = g.createLinearGradient(0, 0, w*0.4, h);
@@ -182,6 +207,7 @@ function procArtCanvas(a, w, h, q){
   else if (a.kind === 'curtain') procCurtain(g, w, h, a, q);
   else if (a.kind === 'frame') procFrame(g, w, h, a);
   else if (a.kind === 'slate') procSlate(g, w, h, a, q);
+  else if (a.kind === 'leather') procLeather(g, w, h, a);
   else if (a.kind === 'erode') procErode(g, w, h, a);
   PROC_ART_CACHE.set(key, cv); _procArtPx += cv.width*cv.height;
   while (_procArtPx > 60e6 && PROC_ART_CACHE.size > 1){

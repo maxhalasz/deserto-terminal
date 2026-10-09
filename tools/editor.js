@@ -48,7 +48,7 @@ let curPageIdx = 0;
    (ou uma reconstrução em lote, tipo trocar preset de jornal) dispare pushes
    espúrios — os eventos object:added/removed disparam um por objeto mesmo numa
    operação em lote. */
-const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__docVariant','__newsGenerated','__newsRole','__flowIdx','__flowPara','__newsState','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup','__userLocked'];
+const HISTORY_PROPS = ['customType','__paperFile','personaId','fatigue','seed','redactPct','__docVariant','__docPageKind','__newsGenerated','__newsRole','__flowIdx','__flowPara','__newsState','__labName','__oid','__ownerOid','__cornerRadiusPx','__linkA','__linkB','__stampOptions','__userGroup','__userLocked'];
 let history = [];
 let historyIndex = -1;
 /* Contador de profundidade, NÃO boolean — uma operação em lote (trocar de página, trocar
@@ -941,9 +941,9 @@ async function loadTemplate(name, opts){
    cadeia antiga de else-if logo abaixo. */
 /* Estilo (variante) de um modelo: cada um traz o próprio layout, papel e fontes. Sem `variants`, o próprio modelo. */
 function docVariantOf(def, id){
-  if (!def.variants || !def.variants.length) return Object.assign({id:null}, {paper:def.paper, fonts:def.fonts, build:def.build});
+  if (!def.variants || !def.variants.length) return Object.assign({id:null}, {paper:def.paper, fonts:def.fonts, build:def.build, pages:def.pages});
   const v = def.variants.find(x=>x.id===id) || def.variants[0];
-  return Object.assign({}, v, {paper: v.paper || def.paper, fonts: v.fonts || def.fonts});
+  return Object.assign({}, v, {paper: v.paper || def.paper, fonts: v.fonts || def.fonts, pages: v.pages || def.pages});
 }
 async function buildDoc(name, variantId){
   const def = DOC_TEMPLATES[name];
@@ -1332,7 +1332,8 @@ function updatePageNavUI(){
   const isBrand = currentTemplate && currentTemplate.indexOf('brand:')===0;
   wrap.style.display = isBrand ? 'none' : 'block';
   if (isBrand) return;
-  document.getElementById('pageStatus').textContent = `Página ${curPageIdx+1} de ${PAGES.length}`;
+  const kindId = (getBackground() || {}).__docPageKind, kind = kindId && docPageKinds().find(k=>k.id===kindId);
+  document.getElementById('pageStatus').textContent = `Página ${curPageIdx+1} de ${PAGES.length}` + (kind ? ' · ' + kind.label : '');
   document.getElementById('btnPagePrev').disabled = curPageIdx<=0;
   document.getElementById('btnPageNext').disabled = curPageIdx>=PAGES.length-1;
   document.getElementById('btnPageDel').disabled = PAGES.length<=1;
@@ -1352,18 +1353,47 @@ async function pageGo(idx){
 /* Nova página em branco no MESMO documento: repete o fundo (mesma categoria de papel —
    foto NOVA do mesmo tipo, ou tela de terminal, ou digital) sem repetir o conteúdo — o
    Max escreve o que quiser em cada página. */
-async function pageAdd(){
+/* Páginas prontas do mesmo documento (verso, continuação, anexos): `pages` do modelo ou do estilo, em doc-pages.js. */
+function docPageKinds(){
+  const def = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate];
+  if (!def) return [];
+  const bg = getBackground();
+  return docVariantOf(def, bg && bg.__docVariant).pages || [];
+}
+async function buildDocPage(name, variantId, kind, pageNo, prev){
+  const def = DOC_TEMPLATES[name], v = docVariantOf(def, variantId);
+  await ensureFonts([].concat(v.fonts || [], kind.fonts || []));
+  const bg = setPaper(Object.assign({}, kind.paper || v.paper));
+  if (v.id) bg.__docVariant = v.id;
+  bg.__docPageKind = kind.id;
+  await kind.build(new DocKit(canvas), {name, variant:v.id, kind:kind.id, pageNo, prev:prev || {}, rng: mulberry32(Math.floor(Math.random()*4294967296))});
+}
+function syncPageKindUI(){
+  const sel = document.getElementById('pageKindSel'); if (!sel) return;
+  const kinds = docPageKinds(), sig = currentTemplate + ':' + ((getBackground() || {}).__docVariant || '') + ':' + kinds.map(k=>k.id).join(',');
+  if (sel.dataset.sig === sig) return;
+  sel.dataset.sig = sig; sel.innerHTML = '';
+  kinds.forEach(k=>{ const o = document.createElement('option'); o.value = k.id; o.textContent = k.label; sel.appendChild(o); });
+  const o = document.createElement('option'); o.value = ''; o.textContent = 'Em branco (só o papel)'; sel.appendChild(o);
+}
+async function pageAdd(kindId){
   return withSceneLock(async ()=>{
     pageSaveCurrent();
     const keep = readPaperUIState(); // o canvas é limpo dentro do sceneSwitchTo, então guarda o papel antes
+    const variantId = (getBackground() || {}).__docVariant;
+    const prevNews = (typeof getNewsState==='function') ? getNewsState() : null;   // página nova do jornal herda masthead e justificado
+    const kind = kindId ? docPageKinds().find(k=>k.id===kindId) : null;
     await sceneSwitchTo({}, {
       buildFresh: async ()=>{
-        if (keep && keep.kind==='proc') setPaper(Object.assign({}, keep, {seed: randomSeed32()}));
+        if (kind) await buildDocPage(currentTemplate, variantId, kind, curPageIdx + 2, {news:prevNews});
+        else if (keep && keep.kind==='proc') setPaper(Object.assign({}, keep, {seed: randomSeed32()}));
         else if (keep && keep.kind==='foto') await setBackgroundPaper(pickFile(keep.cat), {age: keep.level});
         else if (currentTemplate==='terminal') await buildTerminalScreenBg();
         else if (FLAT_SCREEN_BG[currentTemplate]) await buildFlatScreenBg(...FLAT_SCREEN_BG[currentTemplate]);
         else if (bgMode==='digital' && currentBgOpts) await setDigitalBackground(currentBgOpts);
         else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
+        const nb = getBackground();
+        if (nb && variantId && !nb.__docVariant) nb.__docVariant = variantId;   // página em branco continua do mesmo estilo
       },
     });
     PAGES.splice(curPageIdx+1, 0, pageSnapshot());
@@ -1485,7 +1515,7 @@ document.getElementById('btnNewDoc').addEventListener('click', ()=>{
 });
 document.getElementById('btnPagePrev').addEventListener('click', ()=>pageGo(curPageIdx-1));
 document.getElementById('btnPageNext').addEventListener('click', ()=>pageGo(curPageIdx+1));
-document.getElementById('btnPageAdd').addEventListener('click', ()=>pageAdd());
+document.getElementById('btnPageAdd').addEventListener('click', ()=>pageAdd(document.getElementById('pageKindSel').value));
 document.getElementById('btnPageDel').addEventListener('click', ()=>pageDelete());
 
 /* ===================== Layout do jornal (presets, título, justificar, caixa) =====================
@@ -1508,6 +1538,7 @@ function addNewsBox(){
 ['btnAddNewsBox','btnNewsBoxHere'].forEach(id=>{ const b = document.getElementById(id); if (b) b.addEventListener('click', addNewsBox); });
 /* Seletor "Estilo" (só aparece nos modelos que têm mais de um estilo, ex.: cardápios). */
 function syncDocVariantUI(){
+  syncPageKindUI();
   const blk = document.getElementById('docVariantBlock'); if (!blk) return;
   const def = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate];
   if (!def || !def.variants || def.variants.length < 2){ blk.style.display = 'none'; return; }
