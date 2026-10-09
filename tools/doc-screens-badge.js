@@ -11,6 +11,8 @@ DS.guilloche = (kit, W, H, color, op)=>{
   const p = kit.path(d, {left:0, top:0, fill:null, stroke:color, sw:1, opacity:op, blend:'source-over', label:'Padrão de segurança'});
   p.__bleedOk = true; return p;
 };
+/* Textura de plástico por cima do cartão inteiro (ver ProcArt 'card'); o inspetor do objeto ajusta cada coisa. */
+DS.cardTexture = (kit, seed, o)=>kit.proc('card', 0, 0, kit.W, kit.H, {seed, opts:Object.assign({gloss:0.5, scratch:0.55, grain:0.5, wear:0.4, smudge:0.4, slot:true, corner:32}, o || {}), label:'Textura do cartão (plástico)'});
 DS.badgeNeurostat = async (kit)=>{
   const W = kit.W, H = kit.H, d = DS.badgeData, ink = '#0b1a2c', mid = '#1f5a96', grey = '#51657c', deep = '#12365e';
   kit.rect({left:0, top:0, width:W, height:H, fill:'#eef3f9', blend:'source-over', label:'Cartão'});
@@ -33,6 +35,8 @@ DS.badgeNeurostat = async (kit)=>{
   row('ID', d.id, X, 342); row('ISSUED', d.issued, X + 190, 342); row('EXPIRES', d.expires, X + 350, 342);
   const bc = kit.barcode(d.code, X, 410, 74, 2.7, {fill:ink, label:'Código de barras (Code 128)'});
   kit.text(d.code, {left:X, top:488, width:bc.width, font:'Courier Prime', weight:700, size:16, cs:200, fill:ink, align:'center', lh:1.0});
+  kit.proc('holo', 706, 392, 104, 104, {seed:3, label:'Selo holográfico'});
+  DS.cardTexture(kit, 11, {gloss:0.5});
 };
 DS.badgeOdemark = async (kit)=>{
   const W = kit.W, H = kit.H, d = DS.badgeData, navy = '#141b30', orange = '#e5601d', cream = '#efe6cb', yellow = '#f1c232';
@@ -53,6 +57,7 @@ DS.badgeOdemark = async (kit)=>{
   const row = (label, val, x, y, hot)=>{ kit.text(label, {left:x, top:y, width:140, font:'Barlow Condensed', weight:500, size:17, cs:300, fill:orange, lh:1.0, blend:'source-over'}); kit.text(val, {left:x, top:y + 22, width:150, font:'Courier Prime', weight:700, size:27, fill:hot ? '#ff8a5c' : cream, lh:1.0, blend:'source-over'}); };
   row('ID', d.id, X, 364); row('ISSUED', d.issued, X + 200, 364); row('EXPIRES', d.expires, X + 360, 364, true);
   kit.text('NOV — APR   ·   MØRKETID', {left:0, top:H - 50, width:W, font:'Barlow Condensed', weight:600, size:26, cs:360, fill:navy, align:'center', lh:1.0, blend:'source-over'});
+  DS.cardTexture(kit, 12, {gloss:0.55, wear:0.45});
 };
 DS.badgeVersoNeurostat = async (kit)=>{
   const W = kit.W, H = kit.H, ink = '#0b1a2c', grey = '#51657c', deep = '#12365e';
@@ -71,6 +76,7 @@ DS.badgeVersoNeurostat = async (kit)=>{
     kit.text(z + '  ' + name, {left:x + 38, top:413, width:170, font:'Inter', weight:500, size:16, fill:ink, lh:1.0});
   });
   kit.text('EMERGENCY  ·  Platform Deserto Control   ext. 312', {left:36, top:468, width:W - 72, font:'Courier Prime', weight:700, size:17, fill:ink, lh:1.0});
+  DS.cardTexture(kit, 13, {gloss:0.5});
 };
 DS.badgeVersoOdemark = async (kit)=>{
   const W = kit.W, H = kit.H, navy = '#141b30', orange = '#e5601d', cream = '#efe6cb', yellow = '#f1c232';
@@ -89,6 +95,7 @@ DS.badgeVersoOdemark = async (kit)=>{
   });
   kit.text('EMERGENCY SIGNAL:  SEVEN SHORT BLASTS', {left:46, top:398, width:W - 92, font:'Barlow Condensed', weight:600, size:26, cs:160, fill:cream, lh:1.0, blend:'source-over'});
   kit.text('IF FOUND, RETURN TO CREW SERVICES', {left:46, top:436, width:W - 92, font:'Barlow Condensed', weight:500, size:21, cs:200, fill:orange, lh:1.0, blend:'source-over'});
+  DS.cardTexture(kit, 14, {gloss:0.55, wear:0.45});
 };
 registerDoc('badge', {
   label:'Crachá — cartão de acesso', page:[860, 540], phys:[3.375, 2.125], screen:true,

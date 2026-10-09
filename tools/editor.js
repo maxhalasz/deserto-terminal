@@ -1043,6 +1043,22 @@ function addNewsBox(){
     canvas.add(e); canvas.setActiveObject(e); canvas.renderAll(); pushHistory();
   });
 })();
+/* Textura de plástico do cartão: um controle pra cada efeito. */
+function renderCardTextureInspector(obj, body){
+  const o = obj.art.opts;
+  const set = (k, v)=>{ obj.art.opts = Object.assign({}, obj.art.opts, {[k]:v}); obj.dirty = true; canvas.requestRenderAll(); };
+  const slider = (label, key, def)=>{
+    const w = field.range(label, o[key] != null ? o[key] : def, 0, 1, 0.05, v=>set(key, v));
+    const inp = w.querySelector ? w.querySelector('input[type=range]') : null;
+    if (inp) inp.addEventListener('change', ()=>pushHistory());
+    body.appendChild(w);
+  };
+  body.appendChild(field.hint('Textura de cartão de plástico por cima de tudo. Cada controle muda um efeito; zero tira o efeito.'));
+  slider('Brilho do laminado', 'gloss', 0.5); slider('Riscos', 'scratch', 0.55); slider('Grão', 'grain', 0.5); slider('Desgaste das bordas e sujeira', 'wear', 0.4); slider('Marcas de dedo', 'smudge', 0.4);
+  body.appendChild(field.checkbox('Furo pro cordão', o.slot !== false, v=>{ set('slot', v); pushHistory(); }));
+  body.appendChild(field.range('Cantos arredondados', o.corner != null ? o.corner : 32, 0, 60, 1, v=>set('corner', v)));
+  body.appendChild(field.button('🎲 Novo desgaste', ()=>{ obj.art.seed = randomSeed32(); obj.dirty = true; canvas.requestRenderAll(); pushHistory(); }));
+}
 function renderEmblemInspector(obj, body){
   const em = obj.em;
   const opt = (map)=>Object.keys(map).map(value=>({value, label:map[value]}));
@@ -1690,6 +1706,8 @@ function updateInspector(){
     renderEmblemInspector(obj, body);
   } else if (obj.type==='wachat'){
     WA.inspector(obj, body);
+  } else if (obj.type==='procart' && obj.art.kind==='card'){
+    renderCardTextureInspector(obj, body);
   }
   if (obj.customType==='brandArt'){
     renderBrandArtInspector(obj, body);

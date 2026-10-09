@@ -9,6 +9,7 @@
      leather — couro de capa de caderno: manchas, grão pebble, arranhões, vinheta (opts: base [r,g,b])
      crt     — fundo de tela de tubo (brilho de fósforo, grão); scan — por cima do texto: linhas de varredura, vinheta, cantos do tubo
      doodle  — papel de parede de chat (rabiscos finos em tom sobre tom)
+     card    — textura de cartão de plástico por cima (grão, brilho, riscos, dedos, desgaste, furo, cantos); holo — selo holográfico
      slate   — quadro-negro: degradê, borrões de apagador, riscos, grão (opts: base [r,g,b])
      erode   — camada de "giz gasto" POR CIMA do texto: falhas minúsculas na cor do quadro (opts: color [r,g,b], density)
    Tudo em unidades de página, então tem o mesmo tamanho físico em ×1 e ×2. Mesma semente = mesma textura.
@@ -211,6 +212,91 @@ function procDoodle(g, w, h, a){
   }
 }
 
+/* Textura de cartão de plástico (POR CIMA de tudo, não rouba clique): grão fino, faixa de brilho do laminado, riscos,
+   marcas de dedo, desgaste de borda e sujeira embaixo, furo de cordão e cantos arredondados (fora do cartão fica branco,
+   que é a cor da página). opts: gloss, scratch, grain, wear, smudge (0–1), slot (furo), corner (raio em px). */
+function procCard(g, w, h, a){
+  const o = a.opts || {}, rng = _paRng(a.seed*53 + 9);
+  const gloss = o.gloss != null ? o.gloss : 0.5, scr = o.scratch != null ? o.scratch : 0.5, gr = o.grain != null ? o.grain : 0.5;
+  const wear = o.wear != null ? o.wear : 0.4, sm = o.smudge != null ? o.smudge : 0.4, cr = o.corner != null ? o.corner : 32;
+  // grão (ruído com alfa, no tamanho do dispositivo)
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+  const W = g.canvas.width, H = g.canvas.height, id = g.createImageData(W, H), d = id.data;
+  let x = ((a.seed*2654435761) >>> 0) || 1;
+  for (let i = 0; i < d.length; i += 4){
+    x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+    const n = (x & 255) - 128; d[i] = d[i+1] = d[i+2] = n > 0 ? 255 : 0; d[i+3] = Math.min(255, Math.abs(n)*0.2*gr);
+  }
+  g.putImageData(id, 0, 0); g.restore();
+  // faixas de brilho do laminado
+  const sh = g.createLinearGradient(0, h*0.05, w*0.92, h*0.98);
+  [[0, 0], [0.30, 0], [0.40, 0.17*gloss], [0.47, 0.04*gloss], [0.53, 0.10*gloss], [0.64, 0], [0.82, 0.05*gloss], [0.90, 0]].forEach(([p, al])=>sh.addColorStop(p, `rgba(255,255,255,${al})`));
+  g.fillStyle = sh; g.fillRect(0, 0, w, h);
+  // riscos finos (claros e escuros), mais densos perto das bordas
+  g.lineCap = 'round';
+  const N = Math.round(46*scr);
+  for (let i = 0; i < N; i++){
+    const edge = rng() < 0.4, sx = edge ? (rng() < 0.5 ? rng()*w*0.12 : w - rng()*w*0.12) : rng()*w, sy = rng()*h, l = 20 + rng()*rng()*210, an = -0.5 + rng()*1.0 + (rng() < 0.3 ? 1.57 : 0);
+    const light = rng() < 0.62;
+    g.strokeStyle = light ? `rgba(255,255,255,${0.06 + rng()*0.20})` : `rgba(0,0,0,${0.05 + rng()*0.16})`; g.lineWidth = 0.5 + rng()*1.1;
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx + Math.cos(an)*l, sy + Math.sin(an)*l); g.stroke();
+  }
+  // marcas de dedo: anéis de elipse incompletos
+  for (let k = 0; k < 2; k++){
+    const cx = w*(k ? 0.72 : 0.30) + (rng() - 0.5)*60, cy = h*(k ? 0.36 : 0.74) + (rng() - 0.5)*40, rot = rng()*3.14;
+    for (let i = 0; i < 16; i++){
+      const rx = 5 + i*3.3, ry = 7 + i*4.2, a0 = rng()*6.28, ln = 1.6 + rng()*2.6;
+      g.strokeStyle = `rgba(255,255,255,${(0.035 + rng()*0.05)*sm*2})`; g.lineWidth = 1.5 + rng()*1.2;
+      g.beginPath(); g.ellipse(cx, cy, rx, ry, rot, a0, a0 + ln); g.stroke();
+    }
+  }
+  // sujeira embaixo e desgaste de borda
+  const gr2 = g.createLinearGradient(0, h*0.78, 0, h);
+  gr2.addColorStop(0, 'rgba(40,30,20,0)'); gr2.addColorStop(1, `rgba(40,30,20,${0.16*wear})`);
+  g.fillStyle = gr2; g.fillRect(0, h*0.78, w, h*0.22);
+  const rrp = (inset, r)=>{ g.beginPath(); g.moveTo(inset + r, inset); g.arcTo(w - inset, inset, w - inset, h - inset, r); g.arcTo(w - inset, h - inset, inset, h - inset, r); g.arcTo(inset, h - inset, inset, inset, r); g.arcTo(inset, inset, w - inset, inset, r); g.closePath(); };
+  rrp(3, cr); g.strokeStyle = `rgba(255,255,255,${0.16*wear + 0.05})`; g.lineWidth = 5; g.stroke();
+  rrp(1.5, cr); g.strokeStyle = `rgba(0,0,0,${0.22*wear + 0.06})`; g.lineWidth = 3; g.stroke();
+  for (let i = 0; i < Math.round(18*wear); i++){   // lascas nas bordas
+    const side = (rng()*4)|0, t = rng(), px = side < 2 ? t*w : (side === 2 ? 2 : w - 2), py = side < 2 ? (side === 0 ? 2 : h - 2) : t*h, r = 1 + rng()*3.2;
+    g.fillStyle = `rgba(255,255,255,${0.22 + rng()*0.3})`; g.beginPath(); g.arc(px, py, r, 0, 6.28); g.fill();
+  }
+  // furo do cordão
+  if (o.slot !== false){
+    const sw = 104, sh2 = 20, sx = w/2 - sw/2, sy = 18;
+    g.beginPath(); g.roundRect ? g.roundRect(sx - 3, sy - 3, sw + 6, sh2 + 6, (sh2 + 6)/2) : g.rect(sx - 3, sy - 3, sw + 6, sh2 + 6);
+    g.fillStyle = 'rgba(0,0,0,0.38)'; g.fill();
+    g.beginPath(); g.roundRect ? g.roundRect(sx, sy, sw, sh2, sh2/2) : g.rect(sx, sy, sw, sh2);
+    g.fillStyle = '#ffffff'; g.fill();
+  }
+  // cantos arredondados: o que fica fora do cartão é a cor da página
+  if (cr > 0){
+    g.save(); g.beginPath(); g.rect(0, 0, w, h);
+    g.moveTo(cr, 0); g.arcTo(0, 0, 0, cr, cr); g.lineTo(0, h - cr); g.arcTo(0, h, cr, h, cr); g.lineTo(w - cr, h); g.arcTo(w, h, w, h - cr, cr); g.lineTo(w, cr); g.arcTo(w, 0, w - cr, 0, cr); g.closePath();
+    g.fillStyle = '#ffffff'; g.fill('evenodd'); g.restore();
+  }
+}
+/* Selo holográfico (adesivo de segurança): degradê arco-íris, anéis, hachura diagonal e brilho. opts.hue gira as cores. */
+function procHolo(g, w, h, a){
+  const rng = _paRng(a.seed*61 + 3), o = a.opts || {}, hue = o.hue || 0, r = Math.min(w, h)*0.14;
+  g.save();
+  g.beginPath(); g.moveTo(r, 0); g.arcTo(w, 0, w, h, r); g.arcTo(w, h, 0, h, r); g.arcTo(0, h, 0, 0, r); g.arcTo(0, 0, w, 0, r); g.closePath(); g.clip();
+  const gr = g.createLinearGradient(0, h, w, 0);
+  [[0, 300], [0.22, 200], [0.42, 140], [0.6, 55], [0.8, 20], [1, 320]].forEach(([p, hh])=>gr.addColorStop(p, `hsla(${(hh + hue)%360},85%,66%,0.94)`));
+  g.fillStyle = gr; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(255,255,255,0.30)'; g.lineWidth = 1.4;
+  for (let i = 1; i < 9; i++){ g.beginPath(); g.arc(w*0.5, h*0.5, i*Math.min(w, h)*0.07, 0, 6.28); g.stroke(); }
+  g.strokeStyle = 'rgba(0,0,0,0.14)'; g.lineWidth = 1;
+  for (let x = -h; x < w; x += 7){ g.beginPath(); g.moveTo(x, h); g.lineTo(x + h, 0); g.stroke(); }
+  for (let i = 0; i < 14; i++){ g.fillStyle = `rgba(255,255,255,${0.35 + rng()*0.4})`; g.beginPath(); g.arc(rng()*w, rng()*h, 0.8 + rng()*2, 0, 6.28); g.fill(); }
+  const hl = g.createRadialGradient(w*0.3, h*0.25, 0, w*0.3, h*0.25, Math.max(w, h)*0.7);
+  hl.addColorStop(0, 'rgba(255,255,255,0.45)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = hl; g.fillRect(0, 0, w, h);
+  g.restore();
+  g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = 2.4;
+  g.beginPath(); g.moveTo(r, 1.2); g.arcTo(w - 1.2, 1.2, w - 1.2, h - 1.2, r); g.arcTo(w - 1.2, h - 1.2, 1.2, h - 1.2, r); g.arcTo(1.2, h - 1.2, 1.2, 1.2, r); g.arcTo(1.2, 1.2, w - 1.2, 1.2, r); g.closePath(); g.stroke();
+}
+
 function procSlate(g, w, h, a, q){
   const rng = _paRng(a.seed*13 + 5), o = a.opts || {}, b = o.base || [34,46,41];
   const gr = g.createLinearGradient(0, 0, w*0.4, h);
@@ -267,6 +353,8 @@ function procArtCanvas(a, w, h, q){
   else if (a.kind === 'crt') procCrt(g, w, h, a);
   else if (a.kind === 'scan') procScan(g, w, h, a);
   else if (a.kind === 'doodle') procDoodle(g, w, h, a);
+  else if (a.kind === 'card') procCard(g, w, h, a);
+  else if (a.kind === 'holo') procHolo(g, w, h, a);
   else if (a.kind === 'erode') procErode(g, w, h, a);
   PROC_ART_CACHE.set(key, cv); _procArtPx += cv.width*cv.height;
   while (_procArtPx > 60e6 && PROC_ART_CACHE.size > 1){
@@ -281,7 +369,7 @@ class ProcArt extends fabric.Rect {
     options = options || {};
     const art = Object.assign({kind:'wood', seed:1, opts:{}}, options.art);
     // giz gasto fica POR CIMA do texto: não pode roubar o clique (evented:false volta sozinho depois do desfazer)
-    super(Object.assign({fill:'#000000', objectCaching:false, strokeWidth:0}, options, {art}, (art.kind === 'erode' || art.kind === 'scan') ? {evented:false} : {}));
+    super(Object.assign({fill:'#000000', objectCaching:false, strokeWidth:0}, options, {art}, (art.kind === 'erode' || art.kind === 'scan' || art.kind === 'card') ? {evented:false} : {}));
   }
   _render(ctx){
     const W = this.width, H = this.height, t = ctx.getTransform(), s = Math.hypot(t.a, t.b) || 1;
