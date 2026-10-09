@@ -350,8 +350,12 @@ function makeStampObjects(text, options){
   fabric.Image.fromURL(generateInkGrainURL(Math.floor(Math.random()*4294967296))).then(g=>{
     if (!group.canvas) return; // carimbo já foi removido antes da textura carregar
     const w = rect.width, h = rect.height;
+    // group.add() lê left/top como coordenada de CANVAS (rect.left aqui é relativo ao centro do grupo, ~0 antes de o
+    // grupo ser recalculado), então usa o centro absoluto da borda — senão a textura ia parar no canto da página
+    // e a caixa de seleção do carimbo ficava gigante.
+    const cp = rect.getCenterPoint();
     g.set({
-      left: rect.left, top: rect.top, angle,
+      left: cp.x, top: cp.y, angle,
       originX:'center', originY:'center',
       scaleX: w/g.width, scaleY: h/g.height,
       selectable:false, evented:false, globalCompositeOperation:'multiply', opacity:0.7,
