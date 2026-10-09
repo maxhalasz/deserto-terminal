@@ -12,25 +12,25 @@ DS.guilloche = (kit, W, H, color, op)=>{
   p.__bleedOk = true; return p;
 };
 DS.badgeNeurostat = async (kit)=>{
-  const W = kit.W, H = kit.H, d = DS.badgeData, navy = '#1c3a5e', blue = '#2f6db0', ink = '#14202e', grey = '#5a6a7e';
-  kit.rect({left:0, top:0, width:W, height:H, fill:'#f4f7fb', blend:'source-over', label:'Cartão'});
-  DS.guilloche(kit, W, H, '#c9d6e6', 0.55);
-  const band = kit.rect({left:0, top:0, width:W, height:96, fill:navy, blend:'source-over', label:'Faixa do topo'});
-  band.set('fill', new fabric.Gradient({type:'linear', coords:{x1:0, y1:0, x2:W, y2:0}, colorStops:[{offset:0, color:'#173250'}, {offset:1, color:'#2f6db0'}]}));
+  const W = kit.W, H = kit.H, d = DS.badgeData, ink = '#0b1a2c', mid = '#1f5a96', grey = '#51657c', deep = '#12365e';
+  kit.rect({left:0, top:0, width:W, height:H, fill:'#eef3f9', blend:'source-over', label:'Cartão'});
+  DS.guilloche(kit, W, H, '#bfcfe2', 0.6);
+  const band = kit.rect({left:0, top:0, width:W, height:96, fill:'#0a1829', blend:'source-over', label:'Faixa do topo'});
+  band.set('fill', new fabric.Gradient({type:'linear', coords:{x1:0, y1:0, x2:W, y2:0}, colorStops:[{offset:0, color:'#07121f'}, {offset:1, color:'#153a63'}]}));
   kit.text('NEUROSTAT', {left:40, top:26, width:420, font:'Libre Franklin', weight:700, size:38, cs:120, fill:'#ffffff', lh:1.0, blend:'source-over'});
-  kit.text('FIELD DIVISION', {left:W - 360, top:38, width:320, font:'Inter', weight:600, size:16, cs:340, fill:'#cfe0f4', align:'right', lh:1.0, blend:'source-over'});
-  kit.rect({left:0, top:96, width:W, height:6, fill:'#c8381f', blend:'source-over', label:'Filete vermelho'});
-  kit.rect({left:34, top:130, width:208, height:262, fill:'#ffffff', stroke:'#b7c5d8', sw:2, rx:10, blend:'source-over', label:'Moldura da foto'});
-  await kit.photo(40, 136, 196, 250, {rx:8, seed:7, label:'Foto (trocar)'});
+  kit.text('FIELD DIVISION', {left:W - 360, top:38, width:320, font:'Inter', weight:600, size:16, cs:340, fill:'#9db8d6', align:'right', lh:1.0, blend:'source-over'});
+  kit.rect({left:0, top:96, width:W, height:6, fill:'#3f7fc0', blend:'source-over', label:'Filete azul'});
+  kit.rect({left:34, top:130, width:208, height:262, fill:'#ffffff', stroke:'#9db4cf', sw:2, rx:10, blend:'source-over', label:'Moldura da foto'});
+  await kit.photo(40, 136, 196, 250, {rx:8, seed:7, c0:'#a9bdd6', c1:'#52719a', c2:'#1a2b44', label:'Foto (trocar)'});
   const X = 276;
   kit.text(d.name, {left:X, top:132, width:540, font:'Libre Franklin', weight:700, size:52, fill:ink, lh:1.0, label:'Nome'});
-  kit.text(d.role, {left:X, top:196, width:540, font:'Inter', weight:600, size:24, cs:160, fill:blue, lh:1.0, label:'Cargo'});
+  kit.text(d.role, {left:X, top:196, width:540, font:'Inter', weight:600, size:24, cs:160, fill:mid, lh:1.0, label:'Cargo'});
   kit.text('FIELD DIVISION  ·  PLATFORM DESERTO', {left:X, top:232, width:560, font:'Inter', weight:500, size:16, cs:200, fill:grey, lh:1.0});
-  kit.rect({left:X, top:272, width:230, height:48, fill:'#c8381f', rx:6, blend:'source-over', label:'Nível de acesso'});
+  kit.rect({left:X, top:272, width:230, height:48, fill:deep, rx:6, blend:'source-over', label:'Nível de acesso'});
   kit.text('ACCESS  LEVEL  ' + d.level, {left:X, top:285, width:230, font:'Inter', weight:600, size:19, cs:140, fill:'#ffffff', align:'center', lh:1.0, blend:'source-over'});
   kit.text(d.zone, {left:X + 250, top:285, width:300, font:'Inter', weight:600, size:19, cs:140, fill:ink, lh:1.0});
-  const row = (label, val, x, y, red)=>{ kit.text(label, {left:x, top:y, width:140, font:'Inter', weight:600, size:12.5, cs:200, fill:grey, lh:1.0}); kit.text(val, {left:x, top:y + 18, width:140, font:'Courier Prime', weight:700, size:24, fill:red ? '#b3261e' : ink, lh:1.0}); };
-  row('ID', d.id, X, 342); row('ISSUED', d.issued, X + 190, 342); row('EXPIRES', d.expires, X + 350, 342, true);
+  const row = (label, val, x, y)=>{ kit.text(label, {left:x, top:y, width:140, font:'Inter', weight:600, size:12.5, cs:200, fill:grey, lh:1.0}); kit.text(val, {left:x, top:y + 18, width:140, font:'Courier Prime', weight:700, size:24, fill:ink, lh:1.0}); };
+  row('ID', d.id, X, 342); row('ISSUED', d.issued, X + 190, 342); row('EXPIRES', d.expires, X + 350, 342);
   const bc = kit.barcode(d.code, X, 410, 74, 2.7, {fill:ink, label:'Código de barras (Code 128)'});
   kit.text(d.code, {left:X, top:488, width:bc.width, font:'Courier Prime', weight:700, size:16, cs:200, fill:ink, align:'center', lh:1.0});
 };
@@ -55,11 +55,11 @@ DS.badgeOdemark = async (kit)=>{
   kit.text('NOV — APR   ·   MØRKETID', {left:0, top:H - 50, width:W, font:'Barlow Condensed', weight:600, size:26, cs:360, fill:navy, align:'center', lh:1.0, blend:'source-over'});
 };
 DS.badgeVersoNeurostat = async (kit)=>{
-  const W = kit.W, H = kit.H, ink = '#14202e', grey = '#5a6a7e';
-  kit.rect({left:0, top:0, width:W, height:H, fill:'#f4f7fb', blend:'source-over', label:'Cartão (verso)'});
-  DS.guilloche(kit, W, H, '#c9d6e6', 0.55);
-  kit.rect({left:0, top:44, width:W, height:100, fill:'#1a1a1c', blend:'source-over', label:'Tarja magnética'});
-  kit.rect({left:36, top:176, width:W - 72, height:66, fill:'#ffffff', stroke:'#b7c5d8', sw:2, blend:'source-over', label:'Campo de assinatura'});
+  const W = kit.W, H = kit.H, ink = '#0b1a2c', grey = '#51657c', deep = '#12365e';
+  kit.rect({left:0, top:0, width:W, height:H, fill:'#eef3f9', blend:'source-over', label:'Cartão (verso)'});
+  DS.guilloche(kit, W, H, '#bfcfe2', 0.6);
+  kit.rect({left:0, top:44, width:W, height:100, fill:'#0d1624', blend:'source-over', label:'Tarja magnética'});
+  kit.rect({left:36, top:176, width:W - 72, height:66, fill:'#ffffff', stroke:'#9db4cf', sw:2, blend:'source-over', label:'Campo de assinatura'});
   kit.text('AUTHORIZED SIGNATURE', {left:48, top:184, width:400, font:'Inter', weight:600, size:12, cs:200, fill:grey, lh:1.0});
   kit.text('This card is the property of NeuroStat Field Division. It is not transferable. If found, return it to any Supervisor. Use of this card by anyone other than the holder is prohibited.',
     {left:36, top:266, width:W - 72, font:'Inter', weight:400, size:19, fill:ink, lh:1.4});
@@ -67,7 +67,7 @@ DS.badgeVersoNeurostat = async (kit)=>{
   [['A', 'Dining deck', true], ['B', 'Machine room', true], ['C', 'Moonpool deck', true], ['D', 'Lower deck', false]].forEach(([z, name, on], i)=>{
     const x = 36 + i*204;
     kit.rect({left:x, top:410, width:26, height:26, stroke:ink, sw:2, blend:'source-over', label:'Caixa de zona'});
-    if (on) SC.icon(kit, 'done', x - 1, 409, 28, '#1c3a5e', {label:'Marca'});
+    if (on) SC.icon(kit, 'done', x - 1, 409, 28, deep, {label:'Marca'});
     kit.text(z + '  ' + name, {left:x + 38, top:413, width:170, font:'Inter', weight:500, size:16, fill:ink, lh:1.0});
   });
   kit.text('EMERGENCY  ·  Platform Deserto Control   ext. 312', {left:36, top:468, width:W - 72, font:'Courier Prime', weight:700, size:17, fill:ink, lh:1.0});

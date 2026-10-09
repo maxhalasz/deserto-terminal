@@ -1065,6 +1065,8 @@ function renderEmblemInspector(obj, body){
 /* Seletor "Estilo" (só aparece nos modelos que têm mais de um estilo, ex.: cardápios). */
 function syncDocVariantUI(){
   syncPageKindUI();
+  const hn = document.getElementById('docHint'), hd = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate];
+  if (hn){ hn.textContent = (hd && hd.hint) || ''; hn.style.display = (hd && hd.hint) ? 'block' : 'none'; }
   const blk = document.getElementById('docVariantBlock'); if (!blk) return;
   const def = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate];
   if (!def || !def.variants || def.variants.length < 2){ blk.style.display = 'none'; return; }
@@ -1686,6 +1688,8 @@ function updateInspector(){
     renderTextInspector(obj, body);
   } else if (obj.type==='emblem'){
     renderEmblemInspector(obj, body);
+  } else if (obj.type==='wachat'){
+    WA.inspector(obj, body);
   }
   if (obj.customType==='brandArt'){
     renderBrandArtInspector(obj, body);

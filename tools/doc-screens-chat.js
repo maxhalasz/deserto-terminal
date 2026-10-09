@@ -33,95 +33,227 @@ WA.input = (kit)=>{
   kit.circle({left:W - 156, top:H - 138, r:54, fill:WA.C.green, blend:'source-over', label:'Botão do microfone'});
   SC.icon(kit, 'mic', W - 135, H - 117, 62, '#ffffff', {label:'Microfone'});
 };
-WA.chip = (kit, y, text)=>{
-  const W = kit.W, tw = kit.measure(text, {font:'Inter', size:27, weight:500, cs:80}) + 56;
-  kit.rect({left:(W - tw)/2, top:y, width:tw, height:56, fill:WA.C.chip, rx:16, blend:'source-over', label:'Data'});
-  kit.text(text, {left:(W - tw)/2, top:y + 13, width:tw, font:'Inter', weight:500, size:27, cs:80, fill:WA.C.chipText, align:'center', lh:1.0, blend:'source-over', label:'Data (texto)'});
-  return y + 56 + 22;
-};
-/* Um balão. m = {me, text, time, state:'sent'|'delivered'|'read', voice:'0:11'}. Devolve o y do fim (sem a folga). */
-WA.bubble = (kit, y, m, tail)=>{
-  const W = kit.W, C = WA.C, FS = 40, TS = 25, PX = 26, PY = 16, MG = 28, MAXW = Math.round(W*0.80), me = !!m.me;
-  const state = me ? (m.state || 'read') : null;
-  const tw = kit.measure(m.time, {font:'Inter', size:TS, weight:400}), timeW = tw + (me ? 44 : 0);
-  let bw, bh, bx;
-  if (m.voice){
-    bw = 690; bh = 150; bx = me ? W - MG - bw : MG;
-  } else {
-    const inner = MAXW - PX*2, nat = Math.ceil(kit.measure(m.text, {font:'Inter', size:FS, weight:400})) + 14;
-    const single = !m.text.includes('\n') && nat + 20 + timeW <= inner;
-    const t = kit.text(m.text, {left:0, top:0, width:single ? nat : Math.min(inner, nat), font:'Inter', size:FS, weight:400, fill:C.text, lh:1.3, blend:'source-over', label:'Mensagem'});
-    let lw = t.width; try { let mx = 0; for (let i = 0; i < t._textLines.length; i++) mx = Math.max(mx, t.getLineWidth(i)); lw = Math.ceil(mx) + 8; } catch (e) {}
-    if (!single && lw < t.width) t.set('width', lw);
-    const textW = single ? nat : t.width;
-    bw = single ? textW + 20 + timeW + PX*2 : Math.max(textW, timeW) + PX*2;
-    bh = single ? PY*2 + t.height : PY*2 + t.height + TS*1.15;
-    bx = me ? W - MG - bw : MG;
-    t.set({left:bx + PX, top:y + PY}); t.setCoords();
-    m.__t = t;
-  }
-  const col = me ? C.out : C.inb;
-  kit.rect({left:bx, top:y + 2, width:bw, height:bh, fill:'rgba(0,0,0,0.10)', rx:20, blend:'source-over', label:'Sombra do balão'});
-  const box = kit.rect({left:bx, top:y, width:bw, height:bh, fill:col, rx:20, blend:'source-over', label:'Balão'});
-  if (tail){
-    const d = me ? `M ${bx + bw - 6} ${y} L ${bx + bw + 20} ${y} L ${bx + bw - 6} ${y + 30} Z` : `M ${bx + 6} ${y} L ${bx - 20} ${y} L ${bx + 6} ${y + 30} Z`;
-    kit.path(d, {left:me ? bx + bw - 6 : bx - 20, top:y, fill:col, blend:'source-over', label:'Pontinha do balão'});
-  }
-  // o texto foi criado antes do retângulo: sobe de camada pra ficar por cima
-  if (m.__t){ kit.cv.bringObjectToFront(m.__t); }
-  const timeX = bx + bw - PX - timeW, timeY = y + bh - PY - TS*0.95 - 2;
-  if (m.voice){
-    SC.icon(kit, 'play', bx + 26, y + 36, 78, '#8a9aa0', {label:'Tocar'});
-    const rng = mulberry32(m.voice.length*977 + 5);
-    for (let i = 0; i < 34; i++){
-      const hh = 10 + rng()*44;
-      kit.rect({left:bx + 124 + i*14.5, top:y + 62 - hh/2 + 14, width:6, height:hh, fill:i < 3 ? '#34B7F1' : '#aab6bb', rx:3, blend:'source-over', label:'Onda do áudio'});
-    }
-    kit.text(m.voice, {left:bx + 124, top:y + bh - PY - TS*1.1 - 4, width:120, font:'Inter', weight:400, size:TS, fill:C.timeIn, lh:1.0, blend:'source-over', label:'Duração'});
-  }
-  kit.text(m.time, {left:timeX, top:timeY, width:tw + 8, font:'Inter', weight:400, size:TS, fill:me ? C.timeOut : C.timeIn, lh:1.0, blend:'source-over', label:'Hora'});
-  if (me) SC.ticks(kit, state, timeX + tw + 8, timeY - 4, 34);
-  return y + bh;
-};
-WA.chat = (kit, msgs, y0, o)=>{
-  let y = y0, prev = null;
-  msgs.forEach(m=>{
-    if (m.chip){ y = WA.chip(kit, y + 10, m.chip); prev = null; return; }
-    const first = !prev || prev.me !== m.me;
-    y = WA.bubble(kit, y, m, first) + (first ? 14 : 14);
-    prev = m;
+/* ---------------------------------------------------------------------------------------------------
+   A CONVERSA é UM objeto só (`WaChat`): guarda a lista de mensagens e desenha tudo sozinho — tamanho dos balões,
+   pontinha, hora, ticks, áudio, chips de data — então o formato da tela NÃO muda com a quantidade de mensagens.
+   Poucas mensagens: a lista começa no topo (como no Android). Quando passa do tamanho da tela, ela ancora embaixo e as
+   mais antigas saem por cima, cortadas pela barra de título, igual a um print de celular de verdade.
+   Cabeçalho, barra de digitação e papel de parede continuam objetos à parte (não dependem das mensagens).
+   Mensagem: {t:'text'|'voice'|'chip', me:bool, text, time, st:'sent'|'delivered'|'read', dur:'0:11'}.
+   --------------------------------------------------------------------------------------------------- */
+WA.M = {FS:40, TS:25, PX:26, PY:16, MG:28, R:20, LH:1.3, SAME:14, DIFF:26, CHIP:56, TOP:30, BOTTOM:24};
+WA.fontsReady = ()=>{ try { return document.fonts.check("400 20px 'Inter'") && document.fonts.check("500 20px 'Inter'"); } catch (e){ return true; } };
+WA.rr = (g, x, y, w, h, r)=>{ g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+WA.wrap = (g, text, maxW)=>{
+  g.font = `400 ${WA.M.FS}px 'Inter'`;
+  const out = [];
+  String(text || '').split('\n').forEach(par=>{
+    if (par === ''){ out.push(''); return; }
+    let line = '';
+    par.split(' ').forEach(word=>{ const t = line ? line + ' ' + word : word; if (line && g.measureText(t).width > maxW){ out.push(line); line = word; } else line = t; });
+    out.push(line);
   });
-  return y;
+  return out;
+};
+/* Calcula tamanho e posição de cada item (sem desenhar). Devolve {items, total}. */
+WA.layout = (g, W, msgs)=>{
+  const M = WA.M, items = [], MAXW = Math.round(W*0.80), inner = MAXW - M.PX*2;
+  let y = 0, prevMe = null;
+  msgs.forEach((m, i)=>{
+    const t = m.t || 'text';
+    if (t === 'chip'){
+      g.font = `500 27px 'Inter'`; const tw = g.measureText(String(m.text || '').toUpperCase()).width + 56;
+      y += i ? 14 : 0; items.push({m, t, y, h:M.CHIP, bw:tw}); y += M.CHIP + 22; prevMe = null; return;
+    }
+    const me = !!m.me, first = prevMe === null || prevMe !== me;
+    if (i && prevMe !== null) y += first ? M.DIFF : M.SAME;
+    g.font = `400 ${M.TS}px 'Inter'`; const tw = g.measureText(m.time || '').width, timeW = tw + (me ? 44 : 0);
+    let it;
+    if (t === 'voice'){ it = {m, t, me, first, y, h:150, bw:690, tw, timeW}; }
+    else {
+      const lines = WA.wrap(g, m.text, inner);
+      g.font = `400 ${M.FS}px 'Inter'`;
+      const nat = Math.ceil(Math.max(...lines.map(l=>g.measureText(l).width), 10)), lastW = g.measureText(lines[lines.length - 1]).width;
+      const inline = lastW + 20 + timeW <= inner;
+      const contentW = inline ? Math.max(nat, Math.ceil(lastW) + 20 + timeW) : Math.max(nat, timeW);
+      it = {m, t, me, first, y, lines, inline, tw, timeW, bw:contentW + M.PX*2, h:M.PY*2 + lines.length*M.LH*M.FS + (inline ? 0 : M.TS*1.15)};
+    }
+    items.push(it); y += it.h; prevMe = me;
+  });
+  return {items, total:y};
+};
+WA.ticks = (g, state, x, y, size)=>{
+  const d = state === 'sent' ? SC.ICONS.done : SC.ICONS.doneall, s = size/24;
+  g.save(); g.translate(x, y); g.scale(s, s); g.fillStyle = state === 'read' ? '#34B7F1' : '#8e9a9f'; g.fill(new Path2D(d)); g.restore();
+};
+/* Desenha a conversa dentro de um retângulo W×H (origem no canto de cima-esquerda). */
+WA.draw = (g, W, H, chat)=>{
+  const M = WA.M, C = WA.C, lay = WA.layout(g, W, chat.msgs || []);
+  const avail = H - M.TOP - M.BOTTOM;
+  const y0 = lay.total <= avail ? M.TOP : H - M.BOTTOM - lay.total;
+  lay.items.forEach(it=>{
+    const y = y0 + it.y;
+    if (y > H || y + it.h < 0) return;
+    if (it.t === 'chip'){
+      const x = (W - it.bw)/2;
+      g.fillStyle = C.chip; WA.rr(g, x, y, it.bw, it.h, 16); g.fill();
+      g.font = `500 27px 'Inter'`; g.fillStyle = C.chipText; g.textAlign = 'center'; g.textBaseline = 'middle';
+      if ('letterSpacing' in g) g.letterSpacing = '2px';
+      g.fillText(String(it.m.text || '').toUpperCase(), W/2, y + it.h/2 + 1);
+      if ('letterSpacing' in g) g.letterSpacing = '0px';
+      return;
+    }
+    const me = it.me, bx = me ? W - M.MG - it.bw : M.MG, col = me ? C.out : C.inb, state = it.m.st || 'read';
+    g.fillStyle = 'rgba(0,0,0,0.10)'; WA.rr(g, bx, y + 2, it.bw, it.h, M.R); g.fill();
+    g.fillStyle = col; WA.rr(g, bx, y, it.bw, it.h, M.R); g.fill();
+    if (it.first){   // pontinha
+      g.beginPath();
+      if (me){ g.moveTo(bx + it.bw - 6, y); g.lineTo(bx + it.bw + 20, y); g.lineTo(bx + it.bw - 6, y + 30); }
+      else { g.moveTo(bx + 6, y); g.lineTo(bx - 20, y); g.lineTo(bx + 6, y + 30); }
+      g.closePath(); g.fill();
+    }
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    if (it.t === 'text'){
+      g.font = `400 ${M.FS}px 'Inter'`; g.fillStyle = C.text;
+      it.lines.forEach((l, i)=>g.fillText(l, bx + M.PX, y + M.PY + i*M.LH*M.FS + (M.LH*M.FS + M.FS*0.7)/2));
+    } else {   // áudio
+      g.save(); g.translate(bx + 26, y + 34); g.scale(78/24, 78/24); g.fillStyle = '#8a9aa0'; g.fill(new Path2D(SC.ICONS.play)); g.restore();
+      const rng = mulberry32(String(it.m.dur || '0:00').length*977 + 5);
+      for (let i = 0; i < 34; i++){ const hh = 10 + rng()*44; g.fillStyle = i < 3 ? '#34B7F1' : '#aab6bb'; WA.rr(g, bx + 124 + i*14.5, y + 62 - hh/2 + 14, 6, hh, 3); g.fill(); }
+      g.font = `400 ${M.TS}px 'Inter'`; g.fillStyle = C.timeIn; g.fillText(it.m.dur || '0:00', bx + 124, y + it.h - M.PY - 6);
+    }
+    g.font = `400 ${M.TS}px 'Inter'`; g.fillStyle = me ? C.timeOut : C.timeIn;
+    const timeX = bx + it.bw - M.PX - it.timeW, base = y + it.h - M.PY - 6;
+    g.fillText(it.m.time || '', timeX, base);
+    if (me) WA.ticks(g, state, timeX + it.tw + 8, base - 28, 34);
+  });
+};
+class WaChat extends fabric.Rect {
+  static type = 'WaChat';
+  constructor(options){
+    options = options || {};
+    const chat = Object.assign({msgs:[]}, options.chat);
+    super(Object.assign({fill:'#000000', strokeWidth:0, objectCaching:false, width:1080, height:1800,
+      lockMovementX:true, lockMovementY:true, lockScalingX:true, lockScalingY:true, lockRotation:true, hasControls:false}, options, {chat}));
+  }
+  _render(ctx){
+    const W = this.width, H = this.height;
+    if (!WA.fontsReady() && !WaChat._waiting){
+      WaChat._waiting = true;
+      Promise.all(["400 20px 'Inter'", "500 20px 'Inter'"].map(f=>document.fonts.load(f))).then(()=>{ WaChat._waiting = false; if (this.canvas) this.canvas.requestRenderAll(); }, ()=>{ WaChat._waiting = false; });
+    }
+    ctx.save();
+    ctx.beginPath(); ctx.rect(-W/2, -H/2, W, H); ctx.clip();
+    ctx.translate(-W/2, -H/2);
+    WA.draw(ctx, W, H, this.chat);
+    ctx.restore();
+  }
+  toObject(props){ return Object.assign(super.toObject(props), {chat: JSON.parse(JSON.stringify(this.chat))}); }
+}
+fabric.classRegistry.setClass(WaChat, 'WaChat');
+
+/* Inspetor da conversa (aba Objeto): lista as mensagens, deixa editar texto, hora, lado e ticks, e adicionar/apagar/mover. */
+WA.inspector = (obj, body)=>{
+  const msgs = obj.chat.msgs;
+  const apply = (rebuild)=>{ obj.dirty = true; canvas.requestRenderAll(); pushHistory(); if (rebuild) updateInspector(); };
+  const nextTime = ()=>{
+    for (let i = msgs.length - 1; i >= 0; i--){ const m = msgs[i].time; if (m && /^\d{1,2}:\d{2}$/.test(m)){ let [h, mi] = m.split(':').map(Number); mi += 1; if (mi > 59){ mi = 0; h = (h + 1)%24; } return String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0'); } }
+    return '05:30';
+  };
+  const add = (m)=>{ msgs.push(m); apply(true); };
+  body.appendChild(field.hint('A conversa é um objeto só: o formato da tela se mantém com qualquer quantidade de mensagens. Poucas ficam no topo; passando do tamanho da tela, as mais antigas saem por cima, como no celular.'));
+  body.appendChild(field.buttonRow([
+    field.button('＋ Recebida', ()=>add({t:'text', me:false, text:'Nova mensagem', time:nextTime(), st:'read'})),
+    field.button('＋ Enviada', ()=>add({t:'text', me:true, text:'Nova mensagem', time:nextTime(), st:'delivered'})),
+  ], 'grid2'));
+  body.appendChild(field.buttonRow([
+    field.button('＋ Áudio', ()=>add({t:'voice', me:false, dur:'0:11', time:nextTime(), st:'read'})),
+    field.button('＋ Data', ()=>add({t:'chip', text:'Today'})),
+  ], 'grid2'));
+  const el = (tag, css, txt)=>{ const e = document.createElement(tag); if (css) e.style.cssText = css; if (txt != null) e.textContent = txt; return e; };
+  msgs.forEach((m, i)=>{
+    const t = m.t || 'text', card = el('div', 'border:1px solid #3a4658;border-radius:6px;padding:7px;margin:7px 0;background:rgba(255,255,255,0.03)');
+    const head = el('div', 'display:flex;gap:6px;align-items:center;margin-bottom:5px');
+    const kind = document.createElement('select'); kind.style.flex = '1';
+    [['in', 'Recebida'], ['out', 'Enviada'], ['vin', 'Áudio recebido'], ['vout', 'Áudio enviado'], ['chip', 'Data']].forEach(([v, l])=>{ const o = document.createElement('option'); o.value = v; o.textContent = l; kind.appendChild(o); });
+    kind.value = t === 'chip' ? 'chip' : (t === 'voice' ? (m.me ? 'vout' : 'vin') : (m.me ? 'out' : 'in'));
+    kind.addEventListener('change', ()=>{
+      const v = kind.value;
+      if (v === 'chip'){ msgs[i] = {t:'chip', text:m.text || 'Today'}; }
+      else if (v === 'vin' || v === 'vout'){ msgs[i] = {t:'voice', me:v === 'vout', dur:m.dur || '0:11', time:m.time || nextTime(), st:m.st || 'read'}; }
+      else { msgs[i] = {t:'text', me:v === 'out', text:m.text || 'Nova mensagem', time:m.time || nextTime(), st:m.st || 'read'}; }
+      apply(true);
+    });
+    head.appendChild(kind);
+    const btn = (label, title, fn)=>{ const b = el('button', 'padding:2px 8px;min-width:0', label); b.title = title; b.addEventListener('click', fn); return b; };
+    head.appendChild(btn('↑', 'Subir', ()=>{ if (i > 0){ [msgs[i - 1], msgs[i]] = [msgs[i], msgs[i - 1]]; apply(true); } }));
+    head.appendChild(btn('↓', 'Descer', ()=>{ if (i < msgs.length - 1){ [msgs[i + 1], msgs[i]] = [msgs[i], msgs[i + 1]]; apply(true); } }));
+    head.appendChild(btn('✕', 'Apagar', ()=>{ msgs.splice(i, 1); apply(true); }));
+    card.appendChild(head);
+    if (t === 'text' || t === 'chip'){
+      const ta = document.createElement('textarea'); ta.value = m.text || ''; ta.rows = t === 'chip' ? 1 : Math.min(5, Math.max(2, (m.text || '').split('\n').length + 1)); ta.style.width = '100%';
+      ta.addEventListener('input', ()=>{ m.text = ta.value; obj.dirty = true; canvas.requestRenderAll(); });
+      ta.addEventListener('change', ()=>pushHistory());
+      card.appendChild(ta);
+    }
+    if (t === 'voice'){
+      const du = document.createElement('input'); du.type = 'text'; du.value = m.dur || '0:11'; du.placeholder = 'Duração (0:11)'; du.style.width = '100%';
+      du.addEventListener('input', ()=>{ m.dur = du.value; obj.dirty = true; canvas.requestRenderAll(); }); du.addEventListener('change', ()=>pushHistory());
+      card.appendChild(du);
+    }
+    if (t !== 'chip'){
+      const row = el('div', 'display:flex;gap:6px;margin-top:5px');
+      const ti = document.createElement('input'); ti.type = 'text'; ti.value = m.time || ''; ti.placeholder = 'Hora'; ti.style.width = '38%';
+      ti.addEventListener('input', ()=>{ m.time = ti.value; obj.dirty = true; canvas.requestRenderAll(); }); ti.addEventListener('change', ()=>pushHistory());
+      row.appendChild(ti);
+      if (m.me){
+        const st = document.createElement('select'); st.style.flex = '1';
+        [['sent', '✓ enviada'], ['delivered', '✓✓ entregue'], ['read', '✓✓ lida (azul)']].forEach(([v, l])=>{ const o = document.createElement('option'); o.value = v; o.textContent = l; st.appendChild(o); });
+        st.value = m.st || 'read';
+        st.addEventListener('change', ()=>{ m.st = st.value; apply(false); });
+        row.appendChild(st);
+      }
+      card.appendChild(row);
+    }
+    body.appendChild(card);
+  });
+};
+WA.chatObj = (kit, msgs, top)=>{
+  const o = new WaChat({left:0, top, width:kit.W, height:kit.H - top - 170, chat:{msgs}});
+  o.__labName = 'Conversa (clique pra editar as mensagens)';
+  kit.cv.add(o);
+  return o;
 };
 WA.screen = async (kit, o)=>{
-  const W = kit.W, H = kit.H;
   const top = 240;
   WA.wall(kit, top, o.seed);
+  WA.chatObj(kit, JSON.parse(JSON.stringify(o.msgs || [])), top);
   WA.header(kit, {name:o.name || 'DIVE CREW — CH.3', status:o.status || 'last seen today at 03:12', time:o.time});
-  WA.chat(kit, o.msgs || [], top + 32);
   WA.input(kit);
 };
 WA.MAIN = [
-  {chip:'TODAY'},
-  {me:false, text:'you up?', time:'03:58'},
-  {me:true, text:"yeah. can't sleep", time:'03:59', state:'read'},
-  {me:false, text:"radio's doing that thing again", time:'04:01'},
-  {me:false, text:'the low one, not static', time:'04:01'},
-  {me:true, text:'i hear it through the floor now, not the speaker', time:'04:03', state:'read'},
-  {me:false, text:"don't go near the moonpool", time:'04:04'},
-  {me:false, text:'i mean it', time:'04:04'},
-  {me:true, text:"wasn't going to. why", time:'04:06', state:'read'},
-  {me:true, text:'hey', time:'05:02', state:'delivered'},
-  {me:true, text:'please answer', time:'05:14', state:'delivered'},
+  {t:'chip', text:'Today'},
+  {t:'text', me:false, text:'you up?', time:'03:58'},
+  {t:'text', me:true, text:"yeah. can't sleep", time:'03:59', st:'read'},
+  {t:'text', me:false, text:"radio's doing that thing again", time:'04:01'},
+  {t:'text', me:false, text:'the low one, not static', time:'04:01'},
+  {t:'text', me:true, text:'i hear it through the floor now, not the speaker', time:'04:03', st:'read'},
+  {t:'text', me:false, text:"don't go near the moonpool", time:'04:04'},
+  {t:'text', me:false, text:'i mean it', time:'04:04'},
+  {t:'text', me:true, text:"wasn't going to. why", time:'04:06', st:'read'},
+  {t:'text', me:true, text:'hey', time:'05:02', st:'delivered'},
+  {t:'text', me:true, text:'please answer', time:'05:14', st:'delivered'},
 ];
 WA.CONT = [
-  {me:false, voice:'0:11', time:'05:31'},
-  {me:true, text:'what is that', time:'05:32', state:'delivered'},
-  {me:true, text:'is that you', time:'05:32', state:'delivered'},
-  {me:false, text:'stay in the machine room', time:'05:36'},
-  {me:false, text:'lock the door', time:'05:36'},
-  {me:true, text:'who is this', time:'05:37', state:'sent'},
+  {t:'text', me:true, text:'please answer', time:'05:14', st:'delivered'},
+  {t:'voice', me:false, dur:'0:11', time:'05:31'},
+  {t:'text', me:true, text:'what is that', time:'05:32', st:'delivered'},
+  {t:'text', me:true, text:'is that you', time:'05:32', st:'delivered'},
+  {t:'text', me:false, text:'stay in the machine room', time:'05:36'},
+  {t:'text', me:false, text:'lock the door', time:'05:36'},
+  {t:'text', me:true, text:'who is this', time:'05:37', st:'sent'},
 ];
+
 /* Tela de informação do contato: fundo claro, avatar grande, atalhos e lista de opções. */
 WA.contact = async (kit)=>{
   const W = kit.W, H = kit.H, C = WA.C;
@@ -186,6 +318,7 @@ WA.calls = async (kit)=>{
 registerDoc('whatsapp', {
   label:'Print — WhatsApp (conversa)', page:[1080, 2220], phys:[3, 6.17], screen:true,
   paper:{type:'liso', level:0, atmos:'neutra'}, fonts:WA.FONTS,
+  hint:'A conversa é um objeto só: clique nela pra editar, adicionar, mover ou apagar mensagens (aba Objeto). O formato da tela se mantém com qualquer quantidade: poucas ficam no topo; passando do tamanho da tela, as mais antigas saem por cima, como no celular.',
   build: async (kit)=>{ await WA.screen(kit, {msgs:WA.MAIN, time:'05:21', seed:3}); },
   pages:[
     {id:'cont', label:'Conversa continua (mais mensagens)', build: async (kit)=>{ await WA.screen(kit, {msgs:WA.CONT, time:'05:38', seed:4}); }},
