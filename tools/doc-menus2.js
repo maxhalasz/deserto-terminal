@@ -26,6 +26,52 @@ DM.octFrame = (kit, x, y, w, h, cut, color, sw, label)=>{
   return kit.path(d, {left:x, top:y, fill:null, stroke:color, sw:sw, label:label || 'Moldura'});
 };
 
+/* Zigue-zague em faixa (piso da Red Room): fundo c2 com `rows` degraus em zigue-zague, os pares em c1. */
+DM.chevron = (kit, x1, x2, y, o)=>{
+  const amp = o.amp || 26, half = o.half || amp, rows = o.rows || 3, sh = o.sh || 20, hgt = amp + rows*sh;
+  kit.rect({left:x1, top:y, width:x2 - x1, height:hgt, fill:o.c2, blend:'source-over', label:(o.label || 'Faixa') + ' (fundo)'}).__bleedOk = true;
+  const n = Math.ceil((x2 - x1)/half);
+  for (let k = 0; k < rows; k += 2){
+    const y0 = y + k*sh, tp = [], bp = [];
+    for (let i = 0; i <= n; i++){ const px = x1 + i*half, off = i%2 ? amp : 0; tp.push(px + ' ' + (y0 + off)); bp.push(px + ' ' + (y0 + sh + off)); }
+    kit.path('M ' + tp.join(' L ') + ' L ' + bp.reverse().join(' L ') + ' Z', {left:x1, top:y0, fill:o.c1, blend:'source-over', label:(o.label || 'Faixa') + ' (listra)'}).__bleedOk = true;
+  }
+};
+/* Traço de giz: linha com pequenas oscilações (mão levantada), um caminho só. */
+DM.chalkLine = (kit, x1, y1, x2, y2, o)=>{
+  o = o || {};
+  const rng = mulberry32((o.seed || 1)*131 + Math.round(x1*3 + y1*7)), len = Math.hypot(x2 - x1, y2 - y1) || 1, n = Math.max(2, Math.round(len/26));
+  const nx = -(y2 - y1)/len, ny = (x2 - x1)/len, amp = o.wob != null ? o.wob : 1.7, pts = [];
+  let off = 0;
+  for (let i = 0; i <= n; i++){ off = (off + (rng() - 0.5)*amp*2.2)*0.72; const t = i/n; pts.push([x1 + (x2 - x1)*t + nx*off, y1 + (y2 - y1)*t + ny*off]); }
+  let d = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) d += ` Q ${pts[i-1][0].toFixed(1)} ${pts[i-1][1].toFixed(1)} ${((pts[i-1][0] + pts[i][0])/2).toFixed(1)} ${((pts[i-1][1] + pts[i][1])/2).toFixed(1)}`;
+  d += ` L ${pts[n][0].toFixed(1)} ${pts[n][1].toFixed(1)}`;
+  return kit.path(d, {left:Math.min(...pts.map(p=>p[0])), top:Math.min(...pts.map(p=>p[1])), fill:null, stroke:o.stroke, sw:o.sw || 3.5, join:'round', blend:'source-over', opacity:o.opacity != null ? o.opacity : 0.92, label:o.label || 'Traço de giz'});
+};
+/* Moldura de giz: quatro traços que passam um pouco do canto (como se desenha à mão). */
+DM.chalkBox = (kit, x, y, w, h, o)=>{
+  const ov = o.ov != null ? o.ov : 9, s = o.seed || 1, op = {stroke:o.stroke, sw:o.sw || 3.5, opacity:o.opacity, label:'Moldura de giz'};
+  DM.chalkLine(kit, x - ov, y, x + w + ov*0.6, y + 1, Object.assign({seed:s}, op));
+  DM.chalkLine(kit, x + w, y - ov*0.5, x + w + 1, y + h + ov, Object.assign({seed:s + 1}, op));
+  DM.chalkLine(kit, x + w + ov*0.5, y + h, x - ov, y + h - 1, Object.assign({seed:s + 2}, op));
+  DM.chalkLine(kit, x, y + h + ov*0.6, x - 1, y - ov, Object.assign({seed:s + 3}, op));
+};
+/* Abeto só de contorno, em giz. */
+DM.chalkFir = (kit, x, y, h, color, sw)=>{
+  const f = kit.fir(x, y, h, {fill:'#000000', label:'Abeto de giz'});
+  f.set({fill:null, stroke:color, strokeWidth:sw || 3, strokeLineJoin:'round', globalCompositeOperation:'source-over', opacity:0.9});
+  return f;
+};
+/* Xícara de giz com vapor. (x,y) = canto de cima-esquerda do corpo; s = escala. */
+DM.chalkCup = (kit, x, y, s, chalk, steam)=>{
+  const P = (px, py)=>`${(x + px*s).toFixed(1)} ${(y + py*s).toFixed(1)}`;
+  const o = {fill:null, join:'round', blend:'source-over', sw:5, opacity:0.9};
+  kit.path(`M ${P(0,0)} L ${P(0,60)} Q ${P(0,95)} ${P(35,95)} L ${P(70,95)} Q ${P(105,95)} ${P(105,60)} L ${P(105,0)} Z`, Object.assign({left:x, top:y, stroke:chalk, label:'Xícara de giz'}, o));
+  kit.path(`M ${P(105,15)} Q ${P(145,15)} ${P(145,45)} Q ${P(145,72)} ${P(105,72)}`, Object.assign({left:x + 105*s, top:y + 15*s, stroke:chalk, label:'Alça de giz'}, o));
+  [20, 62].forEach(dx=>kit.path(`M ${P(dx,-20)} Q ${P(dx-10,-40)} ${P(dx+2,-58)} Q ${P(dx+14,-76)} ${P(dx+2,-94)}`, Object.assign({left:x + (dx - 6)*s, top:y - 94*s, stroke:steam, label:'Vapor de giz'}, o)));
+};
+
 /* ============ Fine dining · "The Velvet Room" (clube de jantar, preto e dourado) ============ */
 DOC_TEMPLATES.menu_fine.variants.push({
   id:'velvet', label:'Clube de jantar · preto e dourado (Velvet Room)',
@@ -123,106 +169,121 @@ DOC_TEMPLATES.menu_fine.variants.push({
   },
 });
 
-/* ============ Bar · "Midnight Tide" (néon, anos 80) ============ */
+/* ============ Bar · "The Roadhouse" (cortina vermelha, zigue-zague preto e creme) ============ */
 DOC_TEMPLATES.menu_diner.variants.push({
-  id:'neon', label:'Bar · néon e noite (Midnight Tide)',
+  id:'roadhouse', label:'Bar de estrada · cortina vermelha e zigue-zague (The Roadhouse)',
   paper:{type:'liso', level:0.1, atmos:'silent'},
-  fonts:["400 20px 'Yellowtail'", "500 20px 'Oswald'", "600 20px 'Oswald'", "400 20px 'Source Sans 3'", "600 20px 'Source Sans 3'", "700 20px 'Source Sans 3'", "italic 400 20px 'Source Sans 3'"],
+  fonts:["400 20px 'Anton'", "500 20px 'Barlow Condensed'", "600 20px 'Barlow Condensed'", "600 20px 'Libre Franklin'", "700 20px 'Libre Franklin'", "italic 400 20px 'Libre Franklin'"],
   build: async (kit)=>{
-    const W = kit.W, H = kit.H, cx = W/2, pink = '#ff4fa3', cyan = '#38e1ff', white = '#f4f1ff', lav = '#b4aee8';
-    kit.rect({left:0, top:0, width:W, height:H, fill:'#0a0d1f', label:'Fundo'});
-    // grade de horizonte (synthwave) no pé da página
-    const hz = 1352, vx = cx;
-    for (let i = 0; i <= 18; i++){ const x = -300 + i*(W+600)/18; kit.line(vx + (x - vx)*0.04, hz, x, H, {stroke:pink, sw:1.6, opacity:0.4, blend:'source-over', label:'Grade'}).__bleedOk = true; }
-    for (let i = 0; i < 9; i++){ const t = Math.pow(i/8, 2); kit.line(0, hz + (H-hz)*t, W, hz + (H-hz)*t, {stroke:pink, sw:1.6, opacity:0.4, blend:'source-over', label:'Grade'}); }
-    kit.rect({left:0, top:hz-120, width:W, height:120, fill:'#0a0d1f', opacity:0.0, label:'(reserva)'});
-    const frame = kit.rect({left:56, top:56, width:W-112, height:H-112, stroke:cyan, sw:6, rx:34, blend:'source-over', label:'Moldura néon'});
-    frame.set('shadow', new fabric.Shadow({color:cyan, blur:22, offsetX:0, offsetY:0}));
-    kit.rect({left:76, top:76, width:W-152, height:H-152, stroke:pink, sw:2, rx:24, blend:'source-over', label:'Moldura néon (rosa)'});
-    kit.text('Midnight Tide', {left:0, top:104, width:W, font:'Yellowtail', size:196, fill:'#ffd0e8', align:'center', lh:1.0, blend:'source-over', shadow:{color:pink, blur:30}});
-    kit.text('COCKTAILS  ·  BEER  ·  BITES', {left:0, top:344, width:W, font:'Oswald', weight:600, size:40, cs:320, fill:'#d8f8ff', align:'center', blend:'source-over', shadow:{color:cyan, blur:20}});
+    const W = kit.W, H = kit.H, cx = W/2;
+    const cream = '#efe2c4', amber = '#e2a847', ink = '#0e0807', soft = '#cdbd9c';
+    kit.proc('curtain', 0, 0, W, H, {seed:3, opts:{base:[104,12,18]}, label:'Cortina vermelha'});
+    // franja da cortina (festão) no topo
+    const sc = 124, nsc = Math.ceil(W/sc), pel = 70;
+    let d = `M 0 0 L ${nsc*sc} 0 L ${nsc*sc} ${pel}`;
+    for (let i = nsc - 1; i >= 0; i--) d += ` A ${sc/2} ${sc*0.4} 0 0 1 ${i*sc} ${pel}`;
+    kit.path(d + ' Z', {left:0, top:0, fill:'#2a0508', stroke:amber, sw:2.4, blend:'source-over', label:'Franja da cortina'}).__bleedOk = true;
 
-    const colX = [118, 650], CW = 470;
+    kit.text('★    ★    ★', {left:0, top:150, width:W, font:'Barlow Condensed', weight:600, size:34, cs:200, fill:amber, align:'center', lh:1.0});
+    const sombra = kit.text('ROADHOUSE', {left:7, top:195, width:W, font:'Anton', size:212, cs:30, fill:ink, align:'center', lh:1.0, opacity:0.6, label:'Título (sombra)'});
+    sombra.__bleedOk = true; sombra.__allowOverlap = true;
+    kit.text('ROADHOUSE', {left:0, top:188, width:W, font:'Anton', size:212, cs:30, fill:cream, align:'center', lh:1.0});
+    kit.text('LIVE MUSIC FRIDAY & SATURDAY  ·  KITCHEN OPEN LATE', {left:0, top:446, width:W, font:'Barlow Condensed', weight:600, size:31, cs:260, fill:amber, align:'center', lh:1.0});
+    DM.chevron(kit, 0, W, 506, {amp:26, rows:3, sh:20, c1:ink, c2:cream, label:'Piso zigue-zague'});
+
+    // painel escuro com a lista
+    const px = 78, py = 636, pw = W - 156, ph = 806;
+    kit.rect({left:px, top:py, width:pw, height:ph, fill:'rgba(10,4,4,0.66)', label:'Painel'});
+    kit.rect({left:px + 14, top:py + 14, width:pw - 28, height:ph - 28, stroke:amber, sw:1.6, opacity:0.8, blend:'source-over', label:'Painel (fio)'});
+    const colX = [126, 654], CW = 460;
     const section = (c, title)=>{
-      c.text(title, {font:'Oswald', weight:600, size:42, cs:200, fill:'#d8f8ff', blend:'source-over', shadow:{color:cyan, blur:14}, gap:4});
-      c.rule({stroke:pink, sw:3, after:14, blend:'source-over'});
+      c.text(title, {font:'Anton', size:44, fill:amber, cs:140, gap:4});
+      c.rule({stroke:cream, sw:1.6, after:16, blend:'source-over', opacity:0.55});
     };
     const item = (c, name, price, desc)=>{
-      const y = kit.menuRow(name.toUpperCase(), price, c.left, c.y, CW, {font:'Oswald', size:34, weight:500, fill:white, pfont:'Source Sans 3', psize:30, pweight:700, pfill:'#ff9ccf', dotColor:lav, dotOpacity:0.5, dotSize:2.6, cs:40});
-      c.y = y + 1;
-      if (desc) c.text(desc, {font:'Source Sans 3', style:'italic', weight:400, size:24, fill:lav, blend:'source-over', gap:16}); else c.y += 16;
+      const y = kit.menuRow(name.toUpperCase(), price, c.left, c.y, CW, {font:'Libre Franklin', size:29, weight:600, fill:cream, pfont:'Libre Franklin', psize:29, pweight:700, pfill:amber, dotColor:cream, dotOpacity:0.32, dotSize:2.6, cs:30});
+      c.y = y + 2;
+      if (desc) c.text(desc, {font:'Libre Franklin', style:'italic', weight:400, size:23, fill:soft, blend:'source-over', gap:17}); else c.y += 17;
     };
-    const A = kit.column(colX[0], 450, CW), B = kit.column(colX[1], 450, CW);
-    section(A, 'SIGNATURE');
-    item(A, 'Last Call', '11', 'Dark rum, black coffee, bitters');
-    item(A, 'The 03:12', '12', 'Gin, brine, a little smoke');
-    item(A, 'Moonpool', '11', 'Vodka, blue curaçao, crushed ice');
-    item(A, 'Depth Charge', '9', 'Whiskey, dropped into dark beer');
-    item(A, 'Seafoam', '12', 'Gin, cucumber, sea salt');
-    section(B, 'ON TAP');
-    item(B, 'Harbor Lager', '6', '');
-    item(B, 'Black Tide Stout', '7', '');
-    item(B, 'Fog IPA', '7', '');
-    item(B, 'Dock Pilsner', '6', '');
-    B.gap(24); section(B, 'BAR BITES');
-    item(B, 'Fish tacos', '12', 'Cabbage, lime, hot sauce');
-    item(B, 'Salt fries', '6', '');
-    item(B, 'Pickled things', '5', 'Ask which things');
-    item(B, 'Cherry pie, slice', '6', '');
-    item(B, 'Oysters, half dozen', '16', 'Ask the shucker about the pearls');
-    const lo = kit.text('LAST ORDERS 03:00  —  WE CLOSE WHEN THE TIDE TURNS', {left:0, top:1500, width:W, font:'Oswald', weight:500, size:30, cs:180, fill:'#d8f8ff', align:'center', blend:'source-over', shadow:{color:cyan, blur:16}});
-    await kit.cupRing(1016, 1250, 58, {color:[120,200,255], blend:'screen', opacity:0.18, seed:6, label:'Detalhe — anel de copo (luz)'});
+    const A = kit.column(colX[0], py + 44, CW), B = kit.column(colX[1], py + 44, CW);
+    section(A, 'ON TAP');
+    item(A, 'Pine Lager', '6', '5.0%  ·  crisp, a little sweet');
+    item(A, 'Derrick Amber', '7', '5.6%  ·  toasted malt');
+    item(A, 'Black Tide Stout', '7', '6.2%  ·  coffee and smoke');
+    item(A, 'Tap Four', '—', 'Out of order since the platform opened');
+    A.gap(26); section(A, 'WHISKEY & RYE');
+    item(A, 'House whiskey', '6', '');
+    item(A, 'Rye, neat', '9', '');
+    item(A, 'Bourbon, on the rocks', '9', '');
+    item(A, 'Single malt, 12 yr', '14', '');
+    section(B, 'FROM THE KITCHEN');
+    item(B, 'Roadhouse burger', '12', 'Sharp cheddar, pickle, onion');
+    item(B, 'Grilled cheese + soup', '9', 'Soup is whatever is hot');
+    item(B, 'Chili, bowl', '8', 'Beans optional');
+    item(B, 'Fried catch', '14', 'Beer batter, lemon');
+    item(B, 'Fries', '5', '');
+    B.gap(26); section(B, 'SWEETS & COFFEE');
+    item(B, 'Cherry pie, slice', '6', 'Baked on the platform, daily');
+    item(B, 'Coffee, bottomless', '3', '');
+    await kit.cupRing(1052, 1386, 42, {color:[226,176,110], blend:'screen', opacity:0.2, seed:5, label:'Detalhe — anel de copo (luz)'});
+
+    DM.chevron(kit, 0, W, 1490, {amp:26, rows:3, sh:20, c1:ink, c2:cream, label:'Piso zigue-zague'});
+    kit.text('THE BAND PLAYS FIVE SETS.  ONLY FOUR ARE ON THE POSTER.', {left:0, top:1628, width:W, font:'Barlow Condensed', weight:600, size:27, cs:240, fill:cream, align:'center', lh:1.0, opacity:0.92});
   },
 });
 
-/* ============ Café · "Café Abyssal" (giz no quadro-negro) ============ */
+/* ============ Café · "Café Abyssal" (lodge: moldura de madeira, quadro-negro, giz) ============ */
 DOC_TEMPLATES.menu_diner.variants.push({
-  id:'cafe', label:'Café · giz no quadro-negro (Café Abyssal)',
-  paper:{type:'creme', level:0.2, atmos:'twin'},
-  fonts:["400 20px 'Yellowtail'", "500 20px 'Barlow Condensed'", "600 20px 'Barlow Condensed'", "700 20px 'Barlow Condensed'", "400 20px 'Fredoka'", "500 20px 'Fredoka'"],
+  id:'cafe', label:'Café · lodge de madeira com quadro de giz (Café Abyssal)',
+  paper:{type:'liso', level:0.05, atmos:'neutra'},
+  fonts:["400 20px 'Yellowtail'", "500 20px 'Barlow Condensed'", "600 20px 'Barlow Condensed'", "400 20px 'Shadows Into Light'"],
   build: async (kit)=>{
-    const W = kit.W, H = kit.H, cx = W/2, chalk = '#f2efe4', yel = '#f0d98a', pink = '#f2a7b5';
-    kit.rect({left:0, top:0, width:W, height:H, fill:'#5a3b24', label:'Moldura de madeira'});
-    kit.rect({left:60, top:60, width:W-120, height:H-120, fill:'#1d2622', rx:8, label:'Quadro-negro'});
-    kit.rect({left:60, top:60, width:W-120, height:H-120, stroke:'#2e1d10', sw:6, rx:8, label:'Sombra do quadro'});
-    for (let i = 0; i < 7; i++) await kit.smudge(160 + (i*173)%(W-320), 200 + (i*307)%(H-400), 150 + (i%3)*40, {color:[235,235,225], blend:'screen', opacity:0.05, seed:i+1, label:'Pó de giz'});
-    const ch = {fill:chalk, blend:'source-over', opacity:0.95};
-    kit.text('Café Abyssal', {left:0, top:104, width:W, font:'Yellowtail', size:150, fill:chalk, align:'center', lh:1.0, blend:'source-over', opacity:0.96});
-    kit.path('M 330 300 Q 400 276 470 300 T 610 300 T 750 300 T 890 300', {left:330, top:282, fill:null, stroke:yel, sw:5, label:'Soulignement'});
-    kit.text('ESPRESSO  ·  TEA  ·  BAKERY', {left:0, top:326, width:W, font:'Barlow Condensed', weight:600, size:38, cs:380, fill:yel, align:'center', blend:'source-over'});
-    // xícara de giz com vapor
-    kit.path('M 990 190 L 990 250 Q 990 285 1025 285 L 1060 285 Q 1095 285 1095 250 L 1095 190 Z', {left:990, top:190, fill:null, stroke:chalk, sw:5, join:'round', blend:'source-over', opacity:0.9, label:'Xícara'});
-    kit.path('M 1095 205 Q 1135 205 1135 235 Q 1135 262 1095 262', {left:1095, top:205, fill:null, stroke:chalk, sw:5, blend:'source-over', opacity:0.9, label:'Alça'});
-    kit.path('M 1010 170 Q 1000 150 1012 132 Q 1024 114 1012 96', {left:1000, top:96, fill:null, stroke:pink, sw:4, blend:'source-over', label:'Vapor'});
-    kit.path('M 1050 170 Q 1040 150 1052 132 Q 1064 114 1052 96', {left:1040, top:96, fill:null, stroke:pink, sw:4, blend:'source-over', label:'Vapor'});
+    const W = kit.W, H = kit.H, cx = W/2, T = 66;
+    const chalk = '#f1eee2', yel = '#ecd98c', pink = '#eea9b7', slate = [34,46,41];
+    const halo = {color:'rgba(241,238,226,0.45)', blur:3};
+    kit.proc('slate', 0, 0, W, H, {seed:4, opts:{base:slate}, label:'Quadro-negro'});
+    kit.proc('frame', 0, 0, W, H, {seed:6, opts:{t:T, base:[122,76,42]}, label:'Moldura de madeira'});
 
-    const colX = [128, 650], CW = 460;
+    DM.chalkFir(kit, 128, 120, 150, chalk, 3);
+    DM.chalkFir(kit, W - 128 - 93, 120, 150, chalk, 4);
+    kit.text('Café Abyssal', {left:0, top:96, width:W, font:'Yellowtail', size:140, fill:chalk, align:'center', lh:1.0, shadow:halo, opacity:0.96});
+    kit.text('COFFEE   ·   PIE   ·   BREAKFAST ALL DAY', {left:0, top:296, width:W, font:'Barlow Condensed', weight:600, size:34, cs:380, fill:yel, align:'center', lh:1.0, opacity:0.95});
+    DM.chalkLine(kit, 190, 368, W - 190, 370, {stroke:chalk, sw:4, seed:1});
+    DM.chalkLine(kit, 230, 381, W - 230, 380, {stroke:chalk, sw:2, seed:2, opacity:0.7});
+
+    const colX = [130, 660], CW = 450;
     const section = (c, title)=>{
-      c.text(title, {font:'Yellowtail', size:72, fill:yel, blend:'source-over', gap:0, lh:1.0});
-      c.rule({stroke:chalk, sw:3, after:14, blend:'source-over', opacity:0.7});
+      c.text(title, {font:'Yellowtail', size:74, fill:yel, blend:'source-over', gap:0, lh:1.0, shadow:halo});
+      DM.chalkLine(kit, c.left, c.y + 2, c.left + CW, c.y + 3, {stroke:chalk, sw:3, seed:Math.round(c.y), opacity:0.75});
+      c.y += 16;
     };
     const item = (c, name, price, note)=>{
-      const y = kit.menuRow(name.toUpperCase(), price, c.left, c.y, CW, {font:'Barlow Condensed', size:39, weight:600, fill:chalk, pfont:'Fredoka', psize:33, pweight:500, pfill:pink, dotColor:chalk, dotOpacity:0.45, dotSize:2.8, cs:50, pdy:-2});
+      const y = kit.menuRow(name.toUpperCase(), price, c.left, c.y, CW, {font:'Barlow Condensed', size:40, weight:600, fill:chalk, pfont:'Barlow Condensed', psize:37, pweight:600, pfill:pink, dotColor:chalk, dotOpacity:0.4, dotSize:2.8, cs:50});
       c.y = y + 2;
-      if (note) c.text(note, {font:'Fredoka', weight:400, size:22, fill:'#bcb8a8', blend:'source-over', gap:14}); else c.y += 14;
+      if (note) c.text(note, {font:'Shadows Into Light', weight:400, size:26, fill:'#c4c0b0', blend:'source-over', gap:12}); else c.y += 12;
     };
     const A = kit.column(colX[0], 430, CW), B = kit.column(colX[1], 430, CW);
     section(A, 'Espresso bar');
     item(A, 'Espresso', '3.00'); item(A, 'Macchiato', '3.40'); item(A, 'Americano', '3.50'); item(A, 'Cortado', '3.80'); item(A, 'Flat white', '4.20');
-    item(A, 'Latte', '4.50', 'oat, whole or none'); item(A, 'Mocha', '4.80');
+    item(A, 'Latte', '4.50', 'oat, whole or none');
     item(A, 'Black as midnight', '2.50', 'drip, bottomless');
+    A.gap(18); section(A, 'Breakfast');
+    item(A, 'Eggs & toast', '6.50', 'any style');
+    item(A, 'Pancakes, maple', '7.50');
     section(B, 'From the oven');
     item(B, 'Croissant', '3.50'); item(B, 'Cherry pie, slice', '4.50', 'baked on the platform, daily'); item(B, 'Banana bread', '3.80'); item(B, 'Almond croissant', '4.00'); item(B, 'Day-old', '2.00', 'ask at the counter');
-    B.gap(20); section(B, 'Tea & other');
+    B.gap(18); section(B, 'Tea & other');
     item(B, 'Earl Grey', '3.00'); item(B, 'Chamomile', '3.00'); item(B, 'Hot chocolate', '3.50'); item(B, 'Caramel milk', '4.20');
-    const bx = 128, by = 1282, bw = W-256, bh = 190;
-    kit.rect({left:bx, top:by, width:bw, height:bh, stroke:chalk, sw:4, rx:22, opacity:0.9, blend:'source-over', label:'Quadro de giz'});
-    kit.rect({left:bx+10, top:by+10, width:bw-20, height:bh-20, stroke:yel, sw:2, rx:16, opacity:0.7, blend:'source-over', label:'Quadro de giz (fio)'});
-    kit.text("Today's special", {left:bx, top:by+22, width:bw, font:'Yellowtail', size:62, fill:yel, align:'center', lh:1.0, blend:'source-over'});
-    kit.text('FISH CHOWDER & RYE   7.50   ·   UNTIL IT\'S GONE', {left:bx, top:by+112, width:bw, font:'Barlow Condensed', weight:600, size:40, cs:120, fill:chalk, align:'center', lh:1.0, blend:'source-over'});
-    kit.line(128, 1500, W-128, 1500, {stroke:chalk, sw:3, dash:[2,10], cap:'round', blend:'source-over', opacity:0.6, label:'Tracejado de giz'});
-    kit.text('Free refill with a smile.', {left:0, top:1530, width:W, font:'Yellowtail', size:52, fill:pink, align:'center', blend:'source-over'});
-    kit.text('WIFI:  the-tide-is-low     PASSWORD:  0312', {left:0, top:1618, width:W, font:'Barlow Condensed', weight:600, size:28, cs:260, fill:yel, align:'center', blend:'source-over', opacity:0.9});
+    DM.chalkCup(kit, 498, 462, 0.62, chalk, pink);
+
+    const bx = 130, by = 1316, bw = W - 260, bh = 188;
+    DM.chalkBox(kit, bx, by, bw, bh, {stroke:chalk, sw:4, seed:3});
+    DM.chalkBox(kit, bx + 12, by + 12, bw - 24, bh - 24, {stroke:yel, sw:2, seed:5, opacity:0.7, ov:5});
+    kit.text("Today's special", {left:bx, top:by + 22, width:bw, font:'Yellowtail', size:62, fill:yel, align:'center', lh:1.0, shadow:halo});
+    kit.text("FISH CHOWDER & RYE   7.50   ·   UNTIL IT'S GONE", {left:bx, top:by + 114, width:bw, font:'Barlow Condensed', weight:600, size:40, cs:120, fill:chalk, align:'center', lh:1.0});
+    kit.text('Free refill with a smile.', {left:0, top:1532, width:W, font:'Yellowtail', size:56, fill:pink, align:'center', lh:1.0, shadow:{color:'rgba(238,169,183,0.4)', blur:3}});
+    kit.text('WIFI:  the-tide-is-low     PASSWORD:  0312', {left:0, top:1630, width:W, font:'Barlow Condensed', weight:600, size:28, cs:260, fill:yel, align:'center', lh:1.0, opacity:0.9});
+    kit.proc('erode', T, T, W - 2*T, H - 2*T, {seed:8, opts:{color:slate}, label:'Giz gasto'});
   },
 });
 

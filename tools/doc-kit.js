@@ -143,6 +143,16 @@ class DocKit {
     return p;
   }
 
+  /* Textura procedural (cortina, madeira, moldura, quadro-negro, giz gasto) — ver proc-art.js. Um objeto só; guarda só os parâmetros. */
+  proc(kind, x, y, w, h, o){
+    o = o || {};
+    const p = new ProcArt({left: x, top: y, width: w, height: h, art: {kind, seed: o.seed || 1, opts: o.opts || {}},
+      opacity: o.opacity != null ? o.opacity : 1, globalCompositeOperation: o.blend || 'source-over'});
+    if (o.label) p.__labName = o.label;
+    this.cv.add(p);
+    return p;
+  }
+
   /* Largura em px de uma linha de texto (pra pontilhado de preço, centralização manual etc.). */
   measure(str, o){
     o = o || {};
