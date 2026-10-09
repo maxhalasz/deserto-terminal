@@ -7,6 +7,8 @@
      frame   — moldura de madeira em esquadria (cantos a 45°), chanfro, sombra projetada pra dentro e parafusos
                (opts: t espessura, base [r,g,b]); o miolo fica transparente
      leather — couro de capa de caderno: manchas, grão pebble, arranhões, vinheta (opts: base [r,g,b])
+     crt     — fundo de tela de tubo (brilho de fósforo, grão); scan — por cima do texto: linhas de varredura, vinheta, cantos do tubo
+     doodle  — papel de parede de chat (rabiscos finos em tom sobre tom)
      slate   — quadro-negro: degradê, borrões de apagador, riscos, grão (opts: base [r,g,b])
      erode   — camada de "giz gasto" POR CIMA do texto: falhas minúsculas na cor do quadro (opts: color [r,g,b], density)
    Tudo em unidades de página, então tem o mesmo tamanho físico em ×1 e ×2. Mesma semente = mesma textura.
@@ -155,6 +157,60 @@ function procLeather(g, w, h, a){
   g.fillStyle = v; g.fillRect(0, 0, w, h);
 }
 
+/* Tela de CRT (fundo): preto esverdeado com brilho de fósforo no centro e grão fino. opts.tint = cor do fósforo [r,g,b]. */
+function procCrt(g, w, h, a){
+  const o = a.opts || {}, t = o.tint || [60,255,100];
+  g.fillStyle = `rgb(${Math.round(t[0]*0.018 + 3)},${Math.round(t[1]*0.034 + 4)},${Math.round(t[2]*0.026 + 4)})`; g.fillRect(0, 0, w, h);
+  const rg = g.createRadialGradient(w*0.5, h*0.46, Math.min(w, h)*0.05, w*0.5, h*0.5, Math.max(w, h)*0.72);
+  rg.addColorStop(0, `rgba(${t[0]},${t[1]},${t[2]},0.12)`); rg.addColorStop(0.55, `rgba(${t[0]},${t[1]},${t[2]},0.045)`); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = rg; g.fillRect(0, 0, w, h);
+  g.save(); g.setTransform(1, 0, 0, 1, 0, 0); _paGrain(g, a.seed + 21, 0.05); g.restore();
+}
+/* Por cima do texto da tela: linhas de varredura, faixas largas de brilho, vinheta e os cantos do tubo em preto.
+   opts: tint, line (período das linhas em unidades de página), corner (raio do canto), vig (0–1). Não rouba clique. */
+function procScan(g, w, h, a){
+  const rng = _paRng(a.seed*37 + 11), o = a.opts || {}, t = o.tint || [60,255,100], per = o.line || 3.4, vig = o.vig != null ? o.vig : 0.55, cr = o.corner != null ? o.corner : 64;
+  g.fillStyle = 'rgba(0,0,0,0.20)';
+  for (let y = 0; y < h; y += per) g.fillRect(0, y, w, per*0.42);
+  for (let i = 0; i < 2; i++){   // faixas largas de brilho (barra de atualização do tubo)
+    const y = rng()*h, bh = 160 + rng()*220, gr = g.createLinearGradient(0, y, 0, y + bh);
+    gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, `rgba(${t[0]},${t[1]},${t[2]},0.035)`); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, y, w, bh);
+  }
+  const v = g.createRadialGradient(w/2, h/2, Math.min(w, h)*0.36, w/2, h/2, Math.max(w, h)*0.76);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${vig})`);
+  g.fillStyle = v; g.fillRect(0, 0, w, h);
+  if (cr > 0){   // cantos arredondados do tubo: tudo fora do retângulo arredondado fica preto
+    g.save(); g.beginPath(); g.rect(0, 0, w, h);
+    const r = cr, x0 = 0, y0 = 0, x1 = w, y1 = h;
+    g.moveTo(x0 + r, y0); g.arcTo(x0, y0, x0, y0 + r, r); g.lineTo(x0, y1 - r); g.arcTo(x0, y1, x0 + r, y1, r);
+    g.lineTo(x1 - r, y1); g.arcTo(x1, y1, x1, y1 - r, r); g.lineTo(x1, y0 + r); g.arcTo(x1, y0, x1 - r, y0, r); g.closePath();
+    g.fillStyle = '#000'; g.fill('evenodd'); g.restore();
+  }
+}
+/* Papel de parede do chat (rabiscos finos em tom sobre tom). opts: bg [r,g,b], ink [r,g,b], cell (lado da célula). */
+function procDoodle(g, w, h, a){
+  const rng = _paRng(a.seed*41 + 5), o = a.opts || {}, bg = o.bg || [229,221,213], ink = o.ink || [203,194,184], cell = o.cell || 150;
+  g.fillStyle = `rgb(${bg[0]},${bg[1]},${bg[2]})`; g.fillRect(0, 0, w, h);
+  g.strokeStyle = `rgb(${ink[0]},${ink[1]},${ink[2]})`; g.fillStyle = g.strokeStyle; g.lineWidth = 3.2; g.lineCap = 'round'; g.lineJoin = 'round';
+  const shapes = [
+    (s)=>{ g.beginPath(); g.arc(0, 0, s*0.42, 0, 6.28); g.stroke(); },                                                       // círculo
+    (s)=>{ g.beginPath(); for (let i = 0; i < 10; i++){ const an = -Math.PI/2 + i*Math.PI/5, r = i%2 ? s*0.2 : s*0.46; g.lineTo(Math.cos(an)*r, Math.sin(an)*r); } g.closePath(); g.stroke(); },   // estrela
+    (s)=>{ g.beginPath(); g.moveTo(0, s*0.34); g.bezierCurveTo(-s*0.62, -s*0.1, -s*0.28, -s*0.5, 0, -s*0.16); g.bezierCurveTo(s*0.28, -s*0.5, s*0.62, -s*0.1, 0, s*0.34); g.stroke(); },    // coração
+    (s)=>{ g.beginPath(); g.moveTo(-s*0.46, s*0.1); g.quadraticCurveTo(-s*0.23, -s*0.3, 0, s*0.1); g.quadraticCurveTo(s*0.23, s*0.5, s*0.46, s*0.1); g.stroke(); },                         // onda
+    (s)=>{ g.beginPath(); g.moveTo(-s*0.44, s*0.28); g.lineTo(s*0.46, 0); g.lineTo(-s*0.44, -s*0.3); g.lineTo(-s*0.3, 0); g.closePath(); g.stroke(); },                                  // avião de papel
+    (s)=>{ for (let i = 0; i < 5; i++){ g.save(); g.rotate(i*Math.PI*2/5); g.beginPath(); g.ellipse(0, -s*0.26, s*0.1, s*0.17, 0, 0, 6.28); g.stroke(); g.restore(); } },                // flor
+    (s)=>{ g.beginPath(); g.moveTo(-s*0.3, 0); g.lineTo(s*0.3, 0); g.moveTo(0, -s*0.3); g.lineTo(0, s*0.3); g.stroke(); },                                                              // cruz
+    (s)=>{ g.beginPath(); g.moveTo(-s*0.4, s*0.2); g.quadraticCurveTo(-s*0.5, -s*0.1, -s*0.15, -s*0.15); g.quadraticCurveTo(0, -s*0.5, s*0.2, -s*0.2); g.quadraticCurveTo(s*0.5, -s*0.2, s*0.4, s*0.2); g.closePath(); g.stroke(); }, // nuvem
+  ];
+  for (let gy = 0, row = 0; gy < h + cell; gy += cell*0.86, row++){
+    for (let gx = (row%2)*cell*0.5; gx < w + cell; gx += cell){
+      const s = cell*(0.34 + rng()*0.12), x = gx + (rng() - 0.5)*cell*0.35, y = gy + (rng() - 0.5)*cell*0.3;
+      g.save(); g.translate(x, y); g.rotate((rng() - 0.5)*1.4); shapes[(rng()*shapes.length)|0](s); g.restore();
+    }
+  }
+}
+
 function procSlate(g, w, h, a, q){
   const rng = _paRng(a.seed*13 + 5), o = a.opts || {}, b = o.base || [34,46,41];
   const gr = g.createLinearGradient(0, 0, w*0.4, h);
@@ -208,6 +264,9 @@ function procArtCanvas(a, w, h, q){
   else if (a.kind === 'frame') procFrame(g, w, h, a);
   else if (a.kind === 'slate') procSlate(g, w, h, a, q);
   else if (a.kind === 'leather') procLeather(g, w, h, a);
+  else if (a.kind === 'crt') procCrt(g, w, h, a);
+  else if (a.kind === 'scan') procScan(g, w, h, a);
+  else if (a.kind === 'doodle') procDoodle(g, w, h, a);
   else if (a.kind === 'erode') procErode(g, w, h, a);
   PROC_ART_CACHE.set(key, cv); _procArtPx += cv.width*cv.height;
   while (_procArtPx > 60e6 && PROC_ART_CACHE.size > 1){
@@ -222,7 +281,7 @@ class ProcArt extends fabric.Rect {
     options = options || {};
     const art = Object.assign({kind:'wood', seed:1, opts:{}}, options.art);
     // giz gasto fica POR CIMA do texto: não pode roubar o clique (evented:false volta sozinho depois do desfazer)
-    super(Object.assign({fill:'#000000', objectCaching:false, strokeWidth:0}, options, {art}, art.kind === 'erode' ? {evented:false} : {}));
+    super(Object.assign({fill:'#000000', objectCaching:false, strokeWidth:0}, options, {art}, (art.kind === 'erode' || art.kind === 'scan') ? {evented:false} : {}));
   }
   _render(ctx){
     const W = this.width, H = this.height, t = ctx.getTransform(), s = Math.hypot(t.a, t.b) || 1;
