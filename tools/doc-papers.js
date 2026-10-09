@@ -259,16 +259,15 @@ registerDoc('tag', {
   }),
 });
 
-/* Timbre da plataforma: dois abetos vermelhos, nome empilhado, filete. */
+/* Timbre da plataforma: emblema (selo Ødemark A. em tinta vermelha), nome empilhado, filete. */
 DP.letterhead = (kit)=>{
   const W = kit.W, cx = W/2, red = DP.red;
-  kit.fir(cx - 250, 92, 84, {fill:red, label:'Abeto do timbre'});
-  kit.fir(cx + 250 - 52, 92, 84, {fill:red, label:'Abeto do timbre'});
-  const head = kit.column(cx - 200, 90, 400, {font:'Jost', weight:600, size:22, cs:320, fill:red, align:'center', lh:1.3});
+  kit.emblem('plataforma', 'tinta', cx - 55, 52, 110, {color:red, label:'Emblema — timbre'});
+  const head = kit.column(cx - 200, 172, 400, {font:'Jost', weight:600, size:22, cs:320, fill:red, align:'center', lh:1.3});
   head.text('PLATFORM DESERTO'); head.text('CREW SERVICES', {size:16, cs:420, fill:DP.brown});
-  kit.line(cx - 80, 196, cx + 80, 196, {stroke:red, sw:1.6, label:'Filete do timbre'});
+  kit.line(cx - 80, 240, cx + 80, 240, {stroke:red, sw:1.6, label:'Filete do timbre'});
 };
-DP.LETTER_FONTS = ["600 20px 'Jost'", "500 20px 'Jost'", "400 20px 'Libre Baskerville'", "italic 400 20px 'Libre Baskerville'", "700 20px 'Courier Prime'"];
+DP.LETTER_FONTS = ["600 20px 'Jost'", "500 20px 'Jost'", "400 20px 'Libre Baskerville'", "italic 400 20px 'Libre Baskerville'", "700 20px 'Courier Prime'"].concat(EM_FONTS);
 
 /* ============ Carta · papel timbrado da plataforma (Great Northern) ============ */
 registerDoc('letter', {
@@ -300,10 +299,9 @@ DP.noteHead = (kit, o)=>{
   // tira de cola no topo
   kit.rect({left:0, top:0, width:W, height:60, fill:'#d8d1bd', opacity:0.7, blend:'multiply', label:'Tira de cola'}).__bleedOk = true;
   kit.line(0, 60, W, 60, {stroke:'#8d8571', sw:2, opacity:0.55, label:'Borda da cola'}).__bleedOk = true;
-  kit.fir(150, 98, 58, {fill:red, label:'Abeto do timbre'});
-  kit.fir(W - 150 - 36, 98, 58, {fill:red, label:'Abeto do timbre'});
-  kit.text('FROM THE DESK OF', {left:0, top:104, width:W, font:'Jost', weight:600, size:20, cs:340, fill:red, align:'center', lh:1.0});
-  kit.text('PLATFORM DESERTO', {left:0, top:138, width:W, font:'Jost', weight:500, size:12.5, cs:420, fill:DP.brown, align:'center', lh:1.0});
+  kit.emblem('plataforma', 'tinta', 96, 80, 104, {color:red, label:'Emblema — bloco'});
+  kit.text('FROM THE DESK OF', {left:226, top:102, width:W - 226 - 90, font:'Jost', weight:600, size:22, cs:300, fill:red, align:'left', lh:1.0});
+  kit.text('PLATFORM DESERTO', {left:226, top:142, width:W - 226 - 90, font:'Jost', weight:500, size:13, cs:420, fill:DP.brown, align:'left', lh:1.0});
   kit.line(120, 208, W - 120, 208, {stroke:DP.ink, sw:1.2, opacity:0.75, label:'Linha do nome'});
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'], x0 = 90, x1 = W - 90, step = (x1 - x0)/6;
   days.forEach((d, i)=>kit.text(d, {left:x0 + step*i - 40, top:252, width:80, font:'Jost', weight:600, size:16, cs:200, fill:DP.brown, align:'center', lh:1.0}));
@@ -313,7 +311,7 @@ DP.noteHead = (kit, o)=>{
       {left:ex - 50, top:ey - 30, fill:null, stroke:'#8e2a22', sw:3.2, join:'round', blend:'multiply', opacity:0.82, label:'Detalhe — círculo no dia da semana'});
   }
 };
-DP.NOTE_FONTS = ["600 20px 'Jost'", "500 20px 'Jost'"];
+DP.NOTE_FONTS = ["600 20px 'Jost'", "500 20px 'Jost'"].concat(EM_FONTS);
 
 /* ============ Bilhete · bloco do hotel/plataforma ============ */
 registerDoc('note', {
@@ -351,7 +349,7 @@ DP.spine = (kit)=>{
     {offset:0, color:'rgba(60,40,20,0)'}, {offset:0.42, color:'rgba(60,40,20,0.22)'}, {offset:0.5, color:'rgba(40,25,10,0.42)'}, {offset:0.58, color:'rgba(60,40,20,0.22)'}, {offset:1, color:'rgba(60,40,20,0)'}]}));
   return sh;
 };
-DP.DIARY_FONTS = ["600 20px 'Jost'", "500 20px 'Jost'", "400 20px 'Courier Prime'"];
+DP.DIARY_FONTS = ["600 20px 'Jost'", "500 20px 'Jost'", "400 20px 'Courier Prime'"].concat(EM_FONTS);
 
 /* ============ Diário · caderno de registro, página dupla ============ */
 registerDoc('diary', {
@@ -362,11 +360,7 @@ registerDoc('diary', {
     const W = kit.W, H = kit.H, mid = W/2, red = DP.red;
     DP.diaryPages(kit, ['47', '49']);
     DP.spine(kit);
-    // marca d'água: selo da plataforma, quase invisível, na página da direita
-    const sx = mid + 560, sy = 900;
-    kit.circle({left:sx - 190, top:sy - 190, r:190, stroke:DP.brown, sw:4, opacity:0.07, label:'Marca d’água (selo)'});
-    kit.circle({left:sx - 170, top:sy - 170, r:170, stroke:DP.brown, sw:1.6, opacity:0.07, label:'Marca d’água (selo)'});
-    kit.fir(sx - 62, sy - 110, 130, {fill:DP.brown, opacity:0.07, label:'Marca d’água (abeto)'});
-    kit.text('CREW LOG', {left:sx - 190, top:sy + 40, width:380, font:'Jost', weight:600, size:30, cs:420, fill:DP.brown, opacity:0.07, align:'center', lh:1.0, label:'Marca d’água (texto)'});
+    // marca d'água: emblema da plataforma, quase invisível, na página da direita
+    kit.emblem('plataforma', 'tinta', mid + 560 - 260, 900 - 260, 520, {color:DP.brown, opacity:0.07, label:'Marca d’água (emblema)'});
   },
 });

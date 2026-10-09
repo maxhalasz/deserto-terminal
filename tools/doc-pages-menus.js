@@ -11,7 +11,7 @@ MV('menu_fine', 'lodge').pages = [{id:'verso', label:'Verso — After Dinner', b
   kit.rect({left:58, top:58, width:W-116, height:1638, stroke:red, sw:2.4, label:'Moldura externa'});
   kit.rect({left:74, top:74, width:W-148, height:1606, stroke:red, sw:1, label:'Moldura interna'});
   [[74,74],[W-74,74],[74,1680],[W-74,1680]].forEach(([x,y])=>kit.circle({left:x-5, top:y-5, r:5, fill:red, label:'Canto'}));
-  kit.fir(cx - 27, 124, 88, {fill:red});
+  kit.emblem('plataforma', 'tinta', cx - 56, 104, 112, {color:red, label:'Emblema — timbre'});
   kit.text('After Dinner', {left:0, top:236, width:W, font:'Cormorant Garamond', style:'italic', weight:500, size:92, align:'center', lh:1.0});
   kit.text('COFFEE  ·  CHEESE  ·  A LAST GLASS', {left:0, top:354, width:W, font:'Jost', weight:500, size:17, cs:340, fill:TP.brown, align:'center'});
   kit.zigzag(330, 910, 424, {amp:5, step:14, stroke:TP.ink, sw:1.4, opacity:0.4, label:'Zigue-zague (fio)'});

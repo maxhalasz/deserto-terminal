@@ -7,16 +7,16 @@ const TP = {red:'#a8302a', green:'#2f4a35', brown:'#6b5a3e', ink:'#1d1a16'};
 registerDoc('menu_fine', {
   label:'Cardápio — fine dining', page:A4.page, phys:A4.phys,
   paper:{type:'cartao', level:0.18, atmos:'twin', fold:'nenhuma'},
-  fonts:["500 20px 'Cormorant Garamond'", "italic 500 20px 'Cormorant Garamond'", "italic 400 20px 'Cormorant Garamond'", "600 20px 'Jost'", "500 20px 'Jost'"],
+  fonts:["500 20px 'Cormorant Garamond'", "italic 500 20px 'Cormorant Garamond'", "italic 400 20px 'Cormorant Garamond'", "600 20px 'Jost'", "500 20px 'Jost'"].concat(typeof EM_FONTS !== 'undefined' ? EM_FONTS : []),
   build: async (kit)=>{
     const W = kit.W, cx = W/2, red = TP.red;
     kit.rect({left:58, top:58, width:W-116, height:1638, stroke:red, sw:2.4, label:'Moldura externa'});
     kit.rect({left:74, top:74, width:W-148, height:1606, stroke:red, sw:1, label:'Moldura interna'});
     [[74,74],[W-74,74],[74,1680],[W-74,1680]].forEach(([x,y])=>kit.circle({left:x-5, top:y-5, r:5, fill:red, label:'Canto'}));
 
-    // timbre: dois abetos vermelhos de cada lado do nome
-    kit.fir(396, 118, 88, {fill:red});
-    kit.fir(792, 118, 88, {fill:red});
+    // timbre: o emblema da plataforma de cada lado do nome
+    kit.emblem('plataforma', 'tinta', 316, 112, 100, {color:red, label:'Emblema — timbre'});
+    kit.emblem('plataforma', 'tinta', 824, 112, 100, {color:red, label:'Emblema — timbre'});
     const head = kit.column(cx-180, 118, 360, {font:'Jost', weight:600, size:20, cs:300, fill:red, align:'center', lh:1.35});
     head.text('THE EXECUTIVE'); head.text('DINING ROOM'); head.text('PLATFORM DESERTO', {size:15, cs:420, fill:TP.brown});
     kit.line(cx-70, 252, cx+70, 252, {stroke:red, sw:1.6, label:'Filete do timbre'});

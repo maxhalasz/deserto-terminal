@@ -152,17 +152,17 @@ DOC_TEMPLATES.letter.pages = [
 registerDoc('envelope', {
   label:'Envelope — frente e verso', page:[1300, 650], phys:[8.66, 4.33],
   paper:{type:'creme', level:0.25, atmos:'twin', fold:'nenhuma'},
-  fonts:["600 20px 'Jost'", "500 20px 'Jost'", "700 20px 'Courier Prime'", "700 20px 'Libre Franklin'"],
+  fonts:["600 20px 'Jost'", "500 20px 'Jost'", "700 20px 'Courier Prime'", "700 20px 'Libre Franklin'"].concat(EM_FONTS),
   build: async (kit)=>{
     const W = kit.W, H = kit.H, red = DP.red;
     kit.text('CREW SERVICES', {left:70, top:62, width:500, font:'Jost', weight:600, size:19, cs:300, fill:red, lh:1.0});
     kit.text('Platform Deserto  ·  Offshore Block 7', {left:70, top:94, width:560, font:'Jost', weight:500, size:15, cs:160, fill:DP.brown, lh:1.0});
-    kit.fir(70, 130, 46, {fill:red, label:'Abeto do timbre'});
+    kit.emblem('plataforma', 'tinta', 70, 132, 74, {color:red, label:'Emblema — remetente'});
     // selo postal
     const sx = W - 70 - 140, sy = 58;
     kit.rect({left:sx, top:sy, width:140, height:170, fill:'#8a2a22', blend:'source-over', label:'Selo postal'});
     kit.rect({left:sx + 10, top:sy + 10, width:120, height:150, stroke:'#efe3c4', sw:2, blend:'source-over', label:'Selo postal (fio)'});
-    kit.fir(sx + 70 - 26, sy + 34, 84, {fill:'#efe3c4', label:'Selo postal (abeto)'});
+    kit.emblem('icone', 'tinta', sx + 70 - 50, sy + 24, 100, {color:'#efe3c4', label:'Selo postal (plataforma)'});
     kit.text('25', {left:sx, top:sy + 124, width:140, font:'Libre Franklin', weight:900, size:30, fill:'#efe3c4', blend:'source-over', align:'center', lh:1.0});
     kit.rect({left:sx - 5, top:sy - 5, width:150, height:180, stroke:'#e9dfc7', sw:9, dash:[3, 9], cap:'round', blend:'source-over', label:'Selo postal (picote)'});
     // carimbo de postagem + linhas onduladas
@@ -183,7 +183,8 @@ registerDoc('envelope', {
       const W = kit.W, H = kit.H;
       // aba triangular
       kit.path(`M 0 0 L ${W} 0 L ${W/2} 330 Z`, {left:0, top:0, fill:'#d6c9a6', opacity:0.55, stroke:'#8d8571', sw:2, blend:'multiply', label:'Aba do envelope'}).__bleedOk = true;
-      kit.text('CREW SERVICES  ·  PLATFORM DESERTO', {left:0, top:96, width:W, font:'Jost', weight:600, size:16, cs:340, fill:DP.brown, align:'center', lh:1.0, opacity:0.8});
+      kit.text('CREW SERVICES  ·  PLATFORM DESERTO', {left:0, top:60, width:W, font:'Jost', weight:600, size:16, cs:340, fill:DP.brown, align:'center', lh:1.0, opacity:0.8});
+      kit.emblem('mono', 'selo', W/2 - 62, 108, 124, {color:'#7a2020', wear:0.45, seed:4, angle:-8, label:'Detalhe — selo Ø.A'});
       // fita de reabertura
       const tape = kit.rect({left:W/2 - 300, top:250, width:600, height:62, fill:'#ece5d2', blend:'source-over', angle:-3, label:'Fita de reabertura'});
       kit.text('OPENED BY CREW SERVICES  ·  RESEALED', {left:W/2 - 290, top:268, width:580, font:'Libre Franklin', weight:900, size:19, cs:90, fill:'#8a1f1a', blend:'source-over', align:'center', lh:1.0, angle:-3, label:'Fita de reabertura (texto)'});
@@ -250,7 +251,7 @@ DOC_TEMPLATES.diary.pages = [
     kit.text('IF FOUND, RETURN TO', {left:lx, top:480, width:lw, font:'Jost', weight:500, size:17, cs:300, fill:DP.brown, align:'center', lh:1.0});
     kit.text('Crew Services', {left:lx, top:530, width:lw, font:'Libre Baskerville', weight:400, size:30, align:'center', lh:1.0});
     kit.text('Platform Deserto  ·  Offshore Block 7', {left:lx, top:584, width:lw, font:'Jost', weight:500, size:17, cs:160, fill:DP.brown, align:'center', lh:1.0});
-    kit.fir(lx + lw/2 - 31, 700, 100, {fill:red, label:'Abeto'});
+    kit.emblem('plataforma', 'tinta', lx + lw/2 - 85, 690, 170, {color:red, label:'Emblema — folha de rosto'});
     // direita: folha de rosto
     const rx = mid + 190, rw = mid - 380;
     kit.text('CREW LOG', {left:rx, top:420, width:rw, font:'Jost', weight:600, size:84, cs:360, fill:red, align:'center', lh:1.0});
@@ -275,10 +276,10 @@ DOC_TEMPLATES.diary.pages = [
     kit.rect({left:px, top:py, width:pw, height:ph, fill:'#2a110d', opacity:0.55, blend:'source-over', label:'Plaqueta (fundo)'});
     kit.rect({left:px, top:py, width:pw, height:ph, stroke:gold, sw:4, blend:'source-over', label:'Plaqueta (moldura)'});
     kit.rect({left:px + 14, top:py + 14, width:pw - 28, height:ph - 28, stroke:gold, sw:1.4, blend:'source-over', label:'Plaqueta (fio)'});
-    kit.fir(px + pw/2 - 40, py + 52, 130, {fill:gold, label:'Plaqueta (abeto)'});
-    kit.text('CREW LOG', {left:px, top:py + 230, width:pw, font:'Jost', weight:600, size:64, cs:300, fill:gold, blend:'source-over', align:'center', lh:1.0});
-    kit.text('PLATFORM DESERTO', {left:px, top:py + 330, width:pw, font:'Jost', weight:500, size:19, cs:420, fill:gold, blend:'source-over', align:'center', lh:1.0});
-    kit.text('VOLUME  III', {left:px, top:py + 410, width:pw, font:'Jost', weight:500, size:22, cs:420, fill:gold, blend:'source-over', align:'center', lh:1.0});
+    kit.emblem('plataforma', 'ouro', px + pw/2 - 125, py + 24, 250, {label:'Emblema — capa (ouro)'});
+    kit.text('CREW LOG', {left:px, top:py + 292, width:pw, font:'Jost', weight:600, size:58, cs:300, fill:gold, blend:'source-over', align:'center', lh:1.0});
+    kit.text('PLATFORM DESERTO', {left:px, top:py + 372, width:pw, font:'Jost', weight:500, size:18, cs:420, fill:gold, blend:'source-over', align:'center', lh:1.0});
+    kit.text('VOLUME  III', {left:px, top:py + 436, width:pw, font:'Jost', weight:500, size:21, cs:420, fill:gold, blend:'source-over', align:'center', lh:1.0});
   }},
 ];
 

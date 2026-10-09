@@ -236,7 +236,7 @@ DOC_TEMPLATES.menu_diner.variants.push({
 DOC_TEMPLATES.menu_diner.variants.push({
   id:'cafe', label:'Café · lodge de madeira com quadro de giz (Café Abyssal)',
   paper:{type:'liso', level:0.05, atmos:'neutra'},
-  fonts:["400 20px 'Yellowtail'", "500 20px 'Barlow Condensed'", "600 20px 'Barlow Condensed'", "400 20px 'Shadows Into Light'"],
+  fonts:["400 20px 'Yellowtail'", "500 20px 'Barlow Condensed'", "600 20px 'Barlow Condensed'", "400 20px 'Shadows Into Light'", "700 20px 'Barlow Condensed'", "400 20px 'Barlow Condensed'"],
   build: async (kit)=>{
     const W = kit.W, H = kit.H, cx = W/2, T = 66;
     const chalk = '#f1eee2', yel = '#ecd98c', pink = '#eea9b7', slate = [34,46,41];
@@ -244,8 +244,8 @@ DOC_TEMPLATES.menu_diner.variants.push({
     kit.proc('slate', 0, 0, W, H, {seed:4, opts:{base:slate}, label:'Quadro-negro'});
     kit.proc('frame', 0, 0, W, H, {seed:6, opts:{t:T, base:[122,76,42]}, label:'Moldura de madeira'});
 
-    DM.chalkFir(kit, 128, 120, 150, chalk, 3);
-    DM.chalkFir(kit, W - 128 - 93, 120, 150, chalk, 4);
+    kit.emblem('icone', 'tinta', 108, 112, 124, {color:chalk, opacity:0.92, label:'Emblema de giz'});
+    kit.emblem('icone', 'tinta', W - 108 - 124, 112, 124, {color:chalk, opacity:0.92, label:'Emblema de giz'});
     kit.text('Café Abyssal', {left:0, top:96, width:W, font:'Yellowtail', size:140, fill:chalk, align:'center', lh:1.0, shadow:halo, opacity:0.96});
     kit.text('COFFEE   ·   PIE   ·   BREAKFAST ALL DAY', {left:0, top:296, width:W, font:'Barlow Condensed', weight:600, size:34, cs:380, fill:yel, align:'center', lh:1.0, opacity:0.95});
     DM.chalkLine(kit, 190, 368, W - 190, 370, {stroke:chalk, sw:4, seed:1});

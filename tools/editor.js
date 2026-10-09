@@ -1536,6 +1536,41 @@ function addNewsBox(){
   canvas.add(nb); canvas.setActiveObject(nb); canvas.renderAll();
 }
 ['btnAddNewsBox','btnNewsBoxHere'].forEach(id=>{ const b = document.getElementById(id); if (b) b.addEventListener('click', addNewsBox); });
+/* Emblemas (aba Adicionar): escolhe família + versão + cor e insere no centro da página. */
+(function initEmblemUI(){
+  const k = document.getElementById('emKind'), v = document.getElementById('emVariant'), c = document.getElementById('emColor');
+  if (!k || !v) return;
+  Object.keys(EM_KINDS).forEach(id=>k.add(new Option(EM_KINDS[id], id)));
+  Object.keys(EM_VARIANTS).forEach(id=>v.add(new Option(EM_VARIANTS[id], id)));
+  v.value = 'tinta';
+  v.addEventListener('change', ()=>{ c.value = v.value === 'selo' ? '#7a2020' : '#1b1a18'; });
+  document.getElementById('btnAddEmblem').addEventListener('click', async ()=>{
+    await ensureFonts(EM_FONTS);
+    const size = Math.round(Math.min(340, PAGE_W*0.4, PAGE_H*0.4));
+    const useColor = ['tinta', 'selo', 'negativo'].includes(v.value);
+    const e = new Emblem({left:PAGE_W/2 - size/2, top:PAGE_H/2 - size/2, width:size, em:{kind:k.value, variant:v.value, color:useColor ? c.value : null, accent:null, seed:randomSeed32(), wear:0.5}});
+    canvas.add(e); canvas.setActiveObject(e); canvas.renderAll(); pushHistory();
+  });
+})();
+function renderEmblemInspector(obj, body){
+  const em = obj.em;
+  const opt = (map)=>Object.keys(map).map(value=>({value, label:map[value]}));
+  body.appendChild(field.select('Emblema', opt(EM_KINDS), em.kind, val=>{ obj.setEmblem({kind:val}); canvas.renderAll(); pushHistory(); updateInspector(); }));
+  body.appendChild(field.select('Versão', opt(EM_VARIANTS), em.variant, val=>{
+    obj.setEmblem({variant:val, color: val === 'selo' && !em.color ? '#7a2020' : em.color});
+    canvas.renderAll(); pushHistory(); updateInspector();
+  }));
+  if (['tinta', 'selo', 'negativo'].includes(em.variant)) body.appendChild(field.color('Cor da tinta', em.color || EM_INK, val=>{ obj.setEmblem({color:val}); canvas.renderAll(); }));
+  if (em.variant === 'cor'){
+    body.appendChild(field.color('Anel e linha d\'água', em.color || EM_PAL.cor.ring, val=>{ obj.setEmblem({color:val}); canvas.renderAll(); }));
+    body.appendChild(field.color('Estrela e "NOV — APR"', em.accent || EM_PAL.cor.star, val=>{ obj.setEmblem({accent:val}); canvas.renderAll(); }));
+  }
+  if (em.variant === 'selo'){
+    body.appendChild(field.range('Desgaste do carimbo', em.wear != null ? em.wear : 0.5, 0, 1, 0.05, val=>{ obj.setEmblem({wear:val}); canvas.renderAll(); }));
+    body.appendChild(field.button('🎲 Novo desgaste', ()=>{ obj.setEmblem({seed:randomSeed32()}); canvas.renderAll(); pushHistory(); }));
+  }
+  body.appendChild(field.hint('Vetor: dá pra ampliar à vontade sem perder nitidez. Use as alças dos cantos pra mudar o tamanho.'));
+}
 /* Seletor "Estilo" (só aparece nos modelos que têm mais de um estilo, ex.: cardápios). */
 function syncDocVariantUI(){
   syncPageKindUI();
@@ -2158,6 +2193,8 @@ function updateInspector(){
     renderBrandTextInspector(obj, body);
   } else if (obj.type==='textbox' || obj.type==='handwrittentext' || obj.type==='redactedtext'){
     renderTextInspector(obj, body);
+  } else if (obj.type==='emblem'){
+    renderEmblemInspector(obj, body);
   }
   if (obj.customType==='brandArt'){
     renderBrandArtInspector(obj, body);

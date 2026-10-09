@@ -153,6 +153,17 @@ class DocKit {
     return p;
   }
 
+  /* Emblema (logo da plataforma, roundel Ø.A, ícone, abeto) — ver emblem.js. Um objeto só; guarda só os parâmetros. */
+  emblem(kind, variant, x, y, size, o){
+    o = o || {};
+    const em = {kind, variant, color: o.color || null, accent: o.accent || null, seed: o.seed || 1, wear: o.wear != null ? o.wear : 0.5};
+    const e = new Emblem({left: x, top: y, width: size, em, opacity: o.opacity != null ? o.opacity : 1, angle: o.angle || 0});
+    if (o.blend) e.globalCompositeOperation = o.blend;
+    if (o.label) e.__labName = o.label;
+    this.cv.add(e);
+    return e;
+  }
+
   /* Largura em px de uma linha de texto (pra pontilhado de preço, centralização manual etc.). */
   measure(str, o){
     o = o || {};
