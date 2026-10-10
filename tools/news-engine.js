@@ -170,6 +170,71 @@ const NEWS_DEFAULTS = {
   'ad.5:title': 'THE LEGION POST', 'ad.5': 'Friday fish fry, 6 p.m. All welcome. Coffee is on and the hall is warm.',
   'ad.6:title': 'RADIO REPAIR', 'ad.6': 'Marine and household. Static removed. No repair attempted on sets tuned to the harbor channel.',
   'ad.7:title': 'HARBOR LAMP FUND', 'ad.7': 'The lamps on Harbor Street must be kept lit. Donations accepted at the chandlery. Please give what you can.',
+  /* ---- páginas internas extras (fotos, obituários, opinião, porto, esportes) ---- */
+  'ph.band': 'THE WEEK IN PICTURES',
+  'ph.note:title': 'ABOUT THESE PICTURES',
+  'ph.note': 'The pictures on this page were supplied by the Harbor Office. This newspaper has not been given access to the platform since Tuesday, and no photograph was taken from it. Two readers have brought in pictures taken from the pier at night. They are not printed here. They show the same thing.',
+  'pq2': '“The boat was there at six. At seven it was there twice.”\n— Pier watchman, name withheld',
+
+  'ed2.kicker': 'EDITORIAL', 'ed2.headline': 'Who is left to ask?', 'ed2.deck': 'The platform has not answered the radio in thirty hours. This newspaper has run out of people to ask why.', 'ed2.byline': 'The Editors',
+  'letters2:title': 'LETTERS TO THE EDITOR',
+  'letters2': 'To the editor: I live on the lower shore road. I have not slept since Tuesday. Please ask them to turn it off. — H. Aldous\n' +
+    'To the editor: My husband has not come home. The company says he is not on the roster. His boots are by the door. — Name withheld\n' +
+    'To the editor: The foghorn has not sounded in six days. Someone should look into it. — A. Verne\n' +
+    'To the editor: My husband went to the pier on Tuesday night to listen. I have kept his plate warm. — Mrs. J. Bell\n' +
+    'To the editor: I wrote last week to say that the sound had stopped. I was wrong. I am sorry. — W. M. Kessler',
+  'col.kicker': 'COLUMN', 'col.headline': 'Harbor Notes', 'col.byline': 'By Dale Hennessey',
+  'col.body': 'The lamp on the north mole was lit at dusk on Wednesday, as it has been every evening since the harbor was built. The keeper says he did not light it. He says it was already burning when he arrived, and that the oil was cold.\n' +
+    'The ferry has not run since Monday. Nobody has asked for it. The ticket office opens at nine each morning and closes at five past, and the clerk says this is a matter of habit.\n' +
+    'On Tuesday evening I counted the lights on the platform from the end of the pier. There were fewer than there should be and more than there were last week. A fisherman beside me counted differently. We compared our numbers and agreed not to compare them again.\n' +
+    'The harbor café has put a chair out on the quay for the man who always sits there. He has not been seen since Sunday. The chair is occupied every morning.\n' +
+    'The Legion hall has asked members to bring their own chairs on Friday. Asked why, the commander said that chairs have a way of running short, and that it was nothing to write about. This column has written about it anyway.\n' +
+    'Mrs. Aldous asks that readers stop sending flowers to the Kessler house. The house has had enough. She did not say enough of what.',
+  'arch:title': 'FIFTY YEARS AGO',
+  'arch': 'This week in 1974. The platform crew gave a dinner at the Legion hall for the families of the town. Forty-three sat down, the committee reports, though only forty-two chairs had been set. The extra guest was not identified. The evening closed with hymns, and the committee thanks all who stayed until the end.',
+  'photo.4.cap': 'Edward Pruitt, chair of the Harbor Board, at Tuesday’s meeting. Photo: Harbor Office',
+
+  'ob.band': 'DEATHS AND MEMORIALS',
+  'ob1.kicker': 'OBITUARY', 'ob1.headline': 'Walter M. Kessler, 67', 'ob1.byline': 'By Staff',
+  'ob1.body': 'Walter M. Kessler, 67, of Harbor Street, died Tuesday at home. A former rigger on the platform, he is survived by a sister, Mrs. H. Aldous, and two nephews. Services will be private.\n' +
+    'Mr. Kessler was born in the town in 1949 and worked the platform for 31 years until his retirement. He was a member of the Legion and sang in the choir at St. Brendan’s for many winters. He was lowered to the lower deck four times in the first year of drilling. Asked about it once, he said it was “a room that listens,” and would say nothing more.\n' +
+    'Neighbors said he had been unwell since February and had stopped answering the door after dark. His sister said he had written a letter to this newspaper and asked that it be printed. It is printed on page A5.\n' +
+    'He is preceded in death by his wife, Margaret. Memorial contributions may be made to the Harbor Lamp Fund. The family asks that no one visit the shore.',
+  'photo.5.cap': 'Walter M. Kessler at the Legion hall, 2009. Photo: family',
+  'ob2.kicker': 'OBITUARY', 'ob2.headline': 'Edith Pruitt, 81', 'ob2.byline': 'Staff',
+  'ob2.body': 'Edith Pruitt, 81, of Church Lane, died Sunday at home. She was the mother of Edward Pruitt, chair of the Harbor Board, and for forty years played the organ at St. Brendan’s. She is survived by her son and a granddaughter.\n' +
+    'Funeral services were held at St. Brendan’s on Monday at 11 a.m. The organ was not played. Mrs. Pruitt’s son asked that the bells not be rung either, and that the church doors be closed before dusk.',
+  'ob3.kicker': 'OBITUARY', 'ob3.headline': 'Oskar Lund, 58', 'ob3.byline': 'Staff',
+  'ob3.body': 'Oskar Lund, 58, a rigger, died Monday on the platform. The company has said that Mr. Lund fell. His colleagues have said that he did not.\n' +
+    'Services will be held at the discretion of the company, which has not yet exercised it. His wife was told on Wednesday. She says she knew on Monday.',
+  'ob.thanks:title': 'CARD OF THANKS',
+  'ob.thanks': 'Mrs. Margaret Kessler thanks the Legion post for the flowers and the choir for singing on Tuesday evening. She asks that the lamp on Harbor Street be left lit.',
+  'ob.unclaimed:title': 'UNCLAIMED',
+  'ob.unclaimed': 'A man, about forty, was found on the lower shore road on Tuesday morning wearing a diving suit. He is not on the crew roster of six. He is at the Harbor Office until a relative comes forward. None has. Please do not ask to see him.',
+
+  'sp.band': 'SPORTS AND COMMUNITY',
+  'photo.6.cap': 'The diamond on the lower shore, Wednesday. The grass was wet. It had not rained.',
+  'league:title': 'FINAL STANDINGS',
+  'league': 'Harbor Gulls|14–6\nLegion Post|12–8\nQuay Lane|11–9\nChandlery|9–11\nLower Shore|8–12\nPlatform Crew|0–7\nChurch Lane|forfeit',
+  'sp.sched:title': 'THIS WEEK',
+  'sp.sched': 'Fri 15|Legion fish fry\nSat 16|Bowling: Gulls v. Legion\nSun 17|Rowing club, dawn\nTue 19|Harbor Board, 7 p.m.',
+  'sp2.headline': 'Legion bowlers take the fish fry cup', 'sp2.byline': 'Staff',
+  'sp2.body': 'The Legion post bowling team beat Quay Lane by eleven pins on Tuesday night to win the fish fry cup for the second year running. Frank Pilcher rolled a 212. The match was played with seven pins standing at the end of every lane, a practice the league describes as traditional.\n' +
+    'Play stopped at 11 p.m. Players said the lanes were quiet. The scorer said they were not. The cup will be presented on Friday, weather and tide permitting.\n' +
+    'Pilcher said the team will defend the cup in the spring, if there is a spring league. Quay Lane’s captain, Ruth Alden, said her team had played well and that it would not be playing again.',
+  'sp3.headline': 'Rowing club meets, no one rows', 'sp3.byline': 'Staff',
+  'sp3.body': 'The Harbor Rowing Club met on Wednesday at the boathouse as scheduled. Eleven members attended. None entered the water. The commodore said the water looked “occupied.” The club will meet again next Wednesday and will decide then whether it is still a rowing club.\n' +
+    'The boathouse key was returned to the commodore on Thursday morning. It had been left in the lock, on the inside.',
+
+  'hb.band': 'TIDES, WEATHER AND THE HARBOR',
+  'tide7:title': 'TIDE TABLE — WEEK OF MARCH 11',
+  'tide7': 'Thu 14|H 05:41 · L 11:58\nFri 15|not available\nSat 16|not available\nSun 17|H 03:12\nMon 18|H 03:12\nTue 19|H 03:12\nWed 20|H 03:12',
+  'sun:title': 'SUN AND MOON',
+  'sun': 'Sunrise|06:12\nSunset|17:58\nMoonrise|not observed\nMoonset|not observed\nFoghorn|not sounded',
+  'wx:title': 'FORECAST',
+  'wx': 'Thursday: fog, clearing by afternoon. Friday: fog. Saturday: fog. The Harbor Office points out that these forecasts were prepared on Monday and have not been revised. Visibility on the water is expected to be good for sound and poor for everything else.',
+  'mar:title': 'NOTICE TO MARINERS',
+  'mar': 'The third channel marker is not where it was. The fourth is where it was, but it is not the same marker.\nThe sixth marker has not been located. It is not believed to be missing.\nBoats leaving the harbor after dark are asked to show two lights. Boats returning after dark are asked to show three, and to be counted.',
 };
 
 /* ---- foto-exemplo em cinza (cena genérica: plataforma no mar, cais na neblina, retrato) ---- */
@@ -420,18 +485,27 @@ class NewsBuilder {
     this.rule(M, fy + 20, M + W, fy + 20, 1.3);
     // rodapé
     this.rule(M, NEWS_G.BOTTOM + 14, M + W, NEWS_G.BOTTOM + 14, 1);
+    this.pageLabel(null, ['foot.r']);
     this.txt('foot.l', M, NEWS_G.BOTTOM + 22, 600, {font:'Libre Franklin', weight:600, size:10, cs:100, lh:1.2, fill:'#4a4540'});
     this.txt('foot.r', M + W - 200, NEWS_G.BOTTOM + 22, 200, {font:'Libre Franklin', weight:700, size:11, cs:100, lh:1.2, align:'right'});
     return Math.max(NEWS_G.TOP, fy + 20 + 16);
   }
 
+  /* Número da página (rodapé e cabeçalho): troca sozinho quando o layout muda (capa A1, fotos A3, classificados A7...), mas só
+     enquanto o texto ainda é o padrão ou o último número automático; se o Max digitou outro, fica como ele deixou. */
+  pageLabel(label, keys){
+    const last = this.st.lastLabel;
+    keys.forEach(k=>{
+      const v = this.c[k];
+      if (label && (v === NEWS_DEFAULTS[k] || v === last)) this.c[k] = label;
+      else if (!label && last && v === last) this.c[k] = NEWS_DEFAULTS[k];
+    });
+    this.st.lastLabel = label || null;
+  }
   /* Cabeçalho das páginas internas: folio, nome pequeno do jornal, filetes; mesmo rodapé da capa. Devolve o topo do conteúdo. */
   innerHeader(label){
     const M = NEWS_G.M, W = NEWS_G.W, gothic = this.st.mast !== 'serif';
-    if (label){
-      if (this.c['ih.r'] === NEWS_DEFAULTS['ih.r']) this.c['ih.r'] = label;
-      if (this.c['foot.r'] === NEWS_DEFAULTS['foot.r']) this.c['foot.r'] = label;
-    }
+    this.pageLabel(label, ['ih.r', 'foot.r']);
     this.txt('ih.l', M, 78, 300, {font:'Libre Franklin', weight:600, size:11, cs:110, lh:1.2});
     this.txt('ih.r', M + W - 300, 76, 300, {font:'Libre Franklin', weight:700, size:14, cs:110, lh:1.2, align:'right'});
     const name = gothic
@@ -451,7 +525,7 @@ const NEWS_CLS = {font:'Barlow Condensed', weight:500, size:14.5, lh:1.22, inden
 
 /* ---- Presets: cada um é uma função que posiciona blocos na grade (usa a altura medida de cada bloco) ---- */
 const NEWS_PRESETS = {
-  classica: {label:'Capa clássica', build: async (B)=>{
+  classica: {label:'Capa clássica', group:'capa', build: async (B)=>{
     const T = B.header(), BT = NEWS_G.BOTTOM, LX = newsX(0), LW = newsW(4), RX = newsX(4), RW = newsW(2);
     // direita: breves, índice, citação, foto, obituário, tábua de marés e anúncio colado na base
     let ry = T;
@@ -475,7 +549,7 @@ const NEWS_PRESETS = {
     let b = B.head('s3', newsX(2), y, newsW(2), {size:23, rule:false}); B.flow('s3.body', newsX(2), b, newsW(2), {size:14, bottom:lim, minSize:12.5});
     B.vline(RX - NEWS_G.GUT/2, T, BT); B.vline(newsX(2) - NEWS_G.GUT/2, y, lim);
   }},
-  larga: {label:'Manchete larga', build: async (B)=>{
+  larga: {label:'Manchete larga', group:'capa', build: async (B)=>{
     const T = B.header(), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W;
     let y = B.head('lead', LX, T, FW, {size:68, upper:true, lh:0.98, align:'center', deckSize:21, rule:true});
     y = await B.photo('photo.1', LX, y, FW, 380, {variant:0});
@@ -494,7 +568,7 @@ const NEWS_PRESETS = {
     let b = B.head('s3', newsX(2), split + 14, newsW(2), {size:25, rule:false}); B.flow('s3.body', newsX(2), b, newsW(2), {size:14, bottom:BT, minSize:12.5});
     B.vline(newsX(2) - NEWS_G.GUT/2, split + 14, BT); B.vline(RX - NEWS_G.GUT/2, split + 14, BT); B.vline(RX - NEWS_G.GUT/2, y, split - 8);
   }},
-  extra: {label:'Edição extra (tabloide)', build: async (B)=>{
+  extra: {label:'Edição extra (tabloide)', group:'capa', build: async (B)=>{
     const T = B.header(), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W;
     const bar = B.kit.rect({left:LX, top:T, width:FW, height:54, fill:'#161412', label:'Faixa EXTRA'}); B._mark(bar, 'rule');
     B.txt('xl.kicker', LX, T + 9, FW, {font:'Barlow Condensed', weight:700, size:30, cs:320, lh:1.0, align:'center', fill:'#f4f1e8', blend:'source-over'});
@@ -511,7 +585,7 @@ const NEWS_PRESETS = {
     B.flow('lead.body', LX, y, FW, {cols:3, size:17, bottom:bodyBottom, minSize:12.5, gut:24});
     B.rule(LX, bodyBottom + 12, LX + FW, bodyBottom + 12, 1.3);
   }},
-  duas: {label:'Duas matérias', build: async (B)=>{
+  duas: {label:'Duas matérias', group:'capa', build: async (B)=>{
     const T = B.header(), BT = NEWS_G.BOTTOM, LX = newsX(0), RX = newsX(3), HW = newsW(3);
     const a1 = B.boxAtBottom('ad.1', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.2', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.3', newsX(4), newsW(2), BT, NEWS_AD);
     const lim = Math.min(a1, a2, a3) - 22;
@@ -524,7 +598,7 @@ const NEWS_PRESETS = {
     B.vline(newsX(3) - NEWS_G.GUT/2, T, lim);
     B.rule(LX, lim + 10, LX + NEWS_G.W, lim + 10, 1.3);
   }},
-  denso: {label:'Só texto (denso)', build: async (B)=>{
+  denso: {label:'Só texto (denso)', group:'capa', build: async (B)=>{
     const T = B.header(), BT = NEWS_G.BOTTOM, LX = newsX(0), LW = newsW(4), RX = newsX(4), RW = newsW(2);
     const a1 = B.boxAtBottom('ad.1', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.2', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.3', newsX(4), newsW(2), BT, NEWS_AD);
     const adsTop = Math.min(a1, a2, a3) - 16;
@@ -552,7 +626,7 @@ const NEWS_PRESETS = {
     B.vline(RX - NEWS_G.GUT/2, T, split - 8);
     B.rule(LX, lim + 8, LX + NEWS_G.W, lim + 8, 1.3);
   }},
-  interna: {label:'Página interna (continuação)', build: async (B)=>{
+  interna: {label:'Continuação da matéria (A5)', group:'interna', build: async (B)=>{
     const T = B.innerHeader('A5'), BT = NEWS_G.BOTTOM, LX = newsX(0), LW = newsW(4), RX = newsX(4), RW = newsW(2), HW = newsW(2);
     let ry = await B.photo('photo.3', RX, T, RW, 210, {variant:1});
     const adTop = B.boxAtBottom('ad.4', RX, RW, BT, NEWS_AD);
@@ -573,7 +647,101 @@ const NEWS_PRESETS = {
     B.flow('ed', LX, e, LW, {cols:2, size:17, bottom:BT, minSize:12.5});
     B.vline(RX - NEWS_G.GUT/2, T, BT);
   }},
-  classificados: {label:'Classificados (contracapa)', build: async (B)=>{
+  fotos: {label:'Fotos da semana (A3)', group:'interna', build: async (B)=>{
+    const T = B.innerHeader('A3'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W;
+    const a1 = B.boxAtBottom('ad.5', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.6', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.7', newsX(4), newsW(2), BT, NEWS_AD);
+    const lim = Math.min(a1, a2, a3) - 22;
+    let y = B.band('ph.band', LX, T, FW);
+    y = await B.photo('photo.1', LX, y, FW, 600, {variant:0});
+    const hw = newsW(3) - 8;
+    const pa = await B.photo('photo.2', LX, y, hw, 440, {variant:1});
+    const pb = await B.photo('photo.3', newsX(3) + 8, y, hw, 440, {variant:1});
+    y = Math.max(pa, pb) + 4;
+    B.rule(LX, y, LX + FW, y, 1.3); y += 16;
+    const note = B.txt('ph.note', LX, y, newsW(4), {frame:'rules', title:true, size:18.5, lh:1.34, padY:10});
+    const pq = B.txt('pq2', newsX(4), y, newsW(2), {frame:'rules', style:'italic', size:21, lh:1.24, weight:700, padY:10});
+    B.vline(newsX(4) - NEWS_G.GUT/2, y, Math.max(note.bottom, pq.bottom));
+    B.rule(LX, lim + 8, LX + FW, lim + 8, 1.3);
+  }},
+  obituarios: {label:'Obituários e avisos (A4)', group:'interna', build: async (B)=>{
+    const T = B.innerHeader('A4'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W, LW = newsW(4), RX = newsX(4), RW = newsW(2), hw = newsW(2) - 8;
+    let y = B.band('ob.band', LX, T, FW);
+    const h = B.head('ob1', LX, y, LW, {size:46, lh:1.02, rule:true, deckSize:17});
+    const f1 = B.flow('ob1.body', LX, h, LW, {cols:2, size:21, bottom:h + 560, minSize:12.5});
+    const py = await B.photo('photo.5', RX, y, RW, 420, {variant:2});
+    const th = B.txt('ob.thanks', RX, py, RW, {frame:'box', title:true, size:16, lh:1.32});
+    const top1 = Math.max(f1, th.bottom);
+    B.vline(RX - NEWS_G.GUT/2, y, top1);
+    let split = top1 + 16;
+    B.rule(LX, split, LX + FW, split, 1.3);
+    const rowTop = split + 14, rowBot = rowTop + 330;
+    const a = B.head('ob2', LX, rowTop, hw, {size:25, rule:false}); const fa = B.flow('ob2.body', LX, a, hw, {size:16.5, bottom:rowBot, minSize:12.5});
+    const b = B.head('ob3', newsX(2) + 8, rowTop, hw, {size:25, rule:false}); const fb = B.flow('ob3.body', newsX(2) + 8, b, hw, {size:16.5, bottom:rowBot, minSize:12.5});
+    const rm = B.txt('ad.9', RX + 8, rowTop, hw, Object.assign({}, NEWS_AD, {size:15.5}));
+    split = Math.max(fa, fb, rm.bottom) + 18;
+    B.vline(newsX(2) - NEWS_G.GUT/2, rowTop, split - 8); B.vline(RX - NEWS_G.GUT/2, rowTop, split - 8);
+    B.rule(LX, split, LX + FW, split, 1.3);
+    const un = B.txt('ob.unclaimed', LX + 120, split + 16, FW - 240, Object.assign({}, NEWS_AD, {size:18, titleSize:26}));
+    const ly = B.band('legal.title', LX, un.bottom + 18, FW);
+    B.flow('legal', LX, ly, FW, Object.assign({cols:3, bottom:BT - 6}, NEWS_CLS, {size:24, minSize:12}));
+  }},
+  editorial: {label:'Opinião e cartas (A5)', group:'interna', build: async (B)=>{
+    const T = B.innerHeader('A5'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W, LW = newsW(4), RX = newsX(4), RW = newsW(2);
+    const a1 = B.boxAtBottom('ad.4', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.10', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.7', newsX(4), newsW(2), BT, NEWS_AD);
+    const lim = Math.min(a1, a2, a3) - 22;
+    const y = B.head('ed2', LX, T, FW, {size:56, lh:1.0, rule:true, deckSize:20});
+    const e1 = B.flow('ed', LX, y, LW, {cols:2, size:22, bottom:y + 520, minSize:12.5});
+    const lt = B.txt('letters2', RX, y, RW, {frame:'box', title:true, size:16.5, lh:1.32});
+    B.vline(RX - NEWS_G.GUT/2, y, Math.max(e1, lt.bottom));
+    const split = Math.max(e1, lt.bottom) + 16;
+    B.rule(LX, split, LX + FW, split, 1.3);
+    const c = B.head('col', LX, split + 14, LW, {size:34, rule:false});
+    B.flow('col.body', LX, c, LW, {cols:2, size:24, bottom:lim, minSize:12.5});
+    const py = await B.photo('photo.4', RX, split + 14, RW, 400, {variant:2});
+    B.txt('arch', RX, py, RW, {frame:'rules', title:true, style:'italic', size:16.5, lh:1.3, padY:10});
+    B.vline(RX - NEWS_G.GUT/2, split + 14, lim);
+    B.rule(LX, lim + 8, LX + FW, lim + 8, 1.3);
+  }},
+  porto: {label:'Porto, marés e tempo (A6)', group:'interna', build: async (B)=>{
+    const T = B.innerHeader('A6'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W, RX = newsX(3), HW = newsW(3);
+    const a1 = B.boxAtBottom('ad.8', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.10', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.4', newsX(4), newsW(2), BT, NEWS_AD);
+    const lim = Math.min(a1, a2, a3) - 22;
+    const y = B.band('hb.band', LX, T, FW);
+    const t7 = B.txt('tide7', LX, y, HW - 8, {frame:'bar', title:true, rows:true, size:20, lh:1.55});
+    const sn = B.txt('sun', LX, t7.bottom + 16, HW - 8, {frame:'box', title:true, rows:true, size:19, lh:1.5});
+    const wx = B.txt('wx', LX, sn.bottom + 16, HW - 8, {frame:'box', title:true, size:17.5, lh:1.34});
+    const py = await B.photo('photo.2', RX + 8, y, HW - 8, 470, {variant:1});
+    const lg = B.txt('log', RX + 8, py, HW - 8, {frame:'box', title:true, size:16.5, lh:1.32});
+    const mr = B.txt('mar', RX + 8, lg.bottom + 16, HW - 8, {frame:'bar', title:true, size:16.5, lh:1.32});
+    const bot = Math.max(wx.bottom, mr.bottom);
+    B.vline(RX - NEWS_G.GUT/2, y, bot);
+    const s2 = bot + 18;
+    B.rule(LX, s2, LX + FW, s2, 1.3);
+    const ly = B.band('legal.title', LX, s2 + 14, FW);
+    B.flow('legal', LX, ly, FW, Object.assign({cols:3, bottom:lim}, NEWS_CLS, {size:26, minSize:12}));
+    B.rule(LX, lim + 8, LX + FW, lim + 8, 1.3);
+  }},
+  esportes: {label:'Esportes e comunidade (B1)', group:'interna', build: async (B)=>{
+    const T = B.innerHeader('B1'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W, LW = newsW(4), RX = newsX(4), RW = newsW(2);
+    const a1 = B.boxAtBottom('ad.5', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.6', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.7', newsX(4), newsW(2), BT, NEWS_AD);
+    const lim = Math.min(a1, a2, a3) - 22;
+    let y = B.band('sp.band', LX, T, FW);
+    const h = B.head('s6', LX, y, LW, {size:46, upper:true, lh:1.02, rule:true, deckSize:17});
+    const py = await B.photo('photo.6', LX, h, LW, 450, {variant:1});
+    const f1 = B.flow('s6.body', LX, py, LW, {cols:2, size:19, bottom:py + 270, minSize:12.5});
+    const lg = B.txt('league', RX, y, RW, {frame:'bar', title:true, rows:true, size:17, lh:1.55});
+    const sc = B.txt('sp.sched', RX, lg.bottom + 16, RW, {frame:'box', title:true, rows:true, size:16, lh:1.5});
+    B.vline(RX - NEWS_G.GUT/2, y, Math.max(f1, sc.bottom));
+    const split = Math.max(f1, sc.bottom) + 16;
+    B.rule(LX, split, LX + FW, split, 1.3);
+    const hw = newsW(2);
+    const a = B.head('sp2', LX, split + 14, hw, {size:25, rule:false}); B.flow('sp2.body', LX, a, hw, {size:21, bottom:lim, minSize:12.5});
+    const b = B.head('sp3', newsX(2), split + 14, hw, {size:25, rule:false}); B.flow('sp3.body', newsX(2), b, hw, {size:21, bottom:lim, minSize:12.5});
+    B.txt('church', RX, split + 14, RW, {frame:'bar', title:true, size:16, lh:1.34});
+    B.vline(newsX(2) - NEWS_G.GUT/2, split + 14, lim); B.vline(RX - NEWS_G.GUT/2, split + 14, lim);
+    B.rule(LX, lim + 8, LX + FW, lim + 8, 1.3);
+  }},
+  classificados: {label:'Classificados (A7)', group:'interna', build: async (B)=>{
     const T = B.innerHeader('A7'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W;
     const a1 = B.boxAtBottom('ad.5', newsX(0), newsW(2), BT, NEWS_AD), a2 = B.boxAtBottom('ad.6', newsX(2), newsW(2), BT, NEWS_AD), a3 = B.boxAtBottom('ad.7', newsX(4), newsW(2), BT, NEWS_AD);
     const adsTop = Math.min(a1, a2, a3) - 18;
@@ -589,7 +757,8 @@ const NEWS_PRESETS = {
     B.rule(LX, adsTop - 8, LX + FW, adsTop - 8, 1.3);
   }},
 };
-const NEWS_PRESET_ORDER = ['classica', 'larga', 'extra', 'duas', 'denso', 'interna', 'classificados'];
+/* Capa e páginas internas: o painel "Layout do jornal" mostra os dois grupos, e o seletor "Tipo da nova página" lista as internas (mesmos ids). */
+const NEWS_PRESET_ORDER = ['classica', 'larga', 'extra', 'duas', 'denso', 'fotos', 'obituarios', 'interna', 'editorial', 'porto', 'classificados', 'esportes'];
 
 /* Refaz o layout: colhe o texto/fotos atuais, apaga o que o motor gerou, monta o preset e guarda o estado.
    patch = {preset, mast, justify}. */
@@ -608,6 +777,9 @@ async function newsRebuild(patch){
     st.vis = B.vis;
     keepers.forEach(o=>canvas.bringObjectToFront(o));
     setNewsState(st);
+    // página interna: o "tipo da página" é o próprio layout (mesmos ids do seletor "Tipo da nova página")
+    const bgNow = getBackground();
+    if (bgNow){ if (NEWS_PRESETS[st.preset].group === 'interna') bgNow.__docPageKind = st.preset; else delete bgNow.__docPageKind; }
     canvas.renderAll();
     renderLayerList();
   } finally { endBatch(); }

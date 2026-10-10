@@ -1047,12 +1047,11 @@ document.getElementById('btnPageDel').addEventListener('click', ()=>pageDelete()
 /* ===================== Layout do jornal (presets, título, justificar, caixa) =====================
    O texto e as fotos vivem nos próprios objetos (news-engine.js: __newsRole); trocar de preset colhe o que
    está no canvas e refaz o layout, então nada do que o Max editou se perde. */
-const newsPresetRow = document.getElementById('newsPresetRow');
 NEWS_PRESET_ORDER.forEach(key=>{
   const b = document.createElement('button');
   b.textContent = NEWS_PRESETS[key].label; b.dataset.preset = key;
   b.addEventListener('click', ()=>newsRebuildLocked({preset:key}));
-  newsPresetRow.appendChild(b);
+  document.getElementById(NEWS_PRESETS[key].group === 'interna' ? 'newsPresetRowInner' : 'newsPresetRow').appendChild(b);
 });
 /* Refazer o layout do jornal espera a vez na fila das trocas de cena: dois cliques seguidos em presets diferentes
    refaziam o layout ao mesmo tempo e deixavam os textos em dobro. */
@@ -1145,8 +1144,9 @@ function syncNewsLayoutUI(){
     document.getElementById('newsMast').value = st.mast || 'gothic';
     document.getElementById('newsJustify').checked = !!st.justify;
   }
-  document.querySelectorAll('#newsPresetRow button').forEach(b=>b.classList.toggle('active', !!st && b.dataset.preset===st.preset));
+  document.querySelectorAll('#newsPresetRow button, #newsPresetRowInner button').forEach(b=>b.classList.toggle('active', !!st && b.dataset.preset===st.preset));
   syncPaperUI();
+  if (PAGES.length) updatePageNavUI();   // o nome do tipo da página acompanha o layout escolhido
 }
 
 document.getElementById('btnAddText').addEventListener('click', ()=>{

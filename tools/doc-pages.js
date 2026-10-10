@@ -289,7 +289,6 @@ const newsPagePatch = (preset, ctx)=>{
   if (pv){ if (pv.mast) p.mast = pv.mast; if (pv.justify != null) p.justify = pv.justify; }
   return p;
 };
-DOC_TEMPLATES.newspaper.pages = [
-  {id:'interna', label:'Página interna (A5, continuação)', fonts:NEWS_FONT_SPECS, build: async (kit, ctx)=>{ await newsRebuild(newsPagePatch('interna', ctx)); }},
-  {id:'classificados', label:'Classificados (A7)', fonts:NEWS_FONT_SPECS, build: async (kit, ctx)=>{ await newsRebuild(newsPagePatch('classificados', ctx)); }},
-];
+DOC_TEMPLATES.newspaper.pages = NEWS_PRESET_ORDER.filter(k=>NEWS_PRESETS[k].group === 'interna').map(k=>({
+  id:k, label:NEWS_PRESETS[k].label, fonts:NEWS_FONT_SPECS, build: async (kit, ctx)=>{ await newsRebuild(newsPagePatch(k, ctx)); },
+}));
