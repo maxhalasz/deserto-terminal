@@ -156,7 +156,7 @@ registerDoc('envelope', {
   build: async (kit)=>{
     const W = kit.W, H = kit.H, red = DP.red;
     kit.text('CREW SERVICES', {left:70, top:62, width:500, font:'Jost', weight:600, size:19, cs:300, fill:red, lh:1.0});
-    kit.text('Platform Deserto  ·  Offshore Block 7', {left:70, top:94, width:560, font:'Jost', weight:500, size:15, cs:160, fill:DP.brown, lh:1.0});
+    kit.text('Ødemark A.  ·  Offshore Block 7', {left:70, top:94, width:560, font:'Jost', weight:500, size:15, cs:160, fill:DP.brown, lh:1.0});
     kit.emblem('plataforma', 'tinta', 70, 132, 74, {color:red, label:'Emblema — remetente'});
     // selo postal
     const sx = W - 70 - 140, sy = 58;
@@ -183,7 +183,7 @@ registerDoc('envelope', {
       const W = kit.W;
       // aba triangular
       kit.path(`M 0 0 L ${W} 0 L ${W/2} 330 Z`, {left:0, top:0, fill:'#d6c9a6', opacity:0.55, stroke:'#8d8571', sw:2, blend:'multiply', label:'Aba do envelope'}).__bleedOk = true;
-      kit.text('CREW SERVICES  ·  PLATFORM DESERTO', {left:0, top:60, width:W, font:'Jost', weight:600, size:16, cs:340, fill:DP.brown, align:'center', lh:1.0, opacity:0.8});
+      kit.text('CREW SERVICES  ·  ØDEMARK A.', {left:0, top:60, width:W, font:'Jost', weight:600, size:16, cs:340, fill:DP.brown, align:'center', lh:1.0, opacity:0.8});
       kit.emblem('mono', 'selo', W/2 - 62, 108, 124, {color:'#7a2020', wear:0.45, seed:4, angle:-8, label:'Detalhe — selo Ø.A'});
       // fita de reabertura
       kit.rect({left:W/2 - 300, top:250, width:600, height:62, fill:'#ece5d2', blend:'source-over', angle:-3, label:'Fita de reabertura'});
@@ -198,7 +198,7 @@ DOC_TEMPLATES.note.pages = [
     const W = kit.W, H = kit.H;
     DP.noteHead(kit, {});
     kit.ruled({top:330, bottom:H - 130, gap:52, left:60, right:W - 60, margin:false, color:'#9fb0bf', sw:1.3, opacity:0.55});
-    kit.text('PLATFORM DESERTO   ·   CREW SERVICES', {left:0, top:H - 82, width:W, font:'Jost', weight:500, size:12, cs:320, fill:DP.brown, align:'center', lh:1.0});
+    kit.text('ØDEMARK A.   ·   CREW SERVICES', {left:0, top:H - 82, width:W, font:'Jost', weight:500, size:12, cs:320, fill:DP.brown, align:'center', lh:1.0});
   }},
   {id:'msg', label:'Recado "While you were out"', fonts:DP.NOTE_FONTS, build: async (kit)=>{
     const W = kit.W, red = DP.red, ink = DP.ink;
@@ -250,7 +250,7 @@ DOC_TEMPLATES.diary.pages = [
     kit.line(lx + 80, 360, lx + lw - 80, 360, {stroke:ink, sw:1.3, opacity:0.75, label:'Linha do nome'});
     kit.text('IF FOUND, RETURN TO', {left:lx, top:480, width:lw, font:'Jost', weight:500, size:17, cs:300, fill:DP.brown, align:'center', lh:1.0});
     kit.text('Crew Services', {left:lx, top:530, width:lw, font:'Libre Baskerville', weight:400, size:30, align:'center', lh:1.0});
-    kit.text('Platform Deserto  ·  Offshore Block 7', {left:lx, top:584, width:lw, font:'Jost', weight:500, size:17, cs:160, fill:DP.brown, align:'center', lh:1.0});
+    kit.text('Ødemark A.  ·  Offshore Block 7', {left:lx, top:584, width:lw, font:'Jost', weight:500, size:17, cs:160, fill:DP.brown, align:'center', lh:1.0});
     kit.emblem('plataforma', 'tinta', lx + lw/2 - 85, 690, 170, {color:red, label:'Emblema — folha de rosto'});
     // direita: folha de rosto
     const rx = mid + 190, rw = mid - 380;
@@ -278,7 +278,7 @@ DOC_TEMPLATES.diary.pages = [
     kit.rect({left:px + 14, top:py + 14, width:pw - 28, height:ph - 28, stroke:gold, sw:1.4, blend:'source-over', label:'Plaqueta (fio)'});
     kit.emblem('plataforma', 'ouro', px + pw/2 - 125, py + 24, 250, {label:'Emblema — capa (ouro)'});
     kit.text('CREW LOG', {left:px, top:py + 292, width:pw, font:'Jost', weight:600, size:58, cs:300, fill:gold, blend:'source-over', align:'center', lh:1.0});
-    kit.text('PLATFORM DESERTO', {left:px, top:py + 372, width:pw, font:'Jost', weight:500, size:18, cs:420, fill:gold, blend:'source-over', align:'center', lh:1.0});
+    kit.text('ØDEMARK A.', {left:px, top:py + 372, width:pw, font:'Jost', weight:500, size:18, cs:420, fill:gold, blend:'source-over', align:'center', lh:1.0});
     kit.text('VOLUME  III', {left:px, top:py + 436, width:pw, font:'Jost', weight:500, size:21, cs:420, fill:gold, blend:'source-over', align:'center', lh:1.0});
   }},
 ];

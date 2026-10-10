@@ -18,7 +18,7 @@ registerDoc('menu_fine', {
     kit.emblem('plataforma', 'tinta', 316, 112, 100, {color:red, label:'Emblema — timbre'});
     kit.emblem('plataforma', 'tinta', 824, 112, 100, {color:red, label:'Emblema — timbre'});
     const head = kit.column(cx-180, 118, 360, {font:'Jost', weight:600, size:20, cs:300, fill:red, align:'center', lh:1.35});
-    head.text('THE EXECUTIVE'); head.text('DINING ROOM'); head.text('PLATFORM DESERTO', {size:15, cs:420, fill:TP.brown});
+    head.text('THE EXECUTIVE'); head.text('DINING ROOM'); head.text('ØDEMARK A.', {size:15, cs:420, fill:TP.brown});
     kit.line(cx-70, 252, cx+70, 252, {stroke:red, sw:1.6, label:'Filete do timbre'});
 
     kit.text('Evening Service', {left:0, top:278, width:W, font:'Cormorant Garamond', style:'italic', weight:500, size:84, align:'center', lh:1.0});
@@ -78,7 +78,7 @@ registerDoc('menu_diner', {
     kit.text('G', {left:104, top:118, width:208, font:'Yellowtail', size:118, fill:red, align:'center', lh:1.0, label:'Logo — G'});
     kit.text('The Galley', {left:340, top:92, width:820, font:'Yellowtail', size:160, fill:red, lh:1.0});
     kit.text('COFFEE SHOP & LUNCH COUNTER', {left:346, top:272, width:800, font:'Oswald', weight:500, size:30, cs:180, fill:green});
-    kit.text('Platform Deserto · Mess Deck · Open all hours', {left:346, top:318, width:800, font:'Source Sans 3', style:'italic', weight:400, size:22, fill:warm});
+    kit.text('Ødemark A. · Mess Deck · Open all hours', {left:346, top:318, width:800, font:'Source Sans 3', style:'italic', weight:400, size:22, fill:warm});
     kit.zigzag(64, W-64, 380, {amp:11, step:26, stroke:ink, sw:4, label:'Zigue-zague (Red Room)'});
 
     const LX = 104, RX = 646, CW = 490;

@@ -85,7 +85,7 @@ DOC_TEMPLATES.menu_fine.variants.push({
     DM.fan(kit, cx, 190, gold, 5, 26, 18, 2);
     kit.circle({left:cx-6, top:184, r:6, fill:gold, label:'Losango'});
     kit.text('THE VELVET ROOM', {left:0, top:228, width:W, font:'Bodoni Moda', weight:700, size:72, cs:140, fill:gold, align:'center', lh:1.0, blend:'source-over'});
-    kit.text('SUPPER CLUB  ·  PLATFORM DESERTO', {left:0, top:332, width:W, font:'Jost', weight:500, size:17, cs:420, fill:cream, align:'center', blend:'source-over'});
+    kit.text('SUPPER CLUB  ·  ØDEMARK A.', {left:0, top:332, width:W, font:'Jost', weight:500, size:17, cs:420, fill:cream, align:'center', blend:'source-over'});
     kit.line(cx-250, 394, cx-20, 394, {stroke:gold, sw:1.4, label:'Filete'}); kit.line(cx+20, 394, cx+250, 394, {stroke:gold, sw:1.4, label:'Filete'});
     kit.rect({left:cx-6, top:388, width:12, height:12, fill:gold, angle:45, label:'Losango'});
 

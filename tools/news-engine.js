@@ -45,7 +45,7 @@ const NEWS_DEFAULTS = {
     'Residents of Harbor Street said the supply boat’s lights could be seen from the pier until after midnight. One woman, who gave her name only as Mrs. Aldous, said she counted seven figures on the loading dock. The crew roster lists six.\n' +
     'The Harbor Office said the next supply boat is scheduled to leave at 06:00 on Friday. It could not say whether the boat will be allowed to dock.\n' +
     'Relatives of the six crew members were told on Wednesday that a statement would follow. As of press time, none has been issued.',
-  'photo.1.cap': 'The Deserto platform, photographed from the supply boat on a clear morning. No rescue vessel has been sent to the site. Photo: Harbor Office',
+  'photo.1.cap': 'The Ødemark A. platform, photographed from the supply boat on a clear morning. No rescue vessel has been sent to the site. Photo: Harbor Office',
   'photo.2.cap': 'Harbor Street, Wednesday evening. The foghorn was not sounded.',
 
   's2.headline': 'Coast Guard calls off second search', 's2.byline': 'By Dale Hennessey',

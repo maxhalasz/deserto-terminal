@@ -87,7 +87,7 @@ DP.redact = (kit, str, o)=>{
 DP.reportHead = (kit, title)=>{
   const W = kit.W, L = 150, ink = DP.ink;
   kit.text('NEUROSTAT', {left:L, top:92, width:500, font:'Libre Franklin', weight:700, size:30, cs:90, lh:1.0});
-  kit.text('FIELD DIVISION   ·   PLATFORM DESERTO', {left:L, top:134, width:700, font:'Inter', weight:600, size:12.5, cs:240, fill:DP.grey, lh:1.0});
+  kit.text('FIELD DIVISION   ·   ØDEMARK A.', {left:L, top:134, width:700, font:'Inter', weight:600, size:12.5, cs:240, fill:DP.grey, lh:1.0});
   kit.text('NS-302 (Rev. 03-11)', {left:W - L - 300, top:100, width:300, font:'Inter', weight:500, size:13.5, cs:60, fill:DP.grey, align:'right', lh:1.0});
   kit.line(L, 176, W - L, 176, {stroke:ink, sw:2.6, label:'Filete do cabeçalho'});
   kit.text(title, {left:L, top:204, width:760, font:'Libre Franklin', weight:700, size:36, cs:40, lh:1.0});
@@ -104,7 +104,7 @@ DP.reportFoot = (kit, o)=>{
     kit.line(L + 500, fy + 62, W - L, fy + 62, {stroke:ink, sw:1.2, label:'Linha de assinatura'});
   }
   kit.line(L, fy + 100, W - L, fy + 100, {stroke:ink, sw:1.2, label:'Filete do rodapé'});
-  kit.text('Investigation on 03/14 at Platform Deserto        File # DES-0447        by M. Holt', {left:L, top:fy + 114, width:CW, font:'Courier Prime', weight:400, size:16, lh:1.2});
+  kit.text('Investigation on 03/14 at Ødemark A.        File # DES-0447        by M. Holt', {left:L, top:fy + 114, width:CW, font:'Courier Prime', weight:400, size:16, lh:1.2});
   kit.text(o.line2 || 'Date dictated 03/15        Original: Supervision.  Copy 1: Field Division.', {left:L, top:fy + 142, width:CW, font:'Courier Prime', weight:400, size:16, lh:1.2});
 };
 DP.reportStamp = (kit)=>kit.stamp('COPY 2 OF 2', {x:kit.W - 270, y:236, angle:-6, size:24, opacity:0.62, label:'Detalhe — carimbo COPY 2 OF 2'});
@@ -131,7 +131,7 @@ registerDoc('report', {
     DP.reportHead(kit, 'REPORT OF INCIDENT');
     const y1 = DP.grid(kit, L, 282, CW, [
       {h:94, cells:[{f:0.28, label:'DATE OF OCCURRENCE', value:'03/14'}, {f:0.20, label:'TIME', value:'03:12'}, {f:0.32, label:'FILE NO.', value:'DES-0447'}, {f:0.20, label:'PAGE', value:'1 of 2'}]},
-      {h:94, cells:[{f:0.70, label:'LOCATION', value:'Platform Deserto, moonpool level'}, {f:0.30, label:'CLASSIFICATION', value:'INTERNAL'}]},
+      {h:94, cells:[{f:0.70, label:'LOCATION', value:'Ødemark A., moonpool level'}, {f:0.30, label:'CLASSIFICATION', value:'INTERNAL'}]},
       {h:94, cells:[{f:0.45, label:'REPORTED BY', value:'M. Holt, Supervision'}, {f:0.25, label:'PERSONNEL PRESENT', value:'6'}, {f:0.30, label:'WATCH', value:'Night'}]},
     ]);
     kit.text('NARRATIVE', {left:L, top:y1 + 46, width:400, font:'Inter', weight:700, size:14, cs:320, lh:1.0});
@@ -223,7 +223,7 @@ DP.tagFront = async (kit, d)=>{
   kit.line(0, 96, W, 96, {stroke:ink, sw:2, dash:[14, 10], opacity:0.7, label:'Linha de corte'}).__bleedOk = true;
   kit.text('TEAR ALONG LINE TO OPEN', {left:0, top:38, width:W, font:'Inter', weight:600, size:13, cs:300, fill:lab, align:'center', lh:1.0});
   kit.text('EVIDENCE', {left:0, top:128, width:W, font:'Libre Franklin', weight:900, size:150, cs:30, fill:'#5a1810', align:'center', lh:1.0});
-  kit.text('PLATFORM DESERTO   ·   FIELD DIVISION', {left:0, top:296, width:W, font:'Inter', weight:600, size:14, cs:280, fill:lab, align:'center', lh:1.0});
+  kit.text('ØDEMARK A.   ·   FIELD DIVISION', {left:0, top:296, width:W, font:'Inter', weight:600, size:14, cs:280, fill:lab, align:'center', lh:1.0});
   kit.line(L, 336, W - L, 336, {stroke:ink, sw:2.6, label:'Filete'});
   const gy = DP.grid(kit, L, 360, CW, [
     {h:84, cells:[{f:0.5, label:'CASE NO.', value:'0447'}, {f:0.5, label:'ITEM NO.', value:d.item}]},
@@ -264,7 +264,7 @@ DP.letterhead = (kit)=>{
   const W = kit.W, cx = W/2, red = DP.red;
   kit.emblem('plataforma', 'tinta', cx - 55, 52, 110, {color:red, label:'Emblema — timbre'});
   const head = kit.column(cx - 200, 172, 400, {font:'Jost', weight:600, size:22, cs:320, fill:red, align:'center', lh:1.3});
-  head.text('PLATFORM DESERTO'); head.text('CREW SERVICES', {size:16, cs:420, fill:DP.brown});
+  head.text('ØDEMARK A.'); head.text('CREW SERVICES', {size:16, cs:420, fill:DP.brown});
   kit.line(cx - 80, 240, cx + 80, 240, {stroke:red, sw:1.6, label:'Filete do timbre'});
 };
 DP.LETTER_FONTS = ["600 20px 'Jost'", "500 20px 'Jost'", "400 20px 'Libre Baskerville'", "italic 400 20px 'Libre Baskerville'", "700 20px 'Courier Prime'"].concat(EM_FONTS);
@@ -287,7 +287,7 @@ registerDoc('letter', {
     col.text('Take care of yourself.');
     col.text('Yours,', {gap:0});
     // espaço pra assinatura e P.S. à mão
-    kit.text('Platform Deserto  ·  Offshore Block 7  ·  Crew mail is collected on Fridays.', {left:0, top:1644, width:W, font:'Jost', weight:500, size:14, cs:240, fill:DP.brown, align:'center', lh:1.0});
+    kit.text('Ødemark A.  ·  Offshore Block 7  ·  Crew mail is collected on Fridays.', {left:0, top:1644, width:W, font:'Jost', weight:500, size:14, cs:240, fill:DP.brown, align:'center', lh:1.0});
     kit.line(L, 1626, W - L, 1626, {stroke:red, sw:1, opacity:0.7, label:'Filete do rodapé'});
     kit.stamp('RECEIVED  MAR 09', {x:W - 330, y:236, angle:-9, size:22, opacity:0.66, label:'Detalhe — carimbo de recebimento'});
   },
@@ -301,7 +301,7 @@ DP.noteHead = (kit, o)=>{
   kit.line(0, 60, W, 60, {stroke:'#8d8571', sw:2, opacity:0.55, label:'Borda da cola'}).__bleedOk = true;
   kit.emblem('plataforma', 'tinta', 96, 80, 104, {color:red, label:'Emblema — bloco'});
   kit.text('FROM THE DESK OF', {left:226, top:102, width:W - 226 - 90, font:'Jost', weight:600, size:22, cs:300, fill:red, align:'left', lh:1.0});
-  kit.text('PLATFORM DESERTO', {left:226, top:142, width:W - 226 - 90, font:'Jost', weight:500, size:13, cs:420, fill:DP.brown, align:'left', lh:1.0});
+  kit.text('ØDEMARK A.', {left:226, top:142, width:W - 226 - 90, font:'Jost', weight:500, size:13, cs:420, fill:DP.brown, align:'left', lh:1.0});
   kit.line(120, 208, W - 120, 208, {stroke:DP.ink, sw:1.2, opacity:0.75, label:'Linha do nome'});
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'], x0 = 90, x1 = W - 90, step = (x1 - x0)/6;
   days.forEach((d, i)=>kit.text(d, {left:x0 + step*i - 40, top:252, width:80, font:'Jost', weight:600, size:16, cs:200, fill:DP.brown, align:'center', lh:1.0}));
@@ -323,7 +323,7 @@ registerDoc('note', {
     DP.noteHead(kit, {circle:3});
 
     kit.ruled({top:330, bottom:H - 130, gap:52, left:60, right:W - 60, margin:false, color:'#9fb0bf', sw:1.3, opacity:0.55});
-    kit.text('PLATFORM DESERTO   ·   CREW SERVICES', {left:0, top:H - 82, width:W, font:'Jost', weight:500, size:12, cs:320, fill:DP.brown, align:'center', lh:1.0});
+    kit.text('ØDEMARK A.   ·   CREW SERVICES', {left:0, top:H - 82, width:W, font:'Jost', weight:500, size:12, cs:320, fill:DP.brown, align:'center', lh:1.0});
     await kit.stain('water', {x:W - 150, y:H - 250, size:120, opacity:0.32, angle:30, seed:5, label:'Detalhe — pingo de água'});
   },
 });
@@ -335,7 +335,7 @@ DP.diaryPages = (kit, nos)=>{
     const lx = p.side === 'L' ? 110 : mid + 150, rx = p.side === 'L' ? mid - 150 : W - 110;
     kit.ruled({top:220, bottom:H - 140, gap:50, left:lx, right:rx, margin:false, color:'#8aa3bf', sw:1.3, opacity:0.5});
     kit.line(lx + 78, 170, lx + 78, H - 110, {stroke:'#c75a5a', sw:1.6, opacity:0.55, label:'Margem'});
-    kit.text('LOG   ·   PLATFORM DESERTO', {left:lx, top:96, width:600, font:'Jost', weight:600, size:15, cs:300, fill:DP.brown, lh:1.0});
+    kit.text('LOG   ·   ØDEMARK A.', {left:lx, top:96, width:600, font:'Jost', weight:600, size:15, cs:300, fill:DP.brown, lh:1.0});
     kit.text('DATE', {left:rx - 360, top:100, width:80, font:'Jost', weight:600, size:14, cs:260, fill:DP.brown, lh:1.0});
     kit.line(rx - 300, 122, rx, 122, {stroke:DP.ink, sw:1.2, opacity:0.7, label:'Linha da data'});
     kit.text(p.no, {left:p.side === 'L' ? lx : rx - 100, top:H - 98, width:100, font:'Jost', weight:600, size:22, fill:DP.brown, align:p.side === 'L' ? 'left' : 'right', lh:1.0});

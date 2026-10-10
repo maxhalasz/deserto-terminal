@@ -27,7 +27,7 @@ DS.badgeNeurostat = async (kit)=>{
   const X = 276;
   kit.text(d.name, {left:X, top:132, width:540, font:'Libre Franklin', weight:700, size:52, fill:ink, lh:1.0, label:'Nome'});
   kit.text(d.role, {left:X, top:196, width:540, font:'Inter', weight:600, size:24, cs:160, fill:mid, lh:1.0, label:'Cargo'});
-  kit.text('FIELD DIVISION  ·  PLATFORM DESERTO', {left:X, top:232, width:560, font:'Inter', weight:500, size:16, cs:200, fill:grey, lh:1.0});
+  kit.text('FIELD DIVISION  ·  ØDEMARK A.', {left:X, top:232, width:560, font:'Inter', weight:500, size:16, cs:200, fill:grey, lh:1.0});
   kit.rect({left:X, top:272, width:230, height:48, fill:deep, rx:6, blend:'source-over', label:'Nível de acesso'});
   kit.text('ACCESS  LEVEL  ' + d.level, {left:X, top:285, width:230, font:'Inter', weight:600, size:19, cs:140, fill:'#ffffff', align:'center', lh:1.0, blend:'source-over'});
   kit.text(d.zone, {left:X + 250, top:285, width:300, font:'Inter', weight:600, size:19, cs:140, fill:ink, lh:1.0});
@@ -75,7 +75,7 @@ DS.badgeVersoNeurostat = async (kit)=>{
     if (on) SC.icon(kit, 'done', x - 1, 409, 28, deep, {label:'Marca'});
     kit.text(z + '  ' + name, {left:x + 38, top:413, width:170, font:'Inter', weight:500, size:16, fill:ink, lh:1.0});
   });
-  kit.text('EMERGENCY  ·  Platform Deserto Control   ext. 312', {left:36, top:468, width:W - 72, font:'Courier Prime', weight:700, size:17, fill:ink, lh:1.0});
+  kit.text('EMERGENCY  ·  Ødemark A. Control   ext. 312', {left:36, top:468, width:W - 72, font:'Courier Prime', weight:700, size:17, fill:ink, lh:1.0});
   DS.cardTexture(kit, 13, {gloss:0.5});
 };
 DS.badgeVersoOdemark = async (kit)=>{
