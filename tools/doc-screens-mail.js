@@ -27,7 +27,7 @@ ML.INBOX = [
 ML.IOS_FONTS = ["400 20px 'Inter'", "600 20px 'Inter'", "700 20px 'Inter'"];
 ML.IOS = {blue:'#007aff', sep:'#c6c6c8', gray:'#8e8e93', ink:'#000000', avatar:'#a2a7b0'};
 ML.iosFrame = (kit, o)=>{
-  const W = kit.W, H = kit.H, C = ML.IOS;
+  const W = kit.W, H = kit.H;
   kit.rect({left:0, top:0, width:W, height:H, fill:'#ffffff', blend:'source-over', label:'Fundo'});
   SC.statusBar(kit, {y:0, h:112, fg:'#000000', time:o.time || '05:21', style:'ios'});
   kit.rect({left:W/2 - 190, top:H - 36, width:380, height:14, fill:'#000000', rx:7, blend:'source-over', label:'Indicador da tela inicial'});
@@ -38,7 +38,7 @@ ML.iosToolbar = (kit, icons)=>{
   icons.forEach((ic, i)=>SC.icon(kit, ic, (W/(icons.length*2))*(1 + i*2) - 35, H - 196, 70, C.blue, {label:'Ícone — ' + ic}));
 };
 ML.iosMessage = (kit, d, box)=>{
-  const W = kit.W, H = kit.H, C = ML.IOS;
+  const W = kit.W, C = ML.IOS;
   ML.iosFrame(kit, {time:d.statusTime});
   SC.icon(kit, 'left', 18, 134, 74, C.blue, {label:'Voltar'});
   kit.text(box || 'Inbox', {left:92, top:146, width:500, font:'Inter', weight:400, size:46, fill:C.blue, lh:1.0, blend:'source-over'});
@@ -80,7 +80,7 @@ ML.iosInbox = (kit)=>{
   SC.icon(kit, 'edit', W - 130, H - 196, 70, C.blue, {label:'Escrever'});
 };
 ML.iosCompose = (kit)=>{
-  const W = kit.W, H = kit.H, C = ML.IOS;
+  const W = kit.W, C = ML.IOS;
   ML.iosFrame(kit, {time:'05:27'});
   kit.text('Cancel', {left:44, top:150, width:260, font:'Inter', weight:400, size:46, fill:C.blue, lh:1.0, blend:'source-over'});
   kit.text('New Message', {left:330, top:148, width:W - 660, font:'Inter', weight:600, size:46, fill:C.ink, align:'center', lh:1.0, blend:'source-over'});
@@ -173,7 +173,7 @@ ML.olList = (kit, items, selIdx)=>{
   kit.line(X + Wl, 185, X + Wl, H - 32, {stroke:C.line, sw:2, blend:'source-over'});
 };
 ML.olReading = (kit, d)=>{
-  const W = kit.W, H = kit.H, C = ML.OL, F = 'Source Sans 3', X = 722, RW = W - X - 36;
+  const W = kit.W, C = ML.OL, F = 'Source Sans 3', X = 722, RW = W - X - 36;
   const subj = kit.text(d.subject, {left:X, top:204, width:RW, font:F, weight:600, size:30, fill:C.ink, lh:1.15, blend:'source-over', label:'Assunto'});
   const y = subj.top + subj.height + 22;
   kit.circle({left:X, top:y, r:30, fill:'#7b5ea7', blend:'source-over', label:'Avatar'});
@@ -193,7 +193,7 @@ ML.olMain = (kit, o)=>{
   ML.olReading(kit, o.msg);
 };
 ML.olCompose = (kit)=>{
-  const W = kit.W, H = kit.H, C = ML.OL, F = 'Source Sans 3';
+  const W = kit.W, C = ML.OL, F = 'Source Sans 3';
   ML.olFrame(kit, {title:'RE: Re: shift log — attach radio transcript? - Message (HTML)', tab:'Message', tabs:['File', 'Message', 'Insert', 'Options', 'Format Text', 'Review', 'Help'],
     buttons:[['send', 'Send'], ['attach', 'Attach File'], ['flag', 'Follow Up'], ['search', 'Check Names']], status:'Draft saved at 06:11'});
   const bx = 14, by = 196;

@@ -148,7 +148,9 @@ const PRESETS = {
     {type:'Vignette', amount:0.5, inner:0.25}]},
 };
 
-function labeledRange(labelText, val, min, max, step, onInput){
+/* onInput roda a cada movimento do slider; onCommit (opcional) roda UMA vez quando o usuário solta (evento 'change'),
+   que é onde um passo de desfazer deve ser gravado. */
+function labeledRange(labelText, val, min, max, step, onInput, onCommit){
   const wrap = document.createElement('div');
   const lab = document.createElement('label');
   const span = document.createElement('span'); span.className='rangeval'; span.textContent = (+val).toFixed(3);
@@ -156,6 +158,7 @@ function labeledRange(labelText, val, min, max, step, onInput){
   const input = document.createElement('input');
   input.type='range'; input.min=min; input.max=max; input.step=step; input.value=val;
   input.addEventListener('input', ()=>{ span.textContent=(+input.value).toFixed(3); onInput(+input.value); });
+  if (onCommit) input.addEventListener('change', ()=>onCommit(+input.value));
   wrap.appendChild(lab); wrap.appendChild(input);
   return wrap;
 }
@@ -234,6 +237,7 @@ function renderPresetThumbnail(imgEl, preset, w, h){
 }
 
 function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit, startCollapsed){
+  if (!filterInst) return document.createElement('div');   // posição vazia na pilha: não desenha linha (e não quebra o painel)
   const type = filterInst.constructor.type;
   const def = FILTER_REGISTRY[type];
   const row = document.createElement('div'); row.className='filterRow';

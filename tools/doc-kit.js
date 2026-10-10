@@ -289,6 +289,14 @@ class DocKit {
       return img;
     });
   }
+  /* Desfoque aplicado UMA vez no desenho pronto (com `filter` ligado antes de desenhar, cada traço pagava o desfoque: um anel de copo levava 10 s). */
+  static _blurOnce(cv, px){
+    const out = document.createElement('canvas'); out.width = cv.width; out.height = cv.height;
+    const g = out.getContext('2d');
+    if ('filter' in g) g.filter = `blur(${px}px)`;
+    g.drawImage(cv, 0, 0);
+    return out;
+  }
   /* Anel de copo (café, vinho): arcos curtos com largura e opacidade variando, uma falha, segundo anel
      mais fraco deslocado (fundo do copo) e uns pingos. `color` = [r,g,b]. */
   cupRing(x, y, r, o){
@@ -297,7 +305,6 @@ class DocKit {
     const size = Math.ceil(r*2 + 70), c = size/2, TAU = Math.PI*2;
     const cv = document.createElement('canvas'); cv.width = cv.height = size;
     const g = cv.getContext('2d');
-    if ('filter' in g) g.filter = 'blur(0.8px)';
     const wash = g.createRadialGradient(c, c, r*0.15, c, c, r);
     wash.addColorStop(0, `rgba(${col},0.04)`); wash.addColorStop(1, `rgba(${col},0.11)`);
     g.fillStyle = wash; g.beginPath(); g.arc(c, c, r, 0, TAU); g.fill();
@@ -320,7 +327,7 @@ class DocKit {
       const a = rng()*TAU, rr = r + 10 + rng()*r*0.5, pr = 1.5 + rng()*3.2;
       g.fillStyle = `rgba(${col},${0.3 + rng()*0.3})`; g.beginPath(); g.arc(c + Math.cos(a)*rr, c + Math.sin(a)*rr, pr, 0, TAU); g.fill();
     }
-    return this._overlayImage(cv, x, y, size, {angle: o.angle, opacity: o.opacity, blend: o.blend, label: o.label || 'Detalhe — anel de copo'});
+    return this._overlayImage(DocKit._blurOnce(cv, 0.8), x, y, size, {angle: o.angle, opacity: o.opacity, blend: o.blend, label: o.label || 'Detalhe — anel de copo'});
   }
   /* Mancha de gordura/umidade: borda irregular, centro mais escuro, uns respingos. */
   smudge(x, y, r, o){
@@ -329,7 +336,6 @@ class DocKit {
     const size = Math.ceil(r*2 + 40), c = size/2, TAU = Math.PI*2;
     const cv = document.createElement('canvas'); cv.width = cv.height = size;
     const g = cv.getContext('2d');
-    if ('filter' in g) g.filter = 'blur(1.4px)';
     const pts = 28, path = new Path2D();
     for (let i = 0; i <= pts; i++){
       const a = i/pts*TAU, rr = r*(0.72 + 0.28*(0.5 + 0.5*Math.sin(a*3 + seed) )*(0.6 + 0.4*rng()));
@@ -345,7 +351,7 @@ class DocKit {
       const a = rng()*TAU, rr = r*(1.0 + rng()*0.35), pr = 2 + rng()*5;
       g.fillStyle = `rgba(${col},${0.25 + rng()*0.3})`; g.beginPath(); g.arc(c + Math.cos(a)*rr, c + Math.sin(a)*rr, pr, 0, TAU); g.fill();
     }
-    return this._overlayImage(cv, x, y, size, {angle: o.angle, opacity: o.opacity, blend: o.blend, label: o.label || 'Detalhe — mancha de gordura'});
+    return this._overlayImage(DocKit._blurOnce(cv, 1.4), x, y, size, {angle: o.angle, opacity: o.opacity, blend: o.blend, label: o.label || 'Detalhe — mancha de gordura'});
   }
 
   /* Coluna com cursor vertical: cada texto entra onde o anterior terminou. */

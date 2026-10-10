@@ -344,7 +344,9 @@ const PaperCPU = (function(){
    usa o plano B em CPU com resolução limitada. Devolve null só se tudo falhar. */
 function paperRender(specIn, w, h, scale){
   const spec = paperNormalizeSpec(specIn);
-  if (!PaperGL.failed && paperGLInit()){
+  // 2 tentativas: se o contexto WebGL foi PERDIDO (aba em segundo plano, driver reiniciou), recria e tenta de novo
+  // antes de desistir — antes qualquer falha passageira deixava o papel no modo lento (CPU) até recarregar a página.
+  for (let attempt = 0; attempt < 2 && !PaperGL.failed && paperGLInit(); attempt++){
     const gl = PaperGL.gl;
     const maxSz = Math.min(gl.getParameter(gl.MAX_RENDERBUFFER_SIZE)||4096, gl.getParameter(gl.MAX_VIEWPORT_DIMS)[0]||4096, 8192);
     let sc = scale;
@@ -359,7 +361,10 @@ function paperRender(specIn, w, h, scale){
       if (exp > 300 && (d[0]+d[1]+d[2] < exp*0.35 || d[3] === 0)) throw new Error('WebGL devolveu imagem inválida');
       return out;
     }
-    catch(e){ PaperGL.failed = true; PaperGL.error = String((e && e.message) || e).slice(0, 200); }
+    catch(e){
+      if (attempt === 0 && gl.isContextLost && gl.isContextLost()){ PaperGL.gl = null; PaperGL.prog = null; continue; }
+      PaperGL.failed = true; PaperGL.error = String((e && e.message) || e).slice(0, 200);
+    }
   }
   PaperGL.usedCPU = true;
   const sc = Math.min(scale, 0.75);

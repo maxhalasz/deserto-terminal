@@ -141,7 +141,7 @@ async function cmdEval(file, url) {
   const c = await launch(1500, 1000);
   try {
     await open(c, url || (BASE + 'props-generator.html?cb=' + Date.now()));
-    await waitFor(c, "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3 && !sceneBusy", 90000);
+    await waitFor(c, process.env.READY || "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3 && !sceneBusy", 90000);
     await sleep(500);
     const out = await evalJS(c, '(async()=>{' + fs.readFileSync(file, 'utf8') + '})()');
     if (out && out.__files){

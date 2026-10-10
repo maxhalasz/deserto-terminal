@@ -116,8 +116,9 @@ function addPolaroidFrame(canvas, obj){
   group.set('customType','polaroid');
   group.__ownerOid = oid;
   group.__labName = '🖼 Moldura Polaroid';
-  canvas.add(group);
-  canvas.sendObjectToBack(group);
+  // entra já atrás da foto e na frente do papel de fundo (sendObjectToBack mandava a moldura pra baixo do papel e ela sumia;
+  // add + mover depois gravava no desfazer um estado com a moldura em cima da foto)
+  canvas.insertAt(Math.max(0, canvas.getObjects().indexOf(obj)), group);
   canvas.setActiveObject(obj);
   canvas.renderAll();
   return group;

@@ -27,8 +27,6 @@ function pickFile(cat, rng){ const a=TEX_CATS[cat]; return a[Math.floor((rng?rng
 
 let canvas;
 let currentTemplate = 'newspaper';
-let currentNewsContent = null;
-let currentNewsLayout = null;
 
 /* ===================== Páginas (documento com mais de uma folha) =====================
    Pedido do Max: documentos de template (relatório, dossiê, carta etc, NÃO os de marca —
@@ -68,29 +66,46 @@ function endBatch(){ restoringHistory = Math.max(0, restoringHistory-1); }
    fonte, montar arte). O contador de lote acima já deixa o HISTÓRICO seguro mesmo se duas
    dessas rodarem juntas, mas a troca de PÁGINA/ESTADO em si (ex: dois cliques rápidos em
    "Próxima") ainda poderia embaralhar `curPageIdx`/`PAGES` — essa trava impede que uma
-   segunda operação comece antes da primeira terminar. */
-let sceneBusy = false;
-async function withSceneLock(fn){
-  if (sceneBusy) return;
-  sceneBusy = true;
-  try { await fn(); } finally { sceneBusy = false; }
+   segunda operação comece antes da primeira terminar.
+   A segunda chamada ESPERA a primeira (fila), em vez de ser jogada fora: antes, clicar em outro
+   modelo durante um carregamento não fazia nada e, pior, quem chamou achava que tinha dado certo.
+   Uma função com trava NÃO pode chamar outra com trava e esperar por ela (travaria pra sempre). */
+let sceneBusy = false, sceneQueue = Promise.resolve();
+function withSceneLock(fn){
+  const run = sceneQueue.then(async ()=>{
+    sceneBusy = true;
+    try { return await fn(); } finally { sceneBusy = false; }
+  });
+  sceneQueue = run.catch(()=>{});
+  return run;
 }
 const HISTORY_LIMIT = 40;
+/* Há alterações que ainda não foram salvas/baixadas? Liga a cada passo novo do histórico; desliga ao abrir/criar um documento
+   e ao salvar. Só serve pra avisar antes de fechar a aba (um F5 sem querer apagava horas de trabalho em silêncio). */
+let docDirty = false;
+window.addEventListener('beforeunload', ev=>{ if (docDirty){ ev.preventDefault(); ev.returnValue = ''; } });
 function pushHistory(){
   if (restoringHistory) return;
-  const snap = JSON.parse(JSON.stringify(canvas.toObject(HISTORY_PROPS)));
+  docDirty = true;
+  const snap = histSnapshot(canvas, HISTORY_PROPS);   // fotos grandes entram só uma vez (hist-images.js)
   history = history.slice(0, historyIndex+1);
   history.push(snap);
   if (history.length > HISTORY_LIMIT) history.shift();
   historyIndex = history.length-1;
   updateUndoRedoButtons();
 }
+/* Regrava o snapshot ATUAL sem criar passo novo — pra coisas que terminam de chegar depois do object:added
+   (ex.: a textura de tinta do carimbo carrega assíncrona). Sem isso, desfazer e refazer logo depois de pôr um carimbo o devolvia sem a tinta. */
+function replaceHistoryTop(){
+  if (restoringHistory || historyIndex < 0 || historyIndex >= history.length) return;
+  history[historyIndex] = histSnapshot(canvas, HISTORY_PROPS);
+}
 async function restoreHistory(idx){
   if (idx<0 || idx>=history.length) return;
   beginBatch();
   cancelCrop();
   try {
-    await canvas.loadFromJSON(history[idx]);
+    await canvas.loadFromJSON(histExpand(history[idx]));
     canvas.renderAll();
     historyIndex = idx;
   } finally { endBatch(); }
@@ -99,8 +114,13 @@ async function restoreHistory(idx){
   updateUndoRedoButtons();
   syncNewsLayoutUI();
 }
-function undo(){ if (historyIndex>0) restoreHistory(historyIndex-1); }
-function redo(){ if (historyIndex<history.length-1) restoreHistory(historyIndex+1); }
+/* Desfazer/refazer entram na mesma fila das trocas de cena: segurar Ctrl+Z dispara vários passos seguidos, e cada um
+   precisa começar de onde o anterior parou (antes eles liam o mesmo `historyIndex` e viravam um passo só). */
+function historyStep(d){
+  return withSceneLock(async ()=>{ await restoreHistory(historyIndex + d); }).catch(e=>console.warn('desfazer/refazer falhou', e));
+}
+function undo(){ return historyStep(-1); }
+function redo(){ return historyStep(+1); }
 function updateUndoRedoButtons(){
   const bu = document.getElementById('btnUndo'), br = document.getElementById('btnRedo');
   if (bu) bu.disabled = historyIndex<=0;
@@ -116,7 +136,7 @@ function initCanvas(){
   canvas.on('selection:created', updateInspector);
   canvas.on('selection:updated', updateInspector);
   canvas.on('selection:cleared', updateInspector);
-  canvas.on('object:modified', ()=>{ renderLayerList(); pushHistory(); });
+  // (o object:modified fica mais embaixo: religa as ligações do diagrama de rede ANTES de gravar o histórico)
   // renderLayerList só fora de operações em lote (restoringHistory): um documento de
   // marca tem ~150 camadas, e redesenhar a lista (com miniaturas) a cada objeto
   // adicionado seria quadrático — os chamadores em lote já chamam renderLayerList no fim.
@@ -127,6 +147,7 @@ function initCanvas(){
     // modal (cursor confiável, prévia ao vivo). Ver comentário em openTextEditor.
     const o = e.target;
     if (o && isModalText(o)) o.editable = false;
+    if (o) restoreLockFlags(o);
   });
   canvas.on('object:removed', ()=>{ if (!restoringHistory) renderLayerList(); pushHistory(); });
   canvas.on('mouse:dblclick', e=>{
@@ -148,10 +169,27 @@ function initCanvas(){
     if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e);
   });
   canvas.on('object:scaling', e=>{ if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
-  canvas.on('object:modified', e=>{ hideGuideLines(); if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e); });
+  canvas.on('object:modified', e=>{
+    hideGuideLines();
+    if (typeof networkSyncOnObjectMoving==='function') networkSyncOnObjectMoving(e);
+    renderLayerList(); pushHistory();
+  });
   canvas.on('mouse:up', hideGuideLines);
   setZoom(0.5);
   pushHistory();
+}
+/* selectable/evented/lockMovement NÃO entram no toObject do Fabric: depois de desfazer, trocar de página ou abrir um arquivo,
+   o papel de fundo, a arte travada dos documentos de marca, a alça de ligação do diagrama e o que o usuário travou voltavam
+   soltos (arrastáveis). Toda vez que um objeto entra no canvas, reaplica o que o tipo dele exige. */
+const LOCK_BY_TYPE = {
+  background:       {selectable:false, hasControls:false, hasBorders:false, lockMovementX:true, lockMovementY:true, hoverCursor:'pointer'},
+  brandArt:         {selectable:false, hasControls:false, hasBorders:false, lockMovementX:true, lockMovementY:true, hoverCursor:'pointer'},
+  netConnectHandle: {selectable:false, hasControls:false, hoverCursor:'crosshair'},
+};
+function restoreLockFlags(o){
+  const d = LOCK_BY_TYPE[o.customType];
+  if (d) o.set(d);
+  if (o.__userLocked) o.set({selectable:false, evented:false, hoverCursor:'default'});
 }
 function isModalText(o){ return o.type==='textbox' || o.type==='handwrittentext' || o.type==='redactedtext' || o.type==='brandtext' || o.type==='itext' || o.type==='newsbox'; }
 function isLockedBase(o){ return o.customType==='background' || o.customType==='brandArt'; }
@@ -214,7 +252,7 @@ function applyAlignmentSnap(e){
   const movingY = [br.top, br.top+br.height/2, br.top+br.height];
   const candX = [0, PAGE_W/2, PAGE_W], candY = [0, PAGE_H/2, PAGE_H];
   canvas.getObjects().forEach(o=>{
-    if (excluded.has(o)) return;
+    if (excluded.has(o) || o.visible === false) return;
     const r = o.getBoundingRect();
     candX.push(r.left, r.left+r.width/2, r.left+r.width);
     candY.push(r.top, r.top+r.height/2, r.top+r.height);
@@ -302,11 +340,14 @@ document.querySelectorAll('.tabBtn').forEach(b=>{
 function setBackgroundPaper(filename, opts){
   opts = opts||{};
   return new Promise(resolve=>{
+    // Foto que não existe/não carrega: cai no papel procedural em vez de deixar a Promise pendurada
+    // (uma Promise que nunca termina travava a fila de trocas de cena pra sempre).
+    const fallback = e=>{ console.warn('Foto de papel indisponível:', filename, e); resolve(setPaper({type:'creme', level:0.4})); };
+    if (!TEXTURE_PACK[filename]) return fallback('arquivo fora do pacote');
     fabric.Image.fromURL(TEXTURE_PACK[filename], {crossOrigin:'anonymous'}).then(img=>{
       const old = canvas.getObjects().find(o=>o.customType==='background');
-      const keepNews = old && old.__newsState;
       if (old) canvas.remove(old);
-      if (keepNews) img.__newsState = keepNews;
+      bgKeepFields(old, img);
       const ir = img.width/img.height, tr = PAGE_W/PAGE_H;
       let sw=img.width, sh=img.height;
       if (ir>tr) sw = img.height*tr; else sh = img.width/tr;
@@ -325,10 +366,13 @@ function setBackgroundPaper(filename, opts){
       computeFoldField(img.getElement(), img.cropX, img.cropY, sw, sh);
       computeRuledLines(img.getElement(), img.cropX, img.cropY, sw, sh);
       resolve(img);
-    });
+    }).catch(fallback);
   });
 }
 function getBackground(){ return canvas.getObjects().find(o=>o.customType==='background'); }
+/* Trocar o papel não pode perder o que o fundo carrega além do papel: estado do jornal, estilo e tipo de página pronta. */
+const BG_KEEP = ['__newsState','__docVariant','__docPageKind'];
+function bgKeepFields(from, to){ if (from && to) BG_KEEP.forEach(k=>{ if (from[k] !== undefined) to[k] = from[k]; }); }
 
 /* computeFoldField/computeRuledLines (mais abaixo) escrevem em globais do MÓDULO
    (currentFoldField/currentRuledLines) que HandwrittenText._render() lê a cada desenho —
@@ -358,11 +402,9 @@ function getPaperBg(){ const b = getBackground(); return (b && b.type==='paperba
 function setPaper(spec){
   const s = paperNormalizeSpec(Object.assign({seed: randomSeed32()}, spec||{}));
   const old = getBackground();
-  const keepNews = old && old.__newsState, keepVar = old && old.__docVariant;
   if (old) canvas.remove(old);
   const bg = new PaperBackground({width:PAGE_W, height:PAGE_H, paperSpec:s});
-  if (keepNews) bg.__newsState = keepNews;
-  if (keepVar) bg.__docVariant = keepVar;
+  bgKeepFields(old, bg);
   canvas.add(bg);
   canvas.sendObjectToBack(bg);
   currentFoldField = null; currentRuledLines = null;
@@ -420,9 +462,7 @@ function paperSwitchKind(value){
   beginBatch();
   try {
     if (value==='foto'){
-      const cat = (currentBgCategory && PAPER_PHOTO_CATS[currentBgCategory]) ? currentBgCategory : 'paper_aged';
-      currentBgCategory = cat;
-      return setBackgroundPaper(pickFile(cat), {age: 0.4}).then(()=>{ canvas.renderAll(); }).finally(()=>{ endBatch(); paperCommit(); syncPaperUI(); });
+      return setBackgroundPaper(pickFile(lastPhotoCat), {age: 0.4}).then(()=>{ canvas.renderAll(); }).finally(()=>{ endBatch(); paperCommit(); syncPaperUI(); });
     }
     const old = st.kind==='proc' ? st : {};
     setPaper({type:value, level: st.kind==='proc' ? old.level : 0.35, fold: old.fold||'nenhuma', atmos: old.atmos||'neutra', seed: old.seed});
@@ -455,7 +495,7 @@ function initPaperUI(){
   L.addEventListener('change', ()=>{ const st = readPaperUIState(); if (st && st.kind!=='flat') paperCommit(); });
   C.addEventListener('change', ()=>{
     const st = readPaperUIState() || {};
-    currentBgCategory = C.value;
+    lastPhotoCat = C.value;
     beginBatch();
     setBackgroundPaper(pickFile(C.value), {age: st.level!=null ? st.level : 0.4}).then(()=>canvas.renderAll()).finally(()=>{ endBatch(); paperCommit(); syncPaperUI(); });
   });
@@ -463,19 +503,8 @@ function initPaperUI(){
   if (ex) ex.value = 'textura';
 }
 
-/* Categoria de papel em FOTO do fundo atual (tipo "Foto de papel" do bloco Papel e inspetor do fundo em foto).
-   `LEGACY_PAPER_MAP`: categorias antigas que viram papel procedural. */
-let currentBgCategory = null, currentBgOpts = null;
-const LEGACY_PAPER_MAP = {
-  paper_newsprint: {type:'jornal', level:0.4, fold:'meio', atmos:'neutra'},
-  paper_aged:      {type:'creme',  level:0.4, fold:'nenhuma', atmos:'neutra'},
-};
-function setTemplateBackground(category, opts){
-  currentBgCategory = category; currentBgOpts = opts||{};
-  if (LEGACY_PAPER_MAP[category]){ setPaper(Object.assign({}, LEGACY_PAPER_MAP[category])); return Promise.resolve(); }
-  const rng = mulberry32(Math.floor(Math.random()*4294967296));
-  return setBackgroundPaper(pickFile(category, rng), currentBgOpts);
-}
+/* Última categoria de papel em FOTO escolhida (o tipo "Foto de papel" do bloco Papel volta nela). */
+let lastPhotoCat = 'paper_aged';
 
 /* ===================== Campo de dobra/vinco (pra texto seguir o relevo do papel) =====================
    Pesquisado: é o mesmo princípio do Displacement Map do Photoshop (Filter > Distort
@@ -742,7 +771,7 @@ function addStainAt(type, o){
         canvas.add(img);
         if (!o.quiet){ canvas.setActiveObject(img); canvas.renderAll(); }
         resolve(img);
-      });
+      }).catch(e=>{ console.warn('Mancha não carregou', e); resolve(null); });
     };
     imgEl.onerror = ()=>resolve(null);
     imgEl.src = TEXTURE_PACK[fname];
@@ -772,6 +801,7 @@ async function loadTemplate(name, opts){
     await sceneSwitchTo({}, { buildFresh: ()=>loadTemplateBody(name, opts) });
     PAGES = [pageSnapshot()];
     curPageIdx = 0;
+    docDirty = false;
     updatePageNavUI();
   });
 }
@@ -790,7 +820,6 @@ async function buildDoc(name, variantId){
   const def = DOC_TEMPLATES[name];
   const v = docVariantOf(def, variantId);
   applyPageSize(name);
-  currentBgCategory = null; currentBgOpts = null;
   await ensureFonts(v.fonts);
   const bg = setPaper(Object.assign({}, v.paper));
   if (v.id) bg.__docVariant = v.id;
@@ -835,6 +864,7 @@ function updatePageNavUI(){
 async function pageGo(idx){
   if (idx<0 || idx>=PAGES.length || idx===curPageIdx) return;
   return withSceneLock(async ()=>{
+    if (idx>=PAGES.length || idx===curPageIdx) return;
     pageSaveCurrent();
     await sceneSwitchTo(PAGES[idx], {
       applyFields: applyPageSceneFields,
@@ -882,7 +912,6 @@ async function pageAdd(kindId){
         if (kind) await buildDocPage(currentTemplate, variantId, kind, curPageIdx + 2, {news:prevNews});
         else if (keep && keep.kind==='proc') setPaper(Object.assign({}, keep, {seed: randomSeed32()}));
         else if (keep && keep.kind==='foto') await setBackgroundPaper(pickFile(keep.cat), {age: keep.level});
-        else if (currentBgCategory) await setBackgroundPaper(pickFile(currentBgCategory, Math.random), currentBgOpts);
         const nb = getBackground();
         if (nb && variantId && !nb.__docVariant) nb.__docVariant = variantId;   // página em branco continua do mesmo estilo
       },
@@ -896,12 +925,15 @@ async function pageDelete(){
   if (PAGES.length<=1) return;
   if (!confirm('Apagar esta página? Não dá pra desfazer.')) return;
   return withSceneLock(async ()=>{
-    PAGES.splice(curPageIdx, 1);
-    const idx = Math.min(curPageIdx, PAGES.length-1);
-    await sceneSwitchTo(PAGES[idx], {
+    if (PAGES.length<=1) return;
+    const removed = curPageIdx;
+    const idx = Math.min(removed, PAGES.length-2);   // a vizinha que sobra no lugar da apagada
+    const target = PAGES[idx >= removed ? idx+1 : idx];
+    await sceneSwitchTo(target, {
       applyFields: applyPageSceneFields,
       afterLoad: ()=>recomputeBgFieldsFromObjects(canvas.getObjects()),
     });
+    PAGES.splice(removed, 1);
     curPageIdx = idx;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
   });
@@ -921,23 +953,25 @@ async function collectPagePNGsInner(mult){
   pageSaveCurrent();
   const savedFold = currentFoldField, savedRuled = currentRuledLines;
   const out = [];
-  for (let i=0; i<PAGES.length; i++){
-    const p = PAGES[i];
-    if (i===curPageIdx){
-      canvas.discardActiveObject(); canvas.renderAll();
-      let dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
-      out.push(pngWithDpi(dataUrl, getExportDpi(p.pageW*mult, p.template)));
-      continue;
+  try {
+    for (let i=0; i<PAGES.length; i++){
+      const p = PAGES[i];
+      if (i===curPageIdx){
+        canvas.discardActiveObject(); canvas.renderAll();
+        let dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
+        out.push(pngWithDpi(dataUrl, getExportDpi(p.pageW*mult, p.template)));
+        continue;
+      }
+      const sc = new fabric.StaticCanvas(null, {width:p.pageW, height:p.pageH, backgroundColor:'#ffffff'});
+      try {
+        await sc.loadFromJSON(p.json);
+        recomputeBgFieldsFromObjects(sc.getObjects());
+        sc.renderAll();
+        let dataUrl = sc.toDataURL({format:'png', multiplier: mult});
+        out.push(pngWithDpi(dataUrl, getExportDpi(p.pageW*mult, p.template)));
+      } finally { sc.dispose(); }
     }
-    const sc = new fabric.StaticCanvas(null, {width:p.pageW, height:p.pageH, backgroundColor:'#ffffff'});
-    await sc.loadFromJSON(p.json);
-    recomputeBgFieldsFromObjects(sc.getObjects());
-    sc.renderAll();
-    let dataUrl = sc.toDataURL({format:'png', multiplier: mult});
-    out.push(pngWithDpi(dataUrl, getExportDpi(p.pageW*mult, p.template)));
-    sc.dispose();
-  }
-  currentFoldField = savedFold; currentRuledLines = savedRuled;
+  } finally { currentFoldField = savedFold; currentRuledLines = savedRuled; }
   return out;
 }
 async function exportPagesPDF(){
@@ -1002,6 +1036,7 @@ function applyPhotoCornerRadius(img, rxPx){
 document.getElementById('templateSel').addEventListener('change', ()=>{});
 document.getElementById('btnNewDoc').addEventListener('click', ()=>{
   if (!confirm('Isso apaga o documento atual. Continuar?')) return;
+  if (typeof saveCurrentId!=='undefined') saveCurrentId = null;
   loadTemplate(document.getElementById('templateSel').value);
 });
 document.getElementById('btnPagePrev').addEventListener('click', ()=>pageGo(curPageIdx-1));
@@ -1016,12 +1051,15 @@ const newsPresetRow = document.getElementById('newsPresetRow');
 NEWS_PRESET_ORDER.forEach(key=>{
   const b = document.createElement('button');
   b.textContent = NEWS_PRESETS[key].label; b.dataset.preset = key;
-  b.addEventListener('click', ()=>{ if (!sceneBusy) newsRebuild({preset:key}); });
+  b.addEventListener('click', ()=>newsRebuildLocked({preset:key}));
   newsPresetRow.appendChild(b);
 });
-document.getElementById('newsMast').addEventListener('change', e=>{ if (!sceneBusy) newsRebuild({mast:e.target.value}); });
-document.getElementById('newsJustify').addEventListener('change', e=>{ if (!sceneBusy) newsRebuild({justify:e.target.checked}); });
-document.getElementById('btnNewsReflow').addEventListener('click', ()=>{ if (!sceneBusy) newsRebuild({}); });
+/* Refazer o layout do jornal espera a vez na fila das trocas de cena: dois cliques seguidos em presets diferentes
+   refaziam o layout ao mesmo tempo e deixavam os textos em dobro. */
+function newsRebuildLocked(patch){ return withSceneLock(()=>newsRebuild(patch)).catch(e=>console.warn('jornal', e)); }
+document.getElementById('newsMast').addEventListener('change', e=>newsRebuildLocked({mast:e.target.value}));
+document.getElementById('newsJustify').addEventListener('change', e=>newsRebuildLocked({justify:e.target.checked}));
+document.getElementById('btnNewsReflow').addEventListener('click', ()=>newsRebuildLocked({}));
 function addNewsBox(){
   const nb = new NewsBox('Write here. The box grows with the text.', {left:PAGE_W/2-150, top:PAGE_H/2-70, width:300, frame:'box', title:'NOTICE', globalCompositeOperation:'multiply'});
   canvas.add(nb); canvas.setActiveObject(nb); canvas.renderAll();
@@ -1040,7 +1078,7 @@ function addNewsBox(){
     const size = Math.round(Math.min(340, PAGE_W*0.4, PAGE_H*0.4));
     const useColor = ['tinta', 'selo', 'negativo'].includes(v.value);
     const e = new Emblem({left:PAGE_W/2 - size/2, top:PAGE_H/2 - size/2, width:size, em:{kind:k.value, variant:v.value, color:useColor ? c.value : null, accent:null, seed:randomSeed32(), wear:0.5}});
-    canvas.add(e); canvas.setActiveObject(e); canvas.renderAll(); pushHistory();
+    canvas.add(e); canvas.setActiveObject(e); canvas.renderAll();   // o desfazer já foi gravado pelo object:added
   });
 })();
 /* Textura de plástico do cartão: um controle pra cada efeito. */
@@ -1048,10 +1086,7 @@ function renderCardTextureInspector(obj, body){
   const o = obj.art.opts;
   const set = (k, v)=>{ obj.art.opts = Object.assign({}, obj.art.opts, {[k]:v}); obj.dirty = true; canvas.requestRenderAll(); };
   const slider = (label, key, def)=>{
-    const w = field.range(label, o[key] != null ? o[key] : def, 0, 1, 0.05, v=>set(key, v));
-    const inp = w.querySelector ? w.querySelector('input[type=range]') : null;
-    if (inp) inp.addEventListener('change', ()=>pushHistory());
-    body.appendChild(w);
+    body.appendChild(field.range(label, o[key] != null ? o[key] : def, 0, 1, 0.05, v=>set(key, v)));
   };
   body.appendChild(field.hint('Textura de cartão de plástico por cima de tudo. Cada controle muda um efeito; zero tira o efeito.'));
   slider('Brilho do laminado', 'gloss', 0.5); slider('Riscos', 'scratch', 0.55); slider('Grão', 'grain', 0.5); slider('Desgaste das bordas e sujeira', 'wear', 0.4); slider('Marcas de dedo', 'smudge', 0.4);
@@ -1153,7 +1188,7 @@ function loadImageFileToCanvas(file, atPoint){
     fabric.Image.fromURL(e.target.result).then(img=>{
       const maxW = 500;
       if (img.width>maxW) img.scale(maxW/img.width);
-      img.set({left:(atPoint&&atPoint.x)||PAGE_W/2-img.getScaledWidth()/2, top:(atPoint&&atPoint.y)||PAGE_H/2-img.getScaledHeight()/2});
+      img.set({left: atPoint ? atPoint.x : PAGE_W/2-img.getScaledWidth()/2, top: atPoint ? atPoint.y : PAGE_H/2-img.getScaledHeight()/2});
       img.set('customType','photo');
       canvas.add(img); canvas.setActiveObject(img); canvas.renderAll();
     });
@@ -1207,9 +1242,47 @@ function objLabel(o){
   if (o.type==='image') return '🖼 Imagem';
   return o.type;
 }
+/* Miniaturas da lista de Camadas: desenhar cada objeto num canvas minúsculo custava 300–800 ms por clique em documento
+   cheio (renderLayerList roda a cada seleção, a cada objeto novo, a cada passo do desfazer). Agora cada miniatura fica
+   guardada junto do objeto, com uma "assinatura" do que muda o desenho (posição NÃO conta); só refaz as que mudaram, e
+   em pedaços pequenos, sem travar a tela. */
+const THUMB_CACHE = new WeakMap();
+const THUMB_OBJ_KEYS = new Set(['art','em','paperSpec','chat','filters','fill','stroke','shadow','strokeDashArray','__stampOptions']);
+const THUMB_SKIP = new Set(['left','top','dirty','canvas','group','selectable','evented','hoverCursor','moveCursor','cacheKey','initialized','__labName','__oid','__ownerOid','__linkA','__linkB']);
+function thumbSig(o){
+  const parts = [];
+  Object.keys(o).forEach(k=>{
+    if (k[0]==='_' && k.slice(0,2)!=='__' || THUMB_SKIP.has(k)) return;
+    const v = o[k], t = typeof v;
+    if (t==='string' || t==='number' || t==='boolean') parts.push(k + '=' + v);
+    else if (v && t==='object' && THUMB_OBJ_KEYS.has(k)){ try { parts.push(k + '=' + JSON.stringify(v)); } catch(e){} }
+  });
+  if (o.type==='group' && typeof o.getObjects==='function') parts.push('[' + o.getObjects().map(thumbSig).join(';') + ']');
+  return parts.join('|');
+}
+let thumbJob = 0;
+function fillThumbs(todo){
+  const job = ++thumbJob;
+  let i = 0;
+  const step = ()=>{
+    if (job !== thumbJob) return;   // a lista foi refeita: este lote perdeu a vez
+    const t0 = performance.now();
+    while (i < todo.length && performance.now() - t0 < 12){
+      const {o, thumb, sig} = todo[i++];
+      try {
+        const bw = o.getScaledWidth()||40, bh = o.getScaledHeight()||40;
+        const url = o.toDataURL({format:'png', multiplier: 30/Math.max(bw,bh,1)});
+        THUMB_CACHE.set(o, {sig, url}); thumb.src = url;
+      } catch(e){ /* objeto ainda não renderizável — sem miniatura */ }
+    }
+    if (i < todo.length) setTimeout(step, 0);
+  };
+  if (todo.length) setTimeout(step, 0);
+}
 function renderLayerList(){
   const box = document.getElementById('layerList');
   box.innerHTML = '';
+  const thumbTodo = [];
   // Alça de conexão do nó de rede e as guias de alinhamento são chrome de edição, não
   // conteúdo — não aparecem como linha própria na lista (igual cropRect já não aparecia).
   const objs = canvas.getObjects().filter(o=>o!==cropRect && o.customType!=='netConnectHandle' && o!==__guideH && o!==__guideV).slice().reverse();
@@ -1219,10 +1292,8 @@ function renderLayerList(){
     row.className = 'layerRow' + (activeMembers.includes(o)?' active':'');
 
     const thumb = document.createElement('img'); thumb.className='layerThumb';
-    try {
-      const bw = o.getScaledWidth()||40, bh = o.getScaledHeight()||40;
-      thumb.src = o.toDataURL({format:'png', multiplier: 30/Math.max(bw,bh,1)});
-    } catch(e){ /* objeto ainda não renderizável — sem miniatura */ }
+    const sig = thumbSig(o), hit = THUMB_CACHE.get(o);
+    if (hit && hit.sig === sig) thumb.src = hit.url; else thumbTodo.push({o, thumb, sig});
     row.appendChild(thumb);
 
     const nm = document.createElement('span'); nm.className='nm'; nm.textContent = objLabel(o);
@@ -1258,12 +1329,13 @@ function renderLayerList(){
       hide.addEventListener('click', (ev)=>{ ev.stopPropagation(); toggleObjectHide(o); });
       row.appendChild(hide);
       const del = document.createElement('button'); del.textContent='✕';
-      del.addEventListener('click', (ev)=>{ ev.stopPropagation(); deleteObjectCascade(canvas, o); canvas.renderAll(); });
+      del.addEventListener('click', (ev)=>{ ev.stopPropagation(); if (canvas.getActiveObject()===o) canvas.discardActiveObject(); deleteObjects([o]); });
       row.appendChild(del);
     }
     row.addEventListener('click', ()=>{ canvas.setActiveObject(o); canvas.renderAll(); updateInspector(); });
     box.appendChild(row);
   });
+  fillThumbs(thumbTodo);
 }
 
 /* ===================== Editor de texto (modal) =====================
@@ -1364,7 +1436,7 @@ function buildEditorFormat(o){
   };
   tog('B', 'Negrito', +o[P.weight] >= 600 || o[P.weight]==='bold', on=>apply(P.weight, on ? 700 : 400), 'font-weight:700');
   tog('I', 'Itálico', o[P.style]==='italic', on=>apply(P.style, on ? 'italic' : 'normal'), 'font-style:italic');
-  ['left','center','right'].forEach((a, i)=>{
+  (o.type==='redactedtext' ? [] : ['left','center','right']).forEach((a, i)=>{
     const b = document.createElement('button'); b.type = 'button'; b.title = 'Alinhar ' + ['à esquerda','ao centro','à direita'][i];
     b.textContent = ['⇤','↔','⇥'][i]; b.className = 'fmtBtn' + ((o[P.align]||'left')===a ? ' on' : '');
     b.addEventListener('click', ()=>{ bar.querySelectorAll('.fmtAlign').forEach(x=>x.classList.remove('on')); b.classList.add('on'); apply(P.align, a); });
@@ -1451,8 +1523,13 @@ function deleteActiveSelection(){
   const members = activeSelectionMembers(obj).filter(m=>m!==cropRect && !isLockedBase(m));
   if (!members.length) return;
   canvas.discardActiveObject();
-  members.forEach(m=>deleteObjectCascade(canvas, m));
-  canvas.renderAll();
+  deleteObjects(members);
+}
+/* Apaga vários objetos (e o que pertence a eles) como UM passo do desfazer. */
+function deleteObjects(list){
+  beginBatch();
+  try { list.forEach(m=>deleteObjectCascade(canvas, m)); } finally { endBatch(); }
+  canvas.renderAll(); renderLayerList(); pushHistory();
 }
 function duplicateActiveSelection(){
   const obj = canvas.getActiveObject();
@@ -1460,10 +1537,14 @@ function duplicateActiveSelection(){
   const members = activeSelectionMembers(obj).filter(m=>m.customType!=='brandArt');
   if (!members.length) return;
   canvas.discardActiveObject();
-  Promise.all(members.map(m=>m.clone().then(c=>{ c.set({left:m.left+20, top:m.top+20}); canvas.add(c); return c; }))).then(clones=>{
+  // clone(HISTORY_PROPS) leva junto customType, nome da camada etc. (sem isso o carimbo duplicado virava um "group" qualquer);
+  // o __oid NÃO pode ser copiado, senão apagar a cópia apagaria também o que está preso ao original.
+  Promise.all(members.map(m=>m.clone(HISTORY_PROPS).then(c=>{ c.set({left:m.left+20, top:m.top+20}); delete c.__oid; return c; }))).then(clones=>{
+    beginBatch();
+    try { clones.forEach(c=>canvas.add(c)); } finally { endBatch(); }
     if (clones.length===1) canvas.setActiveObject(clones[0]);
     else canvas.setActiveObject(new fabric.ActiveSelection(clones, {canvas}));
-    canvas.renderAll();
+    canvas.renderAll(); renderLayerList(); pushHistory();
   });
 }
 
@@ -1485,10 +1566,12 @@ function copyActiveSelection(){
 function pasteClipboard(){
   if (!editorClipboard || !editorClipboard.length) return;
   fabric.util.enlivenObjects(editorClipboard).then(objs=>{
-    objs.forEach(o=>{ o.set({left:(o.left||0)+20, top:(o.top||0)+20}); canvas.add(o); });
+    beginBatch();
+    try { objs.forEach(o=>{ o.set({left:(o.left||0)+20, top:(o.top||0)+20}); delete o.__oid; canvas.add(o); }); } finally { endBatch(); }
     if (objs.length===1) canvas.setActiveObject(objs[0]);
     else canvas.setActiveObject(new fabric.ActiveSelection(objs, {canvas}));
     canvas.renderAll();
+    pushHistory();
     updateInspector();
   });
 }
@@ -1514,9 +1597,13 @@ function groupActiveSelection(){
   const members = activeSelectionMembers(obj).filter(m=>m!==cropRect && !isLockedBase(m));
   if (members.length<2) return;
   canvas.discardActiveObject();
-  members.forEach(m=>canvas.remove(m));
-  const group = new fabric.Group(members, {__userGroup:true, subTargetCheck:true, interactive:false});
-  canvas.add(group);
+  let group;
+  beginBatch();
+  try {
+    members.forEach(m=>canvas.remove(m));
+    group = new fabric.Group(members, {__userGroup:true, subTargetCheck:true, interactive:false});
+    canvas.add(group);
+  } finally { endBatch(); }
   canvas.setActiveObject(group);
   canvas.renderAll();
   updateInspector();
@@ -1526,8 +1613,11 @@ function ungroupSelection(){
   const obj = canvas.getActiveObject();
   if (!obj || obj.type!=='group' || !obj.__userGroup) return;
   const members = obj.getObjects().slice();
-  canvas.remove(obj);
-  members.forEach(m=>{ obj.exitGroup(m, false); canvas.add(m); });
+  beginBatch();
+  try {
+    canvas.remove(obj);
+    members.forEach(m=>{ obj.exitGroup(m, false); canvas.add(m); });
+  } finally { endBatch(); }
   canvas.setActiveObject(new fabric.ActiveSelection(members, {canvas}));
   canvas.renderAll();
   updateInspector();
@@ -1631,6 +1721,7 @@ document.addEventListener('keydown', e=>{
   } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
     e.preventDefault(); duplicateActiveSelection();
   } else if (e.ctrlKey && e.key.toLowerCase()==='c'){
+    if (String(window.getSelection && window.getSelection()).length) return;   // tem texto da página selecionado: deixa o navegador copiar
     e.preventDefault(); copyActiveSelection();
   } else if (e.ctrlKey && e.key.toLowerCase()==='v'){
     e.preventDefault(); pasteClipboard();
@@ -1654,7 +1745,7 @@ document.addEventListener('keydown', e=>{
     if (typeof __placingNetNode!=='undefined' && __placingNetNode){ e.preventDefault(); cancelPlaceNetNode(); }
     else if (obj){ e.preventDefault(); canvas.discardActiveObject(); canvas.renderAll(); updateInspector(); }
   } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
-    if (obj && obj!==cropRect){
+    if (obj && obj!==cropRect && !obj.__userLocked){
       e.preventDefault();
       const step = e.shiftKey ? NUDGE_STEP_SHIFT : NUDGE_STEP;
       const dx = e.key==='ArrowLeft'?-step:e.key==='ArrowRight'?step:0;
@@ -1761,18 +1852,6 @@ function renderMultiSelectInspector(sel, body){
   body.appendChild(field.button('Excluir todos', deleteActiveSelection, {className:'danger'}));
 }
 
-function labeledRange(labelText, val, min, max, step, onInput){
-  const wrap = document.createElement('div');
-  const lab = document.createElement('label');
-  const span = document.createElement('span'); span.className='rangeval'; span.textContent = (+val).toFixed(3);
-  lab.textContent = labelText+' '; lab.appendChild(span);
-  const input = document.createElement('input');
-  input.type='range'; input.min=min; input.max=max; input.step=step; input.value=val;
-  input.addEventListener('input', ()=>{ span.textContent=(+input.value).toFixed(3); onInput(+input.value); });
-  wrap.appendChild(lab); wrap.appendChild(input);
-  return wrap;
-}
-
 /* Opacidade + modo de mescla — genérico pra qualquer objeto selecionado (mancha
    e grunge já usam globalCompositeOperation internamente, mas nunca expunham
    slider pro usuário ajustar por conta própria). */
@@ -1810,9 +1889,10 @@ function renderTextInspector(obj, body){
   body.appendChild(editWrap);
 
   if (obj.type==='handwrittentext'){
-    body.appendChild(field.select('Estilo de letra', HANDWRITING_PERSONA_LIST.map(p=>({value:p.id, label:p.label})), obj.personaId, v=>{ obj.personaId=v; canvas.renderAll(); }));
-    body.appendChild(field.checkbox('Piora ao longo do texto', obj.fatigue, v=>{ obj.fatigue=v; canvas.renderAll(); }));
-    body.appendChild(field.button('🎲 Novo aspecto', ()=>{ obj.seed = Math.floor(Math.random()*4294967296); canvas.renderAll(); }));
+    body.appendChild(field.select('Estilo de letra', HANDWRITING_PERSONA_LIST.map(p=>({value:p.id, label:p.label})), obj.personaId, v=>{ obj.personaId=v; canvas.renderAll(); pushHistory(); }));
+    body.appendChild(field.checkbox('Piora ao longo do texto', obj.fatigue, v=>{ obj.fatigue=v; canvas.renderAll(); pushHistory(); }));
+    body.appendChild(field.range('Tamanho da letra', obj.fontSize||30, 14, 80, 1, v=>{ obj.set('fontSize', v); obj.dirty = true; canvas.renderAll(); }));
+    body.appendChild(field.button('🎲 Novo aspecto', ()=>{ obj.seed = randomSeed32(); canvas.renderAll(); pushHistory(); }));
   } else {
     // Lista única de fontes (DOC_FONTS, doc-kit.js). Se o objeto usa uma fonte fora da lista, ela entra no topo.
     const fams = DOC_FONTS.map(f=>`'${f}'`);
@@ -1829,7 +1909,7 @@ function renderTextInspector(obj, body){
 
   if (obj.type==='redactedtext'){
     body.appendChild(field.range('Censura (%)', obj.redactPct, 0, 85, 1, v=>{ obj.redactPct=v; canvas.renderAll(); }));
-    body.appendChild(field.button('🎲 Nova censura', ()=>{ obj.seed = Math.floor(Math.random()*4294967296); canvas.renderAll(); }));
+    body.appendChild(field.button('🎲 Nova censura', ()=>{ obj.seed = randomSeed32(); canvas.renderAll(); pushHistory(); }));
   }
 }
 
@@ -1917,7 +1997,8 @@ function renderImageInspector(obj, body){
       reader.onload = ev=>{
         fabric.Image.fromURL(ev.target.result).then(newImg=>{
           const filters = obj.filters;
-          newImg.set({left:obj.left, top:obj.top, scaleX:obj.getScaledWidth()/newImg.width, scaleY:obj.getScaledHeight()/newImg.height, angle:obj.angle});
+          newImg.set({left:obj.left, top:obj.top, scaleX:obj.getScaledWidth()/newImg.width, scaleY:obj.getScaledHeight()/newImg.height, angle:obj.angle,
+            opacity:obj.opacity, flipX:obj.flipX, flipY:obj.flipY, globalCompositeOperation:obj.globalCompositeOperation});
           newImg.filters = filters;
           newImg.applyFilters();
           newImg.set('customType', obj.customType==='photoPlaceholder'?'photo':obj.customType);
@@ -1930,10 +2011,11 @@ function renderImageInspector(obj, body){
           }
           applyPhotoCornerRadius(newImg, obj.__cornerRadiusPx||0);
           const idx = canvas.getObjects().indexOf(obj);
-          canvas.remove(obj);
-          canvas.insertAt(idx, newImg);
+          beginBatch();
+          try { canvas.remove(obj); canvas.insertAt(idx, newImg); } finally { endBatch(); }
           canvas.setActiveObject(newImg);
           canvas.renderAll();
+          pushHistory();
           updateInspector();
         });
       };
@@ -1988,37 +2070,9 @@ function renderNetworkInspector(obj, body){
 }
 function renderBackgroundInspector(obj, body){
   body.appendChild(field.hint('Papel de fundo'));
-  if (obj.type==='paperbackground'){
-    body.appendChild(field.hint('Papel procedural: tipo, intensidade, dobra e atmosfera ficam no bloco "Papel" da aba Documento. Manchas e carimbos: aba Adicionar.'));
-    return;
-  }
-
-  const CAT_LABELS = {paper_aged:'Envelhecido', paper_notebook_ruled:'Caderno pautado', paper_notebook_plain:'Caderno liso', paper_newsprint:'Jornal'};
-  const catOptions = Object.keys(CAT_LABELS).map(c=>({value:c, label:CAT_LABELS[c]}));
-  const catValue = (currentBgCategory && CAT_LABELS[currentBgCategory]) ? currentBgCategory : catOptions[0].value;
-  const catField = field.select('Categoria', catOptions, catValue, ()=>{});
-  body.appendChild(catField);
-  body.appendChild(field.button('🎲 Trocar papel', async ()=>{
-    // Busca por TIPO, não por índice — obj.filters[0] assumia que AgeTint é sempre o
-    // primeiro filtro da pilha, o que quebra se a ordem mudar (agora reordenável, Fase 4).
-    const ageFilter = (obj.filters||[]).find(f=>f.constructor.type==='AgeTint');
-    const age = (ageFilter && ageFilter.amount) || 0.4;
-    await setTemplateBackground(catField.__input.value, {age});
-    canvas.renderAll(); updateInspector();
-  }));
-  // "Idade do papel" não tem slider próprio aqui de propósito — obj.type==='image'
-  // já faz updateInspector chamar renderImageInspector ANTES desta função (o fundo
-  // é ao mesmo tempo type:'image' e customType:'background'), que já desenha um
-  // slider de "Idade do papel" pra esse mesmo AgeTintFilter via renderFilterPanel.
-  // Ter os dois era bug cosmético confirmado (dois controles pro mesmo valor).
-
-  body.appendChild(field.hint('Adicionar mancha:'));
-  body.appendChild(field.buttonRow([
-    field.button('Água', ()=>addStain('water')),
-    field.button('Café', ()=>addStain('coffee')),
-    field.button('Sangue', ()=>addStain('blood')),
-    field.button('Mofo', ()=>addStain('mold')),
-  ], 'toolgrid'));
+  body.appendChild(field.hint(obj.type==='paperbackground'
+    ? 'Papel procedural: tipo, intensidade, dobra e atmosfera ficam no bloco "Papel" da aba Documento. Manchas e carimbos: aba Adicionar.'
+    : 'Foto de papel: categoria, idade e outra foto ficam no bloco "Papel" da aba Documento (a idade também está nos filtros acima). Manchas e carimbos: aba Adicionar.'));
 }
 
 /* ===================== Exportar texto (pra editar fora, tipo Google Docs) =====================
@@ -2102,16 +2156,18 @@ function populateTemplateSelect(){
 }
 function exportPaperModeValue(){ const s = document.getElementById('exportPaperMode'); return s ? s.value : 'textura'; }
 document.getElementById('btnExport').addEventListener('click', ()=>{
-  const mult = +document.getElementById('exportScale').value;
-  canvas.discardActiveObject(); canvas.renderAll();
-  let dataUrl = paperWithExportMode(exportPaperModeValue(), ()=>canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()}));
-  dataUrl = pngWithDpi(dataUrl, getExportDpi(PAGE_W*mult));
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = `prop_${currentTemplate.replace(/[^a-z0-9_-]/gi,'_')}_${Date.now()}.png`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  try {
+    const mult = +document.getElementById('exportScale').value;
+    canvas.discardActiveObject(); canvas.renderAll();
+    let dataUrl = paperWithExportMode(exportPaperModeValue(), ()=>canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()}));
+    dataUrl = pngWithDpi(dataUrl, getExportDpi(PAGE_W*mult));
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `prop_${currentTemplate.replace(/[^a-z0-9_-]/gi,'_')}_${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (err){ console.error(err); alert('Não consegui exportar o PNG: ' + (err && err.message || err)); }
 });
 document.getElementById('btnExportPDF').addEventListener('click', ()=>exportPagesPDF().catch(e=>alert(e.message)));
 document.getElementById('btnExportText').addEventListener('click', exportTextForDocs);

@@ -18,28 +18,33 @@ const HISTORY_LIMIT = 40;
 
 function pushHistory(){
   if (restoringHistory) return;
-  const snap = JSON.parse(JSON.stringify(canvas.toObject(['customType','__labName','__oid','__ownerOid'])));
+  const snap = histSnapshot(canvas, ['customType','__labName','__oid','__ownerOid']);   // fotos grandes entram só uma vez (hist-images.js)
   history = history.slice(0, historyIndex+1);
   history.push(snap);
   if (history.length > HISTORY_LIMIT) history.shift();
   historyIndex = history.length-1;
   updateUndoRedoButtons();
 }
-function restoreHistory(idx){
+async function restoreHistory(idx){
   if (idx<0 || idx>=history.length) return;
   restoringHistory = true;
   cancelCrop();
-  canvas.loadFromJSON(history[idx]).then(()=>{
+  try {
+    await canvas.loadFromJSON(histExpand(history[idx]));
     canvas.renderAll();
-    restoringHistory = false;
     historyIndex = idx;
-    renderLayerList();
-    updateFilterPanel();
-    updateUndoRedoButtons();
-  });
+  } finally { restoringHistory = false; }   // se o carregamento falhar, o histórico não pode ficar travado
+  renderLayerList();
+  updateFilterPanel();
+  updateUndoRedoButtons();
 }
-function undo(){ if (historyIndex>0) restoreHistory(historyIndex-1); }
-function redo(){ if (historyIndex<history.length-1) restoreHistory(historyIndex+1); }
+/* Passos em fila: segurar Ctrl+Z dispara vários seguidos e cada um precisa partir de onde o anterior parou. */
+let historyChain = Promise.resolve();
+function historyStep(d){
+  historyChain = historyChain.then(()=>restoreHistory(historyIndex + d)).catch(e=>console.warn('desfazer/refazer falhou', e));
+}
+function undo(){ historyStep(-1); }
+function redo(){ historyStep(+1); }
 function updateUndoRedoButtons(){
   const bu = document.getElementById('btnUndo'), br = document.getElementById('btnRedo');
   if (bu) bu.disabled = historyIndex<=0;
@@ -121,8 +126,8 @@ function addImageFromDataURL(dataUrl, atPoint){
       img.scale(s);
     }
     img.set({
-      left: (atPoint&&atPoint.x)||canvasW/2-img.getScaledWidth()/2,
-      top: (atPoint&&atPoint.y)||canvasH/2-img.getScaledHeight()/2,
+      left: atPoint ? atPoint.x : canvasW/2-img.getScaledWidth()/2,
+      top: atPoint ? atPoint.y : canvasH/2-img.getScaledHeight()/2,
     });
     img.filters = [];
     canvas.add(img);
@@ -201,11 +206,18 @@ function renderLayerList(){
     row.appendChild(mkBtn('↑','Trazer pra frente', ()=>{ canvas.bringObjectForward(o); canvas.renderAll(); renderLayerList(); pushHistory(); }));
     row.appendChild(mkBtn('↓','Mandar pra trás', ()=>{ canvas.sendObjectBackwards(o); canvas.renderAll(); renderLayerList(); pushHistory(); }));
     row.appendChild(mkBtn('⧉','Duplicar', ()=>duplicateLayer(o)));
-    row.appendChild(mkBtn('✕','Excluir', ()=>{ deleteObjectCascade(canvas, o); canvas.discardActiveObject(); canvas.renderAll(); updateFilterPanel(); }));
+    row.appendChild(mkBtn('✕','Excluir', ()=>deleteLayer(o)));
 
     row.addEventListener('click', ()=>{ canvas.setActiveObject(o); canvas.renderAll(); updateFilterPanel(); });
     box.appendChild(row);
   });
+}
+/* Apaga a camada e tudo que está preso a ela (moldura, HUD...) como UM passo do desfazer. */
+function deleteLayer(o){
+  restoringHistory = true;
+  try { deleteObjectCascade(canvas, o); } finally { restoringHistory = false; }
+  canvas.discardActiveObject(); canvas.renderAll();
+  renderLayerList(); updateFilterPanel(); pushHistory();
 }
 function duplicateLayer(o){
   o.clone().then(clone=>{
@@ -237,7 +249,7 @@ function updateFilterPanel(){
 function renderLayerProps(obj){
   const host = document.getElementById('layerPropsHost');
   host.innerHTML='';
-  host.appendChild(labeledRange('Opacidade', obj.opacity!=null?obj.opacity:1, 0, 1, 0.01, v=>{ obj.set('opacity', v); canvas.renderAll(); pushHistory(); }));
+  host.appendChild(labeledRange('Opacidade', obj.opacity!=null?obj.opacity:1, 0, 1, 0.01, v=>{ obj.set('opacity', v); canvas.renderAll(); }, ()=>pushHistory()));
   const lab = document.createElement('label'); lab.textContent='Modo de mescla';
   const sel = document.createElement('select');
   ['source-over','multiply','screen','overlay','darken','lighten','color-dodge','color-burn','difference','exclusion'].forEach(m=>{
@@ -251,8 +263,7 @@ function renderLayerProps(obj){
 document.getElementById('btnDelete').addEventListener('click', ()=>{
   const obj = canvas.getActiveObject();
   if (!obj) return;
-  deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll();
-  updateFilterPanel();
+  deleteLayer(obj);
 });
 // Grava histórico quando um slider de filtro é solto (evento nativo 'change', não
 // o 'input' contínuo que filter-panel.js usa pra atualizar ao vivo) — delegação
@@ -395,7 +406,7 @@ document.addEventListener('keydown', e=>{
     return;
   }
   if (e.key==='Delete' || e.key==='Backspace'){
-    if (obj && obj!==cropRect){ e.preventDefault(); deleteObjectCascade(canvas, obj); canvas.discardActiveObject(); canvas.renderAll(); updateFilterPanel(); }
+    if (obj && obj!==cropRect){ e.preventDefault(); deleteLayer(obj); }
   } else if (e.ctrlKey && e.key.toLowerCase()==='d'){
     if (obj){ e.preventDefault(); duplicateLayer(obj); }
   } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='z'){

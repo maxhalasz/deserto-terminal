@@ -59,6 +59,7 @@ WA.wrap = (g, text, maxW)=>{
 WA.layout = (g, W, msgs)=>{
   const M = WA.M, items = [], MAXW = Math.round(W*0.80), inner = MAXW - M.PX*2;
   let y = 0, prevMe = null;
+  msgs = msgs.filter(Boolean);   // uma mensagem vazia na lista (edição interrompida) não pode derrubar o desenho da tela inteira
   msgs.forEach((m, i)=>{
     const t = m.t || 'text';
     if (t === 'chip'){
@@ -172,6 +173,7 @@ WA.inspector = (obj, body)=>{
   ], 'grid2'));
   const el = (tag, css, txt)=>{ const e = document.createElement(tag); if (css) e.style.cssText = css; if (txt != null) e.textContent = txt; return e; };
   msgs.forEach((m, i)=>{
+    if (!m) return;
     const t = m.t || 'text', card = el('div', 'border:1px solid #3a4658;border-radius:6px;padding:7px;margin:7px 0;background:rgba(255,255,255,0.03)');
     const head = el('div', 'display:flex;gap:6px;align-items:center;margin-bottom:5px');
     const kind = document.createElement('select'); kind.style.flex = '1';

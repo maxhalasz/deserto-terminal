@@ -57,6 +57,7 @@ async function saveRestore(rec){
     await sceneSwitchTo(PAGES[curPageIdx], {applyFields: applyPageSceneFields, afterLoad: ()=>recomputeBgFieldsFromObjects(canvas.getObjects())});
     const sel = document.getElementById('templateSel');
     if (sel && [...sel.options].some(o=>o.value===currentTemplate)) sel.value = currentTemplate;
+    docDirty = false;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
     if (typeof syncDocVariantUI === 'function') syncDocVariantUI();
   });
@@ -112,12 +113,17 @@ async function fbDelete(id){
 }
 
 /* ---- IndexedDB (plano B neste navegador) ---- */
+/* Uma conexão só, reaproveitada (antes cada leitura/gravação abria uma nova e nunca fechava). */
+let _idbP = null;
 function idb(){
-  return new Promise((res, rej)=>{
+  if (_idbP) return _idbP;
+  _idbP = new Promise((res, rej)=>{
     const r = indexedDB.open('props-docs', 1);
     r.onupgradeneeded = ()=>r.result.createObjectStore('docs', {keyPath:'id'});
-    r.onsuccess = ()=>res(r.result); r.onerror = ()=>rej(r.error);
+    r.onsuccess = ()=>{ const d = r.result; d.onclose = d.onversionchange = ()=>{ _idbP = null; try { d.close(); } catch(e){} }; res(d); };
+    r.onerror = ()=>{ _idbP = null; rej(r.error); };
   });
+  return _idbP;
 }
 const idbTx = (mode, fn)=>idb().then(db=>new Promise((res, rej)=>{ const t = db.transaction('docs', mode), st = t.objectStore('docs'); const out = fn(st); t.oncomplete = ()=>res(out && out.result !== undefined ? out.result : undefined); t.onerror = ()=>rej(t.error); }));
 const localSave = (rec)=>idbTx('readwrite', st=>st.put(rec));
@@ -164,22 +170,35 @@ async function saveOpen(it){
     const rec = it.where === 'site' ? await fbLoad(it.id) : await localLoad(it.id);
     await saveRestore(rec);
     document.getElementById('docName').value = it.name;
+    saveCurrentId = it.id;
     saveStatus('Aberto: ' + it.name);
   } catch(e){ saveStatus('Erro ao abrir: ' + (e.message||e), true); console.error(e); }
 }
+/* Procura um documento já salvo com o mesmo id (nome transformado em "slug"), no site e neste navegador. */
+async function saveExisting(id){
+  let hit = null;
+  try { (await fbList()).forEach(it=>{ if (it.id === id) hit = it; }); } catch(e){ /* sem site: só confere o navegador */ }
+  try { const l = await localLoad(id); if (l && !hit) hit = l; } catch(e){ /* IndexedDB indisponível */ }
+  return hit;
+}
+let saveCurrentId = null;   // documento que está aberto na tela (salvar de novo por cima dele não precisa perguntar)
 async function saveNow(){
   const nameEl = document.getElementById('docName');
   const name = (nameEl.value || '').trim();
   if (!name){ saveStatus('Dê um nome ao documento.', true); nameEl.focus(); return; }
   try {
     saveStatus('Salvando…');
+    // dois nomes parecidos ("Relatório 1" e "relatorio-1") viram o mesmo id: sem perguntar, um apagava o outro em silêncio
+    if (saveSlug(name) !== saveCurrentId){
+      const old = await saveExisting(saveSlug(name));
+      if (old && !confirm('Já existe um documento salvo como "' + (old.name || old.id) + '". Substituir por este?')){ saveStatus('Cancelado, nada foi salvo.'); return; }
+    }
     const rec = await saveCollect(name);
-    let where = 'site';
     try { await fbSave(rec); }
     catch(e){
       console.warn('Firebase não salvou:', e);
-      where = 'navegador';
       await localSave(rec);
+      saveCurrentId = rec.id; docDirty = false;
       const denied = e && (e.code === 'PERMISSION_DENIED' || /permission/i.test(String(e.message||'')));
       saveStatus(denied
         ? 'O site negou a gravação: as regras do Firebase ainda não liberam "props_docs" (instrução abaixo, é uma vez só). Salvei neste navegador por enquanto — baixe o arquivo pra ter backup.'
@@ -187,6 +206,7 @@ async function saveNow(){
       if (denied){ const h = document.getElementById('saveRulesHelp'); if (h) h.open = true; }
       saveRefreshList(); return;
     }
+    saveCurrentId = rec.id; docDirty = false;
     saveStatus('Salvo no site: ' + name + ' (' + (rec.bytes/1024).toFixed(0) + ' KB, ' + rec.nPages + ' pág.)');
     saveRefreshList();
   } catch(e){ saveStatus('Erro ao salvar: ' + (e.message||e), true); console.error(e); }
@@ -198,6 +218,7 @@ async function saveToFile(){
     const blob = new Blob([JSON.stringify({props_doc:1, id:rec.id, name:rec.name, template:rec.template, savedAt:rec.savedAt, nPages:rec.nPages, data:rec.data})], {type:'application/json'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = rec.id + '.props.json';
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(a.href);
+    docDirty = false;
     saveStatus('Arquivo baixado: ' + rec.id + '.props.json');
   } catch(e){ saveStatus('Erro: ' + (e.message||e), true); }
 }
@@ -219,5 +240,4 @@ async function saveFromFile(file){
   $('btnOpenFile').addEventListener('click', ()=>$('fileOpenDoc').click());
   $('fileOpenDoc').addEventListener('change', e=>{ const f = e.target.files[0]; if (f) saveFromFile(f); e.target.value = ''; });
   $('btnRefreshDocs').addEventListener('click', saveRefreshList);
-  localList().then(items=>{ if (items.length && !$('docList').dataset.init){ $('docList').dataset.init = '1'; } }).catch(()=>{});
 })();

@@ -275,7 +275,7 @@ registerDoc('letter', {
   paper:{type:'verge', level:0.28, atmos:'twin', fold:'tres'},
   fonts:DP.LETTER_FONTS,
   build: async (kit)=>{
-    const W = kit.W, cx = W/2, L = 190, CW = W - 380, red = DP.red;
+    const W = kit.W, L = 190, CW = W - 380, red = DP.red;
     DP.letterhead(kit);
 
     kit.text('March 11', {left:W - 190 - 300, top:310, width:300, font:'Libre Baskerville', weight:400, size:21, align:'right', lh:1.2});
@@ -319,7 +319,7 @@ registerDoc('note', {
   paper:{type:'creme', level:0.3, atmos:'twin', fold:'nenhuma'},
   fonts:DP.NOTE_FONTS,
   build: async (kit)=>{
-    const W = kit.W, H = kit.H, cx = W/2, red = DP.red;
+    const W = kit.W, H = kit.H;
     DP.noteHead(kit, {circle:3});
 
     kit.ruled({top:330, bottom:H - 130, gap:52, left:60, right:W - 60, margin:false, color:'#9fb0bf', sw:1.3, opacity:0.55});
@@ -357,7 +357,7 @@ registerDoc('diary', {
   paper:{type:'creme', level:0.32, atmos:'twin', fold:'nenhuma'},
   fonts:DP.DIARY_FONTS,
   build: async (kit)=>{
-    const W = kit.W, H = kit.H, mid = W/2, red = DP.red;
+    const W = kit.W, mid = W/2;
     DP.diaryPages(kit, ['47', '49']);
     DP.spine(kit);
     // marca d'água: emblema da plataforma, quase invisível, na página da direita

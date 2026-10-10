@@ -41,8 +41,10 @@ const field = {
     buttons.forEach(b=>row.appendChild(b));
     return row;
   },
-  range(labelText, val, min, max, step, onInput){
-    return labeledRange(labelText, val, min, max, step, onInput);
+  /* Slider: onInput a cada movimento; ao soltar grava um passo de desfazer (onCommit, ou pushHistory se existir —
+     antes só os selects e checkboxes entravam no desfazer; tamanho, cor, opacidade etc. ficavam de fora). */
+  range(labelText, val, min, max, step, onInput, onCommit){
+    return labeledRange(labelText, val, min, max, step, onInput, onCommit || (typeof pushHistory==='function' ? ()=>pushHistory() : null));
   },
   select(labelText, options, value, onChange){
     const wrap = document.createElement('div');
@@ -59,12 +61,14 @@ const field = {
     wrap.__input = sel;
     return wrap;
   },
-  color(labelText, value, onInput){
+  color(labelText, value, onInput, onCommit){
     const wrap = document.createElement('div');
     if (labelText) wrap.appendChild(field.label(labelText));
     const inp = document.createElement('input');
     inp.type = 'color'; inp.value = value;
     inp.addEventListener('input', ()=>onInput(inp.value));
+    const commit = onCommit || (typeof pushHistory==='function' ? ()=>pushHistory() : null);
+    if (commit) inp.addEventListener('change', ()=>commit(inp.value));
     wrap.appendChild(inp);
     wrap.__input = inp;
     return wrap;

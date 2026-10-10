@@ -69,7 +69,9 @@ class HandwrittenText extends fabric.Textbox {
     const w = this.width, h = this.height;
     const x0 = -w/2, y0 = -h/2;
     const maxWidth = w;
-    const lineHeight = persona.baseSize * 1.5;
+    // fontSize do objeto (padrão 30) vira escala sobre o tamanho da letra da persona: 30 = como sempre foi
+    const k = (this.fontSize || 30) / 30, bs = persona.baseSize * k;
+    const lineHeight = bs * 1.5;
     // matriz local->página, pra amostrar o campo de dobra do papel na posição real
     // de cada caractere (não a posição dentro da caixa de texto) — pesquisado:
     // é o mesmo princípio do Displacement Map do Photoshop.
@@ -107,7 +109,7 @@ class HandwrittenText extends fabric.Textbox {
     // seguindo o centro das linhas, não escrevendo acima delas") — aplicado só no
     // translate de desenho (abaixo), nunca em cy/lineIdx, pra não interferir na
     // matemática de índice de linha.
-    const baselineLift = hasRuled ? persona.baseSize * 0.32 : 0;
+    const baselineLift = hasRuled ? bs * 0.32 : 0;
 
     ctx.save();
     ctx.textBaseline = 'alphabetic';
@@ -116,29 +118,29 @@ class HandwrittenText extends fabric.Textbox {
       const fatigueT = this.fatigue ? pi/Math.max(1,paragraphs.length-1) : 0;
       const shake = persona.shakiness * (1+fatigueT*0.7);
       const sizeVarAmt = persona.sizeVar * (1+fatigueT*0.5);
-      const baselineAmp = hasRuled ? persona.baselineAmp*0.5 : persona.baselineAmp;
+      const baselineAmp = (hasRuled ? persona.baselineAmp*0.5 : persona.baselineAmp) * k;
       let wjr=0, wjy=0, wjs=0;
       let cx = x0;
       const words = p.split(/\s+/).filter(Boolean);
-      ctx.font = `${persona.baseSize}px ${persona.fonts[0]}`;
+      ctx.font = `${bs}px ${persona.fonts[0]}`;
       const spaceW = ctx.measureText(' ').width*persona.spacing;
 
       words.forEach(word=>{
-        ctx.font = `${persona.baseSize}px ${persona.fonts[0]}`;
+        ctx.font = `${bs}px ${persona.fonts[0]}`;
         const wWidth = ctx.measureText(word).width*persona.spacing;
         if (cx+wWidth > x0+maxWidth && cx>x0){ cy = advanceLine(); cx = x0; }
 
         wjr = correlatedWalk(wjr, shake*0.09, 0.55, rng);
-        wjy = correlatedWalk(wjy, shake*2.6, 0.55, rng);
+        wjy = correlatedWalk(wjy, shake*2.6*k, 0.55, rng);
         wjs = correlatedWalk(wjs, sizeVarAmt*0.7, 0.5, rng);
 
         let ccx = cx;
         for (const ch of word){
           const cjr = wjr + correlatedWalk(0, shake*0.035, 0, rng);
-          const cjy = wjy + correlatedWalk(0, shake*1.1, 0, rng);
+          const cjy = wjy + correlatedWalk(0, shake*1.1*k, 0, rng);
           const cjs = wjs + correlatedWalk(0, sizeVarAmt*0.3, 0, rng);
           const useAlt = persona.fonts.length>1 && rng()<persona.altChance;
-          const sz = persona.baseSize*(1+cjs);
+          const sz = bs*(1+cjs);
           ctx.font = `${sz.toFixed(1)}px ${useAlt?persona.fonts[1]:persona.fonts[0]}`;
           const cw = ctx.measureText(ch).width;
           const wave = Math.sin((ccx-x0)*persona.baselineFreq)*baselineAmp;
@@ -155,7 +157,7 @@ class HandwrittenText extends fabric.Textbox {
             // muito amassada os dois brigavam (foldDy arrancava a letra da linha
             // exatamente nas dobras mais fortes). A rotação (foldRot) é discreta e não
             // atrapalha, então só o deslocamento vertical é reduzido aqui.
-            foldDy = slope.dy * 14 * (hasRuled ? 0.15 : 1);
+            foldDy = slope.dy * 14 * k * (hasRuled ? 0.15 : 1);
           }
           // Inclinação da PRÓPRIA linha (cada linha tem a sua, não uma só pra página
           // inteira — computeRuledLines casa left/mid/right linha a linha) — desloca
@@ -230,7 +232,7 @@ class RedactedText extends fabric.Textbox {
     const x0 = -w/2, y0 = -h/2;
     const lineHeight = this.fontSize*this.lineHeight;
     ctx.save();
-    ctx.font = `${this.fontSize}px ${this.fontFamily}`;
+    ctx.font = `${this.fontStyle||'normal'} ${this.fontWeight||400} ${this.fontSize}px ${this.fontFamily}`;
     ctx.fillStyle = this.fill;
     ctx.textBaseline = 'alphabetic';
 
@@ -363,6 +365,7 @@ function makeStampObjects(text, options){
     g.set('customType','stampGrain');
     group.add(g);
     group.canvas.renderAll();
+    if (typeof replaceHistoryTop === 'function') replaceHistoryTop();
   });
 
   return group;

@@ -20,14 +20,14 @@ DS.term = async (kit, spec)=>{
   const cw = kit.measure('M', {font:'VT323', size:SZ, weight:400}), cols = Math.floor(CW/cw);
   const col = kit.column(X, Y, CW, {font:'VT323', size:SZ, weight:400, lh:LH, fill:T.g, blend:'source-over', shadow:{color:T.glow, blur:7}});
   // barra de título em vídeo inverso
-  const bar = kit.rect({left:X - 12, top:col.y - 2, width:CW + 24, height:SZ*LH*1.13 + 6, fill:T.g, blend:'source-over', label:'Barra de título (vídeo inverso)'});
+  kit.rect({left:X - 12, top:col.y - 2, width:CW + 24, height:SZ*LH*1.13 + 6, fill:T.g, blend:'source-over', label:'Barra de título (vídeo inverso)'});
   col.text(spec.title.padEnd(cols).slice(0, cols), {fill:T.dark, shadow:null, gap:0, label:'Título'});
   col.y += 6;
   if (spec.sub) col.text(spec.sub, {gap:0, label:'Subtítulo'});
   col.text('='.repeat(cols), {fill:T.dim, gap:2, label:'Linha'});
   if (spec.cmd) col.text('> ' + spec.cmd, {gap:LH*SZ*0.6, label:'Comando'});
   (spec.blocks || []).forEach(b=>{
-    const t = col.text(b.lines.join('\n'), {fill:b.hi ? T.hi : (b.dim ? T.dim : T.g), gap:b.gap != null ? b.gap : SZ*0.5, label:b.label || 'Texto do terminal'});
+    col.text(b.lines.join('\n'), {fill:b.hi ? T.hi : (b.dim ? T.dim : T.g), gap:b.gap != null ? b.gap : SZ*0.5, label:b.label || 'Texto do terminal'});
   });
   if (spec.foot) col.text(spec.foot, {fill:T.dim, gap:SZ*0.4, label:'Rodapé'});
   if (spec.prompt !== false){

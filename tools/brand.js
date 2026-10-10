@@ -38,14 +38,17 @@ async function brandEnsureFonts(pack){
   });
   await Promise.all([...specs].map(s=>document.fonts.load(s, 'AaØøÅåÆæ0123456789—·×').catch(()=>{})));
 }
+const BRAND_ART_KEEP = 6;   // lados com a arte já decodificada (cada uma chega a ~35 MB em RGBA); os mais antigos saem
 async function brandArtElement(key){
-  if (BRAND.artEls[key]) return BRAND.artEls[key];
+  if (BRAND.artEls[key]){ const v = BRAND.artEls[key]; delete BRAND.artEls[key]; BRAND.artEls[key] = v; return v; }
   const pack = window.BRAND_PACK && window.BRAND_PACK[key];
   if (!pack) throw new Error('Arte não carregada: '+key);
   const img = new Image();
   img.src = pack.art.src;
   await img.decode();
   BRAND.artEls[key] = img;
+  const keys = Object.keys(BRAND.artEls);
+  while (keys.length > BRAND_ART_KEEP) delete BRAND.artEls[keys.shift()];
   return img;
 }
 
@@ -187,7 +190,6 @@ class BrandText extends fabric.Textbox {
     const lines = this._brandLines || (this._brandLines = this._brandComputeLines());
     const fs = this.fontSize, lh = fs * this.lineHeight, baseY = fs * (this.brandBaseR != null ? this.brandBaseR : 0.8);
     const W = this.width, H = this.height, x0 = -W/2, y0 = -H/2;
-    const pad = this.brandRedPad || 0;
     ctx.save();
     ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
     _brandCtxSetup(ctx, this._brandLS());
@@ -342,11 +344,11 @@ async function loadBrandDoc(docId, side){
     currentTemplate = 'brand:'+docId;
     PAGE_SIZES[currentTemplate] = [W, H];
     applyPageSize(currentTemplate);
-    currentBgCategory = null; currentBgOpts = null; currentFoldField = null; currentRuledLines = null;
-    currentNewsContent = null; currentNewsLayout = null;
+    currentFoldField = null; currentRuledLines = null;
     await sceneSwitchTo({}, { buildFresh: ()=>buildBrandSide(canvas, pack) });
     BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}, extraSides: []};
     PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
+    docDirty = false;
     renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
   });
 }
@@ -504,9 +506,11 @@ function brandExportText(){
 }
 
 /* ---------- inspetor do texto de marca ---------- */
+/* Fontes do documento de marca: as que os packs usam + a lista única da ferramenta (DOC_FONTS, doc-kit.js), a mesma dos outros textos. */
 function brandFontChoices(){
-  const set = new Set(["'Courier Prime'", "'PT Serif'"]);
+  const set = new Set();
   Object.values(window.BRAND_PACK || {}).forEach(p=>p.fields.forEach(f=>set.add(f.font.family)));
+  DOC_FONTS.forEach(f=>set.add(`'${f}'`));
   return [...set];
 }
 function renderBrandTextInspector(obj, body){
@@ -552,7 +556,6 @@ function brandUpdateUI(){
   brandRenderSideButtons();
   if (!c){
     const status = document.getElementById('brandStatus'); if (status) status.textContent = '';
-    document.querySelectorAll('.bgModeBtn').forEach(b=>{ b.disabled = false; });
     return;
   }
   const allSides = brandAllSides(c);
@@ -560,7 +563,6 @@ function brandUpdateUI(){
   if (status) status.textContent = `${c.meta.familyLabel} — ${c.meta.label} · ${brandSideLabel(allSides, allSides.indexOf(c.side)).toUpperCase()}${allSides.length < 2 ? ' (documento de uma face só)' : ''}`;
   const btnAll = document.getElementById('btnBrandExportBoth');
   if (btnAll) btnAll.textContent = allSides.length > 1 ? `⭳ Baixar todas as ${allSides.length} páginas (${allSides.length} PNGs)` : '⭳ Baixar PNG';
-  document.querySelectorAll('.bgModeBtn').forEach(b=>{ b.disabled = true; });
 }
 /* ---------- Referência rápida de lore (pedido do Max: "lembrete de nomenclaturas e lore
    na lateral pra eu ter tudo das famílias e organizações em fácil acesso") — só o que já

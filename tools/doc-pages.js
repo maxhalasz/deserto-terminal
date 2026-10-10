@@ -24,7 +24,7 @@ DOC_TEMPLATES.report.pages = [
     DP.reportStamp(kit);
   }},
   {id:'witness', label:'Declaração de testemunha (NS-302W)', fonts:DP.REPORT_FONTS, build: async (kit)=>{
-    const W = kit.W, L = 150, CW = W - 300, ink = DP.ink;
+    const W = kit.W, L = 150, CW = W - 300;
     DP.reportHead(kit, 'STATEMENT OF WITNESS');
     const y1 = DP.grid(kit, L, 282, CW, [
       {h:94, cells:[{f:0.50, label:'NAME'}, {f:0.25, label:'POSITION'}, {f:0.25, label:'DATE'}]},
@@ -180,13 +180,13 @@ registerDoc('envelope', {
   },
   pages: [
     {id:'verso', label:'Verso (aba)', build: async (kit)=>{
-      const W = kit.W, H = kit.H;
+      const W = kit.W;
       // aba triangular
       kit.path(`M 0 0 L ${W} 0 L ${W/2} 330 Z`, {left:0, top:0, fill:'#d6c9a6', opacity:0.55, stroke:'#8d8571', sw:2, blend:'multiply', label:'Aba do envelope'}).__bleedOk = true;
       kit.text('CREW SERVICES  ·  PLATFORM DESERTO', {left:0, top:60, width:W, font:'Jost', weight:600, size:16, cs:340, fill:DP.brown, align:'center', lh:1.0, opacity:0.8});
       kit.emblem('mono', 'selo', W/2 - 62, 108, 124, {color:'#7a2020', wear:0.45, seed:4, angle:-8, label:'Detalhe — selo Ø.A'});
       // fita de reabertura
-      const tape = kit.rect({left:W/2 - 300, top:250, width:600, height:62, fill:'#ece5d2', blend:'source-over', angle:-3, label:'Fita de reabertura'});
+      kit.rect({left:W/2 - 300, top:250, width:600, height:62, fill:'#ece5d2', blend:'source-over', angle:-3, label:'Fita de reabertura'});
       kit.text('OPENED BY CREW SERVICES  ·  RESEALED', {left:W/2 - 290, top:268, width:580, font:'Libre Franklin', weight:900, size:19, cs:90, fill:'#8a1f1a', blend:'source-over', align:'center', lh:1.0, angle:-3, label:'Fita de reabertura (texto)'});
     }},
   ],
@@ -201,7 +201,7 @@ DOC_TEMPLATES.note.pages = [
     kit.text('PLATFORM DESERTO   ·   CREW SERVICES', {left:0, top:H - 82, width:W, font:'Jost', weight:500, size:12, cs:320, fill:DP.brown, align:'center', lh:1.0});
   }},
   {id:'msg', label:'Recado "While you were out"', fonts:DP.NOTE_FONTS, build: async (kit)=>{
-    const W = kit.W, H = kit.H, red = DP.red, ink = DP.ink;
+    const W = kit.W, red = DP.red, ink = DP.ink;
     kit.rect({left:0, top:0, width:W, height:60, fill:'#d8d1bd', opacity:0.7, blend:'multiply', label:'Tira de cola'}).__bleedOk = true;
     kit.line(0, 60, W, 60, {stroke:'#8d8571', sw:2, opacity:0.55, label:'Borda da cola'}).__bleedOk = true;
     kit.text('WHILE YOU WERE OUT', {left:0, top:98, width:W, font:'Jost', weight:600, size:34, cs:200, fill:red, align:'center', lh:1.0});
@@ -243,7 +243,7 @@ DOC_TEMPLATES.diary.pages = [
     DP.spine(kit);
   }},
   {id:'title', label:'Folha de rosto (propriedade)', fonts:DP.DIARY_FONTS, build: async (kit)=>{
-    const W = kit.W, H = kit.H, mid = W/2, red = DP.red, ink = DP.ink;
+    const W = kit.W, mid = W/2, red = DP.red, ink = DP.ink;
     // esquerda: verso da capa
     const lx = 190, lw = mid - 380;
     kit.text('THIS LOG IS THE PROPERTY OF', {left:lx, top:260, width:lw, font:'Jost', weight:600, size:22, cs:300, fill:red, align:'center', lh:1.0});

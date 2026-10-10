@@ -121,7 +121,7 @@ DOC_TEMPLATES.menu_fine.variants.push({
   paper:{type:'cartao', level:0.24, atmos:'twin'},
   fonts:["400 20px 'Yellowtail'", "600 20px 'Cormorant Garamond'", "500 20px 'Cormorant Garamond'", "italic 500 20px 'Cormorant Garamond'", "400 20px 'EB Garamond'", "italic 400 20px 'EB Garamond'", "500 20px 'Jost'"],
   build: async (kit)=>{
-    const W = kit.W, cx = W/2, navy = '#1f3556', red = '#a8302a', soft = '#4a5a76';
+    const W = kit.W, navy = '#1f3556', red = '#a8302a', soft = '#4a5a76';
     kit.rect({left:56, top:56, width:W-112, height:1642, stroke:navy, sw:3, label:'Moldura'});
     kit.rect({left:70, top:70, width:W-140, height:1614, stroke:navy, sw:1, label:'Moldura interna'});
     [[70,70],[W-70,70],[70,1684],[W-70,1684]].forEach(([x,y])=>kit.rect({left:x-7, top:y-7, width:14, height:14, fill:navy, angle:45, label:'Canto'}));
@@ -175,7 +175,7 @@ DOC_TEMPLATES.menu_diner.variants.push({
   paper:{type:'liso', level:0.1, atmos:'silent'},
   fonts:["400 20px 'Anton'", "500 20px 'Barlow Condensed'", "600 20px 'Barlow Condensed'", "600 20px 'Libre Franklin'", "700 20px 'Libre Franklin'", "italic 400 20px 'Libre Franklin'"],
   build: async (kit)=>{
-    const W = kit.W, H = kit.H, cx = W/2;
+    const W = kit.W, H = kit.H;
     const cream = '#efe2c4', amber = '#e2a847', ink = '#0e0807', soft = '#cdbd9c';
     kit.proc('curtain', 0, 0, W, H, {seed:3, opts:{base:[104,12,18]}, label:'Cortina vermelha'});
     // franja da cortina (festão) no topo
@@ -238,7 +238,7 @@ DOC_TEMPLATES.menu_diner.variants.push({
   paper:{type:'liso', level:0.05, atmos:'neutra'},
   fonts:["400 20px 'Yellowtail'", "500 20px 'Barlow Condensed'", "600 20px 'Barlow Condensed'", "400 20px 'Shadows Into Light'", "700 20px 'Barlow Condensed'", "400 20px 'Barlow Condensed'"],
   build: async (kit)=>{
-    const W = kit.W, H = kit.H, cx = W/2, T = 66;
+    const W = kit.W, H = kit.H, T = 66;
     const chalk = '#f1eee2', yel = '#ecd98c', pink = '#eea9b7', slate = [34,46,41];
     const halo = {color:'rgba(241,238,226,0.45)', blur:3};
     kit.proc('slate', 0, 0, W, H, {seed:4, opts:{base:slate}, label:'Quadro-negro'});
@@ -293,7 +293,7 @@ DOC_TEMPLATES.menu_fastfood.variants.push({
   paper:{type:'sulfite', level:0.14, atmos:'neutra'},
   fonts:["700 20px 'Fredoka'", "600 20px 'Fredoka'", "500 20px 'Fredoka'", "400 20px 'Anton'", "600 20px 'Source Sans 3'", "italic 400 20px 'Source Sans 3'"],
   build: async (kit)=>{
-    const W = kit.W, H = kit.H, cx = W/2, red = '#c4261d', green = '#2a5a35', cream = '#fff6df', dark = '#3a1410';
+    const W = kit.W, H = kit.H, red = '#c4261d', green = '#2a5a35', cream = '#fff6df', dark = '#3a1410';
     // toalha xadrez: faixas verticais e horizontais translúcidas (o cruzamento escurece, como gingham de verdade)
     const step = 70;
     let dv = '', dh = '';

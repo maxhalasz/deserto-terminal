@@ -488,8 +488,8 @@ const NEWS_PRESETS = {
     const split = Math.max(e1, ry, bodyBottom - 30) + 14;
     B.rule(LX, split, LX + FW, split, 1.3);
     const adA = B.boxAtBottom('ad.1', RX, RW, BT, NEWS_AD);
-    const adB = B.boxAtBottom('ad.2', RX, RW, adA - 14, NEWS_AD);
-    const tide = B.txt('tide', RX, split + 14, RW, {frame:'box', title:true, rows:true, size:13.5, lh:1.35});
+    B.boxAtBottom('ad.2', RX, RW, adA - 14, NEWS_AD);
+    B.txt('tide', RX, split + 14, RW, {frame:'box', title:true, rows:true, size:13.5, lh:1.35});
     let a = B.head('s2', LX, split + 14, newsW(2), {size:25, rule:false}); B.flow('s2.body', LX, a, newsW(2), {size:14, bottom:BT, minSize:12.5});
     let b = B.head('s3', newsX(2), split + 14, newsW(2), {size:25, rule:false}); B.flow('s3.body', newsX(2), b, newsW(2), {size:14, bottom:BT, minSize:12.5});
     B.vline(newsX(2) - NEWS_G.GUT/2, split + 14, BT); B.vline(RX - NEWS_G.GUT/2, split + 14, BT); B.vline(RX - NEWS_G.GUT/2, y, split - 8);

@@ -184,13 +184,18 @@ function emRender(S, em){
 }
 
 const EM_CACHE = new Map();
+let _emPx = 0;
 const EM_STEPS = [96, 128, 192, 256, 384, 512, 768, 1024, 1536, 2048];
 function emCanvas(em, S){
   const key = [em.kind, em.variant, em.color || '', em.accent || '', em.seed, em.wear, S].join('|');
   if (EM_CACHE.has(key)){ const v = EM_CACHE.get(key); EM_CACHE.delete(key); EM_CACHE.set(key, v); return v; }
   const cv = emRender(S, em);
-  EM_CACHE.set(key, cv);
-  while (EM_CACHE.size > 40) EM_CACHE.delete(EM_CACHE.keys().next().value);
+  EM_CACHE.set(key, cv); _emPx += S*S;
+  // no máximo 60 milhões de pixels (~240 MB) e 60 entradas; o mais antigo sai primeiro
+  while ((_emPx > 60e6 || EM_CACHE.size > 60) && EM_CACHE.size > 1){
+    const k = EM_CACHE.keys().next().value, old = EM_CACHE.get(k);
+    _emPx -= old.width*old.height; EM_CACHE.delete(k);
+  }
   return cv;
 }
 /* Multiplicar (tinta escura) ou normal (cor/relevo/ouro/clara). */

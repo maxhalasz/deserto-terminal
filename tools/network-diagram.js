@@ -181,9 +181,11 @@ function networkMouseDown(e){
     if (!e.target){
       const p = canvas.getPointer(e.e);
       const [node, handle] = makeNetworkNode({left:p.x, top:p.y, title:'NODE', sub:''});
-      canvas.add(node); canvas.add(handle);
+      beginBatch();
+      try { canvas.add(node); canvas.add(handle); } finally { endBatch(); }
       canvas.setActiveObject(node);
       canvas.renderAll();
+      pushHistory();
     }
     cancelPlaceNetNode();
     return;

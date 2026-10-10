@@ -69,7 +69,7 @@ MV('menu_fine', 'velvet').pages = [{id:'verso', label:'Verso — The Band', buil
 
 /* ---------- Fine · Chez Désert: "Carte des vins" ---------- */
 MV('menu_fine', 'bistro').pages = [{id:'verso', label:'Verso — Carte des vins', build: async (kit)=>{
-  const W = kit.W, cx = W/2, navy = '#1f3556', red = '#a8302a', soft = '#4a5a76';
+  const W = kit.W, navy = '#1f3556', red = '#a8302a', soft = '#4a5a76';
   kit.rect({left:56, top:56, width:W-112, height:1642, stroke:navy, sw:3, label:'Moldura'});
   kit.rect({left:70, top:70, width:W-140, height:1614, stroke:navy, sw:1, label:'Moldura interna'});
   [[70,70],[W-70,70],[70,1684],[W-70,1684]].forEach(([x,y])=>kit.rect({left:x-7, top:y-7, width:14, height:14, fill:navy, angle:45, label:'Canto'}));
@@ -139,7 +139,7 @@ MV('menu_diner', 'galley').pages = [{id:'verso', label:'Verso — Plates of the 
 /* ---------- Diner · Roadhouse: "On Stage" ---------- */
 MV('menu_diner', 'roadhouse').pages = [{id:'verso', label:'Verso — On Stage', build: async (kit)=>{
   const W = kit.W, H = kit.H;
-  const cream = '#efe2c4', amber = '#e2a847', ink = '#0e0807', soft = '#cdbd9c';
+  const cream = '#efe2c4', amber = '#e2a847', ink = '#0e0807';
   kit.proc('curtain', 0, 0, W, H, {seed:11, opts:{base:[104,12,18]}, label:'Cortina vermelha'});
   const sc = 124, nsc = Math.ceil(W/sc), pel = 70;
   let d = `M 0 0 L ${nsc*sc} 0 L ${nsc*sc} ${pel}`;
@@ -256,7 +256,7 @@ MV('menu_fastfood', 'dinein').pages = [{id:'verso', label:'Verso — Cupons', fo
 
 /* ---------- Fast food · Pizza Deck: "Build your own" ---------- */
 MV('menu_fastfood', 'pizza').pages = [{id:'verso', label:'Verso — Build your own', build: async (kit)=>{
-  const W = kit.W, H = kit.H, red = '#c4261d', green = '#2a5a35', cream = '#fff6df', dark = '#3a1410';
+  const W = kit.W, H = kit.H, red = '#c4261d', cream = '#fff6df', dark = '#3a1410';
   const step = 70;
   let dv = '', dh = '';
   for (let x = 0; x < W; x += step*2) dv += `M ${x} 0 L ${x+step} 0 L ${x+step} ${H} L ${x} ${H} Z `;
