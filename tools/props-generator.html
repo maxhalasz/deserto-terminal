@@ -6,13 +6,13 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Gerador de Props — O Deserto</title>
 <link rel="stylesheet" href="vendor/fonts.css">
-<link rel="stylesheet" href="vendor/fonts-docs.css?v=f2-03">
+<link rel="stylesheet" href="vendor/fonts-docs.css?v=f3-01">
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
 <script src="vendor/brand/brand-index.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="print-dpi.js?v=f2-03"></script>
-<script src="hist-images.js?v=f2-03"></script>
+<script src="print-dpi.js?v=f3-01"></script>
+<script src="hist-images.js?v=f3-01"></script>
 <style>
   /* Tokens de design (rework "visual de verdade" pedido pelo Max, depois do "continua
      exatamente igual a antes") — extrai cores JÁ usadas pro arquivo inteiro, não uma
@@ -109,7 +109,7 @@
   .loreFam[open] summary::before{content:'▾ ';color:#e0a72e}
   .loreFam > div{padding-left:6px}
 
-  #layerList{display:flex;flex-direction:column;gap:2px;max-height:170px;overflow-y:auto}
+  #layerList{display:flex;flex-direction:column;gap:2px;max-height:230px;overflow-y:auto}
   .layerRow{display:flex;align-items:center;gap:6px;padding:5px 6px;border-radius:4px;background:#14161b;border:1px solid transparent;cursor:pointer;font-size:11.5px}
   .layerRow:hover{border-color:#333844}
   .layerRow.active{border-color:#3d6293;background:#1c2636}
@@ -117,14 +117,44 @@
   .layerRow button{width:auto;margin:0;padding:2px 6px;font-size:11px}
   .layerThumb{width:26px;height:26px;object-fit:cover;border-radius:3px;background:#0f1115;flex:0 0 auto}
 
-  #main{flex:1;display:flex;flex-direction:column;align-items:center;overflow:auto;padding:22px;gap:10px;
+  /* Área do documento: barra de cima fixa (desfazer, zoom, PNG) + palco rolável. O documento usa margin:auto em vez de
+     align-items:center: centralizado quando sobra espaço e colado no começo quando passa (com align-items:center o lado
+     esquerdo/topo ficava inalcançável ao dar zoom). */
+  #main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+  #topbar{flex:0 0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:7px 12px;background:var(--bg-panel);border-bottom:1px solid var(--border)}
+  .tbGroup{display:flex;align-items:center;gap:5px}
+  .tbRight{margin-left:auto}
+  .tbHint{color:var(--text-faint);font-size:10.5px;white-space:nowrap}
+  #topbar button{width:auto;margin:0;padding:5px 10px;font-size:12px}
+  #topbar button:disabled{opacity:.4;cursor:not-allowed}
+  #topbar select{width:auto;padding:4px 6px;font-size:12px}
+  #stage{flex:1;min-height:0;overflow:auto;display:flex;padding:26px;position:relative;
     background:
       linear-gradient(45deg,#202329 25%,transparent 25%,transparent 75%,#202329 75%),
       linear-gradient(45deg,#202329 25%,#191b20 25%,#191b20 75%,#202329 75%);
     background-size:20px 20px;background-position:0 0,10px 10px}
-  .zoomrow{display:flex;gap:6px;align-items:center;color:#767c88;font-size:11px}
-  .zoomrow button{width:auto;margin:0;padding:4px 9px}
-  #canvasWrap{box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative}
+  #stage.canPan,#stage.canPan .upper-canvas{cursor:grab !important}
+  #stage.panning,#stage.panning .upper-canvas{cursor:grabbing !important}
+  #canvasWrap{margin:auto;flex:0 0 auto;box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative}
+
+  .sideHead{display:flex;flex-direction:column;gap:2px}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--border-strong);border-radius:var(--radius);overflow:hidden}
+  .seg button{margin:0;border:0;border-radius:0;background:transparent;color:var(--text-dim);padding:8px 6px;font-size:12px}
+  .seg button+button{border-left:1px solid var(--border-strong)}
+  .seg button.active{background:var(--accent-strong);color:#fff}
+  .srcPane{display:flex;flex-direction:column;gap:10px}
+  .panel.collapsible > .panel-head{cursor:pointer;user-select:none}
+  .panel.collapsible > .panel-head::after{content:'▾';margin-left:auto;color:var(--text-faint);font-size:11px}
+  .panel.collapsed > .panel-head::after{content:'▸'}
+  .panel.collapsed > .panel-body{display:none}
+  .panel.collapsed > .panel-head{border-bottom-color:transparent}
+  .backLink{font:11px monospace;color:#8b8d93;text-decoration:none;margin-bottom:4px;align-self:flex-start}
+  .backLink:hover{color:var(--accent)}
+  .panel .hint.help{display:none;background:rgba(95,147,214,.07);border-left:2px solid var(--accent-strong);padding:6px 8px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;color:var(--text-dim);font-size:11px;line-height:1.5}
+  .panel.helpOn .hint.help{display:block}
+  .helpBtn{width:auto !important;margin:0 0 0 auto !important;padding:0 7px !important;font-size:11px !important;line-height:18px;border-radius:9px !important;background:transparent;border-color:var(--border-strong);color:var(--text-faint)}
+  .panel.helpOn .helpBtn{background:var(--accent-bg);color:var(--text-bright);border-color:var(--accent-strong)}
+  .emptyHint{padding:12px 14px;border:1px dashed var(--border-strong);border-radius:var(--radius-lg);line-height:1.5;color:var(--text-dim)}
 
   #inspector{display:none;flex-direction:column;gap:8px}
   #inspector.show{display:flex}
@@ -169,15 +199,19 @@
 </style>
 </head>
 <body>
-<a href="index.html" style="position:fixed;left:10px;top:10px;z-index:99999;font:12px monospace;color:#8b8d93;text-decoration:none;background:#1d1e20;border:1px solid #2c2d30;border-radius:6px;padding:4px 9px">&larr; ferramentas</a>
+
 
 <div id="side">
-  <div>
+  <div class="sideHead">
+    <a href="index.html" class="backLink">&larr; ferramentas</a>
     <h1>GERADOR DE PROPS</h1>
-    <div class="sub">O Deserto — editor de documentos/jornais pra imprimir ou "digitalizar" nos HDs da DRE. Ferramenta de GM, não é acessada pelos jogadores. <span style="color:#5b6170">· versão <span id="buildTag">f2-03</span></span></div>
+    <div class="sub">O Deserto — documentos e jornais pra imprimir ou digitalizar. Ferramenta de GM. <span style="color:#5b6170">· versão <span id="buildTag">f3-01</span></span></div>
     <details class="shortcutsBox">
       <summary>？ Atalhos de teclado</summary>
       <div class="shortcutsList">
+        <div><b>Ctrl+roda</b> / pinça: zoom no ponto do cursor</div>
+        <div><b>Espaço+arrastar</b> (ou botão do meio): mover a página</div>
+        <div><b>Ctrl+0</b> página inteira · <b>Ctrl+1</b> 100% · <b>Ctrl +</b> / <b>Ctrl −</b></div>
         <div><b>Ctrl+D</b> duplicar</div>
         <div><b>Ctrl+C</b> / <b>Ctrl+V</b> copiar / colar (entre páginas também)</div>
         <div><b>Ctrl+G</b> / <b>Ctrl+Shift+G</b> agrupar / desagrupar</div>
@@ -193,38 +227,27 @@
 
   <div class="tabs">
     <button class="tabBtn" data-tab="doc"><span class="ico">📄</span><span>Documento</span></button>
-    <button class="tabBtn" data-tab="brand"><span class="ico">🎨</span><span>Marcas</span></button>
-    <button class="tabBtn" data-tab="lore"><span class="ico">📖</span><span>Lore</span></button>
     <button class="tabBtn" data-tab="add"><span class="ico">➕</span><span>Adicionar</span></button>
-    <button class="tabBtn" data-tab="layers"><span class="ico">🗂</span><span>Camadas</span></button>
     <button class="tabBtn" data-tab="object"><span class="ico">🎯</span><span>Objeto</span></button>
+    <button class="tabBtn" data-tab="save"><span class="ico">💾</span><span>Salvar</span></button>
+    <button class="tabBtn" data-tab="lore"><span class="ico">📖</span><span>Lore</span></button>
   </div>
 
+  <!-- ============ DOCUMENTO: escolher o que editar (modelo ou documento de marca) e ajustar o documento ============ -->
   <div class="tabPanel" data-tab-panel="doc">
-    <div class="panel"><div class="panel-head"><span class="ico">📄</span><span class="ttl">Documento</span></div><div class="panel-body">
-      <select id="templateSel">
-        <option value="newspaper">Jornal (capa)</option>
-        <option value="report">Relatório datilografado</option>
-        <option value="note">Bilhete manuscrito</option>
-        <option value="redacted">Dossiê redigido</option>
-        <option value="tag">Etiqueta / rótulo</option>
-        <option value="letter">Carta</option>
-        <option value="diary">Diário — página dupla</option>
-        <option value="terminal">Impressão de terminal</option>
-        <option value="badge">Crachá de acesso</option>
-        <option value="whatsapp">Print — chat (WhatsApp)</option>
-        <option value="email_mobile">Print — e-mail (celular)</option>
-        <option value="email_desktop">Print — e-mail (computador)</option>
-        <option value="email_90s">Print — e-mail (anos 90)</option>
-        <option value="menu_fine">Cardápio — fine dining</option>
-        <option value="menu_diner">Cardápio — bar/lanchonete</option>
-        <option value="menu_fastfood">Cardápio — fast food</option>
-        <option value="blank">Em branco</option>
-      </select>
-      <button id="btnNewDoc" class="primary">Novo documento (apaga o atual)</button>
-      <div class="hint" id="docHint" style="display:none"></div>
-      <div id="pageNavBlock">
-        <label>Páginas</label>
+    <div class="seg" id="sourceSeg">
+      <button data-src="models" class="active">Modelos</button>
+      <button data-src="brand">Documentos de marca</button>
+    </div>
+
+    <div id="modelsSource" class="srcPane">
+      <div class="panel"><div class="panel-head"><span class="ico">📄</span><span class="ttl">Modelo</span></div><div class="panel-body">
+        <select id="templateSel"></select>
+        <button id="btnNewDoc" class="primary">Novo documento (apaga o atual)</button>
+        <div class="hint" id="docHint" style="display:none"></div>
+      </div></div>
+
+      <div class="panel" id="pageNavBlock"><div class="panel-head"><span class="ico">📑</span><span class="ttl">Páginas</span></div><div class="panel-body">
         <div id="pageStatus" class="hint">Página 1 de 1</div>
         <div class="grid2">
           <button id="btnPagePrev" class="ghost">‹ Anterior</button>
@@ -236,49 +259,133 @@
           <button id="btnPageAdd">+ Página</button>
           <button id="btnPageDel" class="danger">🗑 Apagar página</button>
         </div>
-        <div class="hint">Cada modelo tem páginas prontas do mesmo documento (verso, continuação, anexos), no mesmo visual; "Em branco" repete só o papel. Tudo sai num PDF só, na ordem — o verso fica logo depois da frente se você adicionar a partir da frente.</div>
-      </div>
-    </div></div>
+        <div class="hint help">Cada modelo tem páginas prontas do mesmo documento (verso, continuação, anexos), no mesmo visual; "Em branco" repete só o papel. Tudo sai num PDF só, na ordem — o verso fica logo depois da frente se você adicionar a partir da frente.</div>
+      </div></div>
 
-    <div class="panel" id="docVariantBlock" style="display:none"><div class="panel-head"><span class="ico">🎨</span><span class="ttl">Estilo</span></div><div class="panel-body">
-      <select id="docVariantSel"></select>
-      <div class="hint">Cada estilo é um visual completamente diferente (como se fosse de outro restaurante, bar ou café), com layout, cores, fontes e papel próprios. Trocar refaz o documento.</div>
-    </div></div>
+      <div class="panel" id="docVariantBlock" style="display:none"><div class="panel-head"><span class="ico">🎨</span><span class="ttl">Estilo</span></div><div class="panel-body">
+        <select id="docVariantSel"></select>
+        <div class="hint help">Cada estilo é um visual completamente diferente (como se fosse de outro restaurante, bar ou café), com layout, cores, fontes e papel próprios. Trocar refaz o documento.</div>
+      </div></div>
 
-    <div class="panel" id="paperBlock"><div class="panel-head"><span class="ico">🗒</span><span class="ttl">Papel</span></div><div class="panel-body">
-      <label>Tipo</label>
-      <select id="paperType"></select>
-      <label id="paperLevelLbl">Intensidade <span class="rangeval" id="paperLevelVal">0</span></label>
-      <input type="range" id="paperLevel" min="0" max="100" step="1" value="30">
-      <div id="paperProcOnly">
-        <div class="grid2">
-          <div><label>Dobra</label><select id="paperFold"></select></div>
-          <div><label>Atmosfera</label><select id="paperAtmos"></select></div>
+      <div class="panel" id="newsLayoutBlock" style="display:none"><div class="panel-head"><span class="ico">📰</span><span class="ttl">Layout do jornal</span></div><div class="panel-body">
+        <div class="hint help">Cada layout já vem completo (matérias, foto, índice, anúncios). Trocar de layout mantém o texto e as fotos que você editou, na página em que você está. Os layouts de página interna são os mesmos do "Tipo da nova página" (bloco Páginas): adicione uma página já no tipo que quer, ou troque o layout daqui depois.</div>
+        <label>Capa</label>
+        <div class="toolgrid" id="newsPresetRow"></div>
+        <label>Páginas internas</label>
+        <div class="toolgrid" id="newsPresetRowInner"></div>
+        <label>Título do jornal</label>
+        <select id="newsMast"><option value="gothic">Letra gótica</option><option value="serif">Serifado (jornal local)</option></select>
+        <label class="inline"><input type="checkbox" id="newsJustify"> Justificar as colunas</label>
+        <button id="btnNewsReflow" class="ghost">↻ Reajustar texto (refaz o layout)</button>
+        <button id="btnNewsBoxHere">📰 + Caixa de jornal</button>
+        <div class="hint help">Depois de editar um texto, "Reajustar" recalcula alturas e colunas. Objetos que você adicionou à mão não são tocados.</div>
+      </div></div>
+
+      <div class="panel" id="paperBlock"><div class="panel-head"><span class="ico">🗒</span><span class="ttl">Papel</span></div><div class="panel-body">
+        <label>Tipo</label>
+        <select id="paperType"></select>
+        <label id="paperLevelLbl">Intensidade <span class="rangeval" id="paperLevelVal">0</span></label>
+        <input type="range" id="paperLevel" min="0" max="100" step="1" value="30">
+        <div id="paperProcOnly">
+          <div class="grid2">
+            <div><label>Dobra</label><select id="paperFold"></select></div>
+            <div><label>Atmosfera</label><select id="paperAtmos"></select></div>
+          </div>
+          <button id="btnPaperSeed" class="ghost">🎲 Outra textura</button>
         </div>
-        <button id="btnPaperSeed" class="ghost">🎲 Outra textura</button>
+        <div id="paperPhotoOnly" style="display:none">
+          <label>Foto</label>
+          <select id="paperPhotoCat"></select>
+        </div>
+        <div class="hint help">Intensidade 0 = papel liso 100% digital. Textura de papel só aparece embaixo; mancha, carimbo e foto entram por cima (aba Adicionar). A atmosfera muda cor, borda e sujeira juntas.</div>
+        <div class="hint" id="paperHint"></div>
+      </div></div>
+    </div>
+
+    <div id="brandSource" class="srcPane" style="display:none">
+      <div class="panel" id="brandBlock"><div class="panel-head"><span class="ico">🎨</span><span class="ttl">Documento de marca</span></div><div class="panel-body">
+        <div class="hint help">Kelvara, NeuroStat, DRE e Ødemark A. com o visual exato dos mockups, prontos pra imprimir em duplex (frente e verso). A arte é travada; todo o texto continua editável (duplo clique).</div>
+        <label>Organização</label>
+        <select id="brandFamily"></select>
+        <label>Documento</label>
+        <select id="brandDoc"></select>
+        <button id="btnBrandLoad" class="primary">Carregar documento (apaga o atual)</button>
+        <div id="brandStatus"></div>
+        <div id="brandActive" style="display:none">
+          <label>Lado da folha</label>
+          <div id="sideBtnRow" class="toolgrid"></div>
+          <div class="grid2">
+            <button id="btnBrandPageAdd">+ Página</button>
+            <button id="btnBrandPageDel" class="danger">🗑 Apagar página</button>
+          </div>
+          <div class="hint help">Cada lado guarda as próprias edições e o próprio desfazer/refazer. Clique numa foto no documento e vá na aba Objeto pra trocar. "+ Página" acrescenta uma folha extra em branco (papel liso, sem a arte do mockup — só os lados originais têm); "Apagar página" só funciona nessas páginas extras. Pra baixar, use a aba Salvar: ela baixa todas as páginas do documento de marca.</div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- ============ ADICIONAR: tudo que entra por cima do documento ============ -->
+  <div class="tabPanel" data-tab-panel="add">
+    <div class="panel"><div class="panel-head"><span class="ico">📝</span><span class="ttl">Texto</span></div><div class="panel-body">
+      <div class="iconGrid">
+        <button id="btnAddText" class="iconBtn"><span class="ico">📝</span><span>Texto</span></button>
+        <button id="btnAddHandwritten" class="iconBtn"><span class="ico">✎</span><span>Manuscrito</span></button>
+        <button id="btnAddRedacted" class="iconBtn"><span class="ico">▬</span><span>Censurado</span></button>
+        <button id="btnAddNewsBox" class="iconBtn"><span class="ico">📰</span><span>Caixa de jornal</span></button>
       </div>
-      <div id="paperPhotoOnly" style="display:none">
-        <label>Foto</label>
-        <select id="paperPhotoCat"></select>
-      </div>
-      <div class="hint">Intensidade 0 = papel liso 100% digital. Textura de papel só aparece embaixo; mancha, carimbo e foto entram por cima (aba Adicionar). A atmosfera muda cor, borda e sujeira juntas.</div>
-      <div class="hint" id="paperHint"></div>
     </div></div>
 
-    <div class="panel" id="newsLayoutBlock" style="display:none"><div class="panel-head"><span class="ico">📰</span><span class="ttl">Layout do jornal</span></div><div class="panel-body">
-      <div class="hint">Cada layout já vem completo (matérias, foto, índice, anúncios). Trocar de layout mantém o texto e as fotos que você editou, na página em que você está. Os layouts de página interna são os mesmos do "Tipo da nova página" (bloco Documento): adicione uma página já no tipo que quer, ou troque o layout daqui depois. O papel (digital ou foto) fica no bloco Papel.</div>
-      <label>Capa</label>
-      <div class="toolgrid" id="newsPresetRow"></div>
-      <label>Páginas internas</label>
-      <div class="toolgrid" id="newsPresetRowInner"></div>
-      <label>Título do jornal</label>
-      <select id="newsMast"><option value="gothic">Letra gótica</option><option value="serif">Serifado (jornal local)</option></select>
-      <label class="inline"><input type="checkbox" id="newsJustify"> Justificar as colunas</label>
-      <button id="btnNewsReflow" class="ghost">↻ Reajustar texto (refaz o layout)</button>
-      <button id="btnNewsBoxHere">📰 + Caixa de jornal</button>
-      <div class="hint">Depois de editar um texto, "Reajustar" recalcula alturas e colunas. Objetos que você adicionou à mão não são tocados.</div>
+    <div class="panel"><div class="panel-head"><span class="ico">🔖</span><span class="ttl">Carimbos, selos e códigos</span></div><div class="panel-body">
+      <div class="iconGrid">
+        <button id="btnAddStamp" class="iconBtn"><span class="ico">🔖</span><span>Carimbo</span></button>
+        <button id="btnAddWatermark" class="iconBtn"><span class="ico">💧</span><span>Marca d'água</span></button>
+        <button id="btnAddBarcode" class="iconBtn"><span class="ico">▮</span><span>Código de barras</span></button>
+      </div>
+      <label>Emblema (logo da plataforma e afins)</label>
+      <select id="emKind"></select>
+      <select id="emVariant"></select>
+      <div class="grid2"><input type="color" id="emColor" value="#1b1a18" title="Cor da tinta (versões de uma cor)"><button id="btnAddEmblem">＋ Inserir emblema</button></div>
+      <div class="hint help">O selo Ødemark A. é o logo da plataforma, em versões limpas (sem textura de bordado): cor, tinta, negativo, carimbo de borracha, relevo seco e ouro. O abeto não é logo da plataforma: fica aqui só como peça inserível pro próximo RPG. Depois de inserido, arraste, gire e mude a versão na aba Objeto.</div>
     </div></div>
 
+    <div class="panel"><div class="panel-head"><span class="ico">🖼</span><span class="ttl">Imagens e manchas</span></div><div class="panel-body">
+      <div class="iconGrid">
+        <button id="btnAddPhotoPlaceholder" class="iconBtn"><span class="ico">🖼</span><span>Foto (exemplo)</span></button>
+        <button id="btnPickImage" class="iconBtn"><span class="ico">📂</span><span>Imagem do arquivo</span></button>
+      </div>
+      <input type="file" id="fileAddImage" accept="image/*" style="display:none">
+      <div class="hint">Também dá pra arrastar uma imagem direto pro documento.</div>
+      <label>Manchas (por cima do papel)</label>
+      <div class="toolgrid">
+        <button id="btnStainWater">💧 Água</button>
+        <button id="btnStainCoffee">☕ Café</button>
+        <button id="btnStainBlood">🟤 Ferrugem/sangue</button>
+        <button id="btnStainMold">🍂 Mofo</button>
+      </div>
+    </div></div>
+
+    <div class="panel"><div class="panel-head"><span class="ico">▭</span><span class="ttl">Diagrama de rede</span></div><div class="panel-body">
+      <div class="iconGrid">
+        <button id="btnAddNetNode" class="iconBtn netLinkModeBtn"><span class="ico">▭</span><span>Nó de rede</span></button>
+      </div>
+      <div class="hint help">Clique no botão, depois clique no documento onde quer colocar. Duplo clique no rótulo edita, arraste pra mover. Pra ligar dois nós, arraste do pontinho laranja na borda de um até o outro.</div>
+    </div></div>
+  </div>
+
+  <!-- ============ OBJETO: camadas + o que está selecionado, juntos ============ -->
+  <div class="tabPanel" data-tab-panel="object">
+    <div class="panel"><div class="panel-head"><span class="ico">🗂</span><span class="ttl">Camadas</span></div><div class="panel-body">
+      <div id="layerList"></div>
+      <div class="hint help">Clique pra selecionar. Duplo clique no nome pra renomear. 🔓/🔒 trava, 👁/🙈 esconde (sem apagar). Desfazer e refazer ficam na barra de cima.</div>
+    </div></div>
+    <div id="inspectorEmpty" class="hint emptyHint">Nada selecionado. Clique num objeto no documento (ou numa camada acima) pra ajustar texto, fonte, cor, filtros e mais.</div>
+    <div class="panel" id="inspector"><div class="panel-head"><span class="ico">🎯</span><span class="ttl">Objeto selecionado</span></div><div class="panel-body">
+      <div id="inspectorBody"></div>
+    </div></div>
+  </div>
+
+  <!-- ============ SALVAR: exportar e guardar ============ -->
+  <div class="tabPanel" data-tab-panel="save">
     <div class="panel"><div class="panel-head"><span class="ico">⭳</span><span class="ttl">Exportar</span></div><div class="panel-body">
       <select id="exportScale">
         <option value="1">Tela / digitalizado (1240×1754)</option>
@@ -293,11 +400,11 @@
       <button id="btnExport" class="primary">⭳ Baixar PNG</button>
       <button id="btnExportPDF">⭳ Baixar PDF (todas as páginas)</button>
       <button id="btnExportText">📝 Baixar texto (editar fora, tipo Google Docs)</button>
-      <div class="hint">Baixa um .txt com todo o texto do documento (todas as páginas), organizado por seção. Suba no Google Drive e abra — ele converte pra Docs sozinho. Edite lá e cole de volta aqui na mão depois.</div>
+      <div class="hint help">Vale pra modelos e pra documentos de marca (todas as páginas). O PNG sai com o DPI certo pro tamanho físico real; PNG separado é pra duplex, o PDF já vem tudo num arquivo só. O texto sai num .txt por seção: suba no Google Drive e ele converte pra Docs sozinho; edite lá e cole de volta aqui na mão depois.</div>
     </div></div>
 
     <div class="panel" id="saveBlock"><div class="panel-head"><span class="ico">💾</span><span class="ttl">Meus documentos</span></div><div class="panel-body">
-      <div class="hint">Salva o documento inteiro (todas as páginas) pra abrir e corrigir depois. Vai pro site (Firebase); se o site não responder, fica neste navegador. O arquivo .json é backup que não depende de nada.</div>
+      <div class="hint help">Salva o documento inteiro (todas as páginas) pra abrir e corrigir depois. Vai pro site (Firebase); se o site não responder, fica neste navegador. O arquivo .json é backup que não depende de nada. Documentos de marca ainda não entram aqui.</div>
       <label>Nome do documento</label>
       <input type="text" id="docName" placeholder="ex: Jornal edição 118">
       <button id="btnSaveDoc" class="primary">💾 Salvar no site</button>
@@ -309,101 +416,25 @@
       <div id="saveStatus" class="hint"></div>
       <details class="filterSection" id="saveRulesHelp">
         <summary>Como liberar o salvamento no site (uma vez só)</summary>
-        <div class="hint">No console do Firebase: projeto deserto-terminal → Realtime Database → aba Regras. Dentro de "rules" (junto de "sessions"), acrescente os dois blocos abaixo e clique em Publicar:</div>
+        <div class="hint help">No console do Firebase: projeto deserto-terminal → Realtime Database → aba Regras. Dentro de "rules" (junto de "sessions"), acrescente os dois blocos abaixo e clique em Publicar:</div>
         <pre style="white-space:pre-wrap;font-size:10.5px;color:#c7cdd6;background:#0f1115;border:1px solid #2b2f38;border-radius:4px;padding:8px;margin:6px 0 0">"props_docs": { ".read": "auth != null", ".write": "auth != null" },
 "props_docs_index": { ".read": "auth != null", ".write": "auth != null" }</pre>
       </details>
       <button id="btnRefreshDocs" class="ghost">↻ Atualizar lista</button>
       <div id="docList" class="hint">Clique em "Atualizar lista" pra ver o que está salvo (site e este navegador).</div>
     </div></div>
-
-    <div id="status" style="font-size:10.5px;color:#6a7080;white-space:pre-line"></div>
   </div>
 
-  <div class="tabPanel" data-tab-panel="brand">
-    <div class="panel" id="brandBlock"><div class="panel-head"><span class="ico">🎨</span><span class="ttl">Documentos de marca</span></div><div class="panel-body">
-      <div class="hint">Kelvara, NeuroStat, DRE e Ødemark com o visual exato dos mockups, prontos pra imprimir em duplex (frente e verso). A arte é travada; todo o texto continua editável (duplo clique).</div>
-      <label>Organização</label>
-      <select id="brandFamily"></select>
-      <label>Documento</label>
-      <select id="brandDoc"></select>
-      <button id="btnBrandLoad" class="primary">Carregar documento (apaga o atual)</button>
-      <div id="brandStatus"></div>
-      <div id="brandActive" style="display:none">
-        <label>Lado da folha</label>
-        <div id="sideBtnRow" class="toolgrid"></div>
-        <div class="grid2">
-          <button id="btnBrandPageAdd">+ Página</button>
-          <button id="btnBrandPageDel" class="danger">🗑 Apagar página</button>
-        </div>
-        <div class="hint">Cada lado guarda as próprias edições e o próprio desfazer/refazer. Clique numa foto no documento e vá na aba Objeto pra trocar — funciona igual aos outros templates. "+ Página" acrescenta uma folha extra em branco (papel liso, sem a arte do mockup — só os lados originais têm); "Apagar página" só funciona nessas páginas extras, os lados originais do documento não saem.</div>
-        <button id="btnBrandExportBoth" class="primary">⭳ Baixar PNG</button>
-        <button id="btnBrandExportPDF">⭳ Baixar PDF (todas as páginas)</button>
-        <button id="btnBrandExportText">📝 Baixar texto (editar fora, tipo Google Docs)</button>
-        <div class="hint">Usa a resolução escolhida em Documento → Exportar, já com o DPI certo pra sair no tamanho físico real. PNG separado é pra duplex (imprima cada página no mesmo papel ou vire a folha); PDF já vem tudo num arquivo só. O texto sai num .txt com todos os lados — suba no Drive, ele converte pra Docs sozinho.</div>
-      </div>
-    </div></div>
-
-  </div>
-
+  <!-- ============ LORE: consulta ============ -->
   <div class="tabPanel" data-tab-panel="lore">
     <div class="panel"><div class="panel-head"><span class="ico">📖</span><span class="ttl">Referência rápida — todas as organizações</span></div><div class="panel-body">
-      <div class="hint">Independente de qual documento você vai carregar na aba Marcas — consulta aqui sem mexer em nada lá. Cada organização é uma seção própria, clique pra abrir.</div>
+      <div class="hint help">Independente de qual documento está aberto: consulta aqui sem mexer em nada. Cada organização é uma seção própria, clique pra abrir.</div>
       <div id="loreAllRef"></div>
     </div></div>
 
     <div class="panel"><div class="panel-head"><span class="ico">🌌</span><span class="ttl">Cosmologia / Mythos (geral)</span></div><div class="panel-body">
-      <div class="hint">Não é de nenhuma organização específica — é o pano de fundo que vale pra qualquer documento. Tudo aqui é spoiler, só pro GM.</div>
+      <div class="hint help">Não é de nenhuma organização específica — é o pano de fundo que vale pra qualquer documento. Tudo aqui é spoiler, só pro GM.</div>
       <div id="mythosRef"></div>
-    </div></div>
-  </div>
-
-  <div class="tabPanel" data-tab-panel="add">
-    <div class="panel"><div class="panel-head"><span class="ico">➕</span><span class="ttl">Adicionar</span></div><div class="panel-body">
-      <div class="iconGrid">
-        <button id="btnAddText" class="iconBtn"><span class="ico">📝</span><span>Texto</span></button>
-        <button id="btnAddHandwritten" class="iconBtn"><span class="ico">✎</span><span>Manuscrito</span></button>
-        <button id="btnAddRedacted" class="iconBtn"><span class="ico">▬</span><span>Censurado</span></button>
-        <button id="btnAddStamp" class="iconBtn"><span class="ico">🔖</span><span>Carimbo</span></button>
-        <button id="btnAddWatermark" class="iconBtn"><span class="ico">💧</span><span>Marca d'água</span></button>
-        <button id="btnAddBarcode" class="iconBtn"><span class="ico">▮</span><span>Código de barras</span></button>
-        <button id="btnAddPhotoPlaceholder" class="iconBtn"><span class="ico">🖼</span><span>Foto</span></button>
-        <button id="btnAddNewsBox" class="iconBtn"><span class="ico">📰</span><span>Caixa de jornal</span></button>
-        <button id="btnAddNetNode" class="iconBtn netLinkModeBtn"><span class="ico">▭</span><span>Nó de rede</span></button>
-      </div>
-      <div class="hint">Nó de rede: clique no botão, depois clique no canvas onde quer colocar. Duplo clique no rótulo edita, arraste pra mover. Pra ligar dois nós, arraste do pontinho laranja na borda de um até o outro.</div>
-      <label>Manchas (por cima do papel)</label>
-      <div class="toolgrid">
-        <button id="btnStainWater">💧 Água</button>
-        <button id="btnStainCoffee">☕ Café</button>
-        <button id="btnStainBlood">🟤 Ferrugem/sangue</button>
-        <button id="btnStainMold">🍂 Mofo</button>
-      </div>
-      <label>Emblemas (logo da plataforma e afins)</label>
-      <select id="emKind"></select>
-      <select id="emVariant"></select>
-      <div class="grid2"><input type="color" id="emColor" value="#1b1a18" title="Cor da tinta (versões de uma cor)"><button id="btnAddEmblem">＋ Inserir emblema</button></div>
-      <div class="hint">O selo Ødemark A. é o logo da plataforma, em versões limpas (sem textura de bordado): cor, tinta, negativo, carimbo de borracha, relevo seco e ouro. O abeto não é logo da plataforma: fica aqui só como peça inserível pro próximo RPG. Depois de inserido, arraste, gire e mude a versão na aba Objeto.</div>
-      <label>Imagem (arquivo local)</label>
-      <input type="file" id="fileAddImage" accept="image/*">
-      <div class="hint">Também dá pra arrastar uma imagem direto pro canvas.</div>
-    </div></div>
-  </div>
-
-  <div class="tabPanel" data-tab-panel="layers">
-    <div class="panel"><div class="panel-head"><span class="ico">🗂</span><span class="ttl">Camadas</span></div><div class="panel-body">
-      <div id="layerList"></div>
-      <div class="hint">Clique pra selecionar (pula pra aba Objeto sozinho). Duplo clique no nome pra renomear. 🔓/🔒 trava, 👁/🙈 esconde (sem apagar).</div>
-      <div class="grid2">
-        <button id="btnUndo" title="Ctrl+Z">↶ Desfazer</button>
-        <button id="btnRedo" title="Ctrl+Shift+Z">↷ Refazer</button>
-      </div>
-    </div></div>
-  </div>
-
-  <div class="tabPanel" data-tab-panel="object">
-    <div class="panel" id="inspector"><div class="panel-head"><span class="ico">🎯</span><span class="ttl">Objeto selecionado</span></div><div class="panel-body">
-      <div id="inspectorBody"></div>
     </div></div>
   </div>
 
@@ -414,16 +445,36 @@
 </div>
 
 <div id="main">
-  <div class="zoomrow">
-    <span>Zoom:</span>
-    <button data-z="0.4">40%</button>
-    <button data-z="0.55">55%</button>
-    <button data-z="0.75">75%</button>
-    <button data-z="1">100%</button>
-    <button id="btnZoomFit" title="Ajusta o zoom pra caber a seleção (ou a página inteira, se nada selecionado)">⤢ Ajustar</button>
+  <div id="topbar">
+    <div class="tbGroup">
+      <button id="btnUndo" title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
+      <button id="btnRedo" title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button>
+    </div>
+    <div class="tbGroup zoomrow">
+      <button id="btnZoomOut" title="Diminuir (Ctrl −)">−</button>
+      <select id="zoomSel" title="Zoom">
+        <option value="0.25">25%</option>
+        <option value="0.5">50%</option>
+        <option value="0.75">75%</option>
+        <option value="1">100%</option>
+        <option value="1.5">150%</option>
+        <option value="2">200%</option>
+        <option value="3">300%</option>
+      </select>
+      <button id="btnZoomIn" title="Aumentar (Ctrl +)">+</button>
+      <button id="btnZoomPage" title="Página inteira na tela (Ctrl+0)">⤢ Página</button>
+      <button id="btnZoomWidth" title="Página na largura da tela">↔ Largura</button>
+      <button id="btnZoomFit" title="Aproxima na seleção">◎ Seleção</button>
+    </div>
+    <div class="tbGroup tbRight">
+      <span class="tbHint">Ctrl+roda: zoom · Espaço+arrastar: mover</span>
+      <button id="btnQuickPNG" class="primary" title="Baixa o PNG com as opções da aba Salvar">⭳ PNG</button>
+    </div>
   </div>
-  <div id="canvasWrap">
-    <canvas id="editorCanvas"></canvas>
+  <div id="stage">
+    <div id="canvasWrap">
+      <canvas id="editorCanvas"></canvas>
+    </div>
   </div>
 </div>
 
@@ -445,34 +496,35 @@
   </div>
 </div>
 
-<script src="handwriting.js?v=f2-03"></script>
-<script src="filters.js?v=f2-03"></script>
-<script src="filter-panel.js?v=f2-03"></script>
-<script src="composites.js?v=f2-03"></script>
-<script src="network-diagram.js?v=f2-03"></script>
-<script src="layout.js?v=f2-03"></script>
-<script src="paper-gen.js?v=f2-03"></script>
-<script src="proc-art.js?v=f2-03"></script>
-<script src="emblem.js?v=f2-03"></script>
-<script src="doc-kit.js?v=f2-03"></script>
-<script src="doc-templates.js?v=f2-03"></script>
-<script src="doc-menus.js?v=f2-03"></script>
-<script src="doc-menus2.js?v=f2-03"></script>
-<script src="doc-papers.js?v=f2-03"></script>
-<script src="news-text.js?v=f2-03"></script>
-<script src="news-engine.js?v=f2-03"></script>
-<script src="doc-pages.js?v=f2-03"></script>
-<script src="doc-pages-menus.js?v=f2-03"></script>
-<script src="doc-screens-kit.js?v=f2-03"></script>
-<script src="doc-screens.js?v=f2-03"></script>
-<script src="doc-screens-badge.js?v=f2-03"></script>
-<script src="doc-screens-chat.js?v=f2-03"></script>
-<script src="doc-screens-mail.js?v=f2-03"></script>
-<script src="doc-screens-oe.js?v=f2-03"></script>
-<script src="scene-stack.js?v=f2-03"></script>
-<script src="ui-kit.js?v=f2-03"></script>
-<script src="editor.js?v=f2-03"></script>
-<script src="brand.js?v=f2-03"></script>
-<script src="save-docs.js?v=f2-03"></script>
+<script src="handwriting.js?v=f3-01"></script>
+<script src="filters.js?v=f3-01"></script>
+<script src="filter-panel.js?v=f3-01"></script>
+<script src="composites.js?v=f3-01"></script>
+<script src="network-diagram.js?v=f3-01"></script>
+<script src="layout.js?v=f3-01"></script>
+<script src="paper-gen.js?v=f3-01"></script>
+<script src="proc-art.js?v=f3-01"></script>
+<script src="emblem.js?v=f3-01"></script>
+<script src="doc-kit.js?v=f3-01"></script>
+<script src="doc-templates.js?v=f3-01"></script>
+<script src="doc-menus.js?v=f3-01"></script>
+<script src="doc-menus2.js?v=f3-01"></script>
+<script src="doc-papers.js?v=f3-01"></script>
+<script src="news-text.js?v=f3-01"></script>
+<script src="news-engine.js?v=f3-01"></script>
+<script src="doc-pages.js?v=f3-01"></script>
+<script src="doc-pages-menus.js?v=f3-01"></script>
+<script src="doc-screens-kit.js?v=f3-01"></script>
+<script src="doc-screens.js?v=f3-01"></script>
+<script src="doc-screens-badge.js?v=f3-01"></script>
+<script src="doc-screens-chat.js?v=f3-01"></script>
+<script src="doc-screens-mail.js?v=f3-01"></script>
+<script src="doc-screens-oe.js?v=f3-01"></script>
+<script src="scene-stack.js?v=f3-01"></script>
+<script src="ui-kit.js?v=f3-01"></script>
+<script src="view-controls.js?v=f3-01"></script>
+<script src="editor.js?v=f3-01"></script>
+<script src="brand.js?v=f3-01"></script>
+<script src="save-docs.js?v=f3-01"></script>
 </body>
 </html>

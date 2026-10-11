@@ -267,17 +267,7 @@ function applyAlignmentSnap(e){
   __guideV.set(snapXAt!==null ? {x1:snapXAt, y1:-50, x2:snapXAt, y2:PAGE_H+50, visible:true} : {visible:false});
   __guideH.set(snapYAt!==null ? {x1:-50, y1:snapYAt, x2:PAGE_W+50, y2:snapYAt, visible:true} : {visible:false});
 }
-function setZoom(z){
-  const el = document.getElementById('editorCanvas');
-  el.parentElement.style.width = (PAGE_W*z)+'px';
-  el.parentElement.style.height = (PAGE_H*z)+'px';
-  canvas.setZoom(z);
-  canvas.setDimensions({width:PAGE_W*z, height:PAGE_H*z});
-}
-document.querySelectorAll('.zoomrow button[data-z]').forEach(b=>{
-  b.addEventListener('click', ()=>setZoom(+b.dataset.z));
-});
-document.getElementById('btnZoomFit').addEventListener('click', zoomToFit);
+/* Zoom, mover a página e ajustes de tela: view-controls.js (setZoom, fitPage, zoomToFit...). */
 
 /* ---- tamanho de página por template: cada formato de documento tem sua
    proporção física real (folha A4 retrato, página dupla de livro aberto em
@@ -309,8 +299,9 @@ function settleFonts(){
 document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', ()=>settleFonts());
 function applyPageSize(name){
   const [w,h] = (typeof DOC_TEMPLATES!=='undefined' && DOC_TEMPLATES[name] && DOC_TEMPLATES[name].page) || PAGE_SIZES[name] || PAGE_SIZES.blank;
+  const changed = PAGE_W!==w || PAGE_H!==h;
   PAGE_W = w; PAGE_H = h;
-  setZoom(canvas.getZoom());
+  if (changed && zoomMode!=='manual') fitPage(); else setZoom(canvas.getZoom());
   updateExportLabels();
 }
 function updateExportLabels(){
@@ -798,10 +789,12 @@ async function loadTemplate(name, opts){
   return withSceneLock(async ()=>{
     if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
     currentTemplate = name;
+    const tsel = document.getElementById('templateSel'); if (tsel && [...tsel.options].some(o=>o.value===name)) tsel.value = name;   // o seletor acompanha o modelo aberto, por qualquer caminho
     await sceneSwitchTo({}, { buildFresh: ()=>loadTemplateBody(name, opts) });
     PAGES = [pageSnapshot()];
     curPageIdx = 0;
     docDirty = false;
+    setSource('models'); fitPage();   // documento novo: página inteira na tela
     updatePageNavUI();
   });
 }
@@ -845,8 +838,9 @@ function pageSaveCurrent(){
 }
 function applyPageSceneFields(scene){
   currentTemplate = scene.template;
+  const changed = PAGE_W!==scene.pageW || PAGE_H!==scene.pageH;
   PAGE_W = scene.pageW; PAGE_H = scene.pageH;
-  setZoom(canvas.getZoom());
+  if (changed && zoomMode!=='manual') fitPage(); else setZoom(canvas.getZoom());
   updateExportLabels();
 }
 function updatePageNavUI(){
@@ -1685,28 +1679,6 @@ function distributeSelection(axis){
   pushHistory();
 }
 
-/* ---- Zoom-to-fit / zoom-to-seleção: um botão só, contextual — ajusta pra caber a
-   SELEÇÃO ativa se houver uma, senão a página inteira. Calcula a partir do espaço
-   visível de #main (menos a .zoomrow e um respiro), não tenta centralizar o scroll
-   (a composição de flexbox centralizado + scroll overflow de #main não dá pra
-   resolver com uma conta simples de scrollLeft/Top sem arriscar errar em algum
-   caso — o zoom certo já resolve a maior parte do uso real). */
-function zoomToFit(){
-  const main = document.getElementById('main');
-  const zoomrow = document.querySelector('.zoomrow');
-  const active = canvas.getActiveObject();
-  let w = PAGE_W, h = PAGE_H;
-  if (active && active!==cropRect){
-    const r = active.getBoundingRect();
-    w = r.width; h = r.height;
-  }
-  const PAD = 44;
-  const availW = Math.max(100, main.clientWidth - PAD);
-  const availH = Math.max(100, main.clientHeight - (zoomrow?zoomrow.offsetHeight:0) - PAD);
-  const z = Math.max(0.05, Math.min(2, Math.min(availW/w, availH/h)));
-  setZoom(z);
-}
-
 const NUDGE_STEP = 1, NUDGE_STEP_SHIFT = 10;
 document.addEventListener('keydown', e=>{
   if (!document.getElementById('editorModal').hidden){
@@ -1777,7 +1749,9 @@ function updateInspector(){
   const panel = document.getElementById('inspector');
   const body = document.getElementById('inspectorBody');
   renderLayerList();
-  if (!obj || obj===cropRect){ panel.classList.remove('show'); body.innerHTML=''; return; }
+  const emptyHint = document.getElementById('inspectorEmpty');
+  if (!obj || obj===cropRect){ panel.classList.remove('show'); body.innerHTML=''; if (emptyHint) emptyHint.style.display = 'block'; return; }
+  if (emptyHint) emptyHint.style.display = 'none';
   panel.classList.add('show');
   body.innerHTML = '';
   switchTab('object'); // seleção pula sozinho pra aba Objeto — não precisa rolar até achar
@@ -2156,6 +2130,7 @@ function populateTemplateSelect(){
 }
 function exportPaperModeValue(){ const s = document.getElementById('exportPaperMode'); return s ? s.value : 'textura'; }
 document.getElementById('btnExport').addEventListener('click', ()=>{
+  if (typeof BRAND!=='undefined' && BRAND.cur){ brandExportAll(+document.getElementById('exportScale').value).catch(err=>alert(err.message)); return; }
   try {
     const mult = +document.getElementById('exportScale').value;
     canvas.discardActiveObject(); canvas.renderAll();
@@ -2169,8 +2144,11 @@ document.getElementById('btnExport').addEventListener('click', ()=>{
     document.body.removeChild(a);
   } catch (err){ console.error(err); alert('Não consegui exportar o PNG: ' + (err && err.message || err)); }
 });
-document.getElementById('btnExportPDF').addEventListener('click', ()=>exportPagesPDF().catch(e=>alert(e.message)));
-document.getElementById('btnExportText').addEventListener('click', exportTextForDocs);
+document.getElementById('btnExportPDF').addEventListener('click', ()=>{
+  if (typeof BRAND!=='undefined' && BRAND.cur) brandExportPDF(+document.getElementById('exportScale').value).catch(e=>alert(e.message));
+  else exportPagesPDF().catch(e=>alert(e.message));
+});
+document.getElementById('btnExportText').addEventListener('click', ()=>{ if (typeof BRAND!=='undefined' && BRAND.cur) brandExportText(); else exportTextForDocs(); });
 
 /* ===================== Init ===================== */
 document.fonts.ready.then(()=>{

@@ -349,6 +349,7 @@ async function loadBrandDoc(docId, side){
     BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}, extraSides: []};
     PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
     docDirty = false;
+    fitPage();
     renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
   });
 }
@@ -556,13 +557,20 @@ function brandUpdateUI(){
   brandRenderSideButtons();
   if (!c){
     const status = document.getElementById('brandStatus'); if (status) status.textContent = '';
+    brandSyncExportLabel();
     return;
   }
   const allSides = brandAllSides(c);
   const status = document.getElementById('brandStatus');
   if (status) status.textContent = `${c.meta.familyLabel} — ${c.meta.label} · ${brandSideLabel(allSides, allSides.indexOf(c.side)).toUpperCase()}${allSides.length < 2 ? ' (documento de uma face só)' : ''}`;
-  const btnAll = document.getElementById('btnBrandExportBoth');
-  if (btnAll) btnAll.textContent = allSides.length > 1 ? `⭳ Baixar todas as ${allSides.length} páginas (${allSides.length} PNGs)` : '⭳ Baixar PNG';
+  if (typeof setSource === 'function') setSource('brand');
+  brandSyncExportLabel();
+}
+/* O botão Baixar PNG da aba Salvar serve aos dois tipos de documento: no de marca baixa todas as páginas. */
+function brandSyncExportLabel(){
+  const be = document.getElementById('btnExport'); if (!be) return;
+  const c = BRAND.cur, n = c ? brandAllSides(c).length : 1;
+  be.textContent = n > 1 ? `⭳ Baixar todas as ${n} páginas (${n} PNGs)` : '⭳ Baixar PNG';
 }
 /* ---------- Referência rápida de lore (pedido do Max: "lembrete de nomenclaturas e lore
    na lateral pra eu ter tudo das famílias e organizações em fácil acesso") — só o que já
@@ -702,11 +710,8 @@ function renderMythosRef(){
     const btn = document.getElementById('btnBrandLoad'); btn.disabled = true;
     loadBrandDoc(doc.value, 'front').catch(e=>alert(e.message)).finally(()=>{ btn.disabled = false; });
   });
-  document.getElementById('btnBrandExportBoth').addEventListener('click', ()=>brandExportAll(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
-  document.getElementById('btnBrandExportPDF').addEventListener('click', ()=>brandExportPDF(+document.getElementById('exportScale').value).catch(e=>alert(e.message)));
   document.getElementById('btnBrandPageAdd').addEventListener('click', ()=>brandAddPage().catch(e=>alert(e.message)));
   document.getElementById('btnBrandPageDel').addEventListener('click', ()=>brandDeletePage().catch(e=>alert(e.message)));
-  document.getElementById('btnBrandExportText').addEventListener('click', brandExportText);
   renderMythosRef();
   renderAllLoreRef();
   brandUpdateUI();

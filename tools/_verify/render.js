@@ -5,6 +5,8 @@
      node tools/_verify/render.js templates <pasta> [mult] [id ...]
         -> abre props-generator.html, pra cada modelo faz loadTemplate(id) e exporta PNG (multiplicador mult,
            padrão 1) + relatório do DocKit.lint (se existir) em <pasta>/<id>.png e <pasta>/lint.json.
+     node tools/_verify/render.js page <arquivo.js|-> <saida.png> [largura altura]
+        -> abre o props-generator, roda o script (opcional) e captura a JANELA inteira (barra lateral + documento).
      node tools/_verify/render.js eval <arquivo.js> [url]
         -> abre a página (padrão props-generator.html), roda o arquivo JS (async) e imprime o retorno.
    O servidor local (tools/_verify/serve.py, porta 8000) precisa estar rodando.
@@ -153,6 +155,22 @@ async function cmdEval(file, url) {
   } finally { cleanup(c); }
 }
 
+/* page: abre o props-generator, roda um script (opcional) e tira captura da JANELA (barra lateral + documento). */
+async function cmdPage(file, out, w = 1500, h = 950) {
+  const c = await launch(w, h);
+  try {
+    await open(c, BASE + 'props-generator.html?cb=' + Date.now());
+    await waitFor(c, process.env.READY || "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3 && !sceneBusy", 90000);
+    await sleep(600);
+    if (file && file !== '-') { const o = await evalJS(c, '(async()=>{' + fs.readFileSync(file, 'utf8') + '})()'); if (o !== undefined) console.log(JSON.stringify(o)); }
+    await sleep(700);
+    const r = await c.send('Page.captureScreenshot', { format: 'png' });
+    fs.mkdirSync(path.dirname(out), { recursive: true });
+    fs.writeFileSync(out, Buffer.from(r.data, 'base64'));
+    console.log('ok', out);
+  } finally { cleanup(c); }
+}
+
 /* Vigia: se o script passar de TIMEOUT_S (padrão 240 s), mata o Edge e apaga o perfil antes de sair
    (um Edge pendurado deixa ~120 MB de perfil e processos vivos). */
 const __wd = setTimeout(() => { console.error('TIMEOUT: passou de ' + (process.env.TIMEOUT_S || 240) + ' s'); if (global.__cur) cleanup(global.__cur); process.exit(3); }, (+process.env.TIMEOUT_S || 240) * 1000);
@@ -161,6 +179,7 @@ const __wd = setTimeout(() => { console.error('TIMEOUT: passou de ' + (process.e
   if (cmd === 'shot') await cmdShot(a[0], a[1], a[2] ? +a[2] : undefined, a[3] ? +a[3] : undefined, a[4]);
   else if (cmd === 'templates') await cmdTemplates(a[0], a[1] ? +a[1] : 1, a.slice(2));
   else if (cmd === 'eval') await cmdEval(a[0], a[1]);
+  else if (cmd === 'page') await cmdPage(a[0], a[1], a[2] ? +a[2] : undefined, a[3] ? +a[3] : undefined);
   else console.log('uso: render.js shot|templates|eval ...');
   clearTimeout(__wd); process.exit(0);
 })().catch((e) => { console.error('FALHOU', e.message); process.exit(1); });
