@@ -84,9 +84,17 @@ const HISTORY_LIMIT = 40;
    e ao salvar. Só serve pra avisar antes de fechar a aba (um F5 sem querer apagava horas de trabalho em silêncio). */
 let docDirty = false;
 window.addEventListener('beforeunload', ev=>{ if (docDirty){ ev.preventDefault(); ev.returnValue = ''; } });
+/* Toda mudança feita pelo usuário passa por aqui: conta uma "versão" (docChangeSeq) e avisa o salvar sozinho e o rascunho (save-docs.js).
+   docDirty só volta a false quando o rascunho ou o salvamento realmente gravou — só então fechar a aba é seguro. */
+let docChangeSeq = 0;
+function docEdited(){
+  docChangeSeq++; docDirty = true;
+  if (typeof autoNote === 'function') autoNote();
+  if (typeof draftNote === 'function') draftNote();
+}
 function pushHistory(){
   if (restoringHistory) return;
-  docDirty = true;
+  docEdited();
   const snap = histSnapshot(canvas, HISTORY_PROPS);   // fotos grandes entram só uma vez (hist-images.js)
   history = history.slice(0, historyIndex+1);
   history.push(snap);
@@ -322,6 +330,7 @@ function updateExportLabels(){
 function switchTab(name){
   document.querySelectorAll('.tabBtn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.querySelectorAll('.tabPanel').forEach(p=>{ p.style.display = (p.dataset.tabPanel===name) ? 'flex' : 'none'; });
+  if (name==='save' && typeof saveListShown==='function') saveListShown();
 }
 document.querySelectorAll('.tabBtn').forEach(b=>{
   b.addEventListener('click', ()=>switchTab(b.dataset.tab));
@@ -787,15 +796,17 @@ function clearDoc(){
 
 async function loadTemplate(name, opts){
   return withSceneLock(async ()=>{
+    // documento novo: o anterior já foi salvo sozinho (se mexeram nele); trocar só o ESTILO do mesmo documento (keepDoc) continua sendo ele
+    if (!(opts && opts.keepDoc) && typeof autoFlush==='function'){ await autoFlush(); docNewIdentity(); }
     if (typeof brandOnLeave==='function') brandOnLeave(); // sai do modo "documento de marca" (frente/verso)
     currentTemplate = name;
     const tsel = document.getElementById('templateSel'); if (tsel && [...tsel.options].some(o=>o.value===name)) tsel.value = name;   // o seletor acompanha o modelo aberto, por qualquer caminho
     await sceneSwitchTo({}, { buildFresh: ()=>loadTemplateBody(name, opts) });
     PAGES = [pageSnapshot()];
     curPageIdx = 0;
-    docDirty = false;
     setSource('models'); fitPage();   // documento novo: página inteira na tela
     updatePageNavUI();
+    if (opts && opts.keepDoc) docEdited(); else if (typeof docLoaded==='function') docLoaded(); else docDirty = false;
   });
 }
 /* clearDoc() não roda mais aqui dentro — o único chamador (loadTemplate, acima) já passa
@@ -866,6 +877,7 @@ async function pageGo(idx){
     });
     curPageIdx = idx;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+    if (typeof draftNote==='function') draftNote();   // a página aberta faz parte do rascunho
   });
 }
 /* Nova página em branco no MESMO documento: repete o fundo (mesma categoria de papel —
@@ -930,6 +942,7 @@ async function pageDelete(){
     PAGES.splice(removed, 1);
     curPageIdx = idx;
     renderLayerList(); updateInspector(); updateUndoRedoButtons(); syncNewsLayoutUI(); updatePageNavUI();
+    docEdited();   // apagar página é mudança do documento
   });
 }
 /* Renderiza CADA página num PNG — a atual pelo canvas ao vivo, as outras por um
@@ -1028,9 +1041,10 @@ function applyPhotoCornerRadius(img, rxPx){
 
 /* ===================== Toolbar: adicionar objetos ===================== */
 document.getElementById('templateSel').addEventListener('change', ()=>{});
-document.getElementById('btnNewDoc').addEventListener('click', ()=>{
-  if (!confirm('Isso apaga o documento atual. Continuar?')) return;
-  if (typeof saveCurrentId!=='undefined') saveCurrentId = null;
+document.getElementById('btnNewDoc').addEventListener('click', async ()=>{
+  // com o salvar sozinho o documento atual NÃO se perde (fica em "Meus documentos"): só pergunta se ele tem alteração que não foi pra lugar nenhum
+  if (typeof autoFlush==='function') await autoFlush();
+  if (typeof docNeedsConfirm==='function' ? docNeedsConfirm() : true){ if (!confirm('O documento atual tem alterações que não foram salvas. Criar um novo mesmo assim?')) return; }
   loadTemplate(document.getElementById('templateSel').value);
 });
 document.getElementById('btnPagePrev').addEventListener('click', ()=>pageGo(curPageIdx-1));
@@ -1127,7 +1141,7 @@ function syncDocVariantUI(){
 document.getElementById('docVariantSel').addEventListener('change', async (e)=>{
   const want = e.target.value;
   if (!confirm('Trocar o estilo refaz o cardápio do zero (apaga as edições deste documento). Continuar?')){ syncDocVariantUI(); return; }
-  await loadTemplate(currentTemplate, {variant:want});
+  await loadTemplate(currentTemplate, {variant:want, keepDoc:true});
 });
 function syncNewsLayoutUI(){
   syncDocVariantUI();
@@ -2151,10 +2165,13 @@ document.getElementById('btnExportPDF').addEventListener('click', ()=>{
 document.getElementById('btnExportText').addEventListener('click', ()=>{ if (typeof BRAND!=='undefined' && BRAND.cur) brandExportText(); else exportTextForDocs(); });
 
 /* ===================== Init ===================== */
-document.fonts.ready.then(()=>{
+Promise.all([document.fonts.ready, document.readyState==='complete' ? Promise.resolve() : new Promise(r=>window.addEventListener('load', r, {once:true}))]).then(async ()=>{
   switchTab('doc');
   populateTemplateSelect();
   initPaperUI();
   initCanvas();
-  loadTemplate('newspaper');
+  // se a página recarregou (ou a aba caiu) com um documento aberto, ele volta do rascunho; senão, o jornal de sempre
+  let restored = false;
+  try { restored = typeof draftRestoreOnStart==='function' ? await draftRestoreOnStart() : false; } catch(err){ console.warn('rascunho', err); }
+  if (!restored) loadTemplate('newspaper');
 });

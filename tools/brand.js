@@ -9,7 +9,7 @@
    Por isso o visual bate com o mockup e o texto continua editável. Este arquivo carrega DEPOIS de editor.js
    (usa canvas/history/restoringHistory/applyPageSize/etc. de lá em tempo de chamada). */
 
-const BRAND = { cur: null, artEls: {}, measure: null };
+const BRAND = { cur: null, artEls: {}, measure: null, restoring: false };
 
 /* ---------- carregamento dos packs (sob demanda — cada lado é um .js próprio) ---------- */
 function brandLoadPack(doc, side){
@@ -339,6 +339,7 @@ async function loadBrandDoc(docId, side){
     const meta = brandDocMeta(docId);
     if (!meta) return;
     side = side || 'front';
+    if (typeof autoFlush==='function' && !BRAND.restoring){ await autoFlush(); docNewIdentity(); }   // o documento anterior já foi salvo sozinho; este é novo
     const pack = await brandLoadPack(docId, side);
     const k = meta.k, W = Math.round(meta.wCss*k), H = Math.round(meta.hCss*k);
     currentTemplate = 'brand:'+docId;
@@ -348,8 +349,8 @@ async function loadBrandDoc(docId, side){
     await sceneSwitchTo({}, { buildFresh: ()=>buildBrandSide(canvas, pack) });
     BRAND.cur = {doc: docId, meta, k, W, H, side, sides: {}, extraSides: []};
     PAGES = []; curPageIdx = 0; // documento de marca usa o próprio sistema de lados, não PAGES
-    docDirty = false;
     fitPage();
+    if (typeof docLoaded==='function') docLoaded(); else docDirty = false;
     renderLayerList(); updateInspector(); syncNewsLayoutUI(); brandUpdateUI(); updatePageNavUI();
   });
 }
@@ -705,8 +706,10 @@ function renderMythosRef(){
     f.docs.forEach(d=>{ const o = document.createElement('option'); o.value = d.id; o.textContent = d.label + (d.sides.length > 1 ? ` (${d.sides.length} páginas)` : ''); doc.appendChild(o); });
   };
   fam.addEventListener('change', fill); fill();
-  document.getElementById('btnBrandLoad').addEventListener('click', ()=>{
-    if (!confirm('Isso apaga o documento atual. Continuar?')) return;
+  document.getElementById('btnBrandLoad').addEventListener('click', async ()=>{
+    // o documento atual não se perde (salvar sozinho): só pergunta se tem alteração que não foi pra lugar nenhum
+    if (typeof autoFlush==='function') await autoFlush();
+    if (typeof docNeedsConfirm==='function' ? docNeedsConfirm() : true){ if (!confirm('O documento atual tem alterações que não foram salvas. Abrir outro mesmo assim?')) return; }
     const btn = document.getElementById('btnBrandLoad'); btn.disabled = true;
     loadBrandDoc(doc.value, 'front').catch(e=>alert(e.message)).finally(()=>{ btn.disabled = false; });
   });

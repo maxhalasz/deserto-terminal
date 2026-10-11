@@ -6,13 +6,13 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Gerador de Props — O Deserto</title>
 <link rel="stylesheet" href="vendor/fonts.css">
-<link rel="stylesheet" href="vendor/fonts-docs.css?v=f3-01">
+<link rel="stylesheet" href="vendor/fonts-docs.css?v=f3-02">
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
 <script src="vendor/brand/brand-index.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="print-dpi.js?v=f3-01"></script>
-<script src="hist-images.js?v=f3-01"></script>
+<script src="print-dpi.js?v=f3-02"></script>
+<script src="hist-images.js?v=f3-02"></script>
 <style>
   /* Tokens de design (rework "visual de verdade" pedido pelo Max, depois do "continua
      exatamente igual a antes") — extrai cores JÁ usadas pro arquivo inteiro, não uma
@@ -148,6 +148,16 @@
   .panel.collapsed > .panel-head::after{content:'▸'}
   .panel.collapsed > .panel-body{display:none}
   .panel.collapsed > .panel-head{border-bottom-color:transparent}
+  #docName{width:230px;max-width:30vw;background:transparent;border:1px solid transparent;border-radius:var(--radius-sm);color:var(--text-bright);font:600 14px 'Segoe UI',sans-serif;padding:5px 8px}
+  #docName::placeholder{color:var(--text-faint);font-weight:400}
+  #docName:hover{border-color:var(--border-strong)}
+  #docName:focus{outline:none;background:var(--bg-input);border-color:var(--accent)}
+  .saveChip{font-size:11.5px;color:var(--text-dim);white-space:nowrap;min-width:0}
+  .saveChip.ok{color:#8fc59a}.saveChip.warn{color:#e0b46a}.saveChip.bad{color:#e58a8a}
+  .notice{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 14px;background:#1f2a3d;border-bottom:1px solid var(--accent-strong);color:var(--text-bright);font-size:12.5px}
+  .notice[hidden]{display:none}
+  .notice span{flex:1}
+  .notice button{width:auto;margin:0;padding:4px 10px;font-size:12px}
   .backLink{font:11px monospace;color:#8b8d93;text-decoration:none;margin-bottom:4px;align-self:flex-start}
   .backLink:hover{color:var(--accent)}
   .panel .hint.help{display:none;background:rgba(95,147,214,.07);border-left:2px solid var(--accent-strong);padding:6px 8px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;color:var(--text-dim);font-size:11px;line-height:1.5}
@@ -205,7 +215,7 @@
   <div class="sideHead">
     <a href="index.html" class="backLink">&larr; ferramentas</a>
     <h1>GERADOR DE PROPS</h1>
-    <div class="sub">O Deserto — documentos e jornais pra imprimir ou digitalizar. Ferramenta de GM. <span style="color:#5b6170">· versão <span id="buildTag">f3-01</span></span></div>
+    <div class="sub">O Deserto — documentos e jornais pra imprimir ou digitalizar. Ferramenta de GM. <span style="color:#5b6170">· versão <span id="buildTag">f3-02</span></span></div>
     <details class="shortcutsBox">
       <summary>？ Atalhos de teclado</summary>
       <div class="shortcutsList">
@@ -404,24 +414,25 @@
     </div></div>
 
     <div class="panel" id="saveBlock"><div class="panel-head"><span class="ico">💾</span><span class="ttl">Meus documentos</span></div><div class="panel-body">
-      <div class="hint help">Salva o documento inteiro (todas as páginas) pra abrir e corrigir depois. Vai pro site (Firebase); se o site não responder, fica neste navegador. O arquivo .json é backup que não depende de nada. Documentos de marca ainda não entram aqui.</div>
-      <label>Nome do documento</label>
-      <input type="text" id="docName" placeholder="ex: Jornal edição 118">
-      <button id="btnSaveDoc" class="primary">💾 Salvar no site</button>
+      <label class="inline"><input type="checkbox" id="autoSaveOn" checked> Salvar sozinho a cada mudança</label>
+      <div class="hint help">Como no Google Docs: o documento tem nome (campo no topo) e se salva sozinho depois de cada mudança, sem botão. Vale pros modelos e pros documentos de marca. Vai pro site (Firebase) e, se o site não responder, fica neste navegador. Trocar de documento ou criar um novo não perde nada: o anterior já está na lista abaixo. Separado disso, o que está aberto também é guardado como RASCUNHO neste navegador a cada mudança: se a página recarregar ou fechar sem querer, o documento volta do jeito que estava.</div>
+      <div id="saveStatus" class="hint"></div>
+      <button id="btnSaveDoc" class="primary">💾 Salvar agora</button>
       <div class="grid2">
         <button id="btnSaveFile" class="ghost">⭳ Baixar arquivo</button>
         <button id="btnOpenFile" class="ghost">📂 Abrir arquivo</button>
       </div>
+      <div class="hint help">O arquivo .json é backup que não depende de nada (site nem navegador). Abrir um arquivo cria um documento novo, uma cópia.</div>
       <input type="file" id="fileOpenDoc" accept=".json,application/json" style="display:none">
-      <div id="saveStatus" class="hint"></div>
+      <label>Documentos salvos</label>
+      <div id="docList" class="hint">Clique em "Atualizar lista" pra ver o que está salvo (site e este navegador).</div>
+      <button id="btnRefreshDocs" class="ghost">↻ Atualizar lista</button>
       <details class="filterSection" id="saveRulesHelp">
         <summary>Como liberar o salvamento no site (uma vez só)</summary>
-        <div class="hint help">No console do Firebase: projeto deserto-terminal → Realtime Database → aba Regras. Dentro de "rules" (junto de "sessions"), acrescente os dois blocos abaixo e clique em Publicar:</div>
+        <div class="hint">No console do Firebase: projeto deserto-terminal → Realtime Database → aba Regras. Dentro de "rules" (junto de "sessions"), acrescente os dois blocos abaixo e clique em Publicar:</div>
         <pre style="white-space:pre-wrap;font-size:10.5px;color:#c7cdd6;background:#0f1115;border:1px solid #2b2f38;border-radius:4px;padding:8px;margin:6px 0 0">"props_docs": { ".read": "auth != null", ".write": "auth != null" },
 "props_docs_index": { ".read": "auth != null", ".write": "auth != null" }</pre>
       </details>
-      <button id="btnRefreshDocs" class="ghost">↻ Atualizar lista</button>
-      <div id="docList" class="hint">Clique em "Atualizar lista" pra ver o que está salvo (site e este navegador).</div>
     </div></div>
   </div>
 
@@ -446,6 +457,10 @@
 
 <div id="main">
   <div id="topbar">
+    <div class="tbGroup tbDoc">
+      <input type="text" id="docName" placeholder="Documento sem título" spellcheck="false" autocomplete="off" title="Nome do documento. Ele é salvo sozinho a cada mudança; renomeie aqui.">
+      <span id="saveChip" class="saveChip" role="status" aria-live="polite"></span>
+    </div>
     <div class="tbGroup">
       <button id="btnUndo" title="Desfazer (Ctrl+Z)">↶ Desfazer</button>
       <button id="btnRedo" title="Refazer (Ctrl+Shift+Z)">↷ Refazer</button>
@@ -467,9 +482,13 @@
       <button id="btnZoomFit" title="Aproxima na seleção">◎ Seleção</button>
     </div>
     <div class="tbGroup tbRight">
-      <span class="tbHint">Ctrl+roda: zoom · Espaço+arrastar: mover</span>
       <button id="btnQuickPNG" class="primary" title="Baixa o PNG com as opções da aba Salvar">⭳ PNG</button>
     </div>
+  </div>
+  <div id="notice" class="notice" hidden>
+    <span id="noticeText"></span>
+    <button id="noticeAct" class="ghost"></button>
+    <button id="noticeClose" class="ghost" title="Fechar o aviso">✕</button>
   </div>
   <div id="stage">
     <div id="canvasWrap">
@@ -496,35 +515,35 @@
   </div>
 </div>
 
-<script src="handwriting.js?v=f3-01"></script>
-<script src="filters.js?v=f3-01"></script>
-<script src="filter-panel.js?v=f3-01"></script>
-<script src="composites.js?v=f3-01"></script>
-<script src="network-diagram.js?v=f3-01"></script>
-<script src="layout.js?v=f3-01"></script>
-<script src="paper-gen.js?v=f3-01"></script>
-<script src="proc-art.js?v=f3-01"></script>
-<script src="emblem.js?v=f3-01"></script>
-<script src="doc-kit.js?v=f3-01"></script>
-<script src="doc-templates.js?v=f3-01"></script>
-<script src="doc-menus.js?v=f3-01"></script>
-<script src="doc-menus2.js?v=f3-01"></script>
-<script src="doc-papers.js?v=f3-01"></script>
-<script src="news-text.js?v=f3-01"></script>
-<script src="news-engine.js?v=f3-01"></script>
-<script src="doc-pages.js?v=f3-01"></script>
-<script src="doc-pages-menus.js?v=f3-01"></script>
-<script src="doc-screens-kit.js?v=f3-01"></script>
-<script src="doc-screens.js?v=f3-01"></script>
-<script src="doc-screens-badge.js?v=f3-01"></script>
-<script src="doc-screens-chat.js?v=f3-01"></script>
-<script src="doc-screens-mail.js?v=f3-01"></script>
-<script src="doc-screens-oe.js?v=f3-01"></script>
-<script src="scene-stack.js?v=f3-01"></script>
-<script src="ui-kit.js?v=f3-01"></script>
-<script src="view-controls.js?v=f3-01"></script>
-<script src="editor.js?v=f3-01"></script>
-<script src="brand.js?v=f3-01"></script>
-<script src="save-docs.js?v=f3-01"></script>
+<script src="handwriting.js?v=f3-02"></script>
+<script src="filters.js?v=f3-02"></script>
+<script src="filter-panel.js?v=f3-02"></script>
+<script src="composites.js?v=f3-02"></script>
+<script src="network-diagram.js?v=f3-02"></script>
+<script src="layout.js?v=f3-02"></script>
+<script src="paper-gen.js?v=f3-02"></script>
+<script src="proc-art.js?v=f3-02"></script>
+<script src="emblem.js?v=f3-02"></script>
+<script src="doc-kit.js?v=f3-02"></script>
+<script src="doc-templates.js?v=f3-02"></script>
+<script src="doc-menus.js?v=f3-02"></script>
+<script src="doc-menus2.js?v=f3-02"></script>
+<script src="doc-papers.js?v=f3-02"></script>
+<script src="news-text.js?v=f3-02"></script>
+<script src="news-engine.js?v=f3-02"></script>
+<script src="doc-pages.js?v=f3-02"></script>
+<script src="doc-pages-menus.js?v=f3-02"></script>
+<script src="doc-screens-kit.js?v=f3-02"></script>
+<script src="doc-screens.js?v=f3-02"></script>
+<script src="doc-screens-badge.js?v=f3-02"></script>
+<script src="doc-screens-chat.js?v=f3-02"></script>
+<script src="doc-screens-mail.js?v=f3-02"></script>
+<script src="doc-screens-oe.js?v=f3-02"></script>
+<script src="scene-stack.js?v=f3-02"></script>
+<script src="ui-kit.js?v=f3-02"></script>
+<script src="view-controls.js?v=f3-02"></script>
+<script src="editor.js?v=f3-02"></script>
+<script src="brand.js?v=f3-02"></script>
+<script src="save-docs.js?v=f3-02"></script>
 </body>
 </html>

@@ -5,11 +5,15 @@
      node tools/_verify/render.js templates <pasta> [mult] [id ...]
         -> abre props-generator.html, pra cada modelo faz loadTemplate(id) e exporta PNG (multiplicador mult,
            padrão 1) + relatório do DocKit.lint (se existir) em <pasta>/<id>.png e <pasta>/lint.json.
+     node tools/_verify/render.js reload <antes.js> <depois.js> [ms de espera]
+        -> roda antes.js, recarrega a página no mesmo perfil e roda depois.js (prova de rascunho/salvar sozinho).
      node tools/_verify/render.js page <arquivo.js|-> <saida.png> [largura altura]
         -> abre o props-generator, roda o script (opcional) e captura a JANELA inteira (barra lateral + documento).
      node tools/_verify/render.js eval <arquivo.js> [url]
         -> abre a página (padrão props-generator.html), roda o arquivo JS (async) e imprime o retorno.
    O servidor local (tools/_verify/serve.py, porta 8000) precisa estar rodando.
+   As páginas abrem com ?nosave=1 (sem salvar sozinho nem rascunho: NUNCA grava documento de teste no Firebase de verdade);
+   com SAVEON=1 abrem com ?nosite=1 (salvar sozinho e rascunho ligados, mas o site fica desligado: grava só no navegador).
    Perfil temporário do Edge é APAGADO no fim (ele enche o disco). */
 const { spawn, execSync } = require('child_process');
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -114,7 +118,7 @@ async function cmdShot(url, out, w = 1400, h = 1000, title = 'done') {
 async function cmdTemplates(dir, mult = 1, ids = []) {
   const c = await launch(1500, 1000);
   try {
-    await open(c, BASE + 'props-generator.html?cb=' + Date.now());
+    await open(c, BASE + 'props-generator.html?cb=' + Date.now() + (process.env.SAVEFREE ? '' : (process.env.SAVEON ? '&nosite=1' : '&nosave=1')));
     await waitFor(c, "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && typeof currentTemplate!=='undefined' && canvas.getObjects().length>3 && !sceneBusy", 90000);
     await sleep(800);
     if (!ids.length) ids = await evalJS(c, "[...document.getElementById('templateSel').options].map(o=>o.value)", false);
@@ -142,7 +146,7 @@ async function cmdTemplates(dir, mult = 1, ids = []) {
 async function cmdEval(file, url) {
   const c = await launch(1500, 1000);
   try {
-    await open(c, url || (BASE + 'props-generator.html?cb=' + Date.now()));
+    await open(c, url || (BASE + 'props-generator.html?cb=' + Date.now() + (process.env.SAVEFREE ? '' : (process.env.SAVEON ? '&nosite=1' : '&nosave=1'))));
     await waitFor(c, process.env.READY || "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3 && !sceneBusy", 90000);
     await sleep(500);
     const out = await evalJS(c, '(async()=>{' + fs.readFileSync(file, 'utf8') + '})()');
@@ -159,7 +163,7 @@ async function cmdEval(file, url) {
 async function cmdPage(file, out, w = 1500, h = 950) {
   const c = await launch(w, h);
   try {
-    await open(c, BASE + 'props-generator.html?cb=' + Date.now());
+    await open(c, BASE + 'props-generator.html?cb=' + Date.now() + (process.env.SAVEFREE ? '' : (process.env.SAVEON ? '&nosite=1' : '&nosave=1')));
     await waitFor(c, process.env.READY || "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3 && !sceneBusy", 90000);
     await sleep(600);
     if (file && file !== '-') { const o = await evalJS(c, '(async()=>{' + fs.readFileSync(file, 'utf8') + '})()'); if (o !== undefined) console.log(JSON.stringify(o)); }
@@ -171,6 +175,28 @@ async function cmdPage(file, out, w = 1500, h = 950) {
   } finally { cleanup(c); }
 }
 
+/* reload: roda o script A, RECARREGA a página (mesmo perfil do Edge, então IndexedDB/localStorage sobrevivem) e roda o script B.
+   Pra provar rascunho e salvar sozinho; usa SAVEON=1 automaticamente (?nosite=1). Imprime o retorno dos dois. */
+async function cmdReload(fileA, fileB, wait = 4000) {
+  process.env.SAVEON = '1';
+  const c = await launch(1500, 950);
+  try {
+    const url = BASE + 'props-generator.html?cb=' + Date.now() + '&nosite=1';
+    const ready = process.env.READY || "typeof canvas!=='undefined' && canvas && typeof loadTemplate==='function' && canvas.getObjects().length>3 && !sceneBusy";
+    await open(c, url);
+    await waitFor(c, ready, 90000);
+    await sleep(500);
+    const a = await evalJS(c, '(async()=>{' + fs.readFileSync(fileA, 'utf8') + '})()');
+    console.log('ANTES:', JSON.stringify(a, null, 1));
+    await sleep(wait);
+    await open(c, url + '&r=1');
+    await waitFor(c, ready, 90000);
+    await sleep(800);
+    const b = await evalJS(c, '(async()=>{' + fs.readFileSync(fileB, 'utf8') + '})()');
+    console.log('DEPOIS:', JSON.stringify(b, null, 1));
+  } finally { cleanup(c); }
+}
+
 /* Vigia: se o script passar de TIMEOUT_S (padrão 240 s), mata o Edge e apaga o perfil antes de sair
    (um Edge pendurado deixa ~120 MB de perfil e processos vivos). */
 const __wd = setTimeout(() => { console.error('TIMEOUT: passou de ' + (process.env.TIMEOUT_S || 240) + ' s'); if (global.__cur) cleanup(global.__cur); process.exit(3); }, (+process.env.TIMEOUT_S || 240) * 1000);
@@ -179,6 +205,7 @@ const __wd = setTimeout(() => { console.error('TIMEOUT: passou de ' + (process.e
   if (cmd === 'shot') await cmdShot(a[0], a[1], a[2] ? +a[2] : undefined, a[3] ? +a[3] : undefined, a[4]);
   else if (cmd === 'templates') await cmdTemplates(a[0], a[1] ? +a[1] : 1, a.slice(2));
   else if (cmd === 'eval') await cmdEval(a[0], a[1]);
+  else if (cmd === 'reload') await cmdReload(a[0], a[1], a[2] ? +a[2] : undefined);
   else if (cmd === 'page') await cmdPage(a[0], a[1], a[2] ? +a[2] : undefined, a[3] ? +a[3] : undefined);
   else console.log('uso: render.js shot|templates|eval ...');
   clearTimeout(__wd); process.exit(0);
