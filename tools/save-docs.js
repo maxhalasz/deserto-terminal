@@ -5,8 +5,13 @@
       documento em "Meus documentos"; os seguintes atualizam o mesmo (id estável: renomear só muda o nome). Onde guarda: no SITE
       (Firebase Realtime Database: props_docs_index/<id> = resumo; props_docs/<id> = corpo) e, se o site não responder ou negar
       a gravação num documento NOVO, neste navegador (IndexedDB). Aguarda 3 s sem mexer (no máximo 20 s de edição contínua).
-      Vale pra modelos E pra documentos de marca. O corpo vai comprimido (gzip → base64): fotos viram data URL e o Firebase
-      limita ~10 MB por gravação.
+      Vale pra modelos E pra documentos de marca.
+      SEM LIMITE DE TAMANHO POR DOCUMENTO: o Firebase só aceita ~10 MB por texto e 16 MB por gravação, então o documento não vai
+      inteiro num bloco só. Cada PÁGINA (ou lado) é um pedaço comprimido próprio (props_docs/<id>/parts/<chave>) e cada FOTO é guardada
+      UMA vez, à parte e em fatias de 3 MB (props_docs/_imgs/<hash>), no documento só fica a referência "@img:<hash>". Salvar de
+      novo só envia as páginas que mudaram e as fotos que ainda não estão lá (editar uma página não reenvia foto nenhuma). O limite
+      que sobra é o do plano grátis do Firebase: 1 GB no total (a lista mostra quanto já está usado). Tudo fica sob props_docs e
+      props_docs_index, então as mesmas regras de sempre valem (nada de regra nova).
    2) RASCUNHO. A cada mudança (1,2 s depois) o documento aberto — qualquer um, salvo ou não — é guardado neste navegador. Se a
       página recarregar, fechar sem querer ou cair, ao abrir de novo o documento volta do jeito que estava. Não depende de
       nome, internet nem do salvar sozinho estar ligado.
@@ -15,7 +20,7 @@
    pra não gravar documento de teste no banco de verdade. */
 
 const SAVE_DB_PATH = 'props_docs', SAVE_INDEX_PATH = 'props_docs_index';
-const SAVE_MAX_BYTES = 9*1024*1024;
+const FB_IMGS = '_imgs', FB_IMG_MIN = 8192, FB_IMG_CHUNK = 3000000;   // fotos: acima de 8 KB saem do documento; fatias de 3 milhões de caracteres
 const _qs = new URLSearchParams(location.search);
 const SAVE_OFF = _qs.get('nosave') === '1', SITE_OFF = _qs.get('nosite') === '1';
 let _fbReady = null;
@@ -62,6 +67,7 @@ function saveCollectPayload(){
   const pages = PAGES.map((p, i)=>i === curPageIdx ? live : {json:p.json, pageW:p.pageW, pageH:p.pageH, template:p.template});
   return {v:1, kind:'props', template:currentTemplate, cur:curPageIdx, pages};
 }
+function saveFmtBytes(n){ n = n || 0; return n >= 1048576 ? (n/1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n/1024)) + ' KB'; }
 function saveNewId(name){ return saveSlug(name).slice(0, 40) + '-' + Date.now().toString(36) + Math.floor(Math.random()*1296).toString(36); }
 function saveDefaultName(){
   let label = 'Documento';
@@ -77,10 +83,15 @@ async function saveBuildRecord(){
   let name = (tEl.value || '').trim();
   if (!name){ name = saveDefaultName(); tEl.value = name; }
   if (!saveCurrentId) saveCurrentId = saveNewId(name);
-  const gz = await saveGzip(JSON.stringify(payload));
   const nPages = payload.kind === 'brand' ? Object.keys(payload.sides).length : payload.pages.length;
-  return {id:saveCurrentId, name, kind:payload.kind, template:payload.kind === 'brand' ? 'brand:' + payload.doc : payload.template, savedAt:Date.now(), nPages, bytes:gz.length, data:gz};
+  return {id:saveCurrentId, name, kind:payload.kind, template:payload.kind === 'brand' ? 'brand:' + payload.doc : payload.template, savedAt:Date.now(), nPages, payload};
 }
+/* Texto comprimido do documento inteiro (navegador e arquivo guardam assim; o site guarda em pedaços, ver fbSave). */
+async function saveRecGz(rec){
+  if (!rec.data){ rec.data = await saveGzip(JSON.stringify(rec.payload)); rec.bytes = rec.data.length; }
+  return rec;
+}
+const saveRecPlain = rec=>{ const r = Object.assign({}, rec); delete r.payload; return r; };   // o que vai pro IndexedDB (sem o objeto grande)
 /* Compatível com o que existia: registro do documento atual (guardando a página em edição). */
 async function saveCollect(name){
   canvas.discardActiveObject();
@@ -88,11 +99,11 @@ async function saveCollect(name){
   if (name){ document.getElementById('docName').value = name; }
   const rec = await saveBuildRecord();
   if (!rec) throw new Error('Termine o recorte antes de salvar.');
-  return rec;
+  return saveRecGz(rec);
 }
 /* Abre um registro: modelos recarregam as páginas; documentos de marca reabrem o pack e repõem cada lado. */
 async function saveRestore(rec){
-  const d = JSON.parse(await saveGunzip(rec.data));
+  const d = rec.payload || JSON.parse(await saveGunzip(rec.data));
   if (d && d.kind === 'brand') return saveRestoreBrand(d);
   if (!d || !d.pages || !d.pages.length) throw new Error('Arquivo de documento vazio ou inválido.');
   return withSceneLock(async ()=>{
@@ -211,7 +222,7 @@ async function autoRunInner(opts){
     if (docChangeSeq === seq) docDirty = false;
     chipRefresh();
     saveListSoon();
-    if (opts.force) saveStatus((where === 'site' ? 'Salvo no site: ' : 'Salvo neste navegador: ') + rec.name + ' (' + (rec.bytes/1024).toFixed(0) + ' KB, ' + rec.nPages + ' pág.)');
+    if (opts.force) saveStatus((where === 'site' ? 'Salvo no site: ' : 'Salvo neste navegador: ') + rec.name + ' (' + saveFmtBytes(rec.bytes) + ', ' + rec.nPages + ' pág.)');
   } catch(e){
     autoErr = String((e && (e.code || e.message)) || e).slice(0, 120);
     console.warn('Salvar sozinho falhou:', e);
@@ -238,7 +249,8 @@ async function saveWrite(rec){
       }
     }
   }
-  await localSave(rec); saveCurrentWhere = 'navegador'; return 'navegador';
+  await saveRecGz(rec);
+  await localSave(saveRecPlain(rec)); saveCurrentWhere = 'navegador'; return 'navegador';
 }
 /* Garante que o documento atual foi pra "Meus documentos" antes de trocar por outro. */
 async function autoFlush(){
@@ -331,28 +343,153 @@ function saveFirebase(){
   _fbReady.catch(()=>{ _fbReady = null; });
   return _fbReady;
 }
+/* ---- formato no site (v2) ----
+   props_docs/<id>/head  = {v:2, kind, template|doc, cur|side|extra, nPages, keys:[...], imgs:[hash...]}
+   props_docs/<id>/parts/<chave> = página ("p0","p1"...) ou lado de documento de marca ("s_front"...) em gzip→base64, fotos trocadas por "@img:<hash>"
+   props_docs/_imgs/<hash>/{n, c0, c1...} = a foto (data URL) em fatias;  props_docs_index/_imgs/<hash> = {s:tamanho, t:quando}
+   props_docs_index/<id> = {name, kind, template, savedAt, nPages, bytes (só as páginas), imgBytes, v:2, imgs:[hash...]}
+   Documento antigo (v1): props_docs/<id>/data = tudo num bloco só; ainda abre, e a próxima gravação converte pro formato novo. */
+const fbKnownImgs = new Set(), fbImgCache = new Map(), fbLast = {};   // fotos que já sei que estão lá / fotos baixadas / páginas já enviadas por documento
+const _imgHashCache = new Map();
+async function fbImgHash(src){
+  let h = _imgHashCache.get(src);
+  if (!h){
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(src));
+    h = [...new Uint8Array(buf)].slice(0, 16).map(b=>b.toString(16).padStart(2, '0')).join('');
+    if (_imgHashCache.size > 200) _imgHashCache.clear();
+    _imgHashCache.set(src, h);
+  }
+  return h;
+}
+function fbCollectSrcs(node, out){
+  if (Array.isArray(node)) node.forEach(n=>fbCollectSrcs(n, out));
+  else if (node && typeof node === 'object'){
+    Object.keys(node).forEach(k=>{
+      const v = node[k];
+      if (k === 'src' && typeof v === 'string' && v.length > FB_IMG_MIN && v.indexOf('data:') === 0) out.add(v);
+      else if (v && typeof v === 'object') fbCollectSrcs(v, out);
+    });
+  }
+}
+function fbRestoreSrcs(node, imgs){
+  if (Array.isArray(node)) node.forEach(n=>fbRestoreSrcs(n, imgs));
+  else if (node && typeof node === 'object'){
+    Object.keys(node).forEach(k=>{
+      const v = node[k];
+      if (k === 'src' && typeof v === 'string' && v.indexOf('@img:') === 0){ const f = imgs[v.slice(5)]; if (f) node[k] = f; }
+      else if (v && typeof v === 'object') fbRestoreSrcs(v, imgs);
+    });
+  }
+}
+/* O documento vira {head, parts}: uma peça por página (modelos) ou por lado (marca). */
+function fbSplit(payload){
+  const parts = {};
+  if (payload.kind === 'brand'){
+    Object.keys(payload.sides).forEach(k=>{ parts['s_' + k] = payload.sides[k]; });
+    return {head:{kind:'brand', doc:payload.doc, side:payload.side, extra:payload.extra || []}, parts};
+  }
+  payload.pages.forEach((p, i)=>{ parts['p' + i] = p; });
+  return {head:{kind:'props', template:payload.template, cur:payload.cur, nPages:payload.pages.length}, parts};
+}
+function fbJoin(head, parts){
+  if (head.kind === 'brand'){
+    const sides = {};
+    Object.keys(parts).forEach(k=>{ if (k.indexOf('s_') === 0) sides[k.slice(2)] = parts[k]; });
+    return {v:1, kind:'brand', doc:head.doc, side:head.side, extra:head.extra ? Object.values(head.extra) : [], sides};
+  }
+  const pages = [];
+  for (let i = 0; i < head.nPages; i++) pages.push(parts['p' + i]);
+  return {v:1, kind:'props', template:head.template, cur:head.cur || 0, pages};
+}
+async function fbPutImg(d, h, src){
+  const base = SAVE_DB_PATH + '/' + FB_IMGS + '/' + h, n = Math.ceil(src.length / FB_IMG_CHUNK);
+  // o registro vai PRIMEIRO: se o envio cair no meio, a limpeza (fbGc) acha as fatias soltas e apaga
+  await d.ref(SAVE_INDEX_PATH + '/' + FB_IMGS + '/' + h).set({s:src.length, t:Date.now()});
+  for (let i = 0; i < n; i++){   // uma fatia por gravação: nenhuma passa de ~3 MB
+    await d.ref(base + '/c' + i).set(src.slice(i*FB_IMG_CHUNK, (i+1)*FB_IMG_CHUNK));
+  }
+  await d.ref(base + '/n').set(n);   // o "n" vai por último: a foto só existe depois de completa
+}
+async function fbGetImg(d, h){
+  if (fbImgCache.has(h)) return fbImgCache.get(h);
+  const v = (await d.ref(SAVE_DB_PATH + '/' + FB_IMGS + '/' + h).once('value')).val();
+  if (!v || !v.n) throw new Error('foto do documento não encontrada no site');
+  let s = ''; for (let i = 0; i < v.n; i++) s += v['c' + i] || '';
+  if (fbImgCache.size > 12) fbImgCache.delete(fbImgCache.keys().next().value);
+  fbImgCache.set(h, s); return s;
+}
 async function fbSave(rec){
   const d = await saveFirebase();
-  if (rec.bytes > SAVE_MAX_BYTES) throw new Error('documento grande demais pro site (' + (rec.bytes/1048576).toFixed(1) + ' MB; limite ~9 MB)');
-  await d.ref(SAVE_DB_PATH + '/' + rec.id).set({data:rec.data});
-  await d.ref(SAVE_INDEX_PATH + '/' + rec.id).set({name:rec.name, kind:rec.kind || 'props', template:rec.template, savedAt:rec.savedAt, nPages:rec.nPages, bytes:rec.bytes});
+  const payload = rec.payload || JSON.parse(await saveGunzip(rec.data));
+  const {head, parts} = fbSplit(payload);
+  // 1) fotos novas (as que já estão lá não sobem de novo)
+  const srcs = new Set(); Object.keys(parts).forEach(k=>fbCollectSrcs(parts[k], srcs));
+  const hashOf = new Map(); let imgBytes = 0;
+  for (const src of srcs){ hashOf.set(src, await fbImgHash(src)); imgBytes += src.length; }
+  for (const [src, h] of hashOf){
+    if (fbKnownImgs.has(h)) continue;
+    const have = (await d.ref(SAVE_DB_PATH + '/' + FB_IMGS + '/' + h + '/n').once('value')).val();
+    if (have == null){ if (typeof chipSet === 'function') chipSet('saving'); await fbPutImg(d, h, src); }
+    fbKnownImgs.add(h);
+  }
+  // 2) páginas: só as que mudaram desde a última gravação deste documento
+  const gz = {}; let bytes = 0;
+  for (const k of Object.keys(parts)){
+    const json = JSON.stringify(parts[k], (key, v)=>(key === 'src' && typeof v === 'string' && hashOf.has(v)) ? '@img:' + hashOf.get(v) : v);
+    gz[k] = await saveGzip(json); bytes += gz[k].length;
+  }
+  const last = fbLast[rec.id], upd = {}, root = SAVE_DB_PATH + '/' + rec.id;
+  Object.keys(gz).forEach(k=>{ if (!last || last[k] !== gz[k]) upd[root + '/parts/' + k] = gz[k]; });
+  if (last) Object.keys(last).forEach(k=>{ if (!(k in gz)) upd[root + '/parts/' + k] = null; });   // página apagada
+  head.v = 2; head.keys = Object.keys(gz); head.imgs = [...new Set(hashOf.values())];
+  upd[root + '/head'] = head; upd[root + '/data'] = null;   // data = formato antigo, sai na conversão
+  upd[SAVE_INDEX_PATH + '/' + rec.id] = {name:rec.name, kind:rec.kind || 'props', template:rec.template, savedAt:rec.savedAt, nPages:rec.nPages, bytes, imgBytes, v:2, imgs:head.imgs};
+  await d.ref().update(upd);   // uma gravação só, atômica: o documento (e a linha dele na lista) nunca ficam pela metade
+  fbLast[rec.id] = gz; rec.bytes = bytes + imgBytes;
 }
+let fbUsageBytes = 0;
 async function fbList(){
   const d = await saveFirebase();
   const snap = await d.ref(SAVE_INDEX_PATH).once('value');
   const v = snap.val() || {};
-  return Object.keys(v).map(id=>Object.assign({id, where:'site'}, v[id]));
+  let total = 0;
+  Object.keys(v).forEach(k=>{ if (k === FB_IMGS) Object.keys(v[k]).forEach(h=>{ total += (v[k][h] && v[k][h].s) || 0; }); else total += (v[k] && v[k].bytes) || 0; });
+  fbUsageBytes = total;
+  return Object.keys(v).filter(id=>id !== FB_IMGS).map(id=>Object.assign({id, where:'site'}, v[id]));
 }
 async function fbLoad(id){
   const d = await saveFirebase();
-  const snap = await d.ref(SAVE_DB_PATH + '/' + id).once('value');
-  const v = snap.val();
-  if (!v || !v.data) throw new Error('documento não encontrado no site');
-  return {id, data:v.data};
+  const v = (await d.ref(SAVE_DB_PATH + '/' + id).once('value')).val();
+  if (!v) throw new Error('documento não encontrado no site');
+  if (!v.head){ if (!v.data) throw new Error('documento não encontrado no site'); return {id, data:v.data}; }   // formato antigo
+  const head = v.head, imgs = {}, parts = {}, hs = head.imgs ? Object.values(head.imgs) : [];
+  for (const h of hs) imgs[h] = await fbGetImg(d, h);
+  for (const k of Object.values(head.keys || Object.keys(v.parts || {}))){
+    const part = JSON.parse(await saveGunzip(v.parts[k]));
+    fbRestoreSrcs(part, imgs); parts[k] = part;
+  }
+  fbLast[id] = Object.assign({}, v.parts);   // a próxima gravação já sai só com o que mudar
+  hs.forEach(h=>fbKnownImgs.add(h));
+  return {id, payload:fbJoin(head, parts)};
+}
+/* Apaga as fotos que nenhum documento usa mais (só as com mais de 10 min, pra não pegar uma foto de um salvamento em andamento). */
+async function fbGc(){
+  const d = await saveFirebase();
+  const idx = (await d.ref(SAVE_INDEX_PATH).once('value')).val() || {}, used = new Set();
+  Object.keys(idx).forEach(k=>{ if (k !== FB_IMGS && idx[k] && idx[k].imgs) Object.values(idx[k].imgs).forEach(h=>used.add(h)); });
+  const reg = idx[FB_IMGS] || {}, del = {};
+  Object.keys(reg).forEach(h=>{
+    if (!used.has(h) && Date.now() - ((reg[h] && reg[h].t) || 0) > 600000){
+      del[SAVE_DB_PATH + '/' + FB_IMGS + '/' + h] = null; del[SAVE_INDEX_PATH + '/' + FB_IMGS + '/' + h] = null; fbKnownImgs.delete(h); fbImgCache.delete(h);
+    }
+  });
+  if (Object.keys(del).length) await d.ref().update(del);
 }
 async function fbDelete(id){
   const d = await saveFirebase();
   await d.ref(SAVE_DB_PATH + '/' + id).remove(); await d.ref(SAVE_INDEX_PATH + '/' + id).remove();
+  delete fbLast[id];
+  try { await fbGc(); } catch(e){ console.warn('limpeza de fotos não rodou', e); }
 }
 
 /* ===================== IndexedDB (neste navegador): documentos e rascunho ===================== */
@@ -402,13 +539,18 @@ async function saveRefreshList(){
   try { items = items.concat(await localList()); } catch(e){ /* IndexedDB indisponível */ }
   items.sort((a, b)=>(b.savedAt||0) - (a.savedAt||0));
   box.innerHTML = '';
+  const use = document.getElementById('saveUsage');
+  if (use){
+    if (fbErr || SITE_OFF) use.textContent = '';
+    else { const pct = fbUsageBytes / (1024*1024*1024) * 100; use.textContent = 'Ocupando ' + saveFmtBytes(fbUsageBytes) + ' no site, de 1 GB grátis (' + (pct < 0.1 ? '<0,1' : pct.toFixed(1).replace('.', ',')) + '%).'; use.style.color = pct > 80 ? '#e58a8a' : ''; }
+  }
   if (fbErr) saveStatus('Site indisponível (' + (fbErr.code || fbErr.message || fbErr) + '). Mostrando só o que está neste navegador.', true);
   if (!items.length){ box.textContent = 'Nenhum documento salvo ainda. Mexa no documento: ele se salva sozinho.'; return; }
   items.forEach(it=>{
     const row = document.createElement('div'); row.className = 'layerRow' + (it.id === saveCurrentId ? ' active' : '');
     const nm = document.createElement('span'); nm.className = 'nm';
     const when = it.savedAt ? new Date(it.savedAt).toLocaleString('pt-BR', {dateStyle:'short', timeStyle:'short'}) : '';
-    nm.textContent = (it.where === 'site' ? '☁ ' : '💻 ') + it.name; nm.title = `${it.name}\n${it.template || ''} · ${it.nPages||1} pág. · ${when} · ${it.where === 'site' ? 'no site' : 'neste navegador'}`;
+    nm.textContent = (it.where === 'site' ? '☁ ' : '💻 ') + it.name; nm.title = `${it.name}\n${it.template || ''} · ${it.nPages||1} pág. · ${saveFmtBytes((it.bytes||0) + (it.imgBytes||0))} · ${when} · ${it.where === 'site' ? 'no site' : 'neste navegador'}`;
     row.appendChild(nm);
     const open = document.createElement('button'); open.textContent = it.id === saveCurrentId ? 'Aberto' : 'Abrir'; open.disabled = it.id === saveCurrentId;
     open.addEventListener('click', ()=>saveOpen(it));
@@ -431,7 +573,7 @@ async function saveOpen(it){
     await autoFlush();   // o documento que está na tela já foi salvo antes de trocar
     if (docNeedsConfirm() && !confirm('O documento que está na tela tem alterações que não foram salvas. Abrir "' + it.name + '" mesmo assim?')){ saveStatus(''); return; }
     const rec = it.where === 'site' ? await fbLoad(it.id) : await localLoad(it.id);
-    await saveRestore(rec);
+    await saveRestore(rec);   // do site vem o documento já remontado (rec.payload); do navegador vem comprimido (rec.data)
     document.getElementById('docName').value = it.name;
     saveCurrentId = it.id; saveCurrentWhere = it.where === 'site' ? 'site' : 'navegador'; autoLastAt = it.savedAt || 0;
     chipRefresh(); draftNote();

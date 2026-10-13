@@ -6,13 +6,13 @@
 <meta name="robots" content="noindex,nofollow">
 <title>Gerador de Props — O Deserto</title>
 <link rel="stylesheet" href="vendor/fonts.css">
-<link rel="stylesheet" href="vendor/fonts-docs.css?v=f3-02">
+<link rel="stylesheet" href="vendor/fonts-docs.css?v=f3-03">
 <script src="vendor/fabric.min.js"></script>
 <script src="vendor/texture-pack.js"></script>
 <script src="vendor/brand/brand-index.js"></script>
 <script src="vendor/jspdf.umd.min.js"></script>
-<script src="print-dpi.js?v=f3-02"></script>
-<script src="hist-images.js?v=f3-02"></script>
+<script src="print-dpi.js?v=f3-03"></script>
+<script src="hist-images.js?v=f3-03"></script>
 <style>
   /* Tokens de design (rework "visual de verdade" pedido pelo Max, depois do "continua
      exatamente igual a antes") — extrai cores JÁ usadas pro arquivo inteiro, não uma
@@ -215,7 +215,7 @@
   <div class="sideHead">
     <a href="index.html" class="backLink">&larr; ferramentas</a>
     <h1>GERADOR DE PROPS</h1>
-    <div class="sub">O Deserto — documentos e jornais pra imprimir ou digitalizar. Ferramenta de GM. <span style="color:#5b6170">· versão <span id="buildTag">f3-02</span></span></div>
+    <div class="sub">O Deserto — documentos e jornais pra imprimir ou digitalizar. Ferramenta de GM. <span style="color:#5b6170">· versão <span id="buildTag">f3-03</span></span></div>
     <details class="shortcutsBox">
       <summary>？ Atalhos de teclado</summary>
       <div class="shortcutsList">
@@ -415,7 +415,7 @@
 
     <div class="panel" id="saveBlock"><div class="panel-head"><span class="ico">💾</span><span class="ttl">Meus documentos</span></div><div class="panel-body">
       <label class="inline"><input type="checkbox" id="autoSaveOn" checked> Salvar sozinho a cada mudança</label>
-      <div class="hint help">Como no Google Docs: o documento tem nome (campo no topo) e se salva sozinho depois de cada mudança, sem botão. Vale pros modelos e pros documentos de marca. Vai pro site (Firebase) e, se o site não responder, fica neste navegador. Trocar de documento ou criar um novo não perde nada: o anterior já está na lista abaixo. Separado disso, o que está aberto também é guardado como RASCUNHO neste navegador a cada mudança: se a página recarregar ou fechar sem querer, o documento volta do jeito que estava.</div>
+      <div class="hint help">Como no Google Docs: o documento tem nome (campo no topo) e se salva sozinho depois de cada mudança, sem botão. Vale pros modelos e pros documentos de marca. Vai pro site (Firebase) e, se o site não responder, fica neste navegador. NÃO existe limite de tamanho por documento: cada página e cada foto são guardadas em pedaços separados, então documento de muitas páginas com muitas fotos salva normal, e salvar de novo só envia o que mudou. O único teto é o do plano grátis do Firebase, 1 GB no total (a linha logo abaixo da lista mostra quanto já está ocupado). Trocar de documento ou criar um novo não perde nada: o anterior já está na lista abaixo. Separado disso, o que está aberto também é guardado como RASCUNHO neste navegador a cada mudança: se a página recarregar ou fechar sem querer, o documento volta do jeito que estava.</div>
       <div id="saveStatus" class="hint"></div>
       <button id="btnSaveDoc" class="primary">💾 Salvar agora</button>
       <div class="grid2">
@@ -426,6 +426,7 @@
       <input type="file" id="fileOpenDoc" accept=".json,application/json" style="display:none">
       <label>Documentos salvos</label>
       <div id="docList" class="hint">Clique em "Atualizar lista" pra ver o que está salvo (site e este navegador).</div>
+      <div id="saveUsage" class="hint"></div>
       <button id="btnRefreshDocs" class="ghost">↻ Atualizar lista</button>
       <details class="filterSection" id="saveRulesHelp">
         <summary>Como liberar o salvamento no site (uma vez só)</summary>
@@ -515,35 +516,35 @@
   </div>
 </div>
 
-<script src="handwriting.js?v=f3-02"></script>
-<script src="filters.js?v=f3-02"></script>
-<script src="filter-panel.js?v=f3-02"></script>
-<script src="composites.js?v=f3-02"></script>
-<script src="network-diagram.js?v=f3-02"></script>
-<script src="layout.js?v=f3-02"></script>
-<script src="paper-gen.js?v=f3-02"></script>
-<script src="proc-art.js?v=f3-02"></script>
-<script src="emblem.js?v=f3-02"></script>
-<script src="doc-kit.js?v=f3-02"></script>
-<script src="doc-templates.js?v=f3-02"></script>
-<script src="doc-menus.js?v=f3-02"></script>
-<script src="doc-menus2.js?v=f3-02"></script>
-<script src="doc-papers.js?v=f3-02"></script>
-<script src="news-text.js?v=f3-02"></script>
-<script src="news-engine.js?v=f3-02"></script>
-<script src="doc-pages.js?v=f3-02"></script>
-<script src="doc-pages-menus.js?v=f3-02"></script>
-<script src="doc-screens-kit.js?v=f3-02"></script>
-<script src="doc-screens.js?v=f3-02"></script>
-<script src="doc-screens-badge.js?v=f3-02"></script>
-<script src="doc-screens-chat.js?v=f3-02"></script>
-<script src="doc-screens-mail.js?v=f3-02"></script>
-<script src="doc-screens-oe.js?v=f3-02"></script>
-<script src="scene-stack.js?v=f3-02"></script>
-<script src="ui-kit.js?v=f3-02"></script>
-<script src="view-controls.js?v=f3-02"></script>
-<script src="editor.js?v=f3-02"></script>
-<script src="brand.js?v=f3-02"></script>
-<script src="save-docs.js?v=f3-02"></script>
+<script src="handwriting.js?v=f3-03"></script>
+<script src="filters.js?v=f3-03"></script>
+<script src="filter-panel.js?v=f3-03"></script>
+<script src="composites.js?v=f3-03"></script>
+<script src="network-diagram.js?v=f3-03"></script>
+<script src="layout.js?v=f3-03"></script>
+<script src="paper-gen.js?v=f3-03"></script>
+<script src="proc-art.js?v=f3-03"></script>
+<script src="emblem.js?v=f3-03"></script>
+<script src="doc-kit.js?v=f3-03"></script>
+<script src="doc-templates.js?v=f3-03"></script>
+<script src="doc-menus.js?v=f3-03"></script>
+<script src="doc-menus2.js?v=f3-03"></script>
+<script src="doc-papers.js?v=f3-03"></script>
+<script src="news-text.js?v=f3-03"></script>
+<script src="news-engine.js?v=f3-03"></script>
+<script src="doc-pages.js?v=f3-03"></script>
+<script src="doc-pages-menus.js?v=f3-03"></script>
+<script src="doc-screens-kit.js?v=f3-03"></script>
+<script src="doc-screens.js?v=f3-03"></script>
+<script src="doc-screens-badge.js?v=f3-03"></script>
+<script src="doc-screens-chat.js?v=f3-03"></script>
+<script src="doc-screens-mail.js?v=f3-03"></script>
+<script src="doc-screens-oe.js?v=f3-03"></script>
+<script src="scene-stack.js?v=f3-03"></script>
+<script src="ui-kit.js?v=f3-03"></script>
+<script src="view-controls.js?v=f3-03"></script>
+<script src="editor.js?v=f3-03"></script>
+<script src="brand.js?v=f3-03"></script>
+<script src="save-docs.js?v=f3-03"></script>
 </body>
 </html>
