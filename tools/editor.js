@@ -1063,7 +1063,10 @@ NEWS_PRESET_ORDER.forEach(key=>{
 });
 /* Refazer o layout do jornal espera a vez na fila das trocas de cena: dois cliques seguidos em presets diferentes
    refaziam o layout ao mesmo tempo e deixavam os textos em dobro. */
-function newsRebuildLocked(patch){ return withSceneLock(()=>newsRebuild(patch)).catch(e=>console.warn('jornal', e)); }
+function newsRebuildLocked(patch){   // cada jornal (Abyssal, Westcoast, Nordsjo...) refaz o layout pela função do próprio modelo (news-docs.js: NEWS_DOCS)
+  const reb = (typeof NEWS_DOCS!=='undefined' && NEWS_DOCS[currentTemplate]) ? NEWS_DOCS[currentTemplate].rebuild : newsRebuild;
+  return withSceneLock(()=>reb(patch)).catch(e=>console.warn('jornal', e));
+}
 document.getElementById('newsMast').addEventListener('change', e=>newsRebuildLocked({mast:e.target.value}));
 document.getElementById('newsJustify').addEventListener('change', e=>newsRebuildLocked({justify:e.target.checked}));
 document.getElementById('btnNewsReflow').addEventListener('click', ()=>newsRebuildLocked({}));
@@ -1140,19 +1143,25 @@ function syncDocVariantUI(){
 }
 document.getElementById('docVariantSel').addEventListener('change', async (e)=>{
   const want = e.target.value;
-  if (!confirm('Trocar o estilo refaz o cardápio do zero (apaga as edições deste documento). Continuar?')){ syncDocVariantUI(); return; }
+  const vdef = (typeof DOC_TEMPLATES!=='undefined') && DOC_TEMPLATES[currentTemplate], noun = (vdef && vdef.variantNoun) || 'cardápio';
+  if (!confirm('Trocar o estilo refaz o ' + noun + ' do zero (apaga as edições deste documento). Continuar?')){ syncDocVariantUI(); return; }
   await loadTemplate(currentTemplate, {variant:want, keepDoc:true});
 });
 function syncNewsLayoutUI(){
   syncDocVariantUI();
-  const show = currentTemplate==='newspaper';
+  const nd = (typeof NEWS_DOCS!=='undefined') ? NEWS_DOCS[currentTemplate] : (currentTemplate==='newspaper' ? {mast:true, justify:true} : null);
+  const show = !!nd;
   document.getElementById('newsLayoutBlock').style.display = show?'block':'none';
   const st = show ? getNewsState() : null;
   if (st){
     document.getElementById('newsMast').value = st.mast || 'gothic';
     document.getElementById('newsJustify').checked = !!st.justify;
   }
-  document.querySelectorAll('#newsPresetRow button, #newsPresetRowInner button').forEach(b=>b.classList.toggle('active', !!st && b.dataset.preset===st.preset));
+  document.querySelectorAll('.newsRows').forEach(r=>{ r.style.display = r.dataset.newsDoc===currentTemplate ? 'block' : 'none'; });
+  const mw = document.getElementById('newsMastWrap'), jw = document.getElementById('newsJustifyWrap');
+  if (mw) mw.style.display = (!nd || nd.mast) ? 'block' : 'none';
+  if (jw) jw.style.display = (!nd || nd.justify) ? '' : 'none';
+  document.querySelectorAll('.newsRows button').forEach(b=>b.classList.toggle('active', !!st && b.dataset.preset===st.preset));
   syncPaperUI();
   if (PAGES.length) updatePageNavUI();   // o nome do tipo da página acompanha o layout escolhido
 }
@@ -1787,6 +1796,8 @@ function updateInspector(){
     WA.inspector(obj, body);
   } else if (obj.type==='procart' && obj.art.kind==='card'){
     renderCardTextureInspector(obj, body);
+  } else if (obj.type==='procart' && obj.art.kind==='xerox'){
+    renderXeroxInspector(obj, body);
   }
   if (obj.customType==='brandArt'){
     renderBrandArtInspector(obj, body);
@@ -1855,7 +1866,7 @@ function renderLayerProps(obj, body){
 
 function renderNewsBoxInspector(obj, body){
   body.appendChild(field.button('✎ Editar título e texto', ()=>openTextEditor(obj)));
-  const frames = [{value:'box',label:'Moldura simples'},{value:'bar',label:'Faixa preta no título'},{value:'ad',label:'Anúncio (linha dupla)'},{value:'rules',label:'Só filetes'},{value:'none',label:'Sem moldura'}];
+  const frames = [{value:'box',label:'Moldura simples'},{value:'bar',label:'Faixa preta no título'},{value:'ad',label:'Anúncio (linha dupla)'},{value:'rules',label:'Só filetes'},{value:'tint',label:'Fundo cinza (retícula)'},{value:'none',label:'Sem moldura'}];
   body.appendChild(field.select('Estilo da caixa', frames, obj.frame, v=>{ obj.set('frame', v); canvas.renderAll(); pushHistory(); }));
   const nbFonts = DOC_FONTS.slice(); if (obj.bodyFont && !nbFonts.includes(obj.bodyFont)) nbFonts.unshift(obj.bodyFont);
   body.appendChild(field.select('Fonte do texto', nbFonts.map(f=>({value:f, label:f})), obj.bodyFont, v=>{ obj.set('bodyFont', v); canvas.renderAll(); pushHistory(); }));
@@ -1868,6 +1879,7 @@ function renderNewsBoxInspector(obj, body){
   body.appendChild(field.checkbox('Texto justificado', !!obj.justify, v=>{ obj.set('justify', v); canvas.renderAll(); pushHistory(); }));
   body.appendChild(field.checkbox('Texto em itálico', obj.bodyStyle==='italic', v=>{ obj.set('bodyStyle', v ? 'italic' : 'normal'); canvas.renderAll(); pushHistory(); }));
   body.appendChild(field.color('Cor da tinta', rgbToHex(obj.fill), v=>{ obj.set('fill', v); canvas.renderAll(); }));
+  body.appendChild(field.range('Tinta espalhada (scan)', obj.soft || 0, 0, 1.5, 0.05, v=>{ obj.set('soft', v); canvas.renderAll(); }));
   body.appendChild(field.hint('A altura segue o texto sozinha. Arraste as alças do meio (esquerda/direita) pra mudar a largura.'));
 }
 function renderTextInspector(obj, body){

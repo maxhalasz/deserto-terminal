@@ -69,14 +69,14 @@ function newsBreakLines(text, measure, maxW, opts){
 
 class NewsBox extends fabric.Textbox {
   static type = 'NewsBox';
-  static textLayoutProperties = [...fabric.Textbox.textLayoutProperties, 'title','frame','padX','padY','titleSize','titleFont','bodyFont','bodyWeight','bodyStyle','justify','indent','indentFirst','contPara','upper','rows','charSp','titleAlign'];
+  static textLayoutProperties = [...fabric.Textbox.textLayoutProperties, 'title','frame','padX','padY','titleSize','titleFont','bodyFont','bodyWeight','bodyStyle','justify','indent','indentFirst','contPara','upper','rows','charSp','titleAlign','minH'];
 
   constructor(text, options){
     options = Object.assign({
       title:'', frame:'box', padX:null, padY:null, titleSize:12.5, titleFont:'Libre Franklin',
       bodyFont:'Old Standard TT', bodyWeight:400, bodyStyle:'normal',
       fontSize:15, lineHeight:1.28, fill:'#161412', frameColor:null,
-      justify:false, indent:0, indentFirst:false, contPara:false, upper:false, rows:false, charSp:0, titleAlign:'left',
+      justify:false, indent:0, indentFirst:false, contPara:false, upper:false, rows:false, charSp:0, titleAlign:'left', soft:0, minH:0,
       textAlign:'left', objectCaching:false, editable:false, width:240,
     }, options || {});
     super(text, options);
@@ -108,7 +108,9 @@ class NewsBox extends fabric.Textbox {
     }
     // corpo
     const text = this.upper ? String(this.text||'').toUpperCase() : String(this.text||'');
-    if (this.rows){
+    if (this.rows === 'wrap' || this.rows === 'defs' || this.rows === 'ribbon'){
+      this._layoutTable(text, innerW, lh, nb);
+    } else if (this.rows){
       nb.rows = text.split('\n').filter(s=>s.trim().length).map(s=>{ const k = s.indexOf('|'); return k < 0 ? [s, ''] : [s.slice(0,k).trim(), s.slice(k+1).trim()]; });
       nb.bodyH = nb.rows.length * lh;
     } else {
@@ -118,14 +120,45 @@ class NewsBox extends fabric.Textbox {
     }
     const bar = this.frame === 'bar', rules = this.frame === 'rules';
     nb.bodyTopOff = bar ? nb.titleH + py : py + nb.titleH + (rules && nb.title ? 4 : 0) + (rules && !nb.title ? 4 : 0);
-    this.height = Math.max(8, nb.bodyTopOff + nb.bodyH + py);
+    this.height = Math.max(8, this.minH || 0, nb.bodyTopOff + nb.bodyH + py);   // minH: altura mínima (anúncios de uma mesma linha, com o texto no topo)
     this.dirty = true;
+  }
+
+  /* Tabelas com texto que quebra de linha (linhas `chave|texto`). rows:'wrap' = coluna da chave à esquerda (largura da maior chave,
+     no máximo 42%) e o texto quebrado ao lado, com fio fino entre as entradas; rows:'defs' = a chave em negrito numa linha e o texto
+     quebrado embaixo, na largura toda. (rows:true continua sendo a linha única com pontilhado.) */
+  _layoutTable(text, innerW, lh, nb){
+    const mode = this.rows, fs = this.fontSize;
+    const mB = newsMeasure(newsFontStr(this.bodyStyle, 700, fs, this.bodyFont), this.charSp), m = newsMeasure(this._bodyFontStr(), this.charSp);
+    const ents = text.split('\n').filter(s=>s.trim().length).map(s=>{ const k = s.indexOf('|'); return k < 0 ? [s.trim(), ''] : [s.slice(0, k).trim(), s.slice(k+1).trim()]; });
+    if (mode === 'ribbon'){   // linha do tempo horizontal: um trilho com um ponto por entrada, o ano em negrito e o texto quebrado embaixo
+      const n = Math.max(1, ents.length), cw = innerW/n;
+      let hmax = 1;
+      const cells = ents.map((e, i)=>{ const vl = e[1] ? newsBreakLines(e[1], m, cw - 14).map(l=>l.t) : []; hmax = Math.max(hmax, 1 + vl.length); return {kl:[e[0]], vl, x:i*cw}; });
+      nb.table = {mode, cw, ents:cells, rail:15}; nb.bodyH = 15 + hmax*lh;
+      return;
+    }
+    let keyW = 0;
+    if (mode === 'wrap'){ ents.forEach(e=>{ keyW = Math.max(keyW, mB(e[0])); }); keyW = Math.min(keyW + 10, innerW*0.42); }
+    const gap = mode === 'defs' ? lh*0.42 : lh*0.2;
+    let Hh = 0;
+    const out = ents.map((e, i)=>{
+      const kl = newsBreakLines(e[0], mB, mode === 'wrap' ? keyW - 8 : innerW).map(l=>l.t);
+      const vl = e[1] ? newsBreakLines(e[1], m, mode === 'wrap' ? innerW - keyW : innerW).map(l=>l.t) : [];
+      const n = mode === 'wrap' ? Math.max(kl.length, vl.length, 1) : kl.length + vl.length;
+      const rec = {kl, vl, y:Hh}; Hh += n*lh + (i < ents.length - 1 ? gap : 0); return rec;
+    });
+    nb.table = {mode, keyW, ents:out, gap}; nb.bodyH = Hh;
   }
 
   _render(ctx){
     if (!this._nb) this.initDimensions();
     const nb = this._nb, W = this.width, H = this.height, x0 = -W/2, y0 = -H/2, ink = this.fill || '#161412', fc = this.frameColor || ink;
     ctx.save();
+    if (this.soft > 0 && 'filter' in ctx){   // tinta que "espalha" (scan/fotocópia): desfoque leve em unidades de página, igual em qualquer zoom
+      const tt = ctx.getTransform();
+      ctx.filter = 'blur(' + (this.soft*(Math.hypot(tt.a, tt.b) || 1)).toFixed(2) + 'px)';
+    }
     ctx.textBaseline = 'alphabetic';
     const setCs = (px)=>{ if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; };
     // moldura
@@ -134,6 +167,10 @@ class NewsBox extends fabric.Textbox {
     else if (this.frame === 'bar'){ ctx.fillRect(x0, y0, W, nb.titleH); ctx.lineWidth = 1.4; ctx.strokeRect(x0+0.7, y0+0.7, W-1.4, H-1.4); }
     else if (this.frame === 'ad'){ ctx.lineWidth = 2.6; ctx.strokeRect(x0+1.3, y0+1.3, W-2.6, H-2.6); ctx.lineWidth = 0.9; ctx.strokeRect(x0+6, y0+6, W-12, H-12); }
     else if (this.frame === 'rules'){ ctx.fillRect(x0, y0, W, 2.6); ctx.fillRect(x0, y0+5.2, W, 0.9); ctx.fillRect(x0, y0+H-1.1, W, 1.1); }
+    else if (this.frame === 'tint'){   // caixa com fundo cinza (retícula) e filete grosso em cima
+      ctx.save(); ctx.globalAlpha *= 0.13; ctx.fillRect(x0, y0, W, H); ctx.restore();
+      ctx.lineWidth = 1; ctx.strokeRect(x0+0.5, y0+0.5, W-1, H-1); ctx.fillRect(x0, y0, W, 3.4);
+    }
     // título
     const prevOp = ctx.globalCompositeOperation;
     if (nb.title){
@@ -151,7 +188,7 @@ class NewsBox extends fabric.Textbox {
       });
       setCs(0);
       ctx.globalCompositeOperation = prevOp;
-      if (this.frame === 'box' || this.frame === 'rules'){
+      if (this.frame === 'box' || this.frame === 'rules' || this.frame === 'tint'){
         const ry = y0 + nb.py + (this.frame === 'rules' ? 4 : 0) + nb.title.lines.length*nb.title.lh + 1;
         ctx.fillStyle = fc; ctx.fillRect(x0 + nb.px, ry, nb.innerW, 0.9);
       }
@@ -162,7 +199,30 @@ class NewsBox extends fabric.Textbox {
     ctx.font = this._bodyFontStr();
     ctx.fillStyle = ink;
     setCs(this.charSp/1000*this.fontSize);
-    if (nb.rows){
+    if (nb.table){
+      const T = nb.table, boldFont = newsFontStr(this.bodyStyle, 700, this.fontSize, this.bodyFont);
+      if (T.mode === 'ribbon'){
+        const ry = top + 6;
+        ctx.fillRect(x0 + nb.px, ry - 1.1, nb.innerW, 2.2);
+        T.ents.forEach(e=>{
+          const cx = x0 + nb.px + e.x;
+          ctx.beginPath(); ctx.arc(cx + 5, ry, 4.6, 0, 6.2832); ctx.fill();
+          ctx.font = boldFont; ctx.fillText(e.kl[0], cx, top + T.rail + asc);
+          ctx.font = this._bodyFontStr();
+          e.vl.forEach((l, j)=>ctx.fillText(l, cx, top + T.rail + (1 + j)*nb.lh + asc));
+        });
+      } else T.ents.forEach((e, i)=>{
+        const yt = top + e.y;
+        if (T.mode === 'wrap' && i){ ctx.save(); ctx.globalAlpha *= 0.4; ctx.fillRect(x0 + nb.px, yt - T.gap/2 - 0.35, nb.innerW, 0.7); ctx.restore(); }
+        ctx.font = boldFont;
+        e.kl.forEach((l, j)=>ctx.fillText(l, x0 + nb.px, yt + j*nb.lh + asc));
+        ctx.font = this._bodyFontStr();
+        e.vl.forEach((l, j)=>{
+          if (T.mode === 'wrap') ctx.fillText(l, x0 + nb.px + T.keyW, yt + j*nb.lh + asc);
+          else ctx.fillText(l, x0 + nb.px, yt + (e.kl.length + j)*nb.lh + asc);
+        });
+      });
+    } else if (nb.rows){
       nb.rows.forEach((r, i)=>{
         const y = top + i*nb.lh + asc, wl = ctx.measureText(r[0]).width, wr = ctx.measureText(r[1]).width;
         ctx.fillText(r[0], x0 + nb.px, y);
@@ -200,7 +260,7 @@ class NewsBox extends fabric.Textbox {
 
   newsOptions(){
     const o = {};
-    ['width','title','frame','padX','padY','titleSize','titleFont','bodyFont','bodyWeight','bodyStyle','fontSize','lineHeight','fill','frameColor','titleFill','justify','indent','indentFirst','contPara','upper','rows','charSp','titleAlign','textAlign']
+    ['width','title','frame','padX','padY','titleSize','titleFont','bodyFont','bodyWeight','bodyStyle','fontSize','lineHeight','fill','frameColor','titleFill','justify','indent','indentFirst','contPara','upper','rows','charSp','titleAlign','textAlign','soft','minH']
       .forEach(k=>{ o[k] = this[k]; });
     return o;
   }

@@ -11,6 +11,7 @@
      doodle  — papel de parede de chat (rabiscos finos em tom sobre tom)
      card    — textura de cartão de plástico por cima (grão, brilho, riscos, dedos, desgaste, furo, cantos); holo — selo holográfico
      slate   — quadro-negro: degradê, borrões de apagador, riscos, grão (opts: base [r,g,b])
+     xerox   — efeito de scan/fotocópia por cima da página (proc-xerox.js): luz do scanner, lombada, verso transparecendo, toner, riscos, fundo preto inclinado
      erode   — camada de "giz gasto" POR CIMA do texto: falhas minúsculas na cor do quadro (opts: color [r,g,b], density)
    Tudo em unidades de página, então tem o mesmo tamanho físico em ×1 e ×2. Mesma semente = mesma textura.
    Depende de: fabric, mulberry32 (handwriting.js). */
@@ -356,6 +357,7 @@ function procArtCanvas(a, w, h, q){
   else if (a.kind === 'card') procCard(g, w, h, a);
   else if (a.kind === 'holo') procHolo(g, w, h, a);
   else if (a.kind === 'erode') procErode(g, w, h, a);
+  else if (a.kind === 'xerox') procXerox(g, w, h, a);   // proc-xerox.js
   PROC_ART_CACHE.set(key, cv); _procArtPx += cv.width*cv.height;
   while (_procArtPx > 60e6 && PROC_ART_CACHE.size > 1){
     const k = PROC_ART_CACHE.keys().next().value, old = PROC_ART_CACHE.get(k);
@@ -369,7 +371,7 @@ class ProcArt extends fabric.Rect {
     options = options || {};
     const art = Object.assign({kind:'wood', seed:1, opts:{}}, options.art);
     // giz gasto fica POR CIMA do texto: não pode roubar o clique (evented:false volta sozinho depois do desfazer)
-    super(Object.assign({fill:'#000000', objectCaching:false, strokeWidth:0}, options, {art}, (art.kind === 'erode' || art.kind === 'scan' || art.kind === 'card') ? {evented:false} : {}));
+    super(Object.assign({fill:'#000000', objectCaching:false, strokeWidth:0}, options, {art}, (art.kind === 'erode' || art.kind === 'scan' || art.kind === 'card' || art.kind === 'xerox') ? {evented:false} : {}));
   }
   _render(ctx){
     const W = this.width, H = this.height, t = ctx.getTransform(), s = Math.hypot(t.a, t.b) || 1;
