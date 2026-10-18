@@ -6,7 +6,8 @@
      A4 — faixa de três matérias no alto, matéria principal no meio (foto alta e citação à esquerda), faixa de serviço e anúncios na base;
      A5 — anúncios locais em PIRÂMIDE (três pilhas, anúncio grande na base), com o aviso público e a caixa "Honoring its legacy" no alto;
      A6 — título em painel preto, linha do tempo HORIZONTAL (novo módulo NewsBox rows:'ribbon'), texto em 2 colunas, foto e citação.
-   Modelo próprio (id 'westcoast'): `docPageKinds` lista as três páginas em "Tipo da nova página". Não mexe no 'newspaper'. */
+   Vive DENTRO do modelo Jornal (painel "Layout do jornal" e "Tipo da nova página"); o modelo 'westcoast' da primeira versão continua registrado
+   (fora do menu) só pra abrir documentos salvos com ele. */
 
 const WC_DEFAULTS = {
   /* ---- cabeçalho e rodapé do jornal ---- */
@@ -173,15 +174,16 @@ const WC_PRESETS = {
   }},
 };
 
-const WC_CFG = {Builder:NewsDocBuilder, presets:WC_PRESETS, defaults:WC_DEFAULTS, defaultPreset:'wc_a4', mast:'gothic', justify:false};
-NEWS_DOCS.westcoast = {rebuild:(p)=>newsRebuildCfg(WC_CFG, p), mast:true, justify:true, cfg:WC_CFG};
+const WC_CFG = {id:'westcoast', Builder:NewsDocBuilder, presets:WC_PRESETS, defaults:WC_DEFAULTS, defaultPreset:'wc_a4', mast:'gothic', justify:false, fonts:NEWS_FONT_SPECS,
+  ui:{mast:true, justify:true}, paperFor:()=>Object.assign({}, DOC_TEMPLATES.newspaper.paper)};
+/* Dentro do modelo Jornal: botões no painel "Layout do jornal" e entradas em "Tipo da nova página". */
+newsRegisterPaper(WC_CFG, 'newsPresetRowWest', 'Westcoast Post', NEWS_FONT_SPECS);
+/* Modelo próprio da primeira versão: fica registrado só pra os documentos salvos com ele continuarem abrindo (não aparece mais no menu Modelo). */
+NEWS_DOCS.westcoast = {rebuild:newsRebuildAny, rows:'newspaper'};
 registerDoc('westcoast', {
   label:'Jornal — Westcoast Post (A4, A5, A6)', page:A4.page, phys:A4.phys,
   paper:{type:'jornal', level:0.4, fold:'meio', atmos:'twin'},
   fonts:NEWS_FONT_SPECS,
-  hint:'Westcoast Post: jornal em inglês com a cara do The Abyssal Post (título, fontes, papel) e composições próprias. Abre na A4; "Tipo da nova página" traz a A5 (anúncios em pirâmide) e a A6 (painel preto e linha do tempo).',
   build: async ()=>{ await newsRebuildCfg(WC_CFG, {preset:'wc_a4'}); },
   pages:newsPageKinds(WC_CFG, NEWS_FONT_SPECS),
 });
-TEMPLATE_ORDER.splice(TEMPLATE_ORDER.indexOf('newspaper') + 1, 0, 'westcoast');
-newsDocButtons('westcoast', 'newsPresetRowWest', WC_CFG);

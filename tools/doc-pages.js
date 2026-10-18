@@ -291,4 +291,4 @@ const newsPagePatch = (preset, ctx)=>{
 };
 DOC_TEMPLATES.newspaper.pages = NEWS_PRESET_ORDER.filter(k=>NEWS_PRESETS[k].group === 'interna').map(k=>({
   id:k, label:NEWS_PRESETS[k].label, fonts:NEWS_FONT_SPECS, build: async (kit, ctx)=>{ await newsRebuild(newsPagePatch(k, ctx)); },
-}));
+})).concat(typeof NEWS_EXTRA_KINDS !== 'undefined' ? NEWS_EXTRA_KINDS : []);   // + layouts do Westcoast Post e do Nordsjo-Posten (news-docs.js)

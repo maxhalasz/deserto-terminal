@@ -1,25 +1,56 @@
-/* ===================== Jornais além do The Abyssal Post (f3-05) =====================
-   O Abyssal Post é o modelo 'newspaper' (news-engine.js, NÃO é editado). Este arquivo dá a outros jornais o mesmo
-   motor (NewsBuilder + NewsBox, o canvas é a fonte da verdade, trocar de layout não perde texto editado) sem mexer
-   nele: cada jornal declara uma CONFIG (construtor, layouts, textos padrão) e usa `newsRebuildCfg`, que é a mesma
-   função `newsRebuild` com a config no lugar das constantes do Abyssal. O estado do jornal fica no mesmo lugar
-   (bg.__newsState), então desfazer, trocar de página e salvar funcionam sem código novo.
-   NEWS_DOCS é o registro que o painel "Layout do jornal" (editor.js) lê: {rebuild, order, row, mast, justify}. */
+/* ===================== Jornais além do The Abyssal Post (f3-05, f3-07) =====================
+   O Abyssal Post é o 'newspaper' (news-engine.js, NÃO é editado). Westcoast Post e Nordsjo-Posten usam o mesmo motor (NewsBuilder + NewsBox,
+   o canvas é a fonte da verdade, trocar de layout não perde texto editado): cada jornal declara uma CONFIG e usa `newsRebuildCfg`, que é a
+   mesma função `newsRebuild` com a config no lugar das constantes do Abyssal. O estado fica no mesmo lugar (bg.__newsState), então
+   desfazer, trocar de página e salvar funcionam sem código novo.
+   OS TRÊS JORNAIS VIVEM DENTRO DO MODELO "JORNAL": o painel "Layout do jornal" tem um grupo de botões por jornal, e "Tipo da nova página" lista os
+   layouts de todos (cada layout pertence a UM jornal: NEWS_CFGS). Trocar a página de um jornal pro layout de outro é "trocar de jornal": o que o
+   Max NÃO editou acompanha o novo jornal (título, orelhas, textos padrão) e o que ele editou fica; o papel da página acompanha o jornal quando o
+   papel padrão dele é diferente (o Nordsjo-Posten é fotocópia escaneada). `newsRebuildAny` é o roteador que o painel chama.
+   NEWS_DOCS é o registro por modelo que o editor.js lê ({rebuild, rows}); NEWS_CFGS guarda os jornais; NEWS_EXTRA_KINDS são as entradas
+   extras de "Tipo da nova página" do modelo 'newspaper' (doc-pages.js as acrescenta). */
 
 const NEWS_DOCS = {};
-NEWS_DOCS.newspaper = {rebuild:(p)=>newsRebuild(p), mast:true, justify:true};
+const NEWS_CFGS = {};
+const NEWS_EXTRA_KINDS = [];
 
-/* newsRebuild com config: cfg = {Builder, presets, defaults | defaultsFor(st), defaultPreset, mast, justify, after?(B, st)}. */
+/* O Abyssal como config (só pra trocar DE e PARA ele; o caminho dele sem trocar de jornal continua sendo o newsRebuild original). */
+const ABY_CFG = {id:'abyssal', Builder:NewsBuilder, presets:NEWS_PRESETS, defaults:NEWS_DEFAULTS, defaultPreset:'classica', mast:'gothic', justify:false,
+  ui:{mast:true, justify:true}, paperFor:()=>Object.assign({}, DOC_TEMPLATES.newspaper.paper)};
+NEWS_CFGS.abyssal = ABY_CFG;
+/* Jornal dono de um layout. */
+function newsCfgOfPreset(id){
+  for (const k in NEWS_CFGS){ if (NEWS_CFGS[k].presets[id]) return NEWS_CFGS[k]; }
+  return ABY_CFG;
+}
+const newsDefaultsOf = (cfg, st)=>cfg.defaultsFor ? cfg.defaultsFor(st) : cfg.defaults;
+
+/* newsRebuild com config: cfg = {id, Builder, presets, defaults | defaultsFor(st), defaultPreset, mast, justify, ui, paperFor(st)}.
+   Se a página vem de OUTRO jornal (ou de outra edição), o texto que o Max não editou passa a ser o do jornal novo. */
 async function newsRebuildCfg(cfg, patch){
   if (!getBackground()) return;
+  if (cfg.fonts && typeof ensureFonts === 'function') await ensureFonts(cfg.fonts);
   beginBatch();
   try {
     const st0 = getNewsState() || {};
     const h = newsHarvest();
     const st = Object.assign({preset:cfg.defaultPreset, mast:cfg.mast || 'gothic', justify:!!cfg.justify, seed:Math.floor(Math.random()*1e6)}, st0, patch || {});
     if (!cfg.presets[st.preset]) st.preset = cfg.defaultPreset;
-    const defaults = cfg.defaultsFor ? cfg.defaultsFor(st) : cfg.defaults;
-    st.content = Object.assign({}, defaults, h.content);
+    if (cfg.presets[st.preset].issue) st.issue = cfg.presets[st.preset].issue;
+    const defaults = newsDefaultsOf(cfg, st);
+    const prevCfg = st0.preset ? newsCfgOfPreset(st0.preset) : null, prevDef = prevCfg ? newsDefaultsOf(prevCfg, st0) : null;
+    let content = Object.assign({}, defaults, h.content);
+    if (prevDef && prevDef !== defaults){   // trocou de jornal/edição: só o que foi editado fica, o resto vira o texto padrão do jornal novo
+      const edited = {};
+      Object.keys(h.content).forEach(k=>{ if (!(k in prevDef) || h.content[k] !== prevDef[k]) edited[k] = h.content[k]; });
+      content = Object.assign({}, defaults, edited);
+    }
+    st.content = content;
+    st.paper = cfg.id;
+    if (prevCfg && prevCfg.paperFor && cfg.paperFor){   // papel padrão diferente (ex.: fotocópia do Nordsjo): a página troca de papel
+      const a = prevCfg.paperFor(st0), b = cfg.paperFor(st);
+      if (JSON.stringify(a) !== JSON.stringify(b)) setPaper(b);
+    }
     const keepers = canvas.getObjects().filter(o=>!o.__newsGenerated && o.customType !== 'background');
     canvas.getObjects().filter(o=>o.__newsGenerated).forEach(o=>canvas.remove(o));
     const B = new cfg.Builder(canvas, st, h.photos, defaults);
@@ -36,8 +67,18 @@ async function newsRebuildCfg(cfg, patch){
   syncNewsLayoutUI();
 }
 
-/* Botões de layout de um jornal (um bloco .newsRows por jornal no painel). */
-function newsDocButtons(docId, rowId, cfg){
+/* Roteador do painel "Layout do jornal": decide qual jornal refaz a página. Abyssal → Abyssal segue pelo newsRebuild original. */
+async function newsRebuildAny(patch){
+  patch = patch || {};
+  if (!getBackground()) return;
+  const st0 = getNewsState() || {}, cur = newsCfgOfPreset(st0.preset || 'classica'), target = patch.preset ? newsCfgOfPreset(patch.preset) : cur;
+  if (target === ABY_CFG && cur === ABY_CFG) return newsRebuild(patch);
+  return newsRebuildCfg(target, patch);
+}
+NEWS_DOCS.newspaper = {rebuild:newsRebuildAny, rows:'newspaper'};
+
+/* Botões de layout de um jornal, na linha `rowId` do painel (dentro do bloco do modelo Jornal). */
+function newsDocButtons(rowId, cfg){
   const row = document.getElementById(rowId); if (!row) return;
   Object.keys(cfg.presets).forEach(key=>{
     const b = document.createElement('button');
@@ -46,18 +87,27 @@ function newsDocButtons(docId, rowId, cfg){
     row.appendChild(b);
   });
 }
-/* Página nova do mesmo jornal: herda título (gótico/serifado), justificado e edição (issue) da página anterior. */
+/* Página nova do mesmo jornal: herda título (gótico/serifado) e justificado da página anterior. */
 function newsInherit(ctx){
   const pv = ctx && ctx.prev && ctx.prev.news, p = {};
-  if (pv){ ['mast', 'justify', 'issue'].forEach(k=>{ if (pv[k] != null) p[k] = pv[k]; }); }
+  if (pv){ ['mast', 'justify'].forEach(k=>{ if (pv[k] != null) p[k] = pv[k]; }); }
   return p;
 }
-/* Entrada da lista "Tipo da nova página". */
-function newsPageKinds(cfg, fonts, extraPatch){
-  return Object.keys(cfg.presets).map(k=>({
-    id:k, label:cfg.presets[k].label, fonts,
-    build: async (kit, ctx)=>{ await newsRebuildCfg(cfg, Object.assign({preset:k}, extraPatch ? extraPatch(ctx) : {}, newsInherit(ctx))); },
-  }));
+/* Entradas da lista "Tipo da nova página". `prefix` vai na frente do nome (no modelo Jornal, que mistura os três jornais); `paperOf(preset)`
+   dá o papel da página nova quando o jornal não usa o papel padrão do modelo. */
+function newsPageKinds(cfg, fonts, extraPatch, prefix, paperOf){
+  return Object.keys(cfg.presets).map(k=>{
+    const kind = {id:k, label:(prefix || '') + cfg.presets[k].label, fonts,
+      build: async (kit, ctx)=>{ await newsRebuildCfg(cfg, Object.assign({preset:k}, extraPatch ? extraPatch(ctx) : {}, newsInherit(ctx))); }};
+    if (paperOf){ const p = paperOf(k); if (p) kind.paper = p; }
+    return kind;
+  });
+}
+/* Registra um jornal no modelo Jornal: config, botões no painel e entradas em "Tipo da nova página". */
+function newsRegisterPaper(cfg, rowId, label, fonts, paperOf){
+  NEWS_CFGS[cfg.id] = cfg;
+  newsDocButtons(rowId, cfg);
+  newsPageKinds(cfg, fonts, null, label + ' — ', paperOf).forEach(k=>NEWS_EXTRA_KINDS.push(k));
 }
 
 /* Anúncios na base da página: mesma altura, colados no rodapé. specs = [{role, x, w}]. Devolve o topo da faixa. */

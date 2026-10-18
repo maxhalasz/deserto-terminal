@@ -1149,7 +1149,7 @@ document.getElementById('docVariantSel').addEventListener('change', async (e)=>{
 });
 function syncNewsLayoutUI(){
   syncDocVariantUI();
-  const nd = (typeof NEWS_DOCS!=='undefined') ? NEWS_DOCS[currentTemplate] : (currentTemplate==='newspaper' ? {mast:true, justify:true} : null);
+  const nd = (typeof NEWS_DOCS!=='undefined') ? NEWS_DOCS[currentTemplate] : (currentTemplate==='newspaper' ? {rows:'newspaper'} : null);
   const show = !!nd;
   document.getElementById('newsLayoutBlock').style.display = show?'block':'none';
   const st = show ? getNewsState() : null;
@@ -1157,10 +1157,12 @@ function syncNewsLayoutUI(){
     document.getElementById('newsMast').value = st.mast || 'gothic';
     document.getElementById('newsJustify').checked = !!st.justify;
   }
-  document.querySelectorAll('.newsRows').forEach(r=>{ r.style.display = r.dataset.newsDoc===currentTemplate ? 'block' : 'none'; });
+  document.querySelectorAll('.newsRows').forEach(r=>{ r.style.display = (nd && r.dataset.newsDoc===(nd.rows || currentTemplate)) ? 'block' : 'none'; });
+  // título (gótico/serifado) e justificado valem pro jornal DA PÁGINA aberta (o Nordsjo-Posten tem título e colunas próprios)
+  const cfgNow = (st && typeof newsCfgOfPreset==='function') ? newsCfgOfPreset(st.preset) : null, ui = (cfgNow && cfgNow.ui) || {mast:true, justify:true};
   const mw = document.getElementById('newsMastWrap'), jw = document.getElementById('newsJustifyWrap');
-  if (mw) mw.style.display = (!nd || nd.mast) ? 'block' : 'none';
-  if (jw) jw.style.display = (!nd || nd.justify) ? '' : 'none';
+  if (mw) mw.style.display = ui.mast ? 'block' : 'none';
+  if (jw) jw.style.display = ui.justify ? '' : 'none';
   document.querySelectorAll('.newsRows button').forEach(b=>b.classList.toggle('active', !!st && b.dataset.preset===st.preset));
   syncPaperUI();
   if (PAGES.length) updatePageNavUI();   // o nome do tipo da página acompanha o layout escolhido

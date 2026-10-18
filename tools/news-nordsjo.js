@@ -9,7 +9,8 @@
      1) o conteúdo inteiro entra INCLINADO (newsTilt) e deslocado, como um papel torto no scanner;
      2) tinta levemente espalhada: NewsBox.soft (desfoque em unidades de página) em toda caixa de texto;
      3) a camada 'xerox' por cima (fundo preto do scanner no mesmo ângulo, toner, riscos, verso transparecendo, lombada) + papel Fotocópia.
-   As duas edições são os "estilos" do modelo (seletor Estilo): cada uma traz o próprio texto, papel, inclinação e intensidade de scan.
+   Vive DENTRO do modelo Jornal: cada layout é uma edição (2003 e 1989) e traz o próprio texto, papel, inclinação e intensidade de scan. O modelo
+   'nordsjo' da versão anterior continua registrado (fora do menu) só pra abrir documentos salvos com ele.
    O texto padrão é o que o Max mandou; tudo é editável. Cada edição tem o PRÓPRIO layout: 2003 arejado (foto em largura total com o painel do
    título por cima, texto em 3 colunas estreitas, caixas à direita) e 1989 cheio (título + foto lado a lado, texto em 3 colunas,
    caixas, quatro notas miúdas com o clima de estranheza espalhado em vez de concentrado num elemento, e anúncios). */
@@ -204,7 +205,7 @@ class NordBuilder extends NewsDocBuilder {
 const NORD_PRESETS = {
   /* 2003 — layout arejado: foto em largura total com o título num painel preto por cima, deck e texto em 3 colunas estreitas à esquerda
      e, à direita, as caixas empilhadas (o tamanho do texto da pilha é o maior que cabe). */
-  nord_a6: {label:'Layout arejado (2003)', build: async (B)=>{
+  nord_a6: {label:'2003 — Dykkerne vest for øyene', build: async (B)=>{
     const G = NORD_G, LX = nX(0), FW = G.W, LW = nW(4), RX = nX(4), RW = nW(2);
     const T = await B.top('bar');
     const lim = B.base() - 20;
@@ -233,7 +234,7 @@ const NORD_PRESETS = {
 
   /* 1989 — layout apertado e cheio: painel preto (4 col.) com o título e a chamada + foto (2 col.), texto em 3 colunas estreitas com fios,
      as duas caixas de baixo, uma fileira de quatro notas miúdas (tempo, lensmann, cartas, desaparecido) e os anúncios. */
-  nord_old: {label:'Layout apertado (1989)', build: async (B)=>{
+  nord_old: {label:'1989 — Et hjerte i garnet', build: async (B)=>{
     const G = NORD_G, LX = nX(0), FW = G.W, LW = nW(4), RX = nX(4), RW = nW(2);
     const T = await B.top('bar');
     const lim = B.base() - 20;
@@ -266,17 +267,20 @@ const NORD_PRESETS = {
   }},
 };
 
-const NORD_CFG = {Builder:NordBuilder, presets:NORD_PRESETS, defaultsFor:st=>NORD_DEFAULTS[st.issue] || NORD_DEFAULTS['2003'], defaultPreset:'nord_a6', mast:'-', justify:false};
-NEWS_DOCS.nordsjo = {rebuild:(p)=>newsRebuildCfg(NORD_CFG, p), mast:false, justify:false, cfg:NORD_CFG};
+const NORD_CFG = {id:'nordsjo', Builder:NordBuilder, presets:NORD_PRESETS, defaultsFor:st=>NORD_DEFAULTS[st.issue] || NORD_DEFAULTS['2003'], defaultPreset:'nord_a6', mast:'-', justify:false, fonts:NORD_FONTS,
+  ui:{mast:false, justify:false}, paperFor:st=>Object.assign({}, NORD_STYLE[st.issue || '2003'].paper)};
+/* Cada layout é uma edição (issue): o layout escolhe o texto, o papel e o desgaste do scan. */
+NORD_PRESETS.nord_a6.issue = '2003'; NORD_PRESETS.nord_old.issue = '1989';
+/* Dentro do modelo Jornal: botões no painel "Layout do jornal" e entradas em "Tipo da nova página" (a página nova já nasce com o papel de fotocópia). */
+newsRegisterPaper(NORD_CFG, 'newsPresetRowNord', 'Nordsjo-Posten', NORD_FONTS, k=>NORD_STYLE[NORD_PRESETS[k].issue].paper);
+/* Modelo próprio da versão anterior: fica registrado só pra os documentos salvos com ele continuarem abrindo (não aparece mais no menu Modelo). */
+NEWS_DOCS.nordsjo = {rebuild:newsRebuildAny, rows:'newspaper'};
 const _nordVar = (id, label)=>({id, label, paper:NORD_STYLE[id].paper, fonts:NORD_FONTS,
-  build: async (kit, ctx)=>{ await newsRebuildCfg(NORD_CFG, {preset:id === '1989' ? 'nord_old' : 'nord_a6', issue:id}); },
-  pages:newsPageKinds(NORD_CFG, NORD_FONTS, ()=>({issue:id})).sort((a, b)=>(b.id === (id === '1989' ? 'nord_old' : 'nord_a6')) - (a.id === (id === '1989' ? 'nord_old' : 'nord_a6')))});   // o layout da própria edição vem primeiro em "Tipo da nova página"
+  build: async (kit, ctx)=>{ await newsRebuildCfg(NORD_CFG, {preset:id === '1989' ? 'nord_old' : 'nord_a6'}); },
+  pages:newsPageKinds(NORD_CFG, NORD_FONTS).sort((a, b)=>(b.id === (id === '1989' ? 'nord_old' : 'nord_a6')) - (a.id === (id === '1989' ? 'nord_old' : 'nord_a6')))});
 registerDoc('nordsjo', {
   label:'Jornal antigo — Nordsjo-Posten (scan, norueguês)', page:A4.page, phys:A4.phys,
   paper:NORD_STYLE['2003'].paper, fonts:NORD_FONTS, variantNoun:'jornal',
-  hint:'Nordsjo-Posten: jornal norueguês antigo, escaneado. O seletor Estilo troca a edição (9 jan. 2003 ou 26 out. 1989). O efeito de scan é a camada "Efeito de scan" na aba Objeto.',
   variants:[_nordVar('2003', '9. januar 2003 — Dykkerne vest for øyene'), _nordVar('1989', '26. oktober 1989 — Et hjerte i garnet')],
-  build: async (kit, ctx)=>{ await newsRebuildCfg(NORD_CFG, {preset:'nord_a6', issue:'2003'}); },
+  build: async (kit, ctx)=>{ await newsRebuildCfg(NORD_CFG, {preset:'nord_a6'}); },
 });
-TEMPLATE_ORDER.splice(TEMPLATE_ORDER.indexOf('westcoast') + 1, 0, 'nordsjo');
-newsDocButtons('nordsjo', 'newsPresetRowNord', NORD_CFG);
