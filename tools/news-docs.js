@@ -165,14 +165,15 @@ class NewsDocBuilder extends NewsBuilder {
     });
     return yy - gap;
   }
-  /* Título em painel preto (letra clara): kicker + título, o painel acompanha a altura do texto. Devolve onde o painel termina. */
-  revHead(role, x, y, w, o){
-    o = o || {}; const pad = 16;
-    const panel = this.kit.rect({left:x, top:y, width:w, height:40, fill:NEWS_INK, label:'Painel do título'}); this._mark(panel, 'rule');
-    const k = this.txt(role + '.kicker', x + pad, y + 13, w - 2*pad, {font:'Libre Franklin', weight:700, size:12, cs:220, upper:true, lh:1.2, fill:'#e3b3a8', blend:'source-over'});
-    const h = this.txt(role + '.headline', x + pad, (k.obj ? k.bottom : y + 13) + 6, w - 2*pad, {font:'Old Standard TT', weight:700, size:o.size || 54, lh:1.02, fill:'#f4f1e8', blend:'source-over'});
-    const bottom = (h.obj ? h.bottom : y + 40) + 16;
-    panel.set('height', bottom - y); panel.setCoords();
+  /* Título grande direto no papel (tinta preta, sem caixa): filete duplo em cima, kicker, título em serifa pesada e filete embaixo.
+     A altura acompanha o texto (ou `minH`). Devolve onde o bloco termina. */
+  bigHead(role, x, y, w, o){
+    o = o || {};
+    this.rule(x, y + 2, x + w, y + 2, 3.2); this.rule(x, y + 7, x + w, y + 7, 0.9);
+    const k = this.txt(role + '.kicker', x, y + 17, w, {font:'Libre Franklin', weight:700, size:12, cs:150, upper:true, lh:1.2, fill:NEWS_RED});
+    const h = this.txt(role + '.headline', x, (k.obj ? k.bottom : y + 17) + 6, w, {font:'Old Standard TT', weight:700, size:o.size || 54, lh:1.02});
+    const bottom = Math.max((h.obj ? h.bottom : y + 40) + 14, y + (o.minH || 0));
+    this.rule(x, bottom, x + w, bottom, 1.3);
     return bottom;
   }
   /* header() do Abyssal (capa) com o número da página no rodapé. */

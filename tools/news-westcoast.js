@@ -5,7 +5,7 @@
    O texto padrão é o que o Max mandou; tudo é editável:
      A4 — faixa de três matérias no alto, matéria principal no meio (foto alta e citação à esquerda), faixa de serviço e anúncios na base;
      A5 — anúncios locais em PIRÂMIDE (três pilhas, anúncio grande na base), com o aviso público e a caixa "Honoring its legacy" no alto;
-     A6 — título em painel preto, linha do tempo HORIZONTAL (novo módulo NewsBox rows:'ribbon'), texto em 2 colunas, foto e citação.
+     A6 — título grande direto no papel entre filetes, linha do tempo HORIZONTAL (novo módulo NewsBox rows:'ribbon'), texto em 2 colunas, foto e citação.
    Vive DENTRO do modelo Jornal (painel "Layout do jornal" e "Tipo da nova página"); o modelo 'westcoast' da primeira versão continua registrado
    (fora do menu) só pra abrir documentos salvos com ele. */
 
@@ -152,11 +152,11 @@ const WC_PRESETS = {
   }},
 
   /* A6 — título em painel preto ao lado dos números, linha do tempo HORIZONTAL em largura total, texto em 2 colunas e foto + citação à direita. */
-  wc_a6: {label:'A6 — Painel preto e linha do tempo', build: async (B)=>{
+  wc_a6: {label:'A6 — Título grande e linha do tempo', build: async (B)=>{
     const T = B.innerHeader('A6'), BT = NEWS_G.BOTTOM, LX = newsX(0), FW = NEWS_G.W, LW = newsW(4), RX = newsX(4), RW = newsW(2), G = NEWS_G.GUT;
     const lim = newsBottomRow(B, [{role:'wb.1', x:newsX(0), w:newsW(2)}, {role:'wb.2', x:newsX(2), w:newsW(2)}, {role:'wb.3', x:newsX(4), w:newsW(2)}], BT, NEWS_AD) - 22;
     const y0 = B.band('w6.band', LX, T, FW);
-    const pb = B.revHead('w6', LX, y0, LW, {size:50});
+    const pb = B.bigHead('w6', LX, y0, LW, {size:56});
     const pq = B.txt('pq6', RX, y0, RW, {frame:'rules', style:'italic', size:24, lh:1.24, weight:700, padY:12}).obj;
     if (pq){ pq.set('minH', Math.max(pq.height, pb - y0)); pq.setCoords(); }
     let y = pb + 10;
