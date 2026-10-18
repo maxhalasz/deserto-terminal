@@ -5,7 +5,7 @@
 const NEWS_LORE_REF = {
   'Os dois jornais': [
     ['Westcoast Post', 'Jornal em inglês das ilhas a oeste de Bergen, no formato do The Abyssal Post. Edição de quinta-feira, 18 de outubro de 2029 (vol. LXVIII, nº 42). Começou em 1961 como suplemento semanal em inglês do Nordsjo-Posten e guarda o arquivo dele: a coleção é aberta ao público na biblioteca de Straume, de segunda a sábado. Páginas feitas: A4 (leilão do espólio de Johannes Kleppe, em Rong; Apophis; tempestade e satélite; cota de cavala), A5 (anúncios locais) e A6 (cabo submarino cortado a oeste das ilhas).'],
-    ['Nordsjo-Posten', 'Jornal norueguês de Straume, para Sotra e Øygarden, de 1932 a 2016. Design próprio, como scan de documento. Edições feitas: 9 de janeiro de 2003 (71. årgang, nº 2) e 26 de outubro de 1989 (57. årgang, nº 43), as duas no layout da A6 do Westcoast Post. Os jogadores encontram pesquisando "Nordsjo-Posten" ou perguntando à IA que existe no mundo do jogo.'],
+    ['Nordsjo-Posten', 'Jornal norueguês de Straume, para Sotra e Øygarden, de 1932 a 2016. Design próprio, como scan de documento. Edições feitas: 9 de janeiro de 2003 (71. årgang, nº 2) e 26 de outubro de 1989 (57. årgang, nº 43), as duas com o mesmo visual (título em serifa pesada com a marca das ondas e um filete ondulado, aba cinza, scan) e layouts diferentes. Os jogadores encontram pesquisando "Nordsjo-Posten" ou perguntando à IA que existe no mundo do jogo.'],
     ['Onde estão na ferramenta', 'Modelos: "Jornal — Westcoast Post (A4, A5, A6)" e "Jornal antigo — Nordsjo-Posten (scan, norueguês)". No Nordsjo-Posten o seletor Estilo troca a edição. O texto padrão de cada página é o que o Max mandou; tudo é editável.'],
   ],
   '⚠ Nordsjo-Posten, 9 de janeiro de 2003 — resumo (só pro GM)': [

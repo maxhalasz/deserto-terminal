@@ -90,6 +90,7 @@ class NewsDocBuilder extends NewsBuilder {
     const r = super.txt(role, x, y, w, o);
     if (r.obj && o && typeof o.rows === 'string'){ r.obj.set('rows', o.rows); r.obj.initDimensions(); r.bottom = r.obj.top + r.obj.height; }
     if (r.obj && o && o.soft){ r.obj.set('soft', o.soft); }
+    if (r.obj && o && o.tintFill){ r.obj.set('tintFill', true); }
     return r;
   }
   pageLabel(label, keys){

@@ -1,18 +1,20 @@
 /* ===================== Nordsjo-Posten (f3-05) =====================
    Jornal regional norueguês (Straume, Sotra e Øygarden; fundado em 1932, fechado em 2016) em DUAS edições como "scan de documento":
    quinta-feira 9 de janeiro de 2003 (71. årgang) e quinta-feira 26 de outubro de 1989 (57. årgang). Texto em norueguês, aspas «».
-   Design próprio, bem diferente do The Abyssal Post (serifa de jornal + título gótico): título em sans pesada (Libre Franklin 900), texto em
-   PT Serif, cabeçalho corrido de página interna (sem título grande), faixa preta com a seção à esquerda, caixas com fundo cinza de retícula,
-   fotos em meio-tom fino com moldura, citação com filetes. O "scan" vem de três coisas somadas (receita pesquisada, ver proc-xerox.js):
+   Design próprio, bem diferente do The Abyssal Post (serifa de jornal + título gótico), e igual nas duas edições (é o mesmo jornal). Tudo é tinta
+   preta direto no papel, SEM caixa preta chapada (o Max achou que não combina com um jornal norueguês dos anos 90): título "Nordsjo-Posten" em
+   serifa pesada com a marca das ondas e um filete ondulado embaixo, linha de data, aba cinza da seção, chamada em Libre Franklin 900, texto em
+   PT Serif, caixas com fundo cinza de retícula, fotos em meio-tom fino com moldura grossa. O "scan" vem de três coisas somadas (receita
+   pesquisada, ver proc-xerox.js):
      1) o conteúdo inteiro entra INCLINADO (newsTilt) e deslocado, como um papel torto no scanner;
      2) tinta levemente espalhada: NewsBox.soft (desfoque em unidades de página) em toda caixa de texto;
      3) a camada 'xerox' por cima (fundo preto do scanner no mesmo ângulo, toner, riscos, verso transparecendo, lombada) + papel Fotocópia.
    As duas edições são os "estilos" do modelo (seletor Estilo): cada uma traz o próprio texto, papel, inclinação e intensidade de scan.
-   O texto padrão é o que o Max mandou como referência de tamanho/visual; tudo é editável. Cada edição tem o PRÓPRIO layout:
-   2003 arejado (título em largura total, foto e texto em 2 colunas, caixas à direita) e 1989 apertado (chamada com foto à direita, texto em
-   3 colunas estreitas com fios, caixas lado a lado embaixo). */
+   O texto padrão é o que o Max mandou; tudo é editável. Cada edição tem o PRÓPRIO layout: 2003 arejado (foto em largura total com o painel do
+   título por cima, texto em 3 colunas estreitas, caixas à direita) e 1989 cheio (título + foto lado a lado, texto em 3 colunas,
+   caixas, quatro notas miúdas com o clima de estranheza espalhado em vez de concentrado num elemento, e anúncios). */
 
-const NORD_FONTS = ["400 16px 'PT Serif'", "italic 400 16px 'PT Serif'", "700 16px 'PT Serif'", "400 16px 'Libre Franklin'", "700 16px 'Libre Franklin'", "900 16px 'Libre Franklin'"];
+const NORD_FONTS = ["900 16px 'Playfair Display'", "400 16px 'PT Serif'", "italic 400 16px 'PT Serif'", "700 16px 'PT Serif'", "400 16px 'Libre Franklin'", "700 16px 'Libre Franklin'", "900 16px 'Libre Franklin'"];
 const NORD_G = {M:56, W:1128, GUT:16, TOP:112, BOTTOM:1660};
 NORD_G.COL = (NORD_G.W - 5*NORD_G.GUT)/6;
 const nX = i=>NORD_G.M + i*(NORD_G.COL + NORD_G.GUT), nW = n=>n*NORD_G.COL + (n - 1)*NORD_G.GUT;
@@ -21,13 +23,14 @@ const nX = i=>NORD_G.M + i*(NORD_G.COL + NORD_G.GUT), nW = n=>n*NORD_G.COL + (n 
 const NORD_STYLE = {
   '2003': {tilt:-0.28, shift:[-3, 3], soft:0.45, pitch:3.2, photo:0, paper:{type:'fotocopia', level:0.55, fold:'meio', atmos:'neutra'},
            xerox:{tone:0.45, speck:0.45, streak:0.4, ghost:0.35, bed:0.6, gutter:0, side:'l'}},
-  '1989': {tilt:0.5, shift:[5, -2], soft:0.7, pitch:4.2, photo:1, paper:{type:'fotocopia', level:0.72, fold:'meio', atmos:'silent'},
-           xerox:{tone:0.7, speck:0.85, streak:0.65, ghost:0.55, bed:1, gutter:0.5, side:'l'}},
+  '1989': {tilt:0.5, shift:[5, -2], soft:0.8, pitch:4.2, photo:1, paper:{type:'fotocopia', level:0.78, fold:'meio', atmos:'silent'},
+           xerox:{tone:0.9, speck:1, streak:0.8, ghost:0.75, bed:1, gutter:0.6, side:'l'}},
 };
 
 const NORD_DEFAULTS = {
   '2003': {
-    'run': 'NORDSJO-POSTEN · TORSDAG 9. JANUAR 2003 · 71. ÅRGANG · NR. 2 · UTGITT I STRAUME FOR SOTRA OG ØYGARDEN',
+    'mast.name': 'Nordsjo-Posten',
+    'run': 'TORSDAG 9. JANUAR 2003 · 71. ÅRGANG · NR. 2 · UTGITT I STRAUME FOR SOTRA OG ØYGARDEN',
     'bar': 'SPESIALSAK',
     'lead.kicker': 'PIONERDYKKERNE', 'lead.headline': 'Dykkerne vest for øyene',
     'lead.deck': 'Granskingen er ferdig. Fem menn som jobbet på feltet vest for Sotra forteller fem forskjellige historier om hva de gjorde der',
@@ -52,10 +55,11 @@ const NORD_DEFAULTS = {
     'ad.1:title': 'BAKERIET', 'ad.1': 'Ferske rundstykker og skolebrød hver dag fra kl. 06. Bestill kake til helgen innen torsdag.',
     'ad.2:title': 'STRAUME BILVERKSTED', 'ad.2': 'Vinterdekk og dekkskift. Bestill time i dag. Tlf. 56 00 12 34.',
     'ad.3:title': 'SOTRA FRISØR', 'ad.3': 'Åpent tirsdag til lørdag. Pensjonistrabatt på onsdager.',
-    'foot.l': 'NORDSJO-POSTEN  ·  TORSDAG 9. JANUAR 2003', 'foot.r': '',
+    'foot.l': 'NORDSJO-POSTEN  ·  TORSDAG 9. JANUAR 2003', 'foot.r': 'SIDE 8',
   },
   '1989': {
-    'run': 'NORDSJO-POSTEN · TORSDAG 26. OKTOBER 1989 · 57. ÅRGANG · NR. 43 · UTGITT I STRAUME FOR SOTRA OG ØYGARDEN',
+    'mast.name': 'Nordsjo-Posten',
+    'run': 'TORSDAG 26. OKTOBER 1989 · 57. ÅRGANG · NR. 43 · UTGITT I STRAUME FOR SOTRA OG ØYGARDEN',
     'bar': 'LOKALT',
     'lead.kicker': 'UTFALLET', 'lead.headline': 'Et hjerte i garnet',
     'lead.deck': 'Håkon Rask (53) fikk noe uvanlig opp fra kanten av Djupet og kaller det et hjerte. Legen sier at han ikke har sett slikt vev før',
@@ -79,7 +83,15 @@ const NORD_DEFAULTS = {
     'ad.1:title': 'SOTRA BYGGEVARER', 'ad.1': 'Vinterutsalg på isolasjon og kledning. Åpent mandag til fredag 07–16, lørdag 09–13.',
     'ad.2:title': 'KAFFESTUA', 'ad.2': 'Vafler og kaffe hver dag. Søndagsmiddag fra kl. 14. Åpent 10–17.',
     'ad.3:title': 'SOTRA RADIO & TV', 'ad.3': 'Service og reparasjon på alle merker. Antennemontering. Tlf. 05 33 12 34.',
-    'foot.l': 'NORDSJO-POSTEN  ·  TORSDAG 26. OKTOBER 1989', 'foot.r': '',
+    'foot.l': 'NORDSJO-POSTEN  ·  TORSDAG 26. OKTOBER 1989', 'foot.r': 'SIDE 5',
+    'v1:title': 'VÆRET',
+    'v1': 'Torsdag: tåke om morgenen, bris fra vest. Fredag: sørvest og regn. Sjøen er urolig ved Djupet, ellers rolig. Fiskerne melder om stille vann inne ved land. Barometeret på kaia falt tolv hektopascal på en time natt til onsdag, uten at været endret seg.',
+    'v2:title': 'LENSMANNEN MELDER',
+    'v2': 'Tre henvendelser om lyder fra sjøen natt til onsdag. Ingen funn. Lensmannen minner om at hunder bør holdes inne om natten. En liten snekke ble funnet driftende ved Utfallet kai tirsdag morgen. Båten var tom og garnene var trukket. Eieren er funnet i god behold.',
+    'v3:title': 'LESERBREV',
+    'v3': 'Hunden vår har sittet ved stuevinduet mot vest siden tirsdag. Han vil ikke spise og vil ikke bli med ut. Har andre i Utfallet opplevd det samme? — Bekymret, Utfallet\nKua til Berge ville ikke gå ned til stranda onsdag. Hun har gått der i seks somre. — Nabo',
+    'v4:title': 'SAVNET',
+    'v4': 'Katten Pus, grå med hvit labb, borte fra Utfallet siden tirsdag kveld. Hører til hos familien Berge. Dørene står åpne. Fant du den, ring 56 00 12 34.',
   },
 };
 
@@ -93,35 +105,78 @@ class NordBuilder extends NewsDocBuilder {
     super(cv, st, photos, defaults);
     this.S = NORD_STYLE[st.issue] || NORD_STYLE['2003'];
   }
-  /* toda caixa de texto leva a tinta mole da edição */
+  /* toda caixa de texto leva a tinta mole da edição (as colunas do corpo também) */
   txt(role, x, y, w, o){ return super.txt(role, x, y, w, Object.assign({soft:this.S.soft}, o || {})); }
-  /* cabeçalho corrido de página interna: filete grosso, linha de texto centrada, filete fino */
-  runHead(){
+  flow(role, x, y, w, o){
+    const n0 = this.cv.getObjects().length, r = super.flow(role, x, y, w, o);
+    this.cv.getObjects().slice(n0).forEach(ob=>{ if (ob.type === 'newsbox') ob.set('soft', this.S.soft); });
+    return r;
+  }
+
+  /* Marca do jornal: anel com três ondas, em tinta preta direto no papel. */
+  emblem(x, y, d){
+    const k = this.kit, s = d/78;
+    this._mark(k.circle({left:x, top:y, r:d/2 - 2*s, stroke:NEWS_INK, sw:3.8, fill:null, blend:'multiply', label:'Marca — anel'}), 'rule');
+    for (let i = 0; i < 3; i++){
+      this._mark(k.path('M 0 9 Q 8 -3 16 9 T 32 9 T 48 9 T 64 9', {left:x + d/2 - 32*s, top:y + d/2 + (i - 1)*14*s - 8*s, stroke:NEWS_INK, sw:3.6, scale:s, blend:'multiply', label:'Marca — onda'}), 'rule');
+    }
+  }
+  /* Filete ondulado (o mar): uma onda de comprimento `len` e altura `amp` em toda a largura. */
+  wave(x, y, w, amp, len, sw, label){
+    const h = len/2, n = Math.ceil(w/h);
+    let d = `M 0 0 Q ${h/2} ${-amp} ${h} 0`;
+    for (let k = 2; k <= n; k++) d += ` T ${k*h} 0`;
+    this._mark(this.kit.path(d, {left:x, top:y - amp/2, stroke:NEWS_INK, sw, blend:'multiply', label:label || 'Filete ondulado'}), 'rule');
+  }
+  /* Título do jornal direto no papel: filete grosso, a marca das ondas à esquerda e o nome em serifa pesada, filete ondulado, linha de data e
+     edição entre filetes e a aba cinza da seção. Devolve onde o conteúdo começa. */
+  async top(tabRole){
     const M = NORD_G.M, W = NORD_G.W;
-    this.rule(M, 30, M + W, 30, 4.2);
-    this.txt('run', M, 40, W, {font:'Libre Franklin', weight:700, size:10.6, cs:150, lh:1.2, align:'center', upper:true, fit:true, minSize:8});
-    this.rule(M, 62, M + W, 62, 1.1);
+    this.rule(M, 30, M + W, 30, 5.2); this.rule(M, 38, M + W, 38, 1.1);
+    this.emblem(M + 2, 54, 90);
+    this.txt('mast.name', M + 112, 40, W - 112, {font:'Playfair Display', weight:900, size:134, lh:1.0, cs:-8, align:'center', fit:true, minSize:60});
+    this.wave(M, 170, W, 8, 36, 2.6, 'Filete ondulado (1)'); this.wave(M + 18, 180, W - 18, 5, 36, 1.3, 'Filete ondulado (2)');
+    this.txt('run', M, 193, W, {font:'Libre Franklin', weight:700, size:11.4, cs:150, lh:1.2, align:'center', upper:true, fit:true, minSize:8});
+    this.rule(M, 215, M + W, 215, 2.6); this.rule(M, 220, M + W, 220, 0.9);
+    const ty = 232, tw = 236;
+    this._mark(this.kit.rect({left:M, top:ty, width:tw, height:28, fill:'#d6d3cb', stroke:NEWS_INK, sw:1.6, label:'Aba da seção'}), 'rule');
+    this.txt(tabRole, M + 14, ty + 8, tw - 28, {font:'Libre Franklin', weight:900, size:12.8, cs:270, lh:1.0, upper:true});
+    this.rule(M + tw, ty + 26, M + W, ty + 26, 2.6);
+    return ty + 28 + 12;
   }
-  /* faixa preta com a seção à esquerda */
-  bar(role, x, y, w){
-    const r = this.kit.rect({left:x, top:y, width:w, height:24, fill:NEWS_INK, label:'Faixa — ' + role}); this._mark(r, 'rule');
-    this.txt(role, x + 10, y + 5.5, w - 20, {font:'Libre Franklin', weight:700, size:11.5, cs:230, lh:1.0, fill:'#f4f1e8', blend:'source-over', upper:true});
-    return y + 24 + 12;
+  /* Anúncios na base (mesma altura) e rodapé. Devolve o topo dos anúncios. */
+  base(){
+    const G = NORD_G, BT = G.BOTTOM, LX = nX(0), FW = G.W;
+    const adsTop = newsBottomRow(this, [0, 2, 4].map((c, i)=>({role:'ad.' + (i + 1), x:nX(c), w:nW(2)})), BT, {frame:'box', title:true, font:'PT Serif', size:13.6, lh:1.3, titleSize:12, titleFont:'Libre Franklin'});
+    this.rule(LX, BT + 12, LX + FW, BT + 12, 1.1);
+    this.txt('foot.l', LX, BT + 20, 800, {font:'Libre Franklin', weight:700, size:9.8, cs:140, lh:1.2, upper:true, fill:'#2a2622'});
+    this.txt('foot.r', LX + FW - 240, BT + 19, 240, {font:'Libre Franklin', weight:900, size:11, cs:200, lh:1.2, upper:true, align:'right'});
+    return adsTop;
   }
-  /* chamada: kicker, título pesado, linha fina, assinatura */
-  head(role, x, y, w, o){
-    o = o || {}; let yy = y;
-    const k = this.txt(role + '.kicker', x, yy, w, {font:'Libre Franklin', weight:900, size:13.5, cs:250, upper:true, lh:1.2});
-    if (k.obj) yy = k.bottom + 3;
-    const h = this.txt(role + '.headline', x, yy, w, {font:'Libre Franklin', weight:900, size:o.size || 78, lh:0.96, fit:true, minSize:o.minSize || 44, cs:-12});
-    yy = h.bottom + 9;
-    const d = this.txt(role + '.deck', x, yy, w, {font:'PT Serif', style:'italic', size:o.deckSize || 19.5, lh:1.26});
-    if (d.obj) yy = d.bottom + 8;
-    const b = this.txt(role + '.byline', x, yy, w, {font:'Libre Franklin', weight:700, size:11, cs:170, upper:true, lh:1.2});
-    if (b.obj) yy = b.bottom + 5;
-    return yy;
+  /* Chamada: kicker, título pesado e (opcional) deck e assinatura. Com `box` vira um painel de papel com moldura grossa (por cima da foto);
+     sem `box`, fica direto no papel entre um filete grosso em cima e um fino embaixo. A altura acompanha o texto (ou `minH`). */
+  revHead(role, x, y, w, o){
+    o = o || {}; const pad = o.box ? 20 : 2;
+    const panel = o.box ? this.kit.rect({left:x, top:y, width:w, height:60, fill:'#f0eee7', stroke:NEWS_INK, sw:3.4, blend:'source-over', label:'Painel do título'}) : null;
+    if (panel) this._mark(panel, 'rule'); else this.rule(x, y + 2, x + w, y + 2, 4.6);
+    let yy = y + (o.box ? 17 : 18);
+    const k = this.txt(role + '.kicker', x + pad, yy, w - 2*pad, {font:'Libre Franklin', weight:900, size:13, cs:270, upper:true, lh:1.2});
+    if (k.obj) yy = k.bottom + 6;
+    const h = this.txt(role + '.headline', x + pad, yy, w - 2*pad, {font:'Libre Franklin', weight:900, size:o.size || 80, lh:0.95, cs:-14});
+    yy = h.bottom + 12;
+    if (o.deck){
+      const d = this.txt(role + '.deck', x + pad, yy, w - 2*pad, {font:'PT Serif', style:'italic', size:o.deckSize || 19, lh:1.27});
+      if (d.obj) yy = d.bottom + 12;
+    }
+    if (o.byline){
+      const b = this.txt(role + '.byline', x + pad, yy, w - 2*pad, {font:'Libre Franklin', weight:700, size:11.5, cs:190, upper:true, lh:1.2, fill:'#3a352f'});
+      if (b.obj) yy = b.bottom + 12;
+    }
+    const bottom = Math.max(yy + 6, y + (o.minH || 0));
+    if (panel){ panel.set('height', bottom - y); panel.setCoords(); } else this.rule(x, bottom - 1, x + w, bottom - 1, 1.2);
+    return bottom;
   }
-  /* foto em meio-tom fino com moldura e legenda miúda */
+  /* foto em meio-tom fino com moldura grossa; legenda em x/largura próprios (o painel do título pode estar por cima). Devolve onde a legenda termina. */
   async photo(role, x, y, w, h, o){
     o = o || {};
     let img = this.photos[role];
@@ -130,83 +185,84 @@ class NordBuilder extends NewsDocBuilder {
       img = await newsMakePhoto(x, y, w, h, o.variant != null ? o.variant : this.S.photo, (this.seed++)*131 + (this.st.seed || 7));
       img.filters = nordPhotoFilters(this.S.pitch, w); img.applyFilters();
     }
-    img.set({stroke:'#121110', strokeWidth:1.6});
+    img.set({stroke:'#121110', strokeWidth:2.2});
     this._mark(img, role); img.__labName = 'Foto (trocar) — ' + role;
     this.cv.add(img);
     let bot = y + h;
-    const c = this.txt(role + '.cap', x, y + h + 6, w, {font:'Libre Franklin', size:11.2, lh:1.3, fill:'#1d1b19'});
+    const c = this.txt(role + '.cap', o.capX != null ? o.capX : x, y + h + 6, o.capW || w, {font:'Libre Franklin', size:11.2, lh:1.3, fill:'#1d1b19'});
     if (c.obj) bot = c.bottom;
     return bot + 10;
+  }
+  /* O papel entrou torto no scanner: o conteúdo todo inclina e a camada de scan vai por cima. */
+  finish(){
+    newsTilt(this.cv, this.S.tilt, this.S.shift[0], this.S.shift[1], PAGE_W, PAGE_H);
+    const x = this.kit.proc('xerox', 0, 0, PAGE_W, PAGE_H, {seed:this.st.seed || 7, opts:Object.assign({}, this.S.xerox, {tilt:this.S.tilt, shift:this.S.shift}), blend:'multiply', label:'Efeito de scan (fotocópia)'});
+    this._mark(x, 'xerox');
   }
 }
 
 const NORD_PRESETS = {
-  /* 2003 — layout arejado (o desenho da A6 do Westcoast Post): título em largura total, foto e texto em 2 colunas à esquerda, caixas à direita. */
+  /* 2003 — layout arejado: foto em largura total com o título num painel preto por cima, deck e texto em 3 colunas estreitas à esquerda
+     e, à direita, as caixas empilhadas (o tamanho do texto da pilha é o maior que cabe). */
   nord_a6: {label:'Layout arejado (2003)', build: async (B)=>{
-    const G = NORD_G, LX = nX(0), FW = G.W, LW = nW(4), RX = nX(4), RW = nW(2), BT = G.BOTTOM;
-    B.runHead();
-    let y = B.bar('bar', LX, 76, FW);
-    // anúncios na base (mesma altura) e rodapé
-    const adsTop = newsBottomRow(B, [0, 2, 4].map((c, i)=>({role:'ad.' + (i + 1), x:nX(c), w:nW(2)})), BT, {frame:'box', title:true, font:'PT Serif', size:13.2, lh:1.3, titleSize:12, titleFont:'Libre Franklin'});
-    B.rule(LX, BT + 12, LX + FW, BT + 12, 1.1);
-    B.txt('foot.l', LX, BT + 20, 700, {font:'Libre Franklin', weight:700, size:9.6, cs:140, lh:1.2, upper:true, fill:'#2a2622'});
-    const lim = adsTop - 20;
-    // chamada em largura total, filete duplo embaixo
-    y = B.head('lead', LX, y, FW, {});
-    B.rule(LX, y + 2, LX + FW, y + 2, 3.2); B.rule(LX, y + 7, LX + FW, y + 7, 0.9); y += 16;
-    // esquerda: foto, legenda e texto em duas colunas (fio entre elas)
-    const py = await B.photo('photo.1', LX, y, LW, 330, {});
-    const gut = 18, cw = (LW - gut)/2;
-    B.flow('lead.body', LX, py, LW, {cols:2, size:22, bottom:lim, minSize:11.5, gut, font:'PT Serif', lh:1.32});
-    B.vline(LX + cw + gut/2, py, lim);
-    // direita: cinco versões (definições), citação e datas
-    // pilha da direita: o tamanho do texto é o maior que ainda cabe entre a chamada e os anúncios
-    const mk = sz=>[B.txt('b1', RX, y, RW, {frame:'tint', title:true, rows:'defs', font:'PT Serif', size:sz, lh:1.32}),
-      B.txt('pq', RX, y, RW, {frame:'rules', font:'PT Serif', style:'italic', size:sz*1.66, lh:1.22, padY:11}),
-      B.txt('b2', RX, y, RW, {frame:'tint', title:true, rows:'wrap', font:'PT Serif', size:sz, lh:1.32})].map(r=>r.obj);
+    const G = NORD_G, LX = nX(0), FW = G.W, LW = nW(4), RX = nX(4), RW = nW(2);
+    const T = await B.top('bar');
+    const lim = B.base() - 20;
+    const PH = 340;
+    const capBot = await B.photo('photo.1', LX, T, FW, PH, {capX:RX, capW:RW});
+    const pb = B.revHead('lead', LX, T + PH - 126, LW, {size:72, box:true});
+    let y = pb + 12;
+    const dk = B.txt('lead.deck', LX, y, LW, {font:'PT Serif', style:'italic', size:20, lh:1.27}); if (dk.obj) y = dk.bottom + 7;
+    const bl = B.txt('lead.byline', LX, y, LW, {font:'Libre Franklin', weight:700, size:11, cs:170, upper:true, lh:1.2}); if (bl.obj) y = bl.bottom + 7;
+    B.rule(LX, y, LX + LW, y, 1.1); y += 12;
+    const gut = 14, cw = (LW - 2*gut)/3;
+    const fe = B.flow('lead.body', LX, y, LW, {cols:3, size:21, bottom:lim, minSize:11.5, gut, font:'PT Serif', lh:1.32});
+    B.vline(LX + cw + gut/2, y, fe); B.vline(LX + 2*cw + gut*1.5, y, fe);
+    // direita: pilha de caixas
+    const sy = Math.max(capBot, T + PH + 8) + 6;
+    const mk = sz=>[B.txt('b1', RX, sy, RW, {frame:'tint', title:true, rows:'defs', font:'PT Serif', size:sz, lh:1.32}),
+      B.txt('pq', RX, sy, RW, {frame:'rules', font:'PT Serif', style:'italic', size:sz*1.66, lh:1.22, padY:11}),
+      B.txt('b2', RX, sy, RW, {frame:'tint', title:true, rows:'wrap', font:'PT Serif', size:sz, lh:1.32})].map(r=>r.obj);
     let sz = 19, boxes = mk(sz);
-    while (sz > 12.5 && boxes.reduce((a, o)=>a + o.height, 0) + 32 > lim - y){ boxes.forEach(o=>B.cv.remove(o)); sz -= 0.5; boxes = mk(sz); }
-    B.stackFill(boxes, y, lim, 16);
-    B.vline(RX - G.GUT/2, y, lim);
+    while (sz > 12.5 && boxes.reduce((a, o)=>a + o.height, 0) + 32 > lim - sy){ boxes.forEach(o=>B.cv.remove(o)); sz -= 0.5; boxes = mk(sz); }
+    B.stackFill(boxes, sy, lim, 16);
+    B.vline(RX - G.GUT/2, T + PH + 8, lim);
     B.rule(LX, lim + 10, LX + FW, lim + 10, 1.1);
-    // o papel entrou torto no scanner: conteúdo inclinado + a camada de scan por cima
-    newsTilt(B.cv, B.S.tilt, B.S.shift[0], B.S.shift[1], PAGE_W, PAGE_H);
-    const x = B.kit.proc('xerox', 0, 0, PAGE_W, PAGE_H, {seed:B.st.seed || 7, opts:Object.assign({}, B.S.xerox, {tilt:B.S.tilt, shift:B.S.shift}), blend:'multiply', label:'Efeito de scan (fotocópia)'});
-    B._mark(x, 'xerox');
+    B.finish();
   }},
 
-  /* 1989 — layout apertado, de jornal mais antigo: chamada em 4 colunas com a foto à direita, texto corrido em TRÊS colunas estreitas
-     com fios entre elas, e embaixo as caixas lado a lado. */
+  /* 1989 — layout apertado e cheio: painel preto (4 col.) com o título e a chamada + foto (2 col.), texto em 3 colunas estreitas com fios,
+     as duas caixas de baixo, uma fileira de quatro notas miúdas (tempo, lensmann, cartas, desaparecido) e os anúncios. */
   nord_old: {label:'Layout apertado (1989)', build: async (B)=>{
-    const G = NORD_G, LX = nX(0), FW = G.W, BT = G.BOTTOM;
-    B.runHead();
-    let y = B.bar('bar', LX, 76, FW);
-    const adsTop = newsBottomRow(B, [0, 2, 4].map((c, i)=>({role:'ad.' + (i + 1), x:nX(c), w:nW(2)})), BT, {frame:'box', title:true, font:'PT Serif', size:13.2, lh:1.3, titleSize:12, titleFont:'Libre Franklin'});
-    B.rule(LX, BT + 12, LX + FW, BT + 12, 1.1);
-    B.txt('foot.l', LX, BT + 20, 700, {font:'Libre Franklin', weight:700, size:9.6, cs:140, lh:1.2, upper:true, fill:'#2a2622'});
-    const lim = adsTop - 20;
-    // chamada (4 col.) e foto (2 col.) lado a lado, filete duplo embaixo
-    const hb = B.head('lead', LX, y, nW(4), {size:74, deckSize:21});
-    const py = await B.photo('photo.1', nX(4), y, nW(2), 296, {});
-    const top = Math.max(hb, py);
-    B.rule(LX, top + 2, LX + FW, top + 2, 3.2); B.rule(LX, top + 7, LX + FW, top + 7, 0.9);
-    const by = top + 20, gut = 16, cw = (FW - 2*gut)/3;
-    // as caixas de baixo primeiro (pra saber a altura delas); o texto ocupa o que sobra
-    const b1 = B.txt('b1', LX, 0, nW(3), {frame:'tint', title:true, rows:'defs', font:'PT Serif', size:17.5, lh:1.32}).obj;
-    const pq = B.txt('pq', nX(3), 0, nW(3), {frame:'rules', font:'PT Serif', style:'italic', size:28, lh:1.22, padY:12}).obj;
-    const b2 = B.txt('b2', nX(3), 0, nW(3), {frame:'tint', title:true, rows:'wrap', font:'PT Serif', size:17, lh:1.32}).obj;
+    const G = NORD_G, LX = nX(0), FW = G.W, LW = nW(4), RX = nX(4), RW = nW(2);
+    const T = await B.top('bar');
+    const lim = B.base() - 20;
+    // faixa de notas miúdas: quatro caixas de mesma altura, coladas acima dos anúncios
+    const sw = (FW - 3*G.GUT)/4;
+    const small = [1, 2, 3, 4].map((n, i)=>B.txt('v' + n, LX + i*(sw + G.GUT), 0, sw, {frame:'box', title:true, font:'PT Serif', size:13.4, lh:1.3, titleSize:11.5, titleFont:'Libre Franklin'}).obj).filter(Boolean);
+    const sH = Math.max(0, ...small.map(o=>o.height)), smallTop = lim - sH;
+    small.forEach(o=>{ o.set('minH', sH); o.set('top', smallTop); o.setCoords(); });
+    // chamada: painel preto + foto na mesma altura
+    const pb = B.revHead('lead', LX, T, LW, {size:104, deck:true, deckSize:20, byline:true, minH:330});
+    const capBot = await B.photo('photo.1', RX, T, RW, pb - T, {});
+    const y = Math.max(pb + 12, capBot);
+    B.rule(LX, y + 2, LX + FW, y + 2, 3.2); B.rule(LX, y + 7, LX + FW, y + 7, 0.9);
+    const by = y + 20, gut = 16, cw = (FW - 2*gut)/3;
+    // caixas do meio (para saber a altura) e o texto em 3 colunas no que sobra
+    const b1 = B.txt('b1', LX, 0, nW(3), {frame:'tint', title:true, rows:'defs', font:'PT Serif', size:18, lh:1.32}).obj;
+    const pq = B.txt('pq', nX(3), 0, nW(3), {frame:'rules', font:'PT Serif', style:'italic', size:30, lh:1.22, padY:12}).obj;
+    const b2 = B.txt('b2', nX(3), 0, nW(3), {frame:'tint', title:true, rows:'wrap', font:'PT Serif', size:18, lh:1.32}).obj;
     const L = Math.max(b1.height, pq.height + 14 + b2.height);
-    const flowEnd = B.flow('lead.body', LX, by, FW, {cols:3, size:25, bottom:lim - L - 24, minSize:11.5, gut, font:'PT Serif', lh:1.3});
-    B.vline(LX + cw + gut/2, by, flowEnd); B.vline(LX + 2*cw + gut*1.5, by, flowEnd);
-    const lowerTop = flowEnd + 20;
+    const fe = B.flow('lead.body', LX, by, FW, {cols:3, size:23, bottom:smallTop - 20 - L - 24, minSize:11.5, gut, font:'PT Serif', lh:1.3});
+    B.vline(LX + cw + gut/2, by, fe); B.vline(LX + 2*cw + gut*1.5, by, fe);
+    const lowerTop = fe + 20, lowerBot = smallTop - 18;
     B.rule(LX, lowerTop - 9, LX + FW, lowerTop - 9, 1.1);
-    b1.set('top', lowerTop); b1.set('minH', Math.max(b1.height, lim - lowerTop)); b1.setCoords();
-    B.stackFill([pq, b2], lowerTop, lim, 14);
-    B.vline(nX(3) - G.GUT/2, lowerTop, lim);
+    b1.set('top', lowerTop); b1.set('minH', Math.max(b1.height, lowerBot - lowerTop)); b1.setCoords();
+    B.stackFill([pq, b2], lowerTop, lowerBot, 14);
+    B.vline(nX(3) - G.GUT/2, lowerTop, lowerBot);
+    B.rule(LX, smallTop - 9, LX + FW, smallTop - 9, 1.1);
     B.rule(LX, lim + 10, LX + FW, lim + 10, 1.1);
-    newsTilt(B.cv, B.S.tilt, B.S.shift[0], B.S.shift[1], PAGE_W, PAGE_H);
-    const x = B.kit.proc('xerox', 0, 0, PAGE_W, PAGE_H, {seed:B.st.seed || 7, opts:Object.assign({}, B.S.xerox, {tilt:B.S.tilt, shift:B.S.shift}), blend:'multiply', label:'Efeito de scan (fotocópia)'});
-    B._mark(x, 'xerox');
+    B.finish();
   }},
 };
 

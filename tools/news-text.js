@@ -76,7 +76,7 @@ class NewsBox extends fabric.Textbox {
       title:'', frame:'box', padX:null, padY:null, titleSize:12.5, titleFont:'Libre Franklin',
       bodyFont:'Old Standard TT', bodyWeight:400, bodyStyle:'normal',
       fontSize:15, lineHeight:1.28, fill:'#161412', frameColor:null,
-      justify:false, indent:0, indentFirst:false, contPara:false, upper:false, rows:false, charSp:0, titleAlign:'left', soft:0, minH:0,
+      justify:false, indent:0, indentFirst:false, contPara:false, upper:false, rows:false, charSp:0, titleAlign:'left', soft:0, minH:0, tintFill:false,
       textAlign:'left', objectCaching:false, editable:false, width:240,
     }, options || {});
     super(text, options);
@@ -163,6 +163,7 @@ class NewsBox extends fabric.Textbox {
     const setCs = (px)=>{ if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; };
     // moldura
     ctx.strokeStyle = fc; ctx.fillStyle = fc;
+    if (this.tintFill){ ctx.save(); ctx.globalAlpha *= 0.13; ctx.fillRect(x0, y0, W, H); ctx.restore(); }   // fundo cinza de retícula atrás de qualquer moldura (ex.: faixa preta no título)
     if (this.frame === 'box'){ ctx.lineWidth = 1.6; ctx.strokeRect(x0+0.8, y0+0.8, W-1.6, H-1.6); }
     else if (this.frame === 'bar'){ ctx.fillRect(x0, y0, W, nb.titleH); ctx.lineWidth = 1.4; ctx.strokeRect(x0+0.7, y0+0.7, W-1.4, H-1.4); }
     else if (this.frame === 'ad'){ ctx.lineWidth = 2.6; ctx.strokeRect(x0+1.3, y0+1.3, W-2.6, H-2.6); ctx.lineWidth = 0.9; ctx.strokeRect(x0+6, y0+6, W-12, H-12); }
@@ -260,7 +261,7 @@ class NewsBox extends fabric.Textbox {
 
   newsOptions(){
     const o = {};
-    ['width','title','frame','padX','padY','titleSize','titleFont','bodyFont','bodyWeight','bodyStyle','fontSize','lineHeight','fill','frameColor','titleFill','justify','indent','indentFirst','contPara','upper','rows','charSp','titleAlign','textAlign','soft','minH']
+    ['width','title','frame','padX','padY','titleSize','titleFont','bodyFont','bodyWeight','bodyStyle','fontSize','lineHeight','fill','frameColor','titleFill','justify','indent','indentFirst','contPara','upper','rows','charSp','titleAlign','textAlign','soft','minH','tintFill']
       .forEach(k=>{ o[k] = this[k]; });
     return o;
   }
