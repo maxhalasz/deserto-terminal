@@ -48,6 +48,16 @@ const FILTER_REGISTRY = {
     {key:'amount', label:'Intensidade', min:0, max:1, step:0.01},
     {key:'inner', label:'Raio interno', min:0, max:0.6, step:0.01}]},
 
+  BleachBypass: {label:'Bleach bypass', cls:BleachBypassFilter, group:'Cor & tom', params:[
+    {key:'amount', label:'Intensidade', min:0, max:1, step:0.01}]},
+  CrossProcess: {label:'Cross-process', cls:CrossProcessFilter, group:'Cor & tom', params:[
+    {key:'amount', label:'Intensidade', min:0, max:1, step:0.01}]},
+  Underwater: {label:'Subaquático', cls:UnderwaterFilter, group:'Cor & tom', params:[
+    {key:'amount', label:'Profundidade', min:0, max:1, step:0.01}]},
+  Ghost: {label:'Eco / fantasma', cls:GhostFilter, group:'Dano & óptica', seedKey:'seed', params:[
+    {key:'amount', label:'Intensidade', min:0, max:0.8, step:0.01},
+    {key:'dist', label:'Deslocamento', min:0.005, max:0.08, step:0.005}]},
+
   Scanlines: {label:'Scanlines', cls:ScanlinesFilter, group:'Estrutura', params:[
     {key:'intensity', label:'Intensidade', min:0, max:1, step:0.01},
     {key:'density', label:'Densidade', min:100, max:2000, step:10}]},
@@ -82,6 +92,10 @@ const INTENSITY_SCALABLE = {
   Solarize: ['amount'],
   TapeGlitch: ['amount'],
   ColorGrade: ['lift','gamma','gain'],
+  BleachBypass: ['amount'],
+  CrossProcess: ['amount'],
+  Underwater: ['amount'],
+  Ghost: ['amount'],
 };
 
 const PRESETS = {
@@ -146,6 +160,30 @@ const PRESETS = {
     {type:'Duotone', shadow:[0.02,0.04,0.08], highlight:[0.5,0.7,0.95], amount:0.85},
     {type:'Scanlines', intensity:0.25, density:1100},
     {type:'Vignette', amount:0.5, inner:0.25}]},
+
+  // ---- Lote 3 (expansão de presets, sessão 2026-10-26) — usam os 4 filtros novos ----
+  mergulho: {label:'Mergulho', filters:[
+    {type:'Underwater', amount:0.65},
+    {type:'Blur', blur:0.015},
+    {type:'FilmGrain', amount:0.05, size:450},
+    {type:'Vignette', amount:0.55, inner:0.2}]},
+  bypass_cinema: {label:'Bleach bypass — Cinema', filters:[
+    {type:'BleachBypass', amount:0.7},
+    {type:'FilmGrain', amount:0.08, size:380},
+    {type:'Vignette', amount:0.35, inner:0.3}]},
+  cross_achado: {label:'Cross-process achado', filters:[
+    {type:'CrossProcess', amount:0.75},
+    {type:'LightLeak', amount:0.3, seed:0.4, spread:0.7},
+    {type:'FilmGrain', amount:0.1, size:400}]},
+  presenca: {label:'Presença', filters:[
+    {type:'Ghost', amount:0.35, dist:0.02, seed:0.35},
+    {type:'Noise', amount:0.08},
+    {type:'Vignette', amount:0.6, inner:0.2}]},
+  arquivo_afogado: {label:'Arquivo afogado', filters:[
+    {type:'Underwater', amount:0.45},
+    {type:'Duotone', shadow:[0.03,0.06,0.07], highlight:[0.75,0.85,0.8], amount:0.4},
+    {type:'Scanlines', intensity:0.2, density:1000},
+    {type:'DustScratches', amount:0.15, seed:0.5}]},
 };
 
 /* onInput roda a cada movimento do slider; onCommit (opcional) roda UMA vez quando o usuário solta (evento 'change'),

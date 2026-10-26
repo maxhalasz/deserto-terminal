@@ -20,7 +20,32 @@
      ferramentas profissionais tipo DaVinci Resolve.
    - Bloom/glow e grunge&dirt NÃO são filtros de shader aqui — são compostos como
      objetos Fabric sobrepostos com blend mode nativo (mais simples e mais barato
-     que sampler duplo em GLSL; ver editor.js `applyBloom`/`applyGrungeOverlay`). */
+     que sampler duplo em GLSL; ver editor.js `applyBloom`/`applyGrungeOverlay`).
+
+   Lote 3 (pedido do Max, 2026-10-26: "expande a aparência" dos efeitos — pesquisado
+   antes de implementar, não improvisado):
+   - Bleach bypass: técnica de laboratório (pular a etapa de branqueamento, retém
+     prata) — dessatura, contraste em S, mistura de volta por Hard Light (premiumbeat.com,
+     borisfx.com/blog/bleach-bypass-in-davinci-3-methods — "desaturate the base,
+     push an S-curve, blend the grayscale pass back over the color with Hard Light").
+   - Cross-process: revelar filme na química errada (C-41 em E-6 ou vice-versa) —
+     sombra pro ciano/verde, luz pro amarelo, contraste alto (melies.co/cinematic-
+     techniques/color/cross-process, theasc.com — "highlights become compressed in
+     the yellow and magenta layers... shadow tones will contain a strong cyan/blue
+     cast"). Não confundir com teal-and-orange (grade controlada) — aqui é deliberadamente
+     "doentio", sem proteger tom de pele.
+   - Subaquático: física real de absorção seletiva — vermelho absorve primeiro, depois
+     laranja, azul/verde sobrevivem mais fundo, mais neblina/espalhamento com a
+     profundidade (scubadiving.com, divevolkdiving.com — "water absorbs longer
+     wavelengths first... red is attenuated over much shorter distances than blue").
+     Encaixe temático direto: a campanha inteira é numa plataforma sobre uma fenda
+     submarina.
+   - Eco/fantasma: amostra a MESMA textura deslocada e mistura por Screen (Adobe:
+     "Screen works well because it drops out the dark areas of the top layer,
+     allowing it to appear only within the dark silhouette") — não é dupla-exposição
+     de verdade (precisaria de uma SEGUNDA textura, a API de filtro do Fabric só dá
+     acesso à própria imagem sendo filtrada), por isso nomeado como eco/fantasma, não
+     "dupla exposição" — honesto sobre o que o efeito realmente faz. */
 
 // Ashima/McEwan webgl-noise 2D simplex noise (MIT license) — implementação canônica,
 // reproduzida sem alteração de fórmula.
@@ -645,6 +670,166 @@ TapeGlitchFilter.defaults = {amount:0.06, seed:0, band:0.03};
 TapeGlitchFilter.uniformLocations = ['uAmount','uSeed','uBand'];
 TapeGlitchFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uSeed,this.seed); gl.uniform1f(loc.uBand,this.band); };
 fabric.classRegistry.setClass(TapeGlitchFilter, 'TapeGlitch');
+
+// ===================== Lote 3 (expansão de efeitos, sessão 2026-10-26) =====================
+
+// Bleach bypass — dessatura, aplica contraste em S na versão em tons de cinza, e
+// mistura ela de volta por cima da cor original via Hard Light (mesma receita que
+// laboratório de cinema faz na base física: reter a prata que o branqueamento
+// removeria, resultado contrastado e com cor "lavada").
+class BleachBypassFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uAmount; varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      float lum = dot(color.rgb, vec3(0.299,0.587,0.114));
+      vec3 g = clamp(vec3((lum-0.5)*1.6+0.5), 0.0, 1.0);
+      vec3 base = color.rgb;
+      vec3 hard = mix(2.0*base*g, 1.0-2.0*(1.0-base)*(1.0-g), step(0.5, g));
+      color.rgb = mix(base, hard, uAmount);
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data}}){
+    const a=this.amount;
+    for (let i=0;i<data.length;i+=4){
+      const lum=(data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114)/255;
+      const g=Math.min(1,Math.max(0,(lum-0.5)*1.6+0.5));
+      for (let c=0;c<3;c++){
+        const base=data[i+c]/255;
+        const hard = g<0.5 ? 2*base*g : 1-2*(1-base)*(1-g);
+        data[i+c]=Math.min(255,Math.max(0,(base*(1-a)+hard*a)*255));
+      }
+    }
+  }
+}
+BleachBypassFilter.type = 'BleachBypass';
+BleachBypassFilter.defaults = {amount:0.6};
+BleachBypassFilter.uniformLocations = ['uAmount'];
+BleachBypassFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); };
+fabric.classRegistry.setClass(BleachBypassFilter, 'BleachBypass');
+
+// Cross-process — sombra pro ciano/verde, luz pro amarelo, contraste alto (revelar
+// negativo C-41 em química de slide E-6 ou vice-versa). Deliberadamente "doentio",
+// sem proteger tom de pele — é esse desvio que faz a imagem incomodar.
+class CrossProcessFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uAmount; varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      float lum = dot(color.rgb, vec3(0.299,0.587,0.114));
+      vec3 shadowTint = vec3(-0.07, 0.02, 0.09);
+      vec3 highlightTint = vec3(0.11, 0.06, -0.11);
+      vec3 tint = mix(shadowTint, highlightTint, lum);
+      vec3 c = color.rgb + tint*uAmount;
+      c = (c-0.5)*(1.0+0.35*uAmount)+0.5;
+      color.rgb = clamp(c, 0.0, 1.0);
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data}}){
+    const a=this.amount;
+    for (let i=0;i<data.length;i+=4){
+      const lum=(data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114)/255;
+      const tint=[-0.07+(0.11-(-0.07))*lum, 0.02+(0.06-0.02)*lum, 0.09+(-0.11-0.09)*lum];
+      for (let c=0;c<3;c++){
+        let v = data[i+c]/255 + tint[c]*a;
+        v = (v-0.5)*(1+0.35*a)+0.5;
+        data[i+c]=Math.min(255,Math.max(0,v*255));
+      }
+    }
+  }
+}
+CrossProcessFilter.type = 'CrossProcess';
+CrossProcessFilter.defaults = {amount:0.7};
+CrossProcessFilter.uniformLocations = ['uAmount'];
+CrossProcessFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); };
+fabric.classRegistry.setClass(CrossProcessFilter, 'CrossProcess');
+
+// Subaquático — física real de absorção seletiva da água: vermelho absorve primeiro
+// (quase some), verde/azul sobrevivem mais fundo, névoa/espalhamento por cima
+// (scubadiving.com/divevolkdiving.com). Encaixe temático direto com a campanha
+// inteira (plataforma sobre uma fenda submarina).
+class UnderwaterFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uAmount; varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      vec3 c = color.rgb;
+      c.r *= mix(1.0, 0.42, uAmount);
+      c.g *= mix(1.0, 1.04, uAmount);
+      c.b *= mix(1.0, 1.22, uAmount);
+      vec3 haze = vec3(0.04, 0.12, 0.17);
+      c = mix(c, c*0.88 + haze*0.22, uAmount);
+      color.rgb = clamp(c, 0.0, 1.0);
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data}}){
+    const a=this.amount;
+    const haze=[0.04,0.12,0.17];
+    for (let i=0;i<data.length;i+=4){
+      let r=data[i]/255*(1+(0.42-1)*a), g=data[i+1]/255*(1+(1.04-1)*a), b=data[i+2]/255*(1+(1.22-1)*a);
+      r = r*(1-a)+(r*0.88+haze[0]*0.22)*a;
+      g = g*(1-a)+(g*0.88+haze[1]*0.22)*a;
+      b = b*(1-a)+(b*0.88+haze[2]*0.22)*a;
+      data[i]=Math.min(255,Math.max(0,r*255)); data[i+1]=Math.min(255,Math.max(0,g*255)); data[i+2]=Math.min(255,Math.max(0,b*255));
+    }
+  }
+}
+UnderwaterFilter.type = 'Underwater';
+UnderwaterFilter.defaults = {amount:0.6};
+UnderwaterFilter.uniformLocations = ['uAmount'];
+UnderwaterFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); };
+fabric.classRegistry.setClass(UnderwaterFilter, 'Underwater');
+
+// Eco/fantasma — amostra a MESMA imagem numa UV deslocada e mistura por Screen (Adobe:
+// "Screen works well because it drops out the dark areas of the top layer, allowing
+// it to appear only within the dark silhouette"). NÃO é dupla-exposição de verdade
+// (precisaria de uma SEGUNDA textura — a API de filtro do Fabric só dá acesso à
+// própria imagem sendo filtrada) — nomeado como eco/fantasma de propósito, honesto
+// sobre o que o efeito realmente é. uSeed escolhe direção+distância do deslocamento
+// (mesmo padrão de reroll que LightLeak já usa).
+class GhostFilter extends fabric.filters.BaseFilter {
+  getFragmentSource(){
+    return `precision highp float;
+    uniform sampler2D uTexture; uniform float uAmount; uniform float uDist; uniform float uSeed;
+    varying vec2 vTexCoord;
+    void main(){
+      vec4 color = texture2D(uTexture, vTexCoord);
+      float ang = uSeed * 6.2831853;
+      vec2 off = vec2(cos(ang), sin(ang)) * uDist;
+      vec4 ghost = texture2D(uTexture, vTexCoord - off);
+      vec3 screen = 1.0 - (1.0-color.rgb)*(1.0-ghost.rgb);
+      color.rgb = mix(color.rgb, screen, uAmount);
+      gl_FragColor = color;
+    }`;
+  }
+  applyTo2d({imageData:{data,width,height}}){
+    const a=this.amount, ang=this.seed*Math.PI*2;
+    const ox = Math.round(Math.cos(ang)*this.dist*width), oy = Math.round(Math.sin(ang)*this.dist*height);
+    const src = new Uint8ClampedArray(data);
+    for (let y=0;y<height;y++) for (let x=0;x<width;x++){
+      const gx=Math.min(width-1,Math.max(0,x-ox)), gy=Math.min(height-1,Math.max(0,y-oy));
+      const i=(y*width+x)*4, gi=(gy*width+gx)*4;
+      for (let c=0;c<3;c++){
+        const base=src[i+c]/255, ghost=src[gi+c]/255;
+        const screen = 1-(1-base)*(1-ghost);
+        data[i+c]=Math.min(255,Math.max(0,(base*(1-a)+screen*a)*255));
+      }
+    }
+  }
+}
+GhostFilter.type = 'Ghost';
+GhostFilter.defaults = {amount:0.4, dist:0.025, seed:0.3};
+GhostFilter.uniformLocations = ['uAmount','uDist','uSeed'];
+GhostFilter.prototype.sendUniformData = function(gl,loc){
+  gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uDist,this.dist); gl.uniform1f(loc.uSeed,this.seed);
+};
+fabric.classRegistry.setClass(GhostFilter, 'Ghost');
 
 /* ===================== Filtros cientes do recorte =====================
    Bug relatado pelo Max: depois de recortar uma foto, vinheta/vazamento de luz/aberração
