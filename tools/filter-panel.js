@@ -322,9 +322,22 @@ function renderFilterRow(canvasRef, obj, filterInst, idx, onChange, onCommit, st
    o evento nativo `change` que o host já escuta por delegação no container pra
    pegar solta-de-slider. Sem isso essas ações não entravam no histórico em NENHUMA
    das duas ferramentas (bug real, achado lendo o código, não só suspeita). */
+// Lembra se o usuário abriu/fechou as seções Presets/Filtros manuais, por objeto —
+// renderFilterPanel reconstrói o painel inteiro do zero a cada clique (preset, reroll,
+// remover, reordenar, adicionar), e sem isso `presetsDetails.open = !hasFilters` recomputava
+// a cada chamada: clicar um preset adiciona filtro → hasFilters vira true → a seção que
+// o usuário ACABOU de usar fechava sozinha embaixo dele (bug relatado pelo Max). Guarda só
+// a intenção do usuário (ele pode fechar com um clique no ▸, e isso agora é respeitado nos
+// re-renders seguintes também, em vez de ser recalculado toda hora).
+const PANEL_OPEN_STATE = new WeakMap();
 function renderFilterPanel(canvasRef, obj, body, onCommit){
   body.innerHTML = '';
-  const hasFilters = !!(obj.filters && obj.filters.length);
+  let openState = PANEL_OPEN_STATE.get(obj);
+  if (!openState){
+    // primeira vez nessa imagem: Presets começa aberto só se ela ainda não tem filtro.
+    openState = {presets: !(obj.filters && obj.filters.length), manual: true};
+    PANEL_OPEN_STATE.set(obj, openState);
+  }
 
   // Busca única filtrando TANTO a grade de preset QUANTO o <select> de adicionar filtro
   // (17 filtros + 14 presets numa lista só compensa ter um campo de busca — padrão
@@ -339,7 +352,8 @@ function renderFilterPanel(canvasRef, obj, body, onCommit){
   // ---- Presets (painel próprio, colapsa) ----
   const presetsDetails = document.createElement('details');
   presetsDetails.className = 'filterSection';
-  presetsDetails.open = !hasFilters; // primeira vez na imagem: mostra de cara. Já tem filtro: some do caminho.
+  presetsDetails.open = openState.presets;
+  presetsDetails.addEventListener('toggle', ()=>{ openState.presets = presetsDetails.open; });
   const presetsSummary = document.createElement('summary'); presetsSummary.textContent = 'Presets';
   presetsDetails.appendChild(presetsSummary);
   const presetHint = document.createElement('div'); presetHint.className='hint'; presetHint.textContent = 'Presets substituem os filtros manuais atuais — Ctrl+Z desfaz.';
@@ -383,10 +397,11 @@ function renderFilterPanel(canvasRef, obj, body, onCommit){
   presetsDetails.appendChild(intensityWrap);
   body.appendChild(presetsDetails);
 
-  // ---- Filtros manuais (painel próprio, sempre aberto — é onde o trabalho acontece) ----
+  // ---- Filtros manuais (painel próprio, aberto por padrão — é onde o trabalho acontece) ----
   const manualDetails = document.createElement('details');
   manualDetails.className = 'filterSection';
-  manualDetails.open = true;
+  manualDetails.open = openState.manual;
+  manualDetails.addEventListener('toggle', ()=>{ openState.manual = manualDetails.open; });
   const manualSummary = document.createElement('summary'); manualSummary.textContent = 'Filtros manuais';
   manualDetails.appendChild(manualSummary);
 

@@ -54,10 +54,12 @@ float snoise(vec2 v){
 class ChromaticAberrationFilter extends fabric.filters.BaseFilter {
   getFragmentSource(){
     return `precision highp float;
-    uniform sampler2D uTexture; uniform float uAmount; varying vec2 vTexCoord;
+    uniform sampler2D uTexture; uniform float uAmount;
+    uniform vec2 uCropOff; uniform vec2 uCropScale; varying vec2 vTexCoord;
     void main(){
-      vec2 dir = vTexCoord - 0.5;
-      vec2 off = dir * uAmount;
+      vec2 cuv = (vTexCoord - uCropOff) / uCropScale;
+      vec2 dir = cuv - 0.5;
+      vec2 off = dir * uAmount * uCropScale;
       float r = texture2D(uTexture, vTexCoord - off).r;
       vec4 c0 = texture2D(uTexture, vTexCoord);
       float b = texture2D(uTexture, vTexCoord + off).b;
@@ -66,10 +68,11 @@ class ChromaticAberrationFilter extends fabric.filters.BaseFilter {
   }
   applyTo2d({imageData:{data,width,height}}){
     const amt = this.amount;
+    const offX=this.__cropOffX||0, offY=this.__cropOffY||0, scX=this.__cropScaleX||1, scY=this.__cropScaleY||1;
     const src = new Uint8ClampedArray(data);
     for (let y=0;y<height;y++) for (let x=0;x<width;x++){
-      const dx=(x/width-0.5), dy=(y/height-0.5);
-      const ox = Math.round(dx*amt*width), oy = Math.round(dy*amt*height);
+      const dx=((x/width-offX)/scX-0.5), dy=((y/height-offY)/scY-0.5);
+      const ox = Math.round(dx*amt*scX*width), oy = Math.round(dy*amt*scY*height);
       const i = (y*width+x)*4;
       const rx = Math.min(width-1,Math.max(0,x-ox)), ry = Math.min(height-1,Math.max(0,y-oy));
       const bx = Math.min(width-1,Math.max(0,x+ox)), by = Math.min(height-1,Math.max(0,y+oy));
@@ -80,25 +83,32 @@ class ChromaticAberrationFilter extends fabric.filters.BaseFilter {
 }
 ChromaticAberrationFilter.type = 'ChromaticAberration';
 ChromaticAberrationFilter.defaults = {amount:0.01};
-ChromaticAberrationFilter.uniformLocations = ['uAmount'];
-ChromaticAberrationFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount, this.amount); };
+ChromaticAberrationFilter.uniformLocations = ['uAmount','uCropOff','uCropScale'];
+ChromaticAberrationFilter.prototype.sendUniformData = function(gl,loc){
+  gl.uniform1f(loc.uAmount, this.amount);
+  gl.uniform2f(loc.uCropOff, this.__cropOffX||0, this.__cropOffY||0);
+  gl.uniform2f(loc.uCropScale, this.__cropScaleX||1, this.__cropScaleY||1);
+};
 fabric.classRegistry.setClass(ChromaticAberrationFilter, 'ChromaticAberration');
 
 class VignetteFilter extends fabric.filters.BaseFilter {
   getFragmentSource(){
     return `precision highp float;
-    uniform sampler2D uTexture; uniform float uAmount; uniform float uInner; varying vec2 vTexCoord;
+    uniform sampler2D uTexture; uniform float uAmount; uniform float uInner;
+    uniform vec2 uCropOff; uniform vec2 uCropScale; varying vec2 vTexCoord;
     void main(){
       vec4 color = texture2D(uTexture, vTexCoord);
-      float d = distance(vTexCoord, vec2(0.5));
+      vec2 cuv = (vTexCoord - uCropOff) / uCropScale;
+      float d = distance(cuv, vec2(0.5));
       float v = 1.0 - smoothstep(uInner, 0.78, d) * uAmount;
       color.rgb *= v;
       gl_FragColor = color;
     }`;
   }
   applyTo2d({imageData:{data,width,height}}){
+    const offX=this.__cropOffX||0, offY=this.__cropOffY||0, scX=this.__cropScaleX||1, scY=this.__cropScaleY||1;
     for (let y=0;y<height;y++) for (let x=0;x<width;x++){
-      const dx=(x/width-0.5), dy=(y/height-0.5);
+      const dx=((x/width-offX)/scX-0.5), dy=((y/height-offY)/scY-0.5);
       const d=Math.sqrt(dx*dx+dy*dy);
       const t = Math.min(1,Math.max(0,(d-this.inner)/(0.78-this.inner)));
       const v = 1.0 - t*this.amount;
@@ -109,8 +119,12 @@ class VignetteFilter extends fabric.filters.BaseFilter {
 }
 VignetteFilter.type = 'Vignette';
 VignetteFilter.defaults = {amount:0.6, inner:0.25};
-VignetteFilter.uniformLocations = ['uAmount','uInner'];
-VignetteFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uInner,this.inner); };
+VignetteFilter.uniformLocations = ['uAmount','uInner','uCropOff','uCropScale'];
+VignetteFilter.prototype.sendUniformData = function(gl,loc){
+  gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uInner,this.inner);
+  gl.uniform2f(loc.uCropOff, this.__cropOffX||0, this.__cropOffY||0);
+  gl.uniform2f(loc.uCropScale, this.__cropScaleX||1, this.__cropScaleY||1);
+};
 fabric.classRegistry.setClass(VignetteFilter, 'Vignette');
 
 class FilmGrainFilter extends fabric.filters.BaseFilter {
@@ -411,12 +425,13 @@ class LightLeakFilter extends fabric.filters.BaseFilter {
   getFragmentSource(){
     return `precision highp float;
     uniform sampler2D uTexture; uniform float uAmount; uniform float uSeed; uniform float uSpread;
-    varying vec2 vTexCoord;
+    uniform vec2 uCropOff; uniform vec2 uCropScale; varying vec2 vTexCoord;
     void main(){
       vec4 color = texture2D(uTexture, vTexCoord);
+      vec2 cuv = (vTexCoord - uCropOff) / uCropScale;
       float ang = uSeed * 6.2831853;
       vec2 pos = vec2(0.5) + vec2(cos(ang), sin(ang)) * 0.72;
-      float d = distance(vTexCoord, pos);
+      float d = distance(cuv, pos);
       float leak = (1.0 - smoothstep(0.0, uSpread, d)) * uAmount;
       vec3 leakColor = vec3(1.0, 0.55, 0.16) * leak;
       color.rgb = 1.0 - (1.0-color.rgb)*(1.0-leakColor);
@@ -424,11 +439,13 @@ class LightLeakFilter extends fabric.filters.BaseFilter {
     }`;
   }
   applyTo2d({imageData:{data,width,height}}){
+    const offX=this.__cropOffX||0, offY=this.__cropOffY||0, scX=this.__cropScaleX||1, scY=this.__cropScaleY||1;
     const ang = this.seed*Math.PI*2;
     const px = 0.5+Math.cos(ang)*0.72, py = 0.5+Math.sin(ang)*0.72;
     const warm = [1.0,0.55,0.16];
     for (let y=0;y<height;y++) for (let x=0;x<width;x++){
-      const dx=x/width-px, dy=y/height-py;
+      const cx=(x/width-offX)/scX, cy=(y/height-offY)/scY;
+      const dx=cx-px, dy=cy-py;
       const d=Math.sqrt(dx*dx+dy*dy);
       const t=Math.max(0,Math.min(1,1-d/this.spread));
       const leak=t*t*this.amount;
@@ -441,8 +458,12 @@ class LightLeakFilter extends fabric.filters.BaseFilter {
 }
 LightLeakFilter.type = 'LightLeak';
 LightLeakFilter.defaults = {amount:0.5, seed:0, spread:0.75};
-LightLeakFilter.uniformLocations = ['uAmount','uSeed','uSpread'];
-LightLeakFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uSeed,this.seed); gl.uniform1f(loc.uSpread,this.spread); };
+LightLeakFilter.uniformLocations = ['uAmount','uSeed','uSpread','uCropOff','uCropScale'];
+LightLeakFilter.prototype.sendUniformData = function(gl,loc){
+  gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uSeed,this.seed); gl.uniform1f(loc.uSpread,this.spread);
+  gl.uniform2f(loc.uCropOff, this.__cropOffX||0, this.__cropOffY||0);
+  gl.uniform2f(loc.uCropScale, this.__cropScaleX||1, this.__cropScaleY||1);
+};
 fabric.classRegistry.setClass(LightLeakFilter, 'LightLeak');
 
 // Poeira e risco de filme — riscos verticais finos + poeira esparsa via hash.
@@ -624,3 +645,39 @@ TapeGlitchFilter.defaults = {amount:0.06, seed:0, band:0.03};
 TapeGlitchFilter.uniformLocations = ['uAmount','uSeed','uBand'];
 TapeGlitchFilter.prototype.sendUniformData = function(gl,loc){ gl.uniform1f(loc.uAmount,this.amount); gl.uniform1f(loc.uSeed,this.seed); gl.uniform1f(loc.uBand,this.band); };
 fabric.classRegistry.setClass(TapeGlitchFilter, 'TapeGlitch');
+
+/* ===================== Filtros cientes do recorte =====================
+   Bug relatado pelo Max: depois de recortar uma foto, vinheta/vazamento de luz/aberração
+   cromática ficavam com o "centro" de referência no canto do recorte, não no centro dele.
+   Pesquisado + confirmado lendo o fonte vendorizado do Fabric 6.4.3 (classe da imagem,
+   método applyFilters): o filtro SEMPRE roda em cima de `this._originalElement` nas
+   dimensões NATURAIS — cropX/cropY/width/height nunca chegam até o filtro, são só uma
+   janela de DESENHO aplicada depois, em cima do resultado já filtrado. Confirmado ao vivo
+   também: amostra de pixel antes/depois de recortar pro canto superior esquerdo de uma
+   foto com vinheta forte — o ponto mais claro (centro da vinheta original) ficava
+   exatamente no CANTO INFERIOR DIREITO do recorte, não no centro dele.
+
+   Correção: antes de cada applyFilters(), grava em CADA instância de filtro o
+   deslocamento/escala do recorte atual (fração de UV da imagem original — 0,0,1,1 quando
+   não há recorte, idêntico ao comportamento de sempre). Os filtros que dependem de
+   POSIÇÃO (Vignette, LightLeak, ChromaticAberration) remapeiam vTexCoord por esses dois
+   uniforms antes de qualquer cálculo de centro/direção. Os filtros de PADRÃO repetitivo
+   (grão, ruído, scanlines, poeira/risco, halftone, glitch de trilha) foram deixados DE
+   PROPÓSITO sem remapear — grão de filme real não muda de densidade quando você recorta
+   uma foto impressa, é a mesma textura física, só vendo menos dela; remapear esses
+   quebraria essa leitura (ficaria parecendo um padrão reamostrado, não uma textura real). */
+const _origImageApplyFilters = fabric.Image.prototype.applyFilters;
+fabric.Image.prototype.applyFilters = function(filters){
+  const list = filters || this.filters || [];
+  const src = this._originalElement;
+  const nw = (src && (src.naturalWidth||src.width)) || this.width || 1;
+  const nh = (src && (src.naturalHeight||src.height)) || this.height || 1;
+  const offX = (this.cropX||0)/nw, offY = (this.cropY||0)/nh;
+  const scaleX = Math.max(1e-6, (this.width||nw)/nw), scaleY = Math.max(1e-6, (this.height||nh)/nh);
+  list.forEach(f=>{
+    if (!f) return;
+    f.__cropOffX = offX; f.__cropOffY = offY;
+    f.__cropScaleX = scaleX; f.__cropScaleY = scaleY;
+  });
+  return _origImageApplyFilters.call(this, filters);
+};

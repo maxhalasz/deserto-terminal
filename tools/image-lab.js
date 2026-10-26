@@ -424,13 +424,23 @@ document.getElementById('btnRedo').addEventListener('click', redo);
 /* ===================== Exportar ===================== */
 document.getElementById('btnExport').addEventListener('click', ()=>{
   if (!canvas.getObjects().filter(o=>o!==cropRect).length){ alert('Adicione uma imagem primeiro.'); return; }
+  // Pergunta o nome ANTES de gerar o PNG (cancelar não deve nem processar a exportação).
+  // Lembra o último nome digitado (localStorage) pra não ter que retypar toda vez.
+  const lastName = localStorage.getItem('imagelab.lastExportName') || '';
+  const active = canvas.getActiveObject();
+  const suggestion = lastName || (active && active.__labName) || 'imagelab';
+  const name = prompt('Nome do arquivo:', suggestion);
+  if (name===null) return; // cancelou
+  const safeName = (name.trim() || 'imagelab').replace(/[\\/:*?"<>|]/g, '_');
+  localStorage.setItem('imagelab.lastExportName', safeName);
+
   cancelCrop();
   const mult = +document.getElementById('exportScale').value;
   canvas.discardActiveObject(); canvas.renderAll();
   const dataUrl = canvas.toDataURL({format:'png', multiplier: mult/canvas.getZoom()});
   const a = document.createElement('a');
   a.href = dataUrl;
-  a.download = `imagelab_${Date.now()}.png`;
+  a.download = `${safeName}.png`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
