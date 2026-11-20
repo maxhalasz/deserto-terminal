@@ -17,13 +17,6 @@ let prevRev=null,lastPlanDeck='',seenNotes=null,cardKey='',typeTok=0,lastPinKey=
 const ME=(()=>{let v=LS.get('deserto:op');if(!v){v='OP-'+(1+Math.floor(Math.random()*9));LS.set('deserto:op',v);}return v;})();
 let minePrefs=[];try{minePrefs=JSON.parse(LS.get('deserto:notes','[]'));}catch(e){}
 
-const INTRO={
-  weather:'Convés aberto acima do bloco de módulos. Heliponto, pedestais de guindaste, baleeiras e a ponte do flare. Se o tempo deixar.',
-  module:'Module deck. O lado das cabines a oeste do firewall, os módulos de processo a leste. Galerias externas dão a volta por fora.',
-  cellar:'Cellar deck. Área de carga, moonpool e o wellbay inferior. O estado do mar mexe no moonpool.',
-  lqE:'Deck E. Acesso ao heliponto e serviços do prédio.',lqD:'Deck D. Comunicações, sala de câmeras e escritórios.',lqC:'Deck C. Dormitórios de rotação. Atravessa o weather deck.',
-  lqB:'Deck B. Quase todo o corredor está fechado.',lqA:'Deck A. Refeitório, cozinha, sala de estar e enfermaria.'};
-
 /* ---------- niveis / decks ---------- */
 const unlockedMap=()=>STATE.unlocked||{};
 function isUnlocked(level){const u=unlockedMap();return !!(u[level]||Object.keys(S.LEGACY).some(k=>S.LEGACY[k]===level&&u[k]));}
@@ -44,10 +37,6 @@ function activeDeck(){
   const cnt={};Object.keys(revRooms()).forEach(k=>{const r=S.roomIndex[k];if(r)cnt[levelOfDeck(r.deck)]=(cnt[levelOfDeck(r.deck)]||0)+1;});
   const cand=S.LEVELS.filter(l=>isUnlocked(l.id)).sort((x,y)=>(cnt[y.id]||0)-(cnt[x.id]||0));return cand.length?defaultDeck(cand[0].id):null;
 }
-/* ---------- quanto do mapa ja foi levantado ---------- */
-function deckPct(deckId){const d=S.DECKS[deckId];if(!d)return 0;const rr=revRooms();return Math.round(d.rooms.filter(r=>rr[r.id]).length/d.rooms.length*100);}
-function levelPct(level){const ids=S.decksOfLevel(level);let n=0,t=0;const rr=revRooms();ids.forEach(id=>{const d=S.DECKS[id];t+=d.rooms.length;n+=d.rooms.filter(r=>rr[r.id]).length;});return t?Math.round(n/t*100):0;}
-function totalPct(){let n=0,t=0;const rr=revRooms();Object.values(S.DECKS).forEach(d=>{t+=d.rooms.length;n+=d.rooms.filter(r=>rr[r.id]).length;});return t?Math.round(n/t*100):0;}
 
 /* ---------- stack isometrico ---------- */
 function stackSVG(active){
@@ -63,7 +52,7 @@ function stackSVG(active){
   [[0,0],[114,0],[114,55],[0,55]].forEach(([x,y])=>{const a=P(x,y,ys[0]),b=P(x,y,ys[2]);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#22373b" stroke-dasharray="3 5"/>`;});
   [[38,27],[86,27]].forEach(([x,y])=>{const a=P(x,y,ys[0]),b=P(x,y,ys[2]);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${LIVE}" stroke-width="1.2" opacity=".55"/>`;[0,1,2].forEach(i=>{const q=P(x,y,ys[i]);h+=`<rect x="${q[0]-2.6}" y="${q[1]-2.6}" width="5.2" height="5.2" fill="${LIVE}" opacity=".8"/>`;});});
   ['weather','module','cellar'].forEach((lvl,i)=>{
-    const lv=S.LEVELS.find(l=>l.id===lvl),sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=ys[i],d=S.DECKS[lvl],pct=levelPct(lvl);
+    const lv=S.LEVELS.find(l=>l.id===lvl),sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=ys[i],d=S.DECKS[lvl];
     const c=[[0,0],[114,0],[114,55],[0,55]].map(q=>P(q[0],q[1],cy));
     const top=sel?'#2a3b40':'#1b282c',s1=sel?'#16242a':'#111b1f',s2=sel?'#111d21':'#0e1619',ed=sel?LIVE:(unl?'#3b585d':'#26363a');
     let g=`<g data-lvl="${lvl}" class="${unl?'on':'lock'}" opacity="${unl?1:.5}">`;
@@ -73,16 +62,16 @@ function stackSVG(active){
       d.rooms.forEach(ro=>{if(rr[ro.id]){const off=ro.t==='off';g+=`<polygon class="sx" points="${ps(rectPoly(d,ro.r,cy))}" fill="${off?'#3a3118':(sel?'#3b5359':'#2b3e43')}" stroke="${off?'#d0a24f':'#8fb5ae'}" stroke-width=".8"/>`;}});
     }
     const y=cy+34;
-    g+=`<rect x="10" y="${y}" width="66" height="46" fill="${sel?LIVE:'#18252a'}" stroke="${sel?LIVE:'#3b585d'}"/><text x="17" y="${y+15}" font-family="IBM Plex Mono" font-size="10" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.tag}</text><text x="17" y="${y+28}" font-family="Barlow Condensed" font-weight="700" font-size="11.5" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.name.split(' ')[0].toUpperCase()}</text><text x="17" y="${y+40}" font-family="IBM Plex Mono" font-size="8.5" fill="${sel?'#07110f':'#5f7d80'}">${unl?lv.elev:'LOCKED'}</text>${unl?`<text x="70" y="${y+40}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" font-weight="600" fill="${sel?'#07110f':LIVE}">${pct}%</text>`:''}`;
+    g+=`<rect x="10" y="${y}" width="66" height="46" fill="${sel?LIVE:'#18252a'}" stroke="${sel?LIVE:'#3b585d'}"/><text x="17" y="${y+15}" font-family="IBM Plex Mono" font-size="10" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.tag}</text><text x="17" y="${y+28}" font-family="Barlow Condensed" font-weight="700" font-size="11.5" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.name.split(' ')[0].toUpperCase()}</text><text x="17" y="${y+40}" font-family="IBM Plex Mono" font-size="8.5" fill="${sel?'#07110f':'#5f7d80'}">${unl?lv.elev:'LOCKED'}</text>`;
     if(sel){const a=P(114,27.5,cy);g+=`<path d="M${a[0]+10} ${a[1]}l12 -8v16z" fill="${LIVE}"/>`;}
     h+=g+'</g>';
   });
   // torre de alojamento: seletor de decks
   const qy=ys[2]+150,qu=isUnlocked('quarters'),qsel=lvlActive==='quarters';
-  h+=`<g data-lvl="quarters" class="${qu?'on':'lock'}"><rect x="10" y="${qy}" width="278" height="92" fill="${qsel?'#17262b':'#131f23'}" stroke="${qsel?LIVE:'#26434a'}"/><text x="20" y="${qy+16}" font-family="IBM Plex Mono" font-size="9.5" letter-spacing=".22em" fill="${qu?'#8aa8a4':'#4b6568'}">L-06 · LIVING QUARTERS</text>${qu?`<text x="278" y="${qy+16}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" font-weight="600" fill="${LIVE}">${levelPct('quarters')}%</text>`:`<text x="278" y="${qy+16}" text-anchor="end" font-family="IBM Plex Mono" font-size="8.5" fill="#4b6568">LOCKED</text>`}</g>`;
+  h+=`<g data-lvl="quarters" class="${qu?'on':'lock'}"><rect x="10" y="${qy}" width="278" height="92" fill="${qsel?'#17262b':'#131f23'}" stroke="${qsel?LIVE:'#26434a'}"/><text x="20" y="${qy+16}" font-family="IBM Plex Mono" font-size="9.5" letter-spacing=".22em" fill="${qu?'#8aa8a4':'#4b6568'}">L-06 · LIVING QUARTERS</text>${qu?'':`<text x="278" y="${qy+16}" text-anchor="end" font-family="IBM Plex Mono" font-size="8.5" fill="#4b6568">LOCKED</text>`}</g>`;
   S.LQ_ORDER.forEach((id,i)=>{
-    const x=20+i*52,on=qu&&active===id,p=deckPct(id);
-    h+=`<g data-deck="${id}" class="${qu?'on':'lock'}" opacity="${qu?1:.45}"><rect x="${x}" y="${qy+26}" width="46" height="54" fill="${on?LIVE:'#18252a'}" stroke="${on?LIVE:'#3b585d'}"/><text x="${x+8}" y="${qy+44}" font-family="Barlow Condensed" font-weight="700" font-size="17" fill="${on?'#07110f':'#cfe0dc'}">${id.slice(2)}</text><text x="${x+8}" y="${qy+57}" font-family="IBM Plex Mono" font-size="8" fill="${on?'#07110f':'#5f7d80'}">${S.LQ_NAMES[id].split(' · ')[1]}</text><text x="${x+8}" y="${qy+72}" font-family="IBM Plex Mono" font-size="9.5" font-weight="600" fill="${on?'#07110f':LIVE}">${qu?p+'%':''}</text></g>`;
+    const x=20+i*52,on=qu&&active===id;
+    h+=`<g data-deck="${id}" class="${qu?'on':'lock'}" opacity="${qu?1:.45}"><rect x="${x}" y="${qy+26}" width="46" height="54" fill="${on?LIVE:'#18252a'}" stroke="${on?LIVE:'#3b585d'}"/><text x="${x+8}" y="${qy+44}" font-family="Barlow Condensed" font-weight="700" font-size="17" fill="${on?'#07110f':'#cfe0dc'}">${id.slice(2)}</text><text x="${x+8}" y="${qy+57}" font-family="IBM Plex Mono" font-size="8" fill="${on?'#07110f':'#5f7d80'}">${S.LQ_NAMES[id].split(' · ')[1]}</text></g>`;
   });
   return h;
 }
@@ -142,8 +131,7 @@ function renderKey(){
     [`<svg width="12" height="12"><rect x=".5" y=".5" width="11" height="11" fill="${T.room}" stroke="${T.wall}"/><path d="M2 10H4.5V7.5H7V5H9V2.5H10" fill="none" stroke="${T.route}"/></svg>`,'Stairs'],
     [`<svg width="12" height="10"><rect width="12" height="10" fill="#1b1d1f"/><path d="M0 10L10 0M4 10L14 0M-4 10L6 0" stroke="${T.hazard}" stroke-width="2.4"/></svg>`,'Fire door'],
     [`<svg width="8" height="8"><rect width="8" height="8" fill="${T.fire}"/></svg>`,'Extinguisher'],
-    [`<svg width="12" height="10"><rect width="12" height="10" fill="${T.sealBg}" stroke="${T.wall}"/><path d="M0 10L10 0M4 10L14 0" stroke="${T.amber}" stroke-width="2"/></svg>`,'Sealed'],
-    [`<svg width="26" height="6"><path d="M0 3H26" stroke="#8d8d82" stroke-width="1.5" stroke-dasharray="1.5 5" stroke-linecap="round"/></svg>`,'Not surveyed']];
+    [`<svg width="12" height="10"><rect width="12" height="10" fill="${T.sealBg}" stroke="${T.wall}"/><path d="M0 10L10 0M4 10L14 0" stroke="${T.amber}" stroke-width="2"/></svg>`,'Sealed']];
   $('planKey').innerHTML=it.map(x=>`<i>${x[0]}${x[1]}</i>`).join('');
 }
 function renderRecord(deckId){
@@ -167,8 +155,8 @@ function renderCard(deckId){
   const r=d&&selRoom&&S.roomIndex[selRoom]&&S.roomIndex[selRoom].deck===deckId&&revRooms()[selRoom]?S.roomIndex[selRoom]:null;
   let head,title,text;
   if(r){const pr=r.n.split(' · '),code=/^M\d+$/.test(pr[0])?pr[0]:'';const area=Math.round(r.r[2]*r.r[3]);head=`<span>${esc(code?code+' · ':'')}${area} m²</span><span>${esc(d.lvl)}</span>`;title=r.n.toUpperCase();text=descOf(r);}
-  else if(d){head=`<span>${esc(d.lvl)} · ${esc(d.elev)}</span><span>${deckPct(deckId)}% surveyed</span>`;title=d.name.toUpperCase();text=(INTRO[deckId]||'')+' Toque numa sala do mapa para ler.';}
-  else{head='<span>—</span><span></span>';title='NO DATA';text='Nada foi levantado aqui.';}
+  else if(d){head=`<span>${esc(d.lvl)} · ${esc(d.elev)}</span><span></span>`;title=d.name.toUpperCase();text=d.intro||'';}
+  else{head='<span>—</span><span></span>';title='NO DATA';text='Sem dados. Nenhuma informação disponível neste nível.';}
   const key=(r?r.id:deckId||'-')+'|'+text;
   if(key===cardKey&&c.dataset.has){ // so atualiza o cabecalho (ex.: porcentagem)
     const k=c.querySelector('.k');if(k)k.innerHTML=head;return;}
@@ -214,13 +202,11 @@ function renderAll(){
   if(deck!==curDeck&&!forcedLevel()){curDeck=deck;}
   const shown=forcedLevel()?deck:curDeck;
   if(shown&&shown.startsWith('lq'))lastLq=shown;
-  const unl=S.LEVELS.filter(l=>isUnlocked(l.id)).length;
-  $('stackcount').textContent=unl+' / '+S.LEVELS.length+' LEVELS';
+  $('stackcount').textContent='';
   $('stack').innerHTML=stackSVG(shown);
   renderPlan(shown);renderRecord(shown);renderCard(shown);
   const forced=forcedLevel();
-  const pct=shown&&S.DECKS[shown]?deckPct(shown):0,tot=totalPct(),seg=Math.round(pct/12.5);
-  $('topinfo').innerHTML=(forced?`<span class="forced">▲ DIRECTED VIEW</span>`:'')+`<span class="sv">SURVEYED <b>${pct}%</b></span><span class="bar"><i style="width:${pct}%"></i></span><span class="sv">TOTAL <b>${tot}%</b></span>`;
+  $('topinfo').innerHTML=forced?`<span class="forced">▲ DIRECTED VIEW</span>`:'';
   $('btnCctv').className='btn'+(showCams?' on':'');
   const tk=STATE.ticker&&STATE.ticker.length?STATE.ticker:['COMM SYNC +7d','L-02 PRESSURE ELEVATED'];
   $('ticker').innerHTML='<b>▲ WARNING</b>'+tk.map(t=>`<span>${esc(t)}</span>`).join('');

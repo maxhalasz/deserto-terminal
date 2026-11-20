@@ -36,6 +36,9 @@ Object.values(S.DECKS).forEach(d=>{
   const tot=d.rooms.reduce((a,r)=>a+r.r[2]*r.r[3],0);console.log('area de salas: '+Math.round(tot)+' m2');
   // textos
   d.rooms.forEach(r=>{if(!r.pub)W(d.id+': sala sem texto publico '+r.id);if(r.n.length>26)W('nome longo '+r.id);});
+  // formato do texto publico: Nome em portugues. Explicacao.
+  d.rooms.forEach(r=>{if(r.pub&&(!/^[^.]{2,60}\.\s.+\.$/.test(r.pub)||/(the|and|with)/i.test(r.pub)))E(d.id+': texto publico fora do formato Nome. Explicacao. (ou em ingles): '+r.id);});
+  if(d.intro!==undefined&&!/^[^.]{2,90}\.\s.+\.$/.test(d.intro))E(d.id+': introducao do deck fora do formato');
   // escapes
   (d.esc||[]).forEach(e=>e.need.forEach(n=>{if(!d.corr.some(c=>c.id===n))E(d.id+': escape cita corredor inexistente '+n);}));
 });

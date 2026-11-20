@@ -18,10 +18,10 @@ setTimeout(async()=>{
     ok('sala selada aparece LOCKED',/^LOCKED/.test($('recStat').textContent));
     ok('sala oculta nao existe no DOM',!document.querySelector('#planwrap [data-room="md9"]'));
     ok('nenhum nivel submerso na pagina',!/SUBMERGED|NOT SURVEYED/.test(document.getElementById('scene').innerText));
-    ok('porcentagem levantada aparece',/SURVEYED\s*\d+%/.test($('topinfo').innerText.replace(/\s+/g,' '))&&/TOTAL/.test($('topinfo').innerText));
-    ok('placa do nivel mostra porcentagem',/\d+%/.test(document.querySelector('[data-lvl="module"]').textContent));
+    ok('nada de survey nem porcentagem na tela',!/survey|levantad|\d+\s?%|\bTOTAL\b/i.test(document.getElementById('scene').innerText)&&!/\d+%/.test(document.getElementById('stack').textContent));
     await sleep(2600);
-    ok('descricao da sala em portugues',/Portão de tela/.test($('ncard').textContent));
+    ok('descricao no formato Nome. Explicacao.',/^Módulo desativado\. Antigo módulo/.test($('ncard').querySelector('p').textContent));
+    click(document.querySelector('[data-lvl="module"]'));click(document.querySelector('#planwrap [data-room="md4"]'));
     ok('nenhum texto sobre DRE na pagina',!/DRE/.test(document.getElementById('scene').innerText));
     ok('nao ha painel de arquivos',!document.getElementById('fileBody')&&!document.getElementById('pFiles'));
     const vb0=document.querySelector('#planwrap svg').getAttribute('viewBox');
