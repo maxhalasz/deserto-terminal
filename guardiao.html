@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GUARDIÃO // controle</title>
+<link rel="stylesheet" href="tools/vendor/fonts.css">
+<link rel="stylesheet" href="tools/vendor/fonts-docs.css">
 <style>
   :root{
     --bg:#101214; --panel:#171a1d; --panel2:#1d2125; --line:#2a3035;
@@ -117,6 +119,7 @@
 
   <div class="tabs">
     <button class="tab active" data-tab="estacao">ESTAÇÃO</button>
+    <button class="tab" data-tab="mapa">MAPA</button>
     <button class="tab" data-tab="submarino">SUBMARINO</button>
     <button class="tab" data-tab="dre">DRE</button>
   </div>
@@ -166,6 +169,9 @@
     </div>
 
   </div><!-- /tab-estacao -->
+
+  <!-- TAB: MAPA (montada por guardiao-map.js) -->
+  <div id="tab-mapa" class="tabpanel"></div>
 
   <!-- TAB: SUBMARINO -->
   <div id="tab-submarino" class="tabpanel">
@@ -539,6 +545,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="station-data.js?v=m1"></script>
+<script src="station-eq.js?v=m1"></script>
+<script src="station-render.js?v=m1"></script>
+<script src="station-gm-data.js?v=m1"></script>
+<script src="guardiao-map.js?v=m1"></script>
 <script>
 var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
   if(!_authUser) return;
@@ -553,23 +564,12 @@ var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
   let navPathData = [];
   let ropeStateG = 'slack';
 
-  const LEVELS = [
-    { id:"helipad",  tag:"L-07", name:"Helipad" },
-    { id:"quarters", tag:"L-06", name:"Crew Quarters" },
-    { id:"control",  tag:"L-05", name:"Control Center" },
-    { id:"mess",     tag:"L-04", name:"Mess / Common Deck" },
-    { id:"drill",    tag:"L-03", name:"Drilling Deck" },
-    { id:"sub",      tag:"L-02", name:"Submerged Level" },
-    { id:"dre",      tag:"L-??", name:"[ NO RECORD ]" }
-  ];
-  const CAMERAS = [
-    { id:"cam01", label:"CAM-01", loc:"Mess Deck" },
-    { id:"cam02", label:"CAM-02", loc:"Drilling Deck" },
-    { id:"cam03", label:"CAM-03", loc:"Corridor B" },
-    { id:"cam04", label:"CAM-04", loc:"Moonpool" }
-  ];
+  // níveis e câmeras vêm de station-data.js (mesma fonte do terminal dos jogadores)
+  const LEVELS = STATION.LEVELS.map(l=>({id:l.id,tag:l.tag,name:l.name}));
+  const CAMERAS = STATION.CAMERAS;
 
   const ref = sessionRef.child("station");
+  if(window.GuardiaoMap) GuardiaoMap.init(sessionRef);
   const elLvls = document.getElementById("lvls");
   const elCams = document.getElementById("cams");
 

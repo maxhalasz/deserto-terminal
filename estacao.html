@@ -4,553 +4,110 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NEUROSTAT // PLATFORM SYSTEMS</title>
-<style>
-  :root{
-    --bg:#070b0e;
-    --panel:#0c1418;
-    --line:#16323a;
-    --ink:#9fc6c9;
-    --ink-dim:#456066;
-    --live:#62e0c4;
-    --warn:#d8a24a;
-    --danger:#d65a5a;
-    --locked:#1b2b30;
-    --scan: rgba(98,224,196,.025);
-    --font: "SFMono-Regular", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
-  }
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
-  body{
-    background:var(--bg);color:var(--ink);font-family:var(--font);
-    font-size:14px;line-height:1.5;overflow:hidden;
-    background-image:repeating-linear-gradient(0deg, var(--scan) 0px, var(--scan) 1px, transparent 1px, transparent 3px);
-  }
-  body::after{content:"";position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 180px rgba(0,0,0,.85);z-index:50}
-
-  /* STANDBY */
-  #standby{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
-  #standby .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-dim);box-shadow:0 0 12px var(--ink-dim);animation:pulse 2.7s infinite}
-  @keyframes pulse{0%,100%{opacity:.25}45%{opacity:.9}}
-  #standby .msg{color:var(--ink-dim);letter-spacing:.28em;font-size:12px}
-  #standby .sub{color:var(--ink-dim);opacity:.5;font-size:11px;letter-spacing:.1em}
-
-  /* TERMINAL */
-  #terminal{display:none;height:100%;flex-direction:column}
-  #terminal.on{display:flex}
-  header{border-bottom:1px solid var(--line);padding:10px 16px;display:flex;justify-content:space-between;align-items:baseline;background:linear-gradient(180deg,#0a1216,transparent)}
-  header .brand{letter-spacing:.34em;color:var(--ink);font-size:13px}
-  header .brand b{color:var(--live);font-weight:600}
-  header .node{color:var(--ink-dim);font-size:11px;letter-spacing:.18em}
-
-  /* tabs de modo: MAP / CAMERAS */
-  .tabs{display:flex;border-bottom:1px solid var(--line)}
-  .tab{
-    padding:9px 18px;font-size:11px;letter-spacing:.2em;color:var(--ink-dim);
-    cursor:pointer;border-right:1px solid var(--line);transition:all .15s;user-select:none;
-  }
-  .tab:hover{color:var(--ink)}
-  .tab.active{color:var(--live);background:var(--panel);box-shadow:inset 0 -2px 0 var(--live)}
-
-  main{flex:1;display:flex;min-height:0}
-
-  /* ----- coluna esquerda: mapa ----- */
-  .mapwrap{width:300px;border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-  .mapwrap .cap{padding:9px 14px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.26em;color:var(--ink-dim)}
-  .levels{flex:1;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:0}
-  .lvl{
-    position:relative;border:1px solid var(--locked);border-bottom:none;
-    padding:13px 14px;color:var(--locked);transition:all .45s ease;
-    background:repeating-linear-gradient(45deg,#0a1014 0 6px,#0b1216 6px 12px);
-  }
-  .lvl:last-child{border-bottom:1px solid var(--locked)}
-  .lvl .tag{font-size:10px;letter-spacing:.2em;opacity:.6}
-  .lvl .name{font-size:13px;margin-top:2px;letter-spacing:.04em}
-  .lvl .stat{position:absolute;right:12px;top:13px;font-size:9px;letter-spacing:.18em}
-  /* nivel liberado: clicavel */
-  .lvl.live{border-color:var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
-  .lvl.live:hover{border-color:var(--live)}
-  .lvl.live .tag{color:var(--live);opacity:1}
-  .lvl.live .stat{color:var(--live)}
-  .lvl.live::before{content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:2px;background:var(--live);box-shadow:0 0 8px var(--live)}
-  /* nivel aberto pelo jogador (selecionado) */
-  .lvl.open{outline:1px solid var(--live);outline-offset:-1px}
-  .lvl.open .name{color:var(--live)}
-  /* nivel forcado pelo DM */
-  .lvl.forced{outline:1px solid var(--warn);outline-offset:-1px}
-  .lvl.forced .stat{color:var(--warn)}
-
-  /* ----- coluna direita: leitura ----- */
-  .read{flex:1;display:flex;flex-direction:column;min-height:0}
-  .read .cap{padding:9px 16px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.26em;color:var(--ink-dim);display:flex;justify-content:space-between}
-  .read .cap .forced-tag{color:var(--warn);letter-spacing:.16em}
-  .read .body{flex:1;overflow-y:auto;padding:22px 26px}
-  .read .body .empty{color:var(--ink-dim);opacity:.55;font-size:12px;letter-spacing:.06em}
-  .read .body h2{color:var(--live);font-size:14px;font-weight:600;letter-spacing:.1em;margin-bottom:14px;text-transform:uppercase}
-  .read .body .meta{color:var(--ink-dim);font-size:11px;letter-spacing:.1em;margin-bottom:18px}
-
-  /* lista de arquivos clicaveis dentro do nivel */
-  .filelist{margin-top:8px;display:flex;flex-direction:column;gap:8px}
-  .filelist .fitem{
-    display:flex;align-items:center;gap:12px;cursor:pointer;
-    border:1px solid var(--line);border-radius:4px;padding:11px 13px;
-    background:#0a1216;transition:all .15s;
-  }
-  .filelist .fitem:hover{border-color:var(--live);background:var(--panel)}
-  .filelist .fitem .ic{color:var(--live);font-size:11px;letter-spacing:.1em}
-  .filelist .fitem .ti{flex:1;color:var(--ink);font-size:13px}
-  .filelist .fitem .ar{color:var(--ink-dim);font-size:14px}
-  .filelist .none{color:var(--ink-dim);opacity:.5;font-size:12px;letter-spacing:.05em}
-
-  /* arquivo aberto */
-  .docview{}
-  .docview .back{
-    cursor:pointer;color:var(--ink-dim);font-size:11px;letter-spacing:.12em;
-    margin-bottom:18px;display:inline-block;border:1px solid var(--line);
-    border-radius:3px;padding:5px 11px;transition:all .15s;
-  }
-  .docview .back:hover{color:var(--ink);border-color:var(--ink-dim)}
-  .docview .doc h3{color:var(--ink);font-size:12px;letter-spacing:.18em;text-transform:uppercase;margin:20px 0 8px;border-bottom:1px solid var(--line);padding-bottom:5px}
-  .docview .doc p{margin-bottom:12px;max-width:64ch;color:var(--ink)}
-  .docview .doc em{color:var(--live);font-style:normal;font-weight:600}
-  .docview .doc .redacted{background:#0d2026;color:transparent;user-select:none;padding:0 4px;border-radius:1px;position:relative}
-  .docview .doc .redacted::after{content:"";position:absolute;inset:0;background:#16323a;border-radius:1px}
-
-  /* ----- painel de cameras ----- */
-  .camsview{flex:1;display:flex;flex-direction:column;min-height:0}
-  .camsview .cap{padding:9px 16px;border-bottom:1px solid var(--line);font-size:10px;letter-spacing:.26em;color:var(--ink-dim)}
-  .camgrid{flex:1;overflow-y:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;align-content:start}
-  .camcard{
-    border:1px solid var(--line);border-radius:5px;overflow:hidden;
-    background:#0a1014;display:flex;flex-direction:column;
-  }
-  .camcard .camtop{display:flex;justify-content:space-between;padding:8px 11px;font-size:10px;letter-spacing:.12em;border-bottom:1px solid var(--line)}
-  .camcard .camtop .cl{color:var(--ink)}
-  .camcard .camtop .cs{color:var(--ink-dim)}
-  .camcard .thumb{
-    aspect-ratio:4/3;position:relative;display:flex;align-items:center;justify-content:center;
-    background:radial-gradient(ellipse at 50% 40%,#13202610 0%,#0a1216 70%);
-  }
-  .camcard .thumb .label{font-size:10px;letter-spacing:.2em;color:var(--ink-dim)}
-  .camcard.on{cursor:pointer}
-  .camcard.on:hover{border-color:var(--live)}
-  .camcard.on .camtop .cs{color:var(--live)}
-  .camcard.on .thumb{background:radial-gradient(ellipse at 50% 40%,#16252b 0%,#0a1216 75%)}
-  .camcard.on .thumb .label{color:var(--live)}
-  /* camera offline (DM nao marcou ON) */
-  .camcard.off{opacity:.4}
-  .camcard.off .camtop .cs{color:var(--ink-dim)}
-  /* camera em cooldown */
-  .camcard.cooldown .thumb{background:#080c0e}
-  .camcard.cooldown .thumb .label{color:var(--danger)}
-  .camcard.cooldown .cd{font-size:9px;color:var(--danger);letter-spacing:.14em;margin-top:6px}
-
-  footer{border-top:1px solid var(--line);padding:6px 16px;font-size:10px;letter-spacing:.18em;color:var(--ink-dim);display:flex;justify-content:space-between}
-  .blink{animation:bl 1.3s steps(1) infinite}
-  @keyframes bl{50%{opacity:0}}
-
-  /* CAMERA FEED OVERLAY (quando puxa) */
-  #camfeed{position:fixed;inset:0;z-index:60;display:none;background:#05080a;flex-direction:column;align-items:center;justify-content:center}
-  #camfeed.on{display:flex}
-  .camframe{position:relative;width:min(78vw,820px);aspect-ratio:4/3;background:#0a1014;border:1px solid var(--line);overflow:hidden}
-  .camimg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 38%,#16252b 0%,#0a1216 55%,#05080a 100%)}
-  .camnoise{position:absolute;inset:-50%;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");opacity:.16;mix-blend-mode:screen;animation:noise .4s steps(3) infinite}
-  @keyframes noise{0%{transform:translate(0,0)}33%{transform:translate(-6%,3%)}66%{transform:translate(4%,-5%)}100%{transform:translate(0,0)}}
-  .camscan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.4) 0 1px,transparent 1px 3px)}
-  .camroll{position:absolute;left:0;right:0;height:60px;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(255,255,255,.05) 45%,rgba(255,255,255,.08) 50%,transparent);animation:roll 5.5s linear infinite}
-  @keyframes roll{0%{top:-60px}100%{top:100%}}
-  .camglitch{position:absolute;left:0;right:0;height:3px;background:rgba(98,224,196,.25);opacity:0;animation:glitch 3.2s steps(1) infinite}
-  @keyframes glitch{0%,92%,100%{opacity:0;top:30%}93%{opacity:.7;top:42%}94%{opacity:0}96%{opacity:.6;top:67%}97%{opacity:0}}
-  .camhud{position:absolute;top:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:11px;letter-spacing:.14em;color:var(--live);text-shadow:0 0 6px rgba(98,224,196,.5);z-index:2}
-  .camhud .rec{display:flex;align-items:center;gap:7px}
-  .camhud .rec .rd{width:8px;height:8px;border-radius:50%;background:#d65a5a;box-shadow:0 0 8px #d65a5a;animation:bl 1s steps(1) infinite}
-  .camhud .tc{color:var(--ink)}
-  .cambot{position:absolute;bottom:10px;left:12px;right:12px;display:flex;justify-content:space-between;font-size:10px;letter-spacing:.16em;color:var(--ink-dim);z-index:2}
-  .camloss{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;letter-spacing:.3em;color:var(--ink-dim);background:rgba(5,8,10,.6);opacity:0;z-index:3}
-  .camframe.dropping .camloss{animation:lossflash .5s ease}
-  @keyframes lossflash{0%{opacity:0}40%{opacity:1}100%{opacity:0}}
-
-  ::-webkit-scrollbar{width:8px}
-  ::-webkit-scrollbar-thumb{background:var(--line)}
-  ::-webkit-scrollbar-track{background:transparent}
-  @media (prefers-reduced-motion: reduce){*{animation:none !important}}
-</style>
+<link rel="stylesheet" href="tools/vendor/fonts.css">
+<link rel="stylesheet" href="tools/vendor/fonts-docs.css">
+<link rel="stylesheet" href="station.css?v=m1">
 </head>
 <body>
+<div id="scene">
+  <div class="desk"></div>
 
-  <div id="standby">
-    <div class="dot"></div>
-    <div class="msg">AWAITING UPLINK</div>
-    <div class="sub">neurostat platform systems &nbsp;//&nbsp; node idle</div>
+  <!-- MONITOR -->
+  <div class="bezel">
+    <div class="scr">
+
+      <div id="standby">
+        <div class="dot"></div>
+        <div class="msg">AWAITING UPLINK</div>
+        <div class="sub">neurostat platform systems &nbsp;//&nbsp; node idle</div>
+      </div>
+
+      <div id="camfeed">
+        <div class="camframe" id="camframe">
+          <div class="camimg"></div><div class="camnoise"></div><div class="camroll"></div><div class="camglitch"></div><div class="camscan"></div>
+          <div class="camhud"><div class="rec"><span class="rd"></span><span id="camlabel">CAM</span></div><div class="tc" id="camtc">--:--:--</div></div>
+          <div class="cambot"><span id="camloc">—</span><span>SIGNAL: DEGRADED</span></div>
+          <div class="camloss">SIGNAL LOST</div>
+        </div>
+      </div>
+
+      <div id="terminal">
+        <div class="hdr">
+          <div class="logo">N</div>
+          <div class="brand"><b>NEUROSTAT</b><span>PLATFORM SYSTEMS</span></div>
+          <div class="cell">UNIT<b>NS-7734 / SEC A-4</b></div>
+          <div class="cell">NODE<b>STATION-MAP</b></div>
+          <div class="sp"></div>
+          <div class="cell" id="barcode" style="border-left:1px solid var(--line2)"></div>
+          <div class="cell" style="border-right:none">REV<b>4.4 · 2029</b></div>
+        </div>
+        <div class="tabs2">
+          <div class="tab2 on" data-tab="map"><kbd>F1</kbd>MAP / FILES</div>
+          <div class="tab2" data-tab="cams"><kbd>F2</kbd>CAMERAS</div>
+        </div>
+
+        <!-- ===== MAP ===== -->
+        <div class="stage2" id="view-map">
+          <div class="colL">
+            <div class="cap"><span>VERTICAL STACK</span><b id="stackcount">—</b></div>
+            <svg id="stack" width="298" height="776" viewBox="0 0 298 776" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <div class="center" id="center">
+            <div class="topbar">
+              <div class="tg"><span class="on">STRUCTURE</span><span class="dis">POWER</span><span class="dis">VENT</span><span class="btn" id="btnCctv">CCTV</span></div>
+              <div id="topinfo" style="font-size:10px;letter-spacing:.2em;color:var(--ink-dim)"></div>
+            </div>
+            <div id="planwrap"></div>
+            <div id="docov"><div class="ph"><span id="dochead">FILE</span><span class="back" id="docback">← BACK</span></div><div class="body" id="docbody"></div></div>
+            <div class="pan2" id="pRecord"><div class="ph"><span>ROOM RECORD</span><b id="recTag">—</b></div><div id="recBody"></div></div>
+            <div class="pan2" id="pFiles"><div class="ph"><span>FILES</span><b id="fileTag">—</b></div><div id="fileBody"></div></div>
+            <div class="tick" id="ticker"></div>
+          </div>
+        </div>
+
+        <!-- ===== CAMERAS ===== -->
+        <div class="stage2" id="view-cams" style="display:none">
+          <div class="camsview">
+            <div class="cap"><span>SURVEILLANCE</span><b>pull a feed to view (~6s, then signal drops)</b></div>
+            <div class="camgrid" id="camgrid"></div>
+          </div>
+        </div>
+
+        <div class="ftr"><span><i class="led"></i>UPLINK ACTIVE<span class="blink">_</span></span><span>SIGNAL <span class="seg"><i></i><i></i><i></i><i></i><i class="o"></i></span></span><span style="flex:1"></span><span id="clock">--:--:--</span></div>
+      </div>
+
+      <div class="roll"></div><div class="vig2"></div><div class="lines"></div><div class="grain" id="grain"></div><div class="glare"></div><div class="dust"></div>
+    </div>
+    <div class="plateB"><span><i class="led"></i>NEUROSTAT · NS-7734</span><span class="vent" id="vent"></span><span>PLATFORM SYSTEMS</span></div>
   </div>
 
-  <!-- CAMERA FEED OVERLAY -->
-  <div id="camfeed">
-    <div class="camframe" id="camframe">
-      <div class="camimg" id="camimg"></div>
-      <div class="camnoise"></div>
-      <div class="camroll"></div>
-      <div class="camglitch"></div>
-      <div class="camscan"></div>
-      <div class="camhud">
-        <div class="rec"><span class="rd"></span><span id="camlabel">CAM</span></div>
-        <div class="tc" id="camtc">--:--:--</div>
-      </div>
-      <div class="cambot">
-        <span id="camloc">—</span>
-        <span>SIGNAL: DEGRADED</span>
-      </div>
-      <div class="camloss">SIGNAL LOST</div>
+  <!-- CADERNO NA MESA -->
+  <div class="rcol" id="notes">
+    <div class="ncard" id="ncard"></div>
+    <div class="ntools"><span class="on" id="nmShared">SHARED</span><span id="nmMine">MINE</span><span class="cnt" id="ncount"></span></div>
+    <div class="nb">
+      <div class="rings"></div>
+      <div class="hd"><span>FIELD NOTEBOOK</span><span id="nbSub">shared with team</span></div>
+      <div class="nbl" id="nbl"></div>
+      <div class="nstamp">UNCONFIRMED</div>
     </div>
   </div>
-
-  <!-- TERMINAL -->
-  <div id="terminal">
-    <header>
-      <div class="brand"><b>NEUROSTAT</b> &nbsp;PLATFORM SYSTEMS</div>
-      <div class="node">NODE: STATION-MAP &nbsp;/&nbsp; REV 4.4</div>
-    </header>
-
-    <div class="tabs">
-      <div class="tab active" data-tab="map">MAP / FILES</div>
-      <div class="tab" data-tab="cams">CAMERAS</div>
-    </div>
-
-    <!-- ===== VIEW: MAP ===== -->
-    <main id="view-map">
-      <section class="mapwrap">
-        <div class="cap">VERTICAL SECTION // PLATFORM</div>
-        <div class="levels" id="levels"></div>
-      </section>
-      <section class="read">
-        <div class="cap">
-          <span id="readtitle">READOUT</span>
-          <span id="readstat">—</span>
-        </div>
-        <div class="body" id="readbody">
-          <div class="empty">Select an unlocked level to view its readout.</div>
-        </div>
-      </section>
-    </main>
-
-    <!-- ===== VIEW: CAMERAS ===== -->
-    <main id="view-cams" style="display:none">
-      <section class="camsview">
-        <div class="cap">SURVEILLANCE // pull a feed to view (~6s, then signal drops)</div>
-        <div class="camgrid" id="camgrid"></div>
-      </section>
-    </main>
-
-    <footer>
-      <span>UPLINK ACTIVE<span class="blink">_</span></span>
-      <span id="clock">--:--:--</span>
-    </footer>
-  </div>
+  <svg class="pen" width="230" height="22"><rect x="0" y="6" width="190" height="9" rx="4" fill="#1d3a6b"/><rect x="140" y="6" width="28" height="9" fill="#c9ccd0"/><path d="M190 6l32 4.5l-32 4.5z" fill="#d9d4c0"/><rect x="0" y="6" width="190" height="2" fill="rgba(255,255,255,.18)"/></svg>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="station-data.js?v=m1"></script>
+<script src="station-eq.js?v=m1"></script>
+<script src="station-render.js?v=m1"></script>
+<script src="station-app.js?v=m1"></script>
 <script>
 var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
   if(!_authUser) return;
   _unsubAuth();
-  const CAM_DURATION   = 6000;   // feed no ar
-  const CAM_COOLDOWN   = 60000;  // 1 min ate a camera voltar
-
-  const LEVELS = [
-    { id:"helipad",  tag:"L-07", name:"Helipad" },
-    { id:"quarters", tag:"L-06", name:"Crew Quarters" },
-    { id:"control",  tag:"L-05", name:"Control Center" },
-    { id:"mess",     tag:"L-04", name:"Mess / Common Deck" },
-    { id:"drill",    tag:"L-03", name:"Drilling Deck" },
-    { id:"sub",      tag:"L-02", name:"Submerged Level" },
-    { id:"dre",      tag:"L-??", name:"[ NO RECORD ]" }
-  ];
-
-  const READINGS = {
-    helipad:  { h:"Helipad — L-07", meta:"LAST LANDING: 04:11 / OPERATIONAL", body:
-      ["Upper landing platform. Traffic log intact up to the weekly communications failure.",
-       "Fuel readings within expected range. No incidents."] },
-    quarters: { h:"Crew Quarters — L-06", meta:"OCCUPANCY: 11 / 14 BUNKS", body:
-      ["Rotating crew quarters. Three bunks show no use in the last window.",
-       "Keycard access functional. Logs available on clearance."] },
-    control:  { h:"Control Center — L-05", meta:"SYSTEMS: NOMINAL", body:
-      ["Platform operations core. Centralized telemetry.",
-       "Minor drift between internal clock and satellite. Within tolerance."] },
-    mess:     { h:"Mess / Common Deck — L-04", meta:"CAMERAS: 2 ACTIVE", body:
-      ["Common area. Camera access available from the surveillance tab.",
-       "No anomalies logged during this period."] },
-    drill:    { h:"Drilling Deck — L-03", meta:"OPERATION: SUSPENDED", body:
-      ["Drilling suspended by operational order. Equipment on standby.",
-       "Intermittent background vibration of unmapped origin."] },
-    sub:      { h:"Submerged Level — L-02", meta:"PRESSURE: ELEVATED", body:
-      ["Structures below the waterline. Restricted access.",
-       "Pressure reading above platform baseline."] },
-    dre:      { h:"[ UNLOGGED SECTOR ]", meta:"DATA CORRUPTED", body:
-      ["This level does not appear in the official NeuroStat schematic.",
-       "Record partially recovered. Access requires local terminal."] }
-  };
-
-  const CAMERAS = [
-    { id:"cam01", label:"CAM-01", loc:"Mess Deck" },
-    { id:"cam02", label:"CAM-02", loc:"Drilling Deck" },
-    { id:"cam03", label:"CAM-03", loc:"Corridor B" },
-    { id:"cam04", label:"CAM-04", loc:"Moonpool" }
-  ];
-
-  const elLevels = document.getElementById("levels");
-  const elBody   = document.getElementById("readbody");
-  const elTitle  = document.getElementById("readtitle");
-  const elStat   = document.getElementById("readstat");
-  const elCamGrid= document.getElementById("camgrid");
-
-  // ---- estado local + remoto ----
-  let FILES = {};            // dossies do firebase
-  let STATE = {};            // station inteiro
-  let localOpenLevel = null; // nivel que ESTE jogador abriu
-  let openFileKey = null;    // arquivo aberto (dentro do nivel)
-
-  // monta mapa
-  LEVELS.forEach(l=>{
-    const d=document.createElement("div");
-    d.className="lvl"; d.dataset.id=l.id;
-    d.innerHTML=`<div class="tag">${l.tag}</div><div class="name">${l.name}</div><div class="stat">LOCKED</div>`;
-    elLevels.appendChild(d);
-  });
-
-  // monta cameras
-  CAMERAS.forEach(c=>{
-    const d=document.createElement("div");
-    d.className="camcard off"; d.dataset.id=c.id;
-    d.innerHTML=`
-      <div class="camtop"><span class="cl">${c.label}</span><span class="cs">OFFLINE</span></div>
-      <div class="thumb"><div style="text-align:center"><div class="label">${c.loc}</div><div class="cd"></div></div></div>`;
-    elCamGrid.appendChild(d);
-  });
-
-  // ---- seguranca + markup ----
-  function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-  function inline(t){
-    t=t.replace(/\[\[(.+?)\]\]/g,(m,p1)=>`<span class="redacted">${p1}</span>`);
-    t=t.replace(/\*(.+?)\*/g,(m,p1)=>`<em>${p1}</em>`);
-    return t;
-  }
-  function renderDocBody(raw){
-    const esc=escapeHtml(raw||"");
-    return esc.split(/\n\s*\n/).map(block=>{
-      const line=block.trim(); if(!line) return "";
-      if(/^##\s+/.test(line)) return `<h3>${inline(line.replace(/^##\s+/,""))}</h3>`;
-      return `<p>${inline(line.replace(/\n/g," "))}</p>`;
-    }).join("");
-  }
-
-  // arquivos DISPONIVEIS de um nivel (published === true)
-  function filesForLevel(id){
-    return Object.keys(FILES)
-      .filter(k=>FILES[k].level===id && FILES[k].available)
-      .sort((a,b)=>(FILES[a].at||0)-(FILES[b].at||0));
-  }
-
-  // ---- render da leitura (nivel + lista de arquivos OU arquivo aberto) ----
-  function renderReading(){
-    // qual nivel mostrar: forcado pelo DM tem prioridade
-    const forced = STATE.force || null;
-    const showLevel = forced || localOpenLevel;
-    const isForced = !!forced;
-
-    // atualiza marcacao visual dos niveis
-    document.querySelectorAll(".lvl").forEach(el=>{
-      el.classList.toggle("open", el.dataset.id===localOpenLevel && !isForced);
-      el.classList.toggle("forced", el.dataset.id===forced);
-    });
-
-    const capForce = document.getElementById("readstat");
-
-    if(!showLevel){
-      elTitle.textContent="READOUT"; capForce.innerHTML="—";
-      elBody.innerHTML=`<div class="empty">Select an unlocked level to view its readout.</div>`;
-      return;
-    }
-
-    const r=READINGS[showLevel];
-    elTitle.textContent=(r?r.h:showLevel).toUpperCase();
-    capForce.innerHTML = isForced
-      ? `<span class="forced-tag">▲ DIRECTED VIEW</span>`
-      : "ACCESS GRANTED";
-
-    // se um arquivo esta aberto, mostra ele
-    if(openFileKey && FILES[openFileKey] && FILES[openFileKey].available){
-      const f=FILES[openFileKey];
-      elBody.innerHTML=`
-        <div class="docview">
-          <span class="back" id="backBtn">← back to ${escapeHtml((r?r.h:showLevel))}</span>
-          <h2>${escapeHtml(f.title||"FILE")}</h2>
-          <div class="doc">${renderDocBody(f.body)}</div>
-        </div>`;
-      return;
-    }
-
-    // senao, leitura base + lista de arquivos
-    let html="";
-    if(r){
-      html+=`<h2>${r.h}</h2><div class="meta">${r.meta}</div>`;
-      html+=r.body.map(p=>`<p>${escapeHtml(p)}</p>`).join("");
-    }
-    const docs=filesForLevel(showLevel);
-    html+=`<div class="filelist">`;
-    if(docs.length){
-      html+=docs.map(k=>{
-        const f=FILES[k];
-        return `<div class="fitem" data-k="${k}">
-                  <span class="ic">▤ FILE</span>
-                  <span class="ti">${escapeHtml(f.title||"Untitled")}</span>
-                  <span class="ar">→</span>
-                </div>`;
-      }).join("");
-    } else {
-      html+=`<div class="none">No files available on this node.</div>`;
-    }
-    html+=`</div>`;
-    elBody.innerHTML=html;
-  }
-
-  // clique nos niveis (so liberados)
-  elLevels.addEventListener("click", e=>{
-    const lvl=e.target.closest(".lvl"); if(!lvl) return;
-    if(!lvl.classList.contains("live")) return; // travado: ignora
-    // se o DM esta forcando, o clique local nao sai do forcado (mas guarda a escolha)
-    localOpenLevel = lvl.dataset.id;
-    openFileKey = null;
-    renderReading();
-  });
-
-  // clique nos arquivos e no back (delegado no body)
-  elBody.addEventListener("click", e=>{
-    const fitem=e.target.closest(".fitem");
-    if(fitem){ openFileKey=fitem.dataset.k; renderReading(); return; }
-    if(e.target.id==="backBtn"){ openFileKey=null; renderReading(); return; }
-  });
-
-  // ---- tabs ----
-  document.querySelectorAll(".tab").forEach(t=>{
-    t.addEventListener("click", ()=>{
-      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-      t.classList.add("active");
-      const tab=t.dataset.tab;
-      document.getElementById("view-map").style.display  = tab==="map"  ? "flex":"none";
-      document.getElementById("view-cams").style.display = tab==="cams" ? "flex":"none";
-    });
-  });
-
-  // ---- escuta arquivos ----
-  sessionRef.child("station/files").on("value", snap=>{
-    FILES=snap.val()||{};
-    // se o arquivo aberto sumiu ou foi despublicado, volta pra lista
-    if(openFileKey && (!FILES[openFileKey] || !FILES[openFileKey].available)) openFileKey=null;
-    renderReading();
-  });
-
-  // ---- escuta estado geral ----
-  sessionRef.child("station").on("value", snap=>{
-    STATE=snap.val()||{};
-    const online=!!STATE.online;
-    document.getElementById("standby").style.display=online?"none":"flex";
-    document.getElementById("terminal").className=online?"on":"";
-
-    const unlocked=STATE.unlocked||{};
-    document.querySelectorAll(".lvl").forEach(el=>{
-      const on=!!unlocked[el.dataset.id];
-      el.classList.toggle("live",on);
-      el.querySelector(".stat").textContent = on ? "ACCESS" : "LOCKED";
-    });
-    // se o nivel que o jogador tinha aberto foi trancado, fecha
-    if(localOpenLevel && !unlocked[localOpenLevel]){ localOpenLevel=null; openFileKey=null; }
-
-    renderReading();
-    renderCameras();
-  });
-
-  // ================= CAMERAS =================
-  // estado das cameras vem de STATE.cams = { camId: {on:bool, pulledAt:ts} }
-  function renderCameras(){
-    const cams=STATE.cams||{};
-    const now=Date.now();
-    document.querySelectorAll(".camcard").forEach(card=>{
-      const id=card.dataset.id;
-      const c=cams[id]||{};
-      const isOn=!!c.on;
-      const pulledAt=c.pulledAt||0;
-      const inCooldown = isOn && (now-pulledAt < CAM_COOLDOWN);
-
-      card.classList.toggle("off", !isOn);
-      card.classList.toggle("on", isOn && !inCooldown);
-      card.classList.toggle("cooldown", inCooldown);
-
-      const cs=card.querySelector(".cs");
-      const cd=card.querySelector(".cd");
-      if(!isOn){ cs.textContent="OFFLINE"; cd.textContent=""; }
-      else if(inCooldown){
-        const left=Math.ceil((CAM_COOLDOWN-(now-pulledAt))/1000);
-        cs.textContent="REACQUIRING"; cd.textContent=`SIGNAL LOST · ${left}s`;
-      } else {
-        cs.textContent="● LIVE"; cd.textContent="";
-      }
-    });
-  }
-  // tick pra atualizar o contador de cooldown
-  setInterval(renderCameras, 1000);
-
-  // clique numa camera: so se ON e fora de cooldown
-  elCamGrid.addEventListener("click", e=>{
-    const card=e.target.closest(".camcard"); if(!card) return;
-    const id=card.dataset.id;
-    const cams=STATE.cams||{};
-    const c=cams[id]||{};
-    if(!c.on) return;
-    const now=Date.now();
-    if(now-(c.pulledAt||0) < CAM_COOLDOWN) return; // em cooldown
-
-    // grava a puxada (cooldown compartilhado): seta pulledAt agora
-    sessionRef.child("station/cams/"+id+"/pulledAt").set(now);
-    playCamera(id);
-  });
-
-  // tambem escuta puxadas feitas por OUTROS jogadores, pra todos verem o feed
-  let seenPulls={};
-  sessionRef.child("station/cams").on("value", snap=>{
-    const cams=snap.val()||{};
-    const now=Date.now();
-    Object.keys(cams).forEach(id=>{
-      const pulledAt=cams[id] && cams[id].pulledAt;
-      if(!pulledAt) return;
-      if(seenPulls[id]===pulledAt) return;
-      seenPulls[id]=pulledAt;
-      // so reproduz se for recente (nao reabre feed velho ao dar refresh)
-      if(now-pulledAt < CAM_DURATION){
-        playCamera(id);
-      }
-    });
-    renderCameras();
-  });
-
-  function playCamera(id){
-    const meta=CAMERAS.find(c=>c.id===id)||{label:"CAM",loc:"—"};
-    document.getElementById("camlabel").textContent=meta.label;
-    document.getElementById("camloc").textContent=meta.loc;
-    const feed=document.getElementById("camfeed");
-    const frame=document.getElementById("camframe");
-    feed.classList.add("on");
-    frame.classList.remove("dropping");
-    clearTimeout(window._camTimer);
-    window._camTimer=setTimeout(()=>{
-      frame.classList.add("dropping");
-      setTimeout(()=>feed.classList.remove("on"),480);
-    }, CAM_DURATION);
-  }
-
-  // relogios
-  setInterval(()=>{const n=new Date();const tc=document.getElementById("camtc");if(tc)tc.textContent=n.toTimeString().slice(0,8);},1000);
-  setInterval(()=>{document.getElementById("clock").textContent=new Date().toTimeString().slice(0,8);},1000);
+  StationApp.start(sessionRef);
 });
 </script>
 </body>

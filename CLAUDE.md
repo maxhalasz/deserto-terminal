@@ -35,13 +35,26 @@ Seco, estrutural, consequencialista; cada frase entrega informação nova. PROIB
 - Presença sincronizada no mesmo throttle.
 
 ## Terminais
-- **estacao.html**: COMPLETO. Visual NeuroStat azul-clínico, mapa vertical, dossiês com markup, câmeras com cooldown via Firebase (frames placeholder — trocar por imagens reais é trabalho futuro).
+- **estacao.html**: REFEITO em 2026-11-20 (plantas que revelam, caderno, dossiês com markup, câmeras com cooldown via Firebase; frames de câmera ainda placeholder). Ver seção "MAPA DA ESTAÇÃO" abaixo.
 - **submarino.html**: FOCO atual. ~975 linhas. Estética Iron Lung. Casco PNG sobreposto com visor recortado, canvas atrás renderizando a navegação. **VISOR COMPLETO E REVISADO.**
 - **guardiao.html**: painel GM.
 - Pendente: terminal de OPERADOR da estação (jogadores em cima monitoram o submarino, SÓ LEITURA, guiam por voz). Terminal DRE (`dre.html`): computadores VHS anos 90 degradados, não iniciado.
 
 ## Imagens
 Uploads originais processados com PIL → `img/`: `old_intact.png`, `old_cracked.png` (casco velho), `neurostat.png` (moderno), `moonpool.png`. Otimizadas (quantização 128 cores). IMPORTANTE: subir tudo num commit só — commits em cadeia cancelam o deploy do Pages.
+
+---
+
+# MAPA DA ESTAÇÃO (2026-11-20) — estacao.html + guardiao.html (aba MAPA)
+Substituiu o antigo mapa vertical de níveis. Visual escolhido por Max: pitch **H** (planta clara dentro do monitor NeuroStat, caderno de papel na mesa ao lado). Dados vindos de `o-deserto-prancha.html` (Downloads), com a geometria **refeita** (corredores ortogonais, salas coladas nos corredores, portas explícitas).
+- **Arquivos:** `station-data.js` (PÚBLICO: níveis, decks, salas, corredores, texto que o jogador lê), `station-eq.js` (equipamento desenhado por sala), `station-render.js` (renderer SVG da planta), `station-app.js` (terminal dos jogadores), `station.css`, `station-gm-data.js` (**só guardiao.html**: texto do Guardião em PT, gerado do LEIT da prancha), `guardiao-map.js` (aba MAPA do painel). `estacao.html` é só o esqueleto: cena fixa 1600×1000 escalada por JS (`fit()`).
+- **Modelo:** unidades em metros; salas `r:[x,y,w,h]`; corredores são retângulos (união desenhada em duas passadas: parede expandida 0,25 m + piso); porta = `[lado,t,tipo,'c'|'r']` na parede compartilhada (`autoDoors` cria quando omitida); `voids` = poché estrutural; `firewall`/`fireDoors` no module deck; `esc` = rotas de fuga com `need` (corredores que precisam estar revelados). Decks: module, weather, cellar, lqE–lqA. Submerso/DRE = `NO RECORD` (sem planta ainda).
+- **Validar geometria SEMPRE ao mexer em station-data.js:** `node tools/_verify/validate_map.js` (sobreposição, portas que não dão em corredor, corredor isolado, ids duplicados). Teste de comportamento do terminal: `node tools/_verify/build_test_estacao.js mid` gera `_test_estacao_mid.html` (raiz, apagar depois) com Firebase de mentira; abrir com `?run=1` no Edge headless (`--dump-dom`) roda `estacao_inpage_test.js` (14 checagens). Cuidado: gerar arquivos com texto que tem crase via `node -e` no bash quebra; usar o Write/Edit.
+- **Firebase (`sessions/<SESSION>/station`):** `online, unlocked{nivel}, force, files, cams` (como antes) + `map/rooms{id:{at}}`, `map/corr{id:true}`, `map/pin{deck,x,y}`, `notes{push:{t,at,by,r}}`; notas só do GM em `gm/mapnotes/<sala>`. Ids de nível antigos (helipad/control/mess/drill) mapeiam via `STATION.LEGACY`; o painel do GM migra os dados no Firebase ao abrir.
+- **Mapa que revela:** sala/corredor só desenha se revelado pelo GM (clique na aba MAPA; revelar sala revela o corredor da porta). Fronteira = corredor não revelado vira pontilhado por ~5 m. Notebook e mapa começam VAZIOS.
+- **Regras de design (Max):** mapa lido como escape plan (poché, portas com arco, cotas, grade, escala, legenda KEY), **sem** título "ESCAPE PLAN"; cores pacatas (tinta + um verde na rota + âmbar no selado); caderno de papel do pitch B (cartão datilografado da sala + espiral, tinta azul/vermelha); grão de filme animado + vinheta + vidro/poeira, **sem** CRT curvo nem glitch constante. Realismo vem de detalhe de desenho técnico, não de efeito de tela.
+- **Segredo:** repo é público; `station-data.js` mostra a geometria de todas as salas (o que o jogador não vê é o texto do GM). A camada DRE (antecâmara no Deck B, elevador, caisson) NÃO está em nenhum arquivo público.
+- **Adiado de propósito:** ventilação (aba VENT desligada), camada DRE, marcas de caneta no mapa, POWER; rework do submarino (ver memória).
 
 ---
 
