@@ -175,3 +175,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:#12100e;color:var(--
 .ninp::placeholder{color:rgba(28,58,143,.32)}
 .nstamp{position:absolute;right:20px;bottom:18px;font-family:"Special Elite";border:2px solid #9b2d25;color:#9b2d25;padding:3px 10px;transform:rotate(-7deg);font-size:15px;letter-spacing:.14em;opacity:.0;pointer-events:none}
 .pen{position:absolute;left:1236px;top:884px;transform:rotate(-14deg);pointer-events:none}
+
+/* ----- animacoes ----- */
+#planwrap .oldplan{position:absolute;inset:0;pointer-events:none}
+#planwrap .oldplan svg{width:100%;height:100%;display:block}
+#planwrap svg.cur{position:relative}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+#planwrap svg.fresh{animation:fadein .9s ease both}
+.pulse{fill:rgba(208,162,79,.32);stroke:#d0a24f;stroke-width:2.4;pointer-events:none;animation:pulsefade 2.6s ease-out forwards}
+@keyframes pulsefade{0%{opacity:0}12%{opacity:1}100%{opacity:0}}
+.ping{transform-box:fill-box;transform-origin:center;animation:ping 2.8s ease-out infinite}
+@keyframes ping{0%{transform:scale(1);opacity:.9}100%{transform:scale(3.2);opacity:0}}
+.caret{color:#8a3b34;animation:bl 1s steps(1) infinite}
+.nbl .l.inkin{animation:inkin 1.1s ease-out both}
+@keyframes inkin{0%{clip-path:inset(0 100% 0 0);opacity:.2}100%{clip-path:inset(0 0 0 0);opacity:1}}
+#topinfo{display:flex;align-items:center}
+#topinfo .sv b{color:var(--live);font-weight:600}
+#topinfo .bar{display:inline-block;width:78px;height:6px;background:#10252b;margin:0 12px;position:relative}
+#topinfo .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--live);transition:width .9s ease}
+.sx{animation:fadein .8s ease both}
+@media (prefers-reduced-motion:reduce){.pulse,.ping,.sx,.inkin{animation:none!important}}

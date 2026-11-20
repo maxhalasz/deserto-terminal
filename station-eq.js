@@ -101,10 +101,17 @@ EQ.cabinrow=(r,a,w,h)=>{const c=r.cab,n=c.n,horiz=(c.side==='n'||c.side==='s');
     else{const wx=toward>0?.4:dep-2.5;a.rc(wx,o+.35,2.1,.95,0,1);a.rc(wx,o+1.4,2.1,.95,0);a.ln(wx+.55,o+.35,wx+.55,o+1.3);
       a.rc(toward>0?.4:dep-1.4,o+cw-1.2,1.0,.8);a.rc(toward>0?.4:dep-1.2,o+cw-1.9,.7,.7,0,1);}
   }};
-EQ.roundlounge=(r,a,w,h)=>{const c=w/2;a.ci(c,c,1.6);a.ci(c,c,.5,1);
-  for(let k=0;k<8;k++){const t=k*Math.PI/4+Math.PI/8,rr=3.1;a.ci(c+Math.cos(t)*rr,c+Math.sin(t)*rr,.5,1);}
-  for(let k=0;k<6;k++){const t=k*Math.PI/3+Math.PI/6;const x=c+Math.cos(t)*(c-1.9),y=c+Math.sin(t)*(c-1.9);a.rc(x-1.1,y-.5,2.2,1,.4);}
-  a.ci(c,c,c-1.0,0,1);};
+EQ.roundlounge=(r,a,w,h)=>{const c=w/2,R=c-.9;
+  // armarios individuais em arco na parede norte e oeste (um por pessoa)
+  for(let k=0;k<14;k++){const t=Math.PI*(1.05+k*.0875);const x=c+Math.cos(t)*(R-.5),y=c+Math.sin(t)*(R-.5);a.rc(x-.35,y-.35,.7,.7,0,1);}
+  // duas maquinas de venda, lado leste
+  [[R-1.2,c-3.2],[R-1.2,c+.9]].forEach(([x,y])=>{a.rc(c+x-1.0,y,1.6,2.0,.1);a.rc(c+x-.8,y+.25,.8,1.2,0,1);a.ci(c+x+.1,y+1.6,.12,1);});
+  // quadros nas paredes (marcas finas na parede)
+  for(let k=0;k<5;k++){const t=Math.PI*(.15+k*.12)+Math.PI*.85;const x=c+Math.cos(t)*(R+.35),y=c+Math.sin(t)*(R+.35);a.ln(x-.35*Math.sin(t),y+.35*Math.cos(t),x+.35*Math.sin(t),y-.35*Math.cos(t));}
+  // sofas em arco e mesa baixa ao centro
+  for(let k=0;k<5;k++){const t=Math.PI*.2+k*Math.PI*.2;const x=c+Math.cos(t)*(R-2.6),y=c+Math.sin(t)*(R-2.6);a.rc(x-1.1,y-.5,2.2,1,.4);}
+  a.ci(c,c,1.5);a.ci(c,c,.45,1);for(let k=0;k<4;k++){const t=k*Math.PI/2+Math.PI/4;a.ci(c+Math.cos(t)*2.7,c+Math.sin(t)*2.7,.5,1);}
+};
 EQ.gym=(r,a,w,h)=>{for(let i=0;i<4;i++){a.rc(1+i*2.6,1,1.0,2.2,0,1);a.ln(1.5+i*2.6,1,1.5+i*2.6,3.2);}
   for(let i=0;i<3;i++){a.rc(1.2+i*3.2,6,2.6,.7,0,1);a.ci(1.6+i*3.2,6.35,.35);a.ci(3.8+i*3.2,6.35,.35);}
   a.rc(1,h-4,6,3,.3);a.ln(1,h-2.5,7,h-2.5);a.ci(w-3,h-3,1.2);a.ci(w-3,h-3,.4,1);};

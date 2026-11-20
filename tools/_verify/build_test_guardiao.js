@@ -15,5 +15,17 @@ const notify=()=>L.forEach(l=>l.cb(snap(l.p)));
 const node=p=>({child:c=>node(p+'/'+c),on:(e,cb)=>{L.push({p,cb});cb(snap(p));},set:v=>{set(p,v);notify();return Promise.resolve();},update:o=>{Object.keys(o).forEach(k=>set(p+'/'+k,o[k]));notify();return Promise.resolve();},remove:()=>{set(p,null);notify();return Promise.resolve();},once:()=>Promise.resolve(snap(p))});
 GuardiaoMap.init(node('sessions/x'));
 const q=new URLSearchParams(location.search);const sel=q.get('sel');if(sel){const e=document.querySelector('[data-room="'+sel+'"]');if(e)e.dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));}
+if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'OK    ':'FALHA ')+n);const sl=ms=>new Promise(r=>setTimeout(r,ms));
+ try{document.querySelector('[data-room="md4"]').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));
+  const ta=document.getElementById('mpDesc');ok('textarea de descricao existe',!!ta);
+  ta.value='Descricao nova do mestre';ta.dispatchEvent(new Event('input',{bubbles:true}));await sl(800);
+  ok('descricao gravada no banco',data.sessions.x.station.map.desc&&data.sessions.x.station.map.desc.md4==='Descricao nova do mestre');
+  document.getElementById('mpDescRst').click();await sl(300);
+  ok('restaurar apaga o texto custom',!(data.sessions.x.station.map.desc&&data.sessions.x.station.map.desc.md4));
+  ok('nao lista o nivel submerso',!/Submerged|SUBMERGED/.test(document.body.innerText));
+  document.querySelector('#mpPlan [data-corr="mw_n"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));await sl(300);
+  ok('corredor em grupo revela todos os trechos',!!data.sessions.x.station.map.corr.mw_nl1&&!!data.sessions.x.station.map.corr.mw_nl2);
+ }catch(e){out.push('EXCECAO '+e.message);}
+ const pre=document.createElement('pre');pre.id='testout';pre.textContent=out.join('\\n');document.body.appendChild(pre);},1200);}
 </script></body></html>`;
 fs.writeFileSync(__dirname+'/../../_test_guardiao.html',h);console.log('ok');

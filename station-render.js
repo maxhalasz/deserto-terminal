@@ -60,7 +60,7 @@ function plan(deck,st,o){
     const rooms=deck.rooms.filter(r=>showR(r)===mode),corrs=deck.corr.filter(c=>showC(c)===mode);
     let s='';
     // paredes dos corredores
-    corrs.forEach(c=>s+=rect(c.r,WE,T.wall));
+    corrs.forEach(c=>s+=rect(c.r,c.open?.14:WE,T.wall));
     // vazios estruturais (poche solido)
     (deck.voids||[]).forEach((v,i)=>{const vis=mode==='f'?nearFull(v):(st.ghost&&nearAny(v)&&!nearFull(v));if(vis){s+=rect(v,WE,T.wall);if(v[2]*v[3]>40)s+=rect(v,-WE,`url(#${id}c)`);}});
     // firewall
@@ -82,7 +82,7 @@ function plan(deck,st,o){
     rooms.forEach(r=>{if(out&&r.t==='ext')return;(r.d||[]).forEach(d=>{s+=door(r,d);});});
     rooms.forEach(r=>{if(r.cab)s+=windows(r);});
     // equipamento
-    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq)return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}">${rect(r.r,-WE,'#000')}</clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
+    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq)return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
     // etiquetas
     rooms.forEach(r=>{s+=label(r,mode);});
     // codigos de corredor
@@ -105,6 +105,14 @@ function plan(deck,st,o){
       arrow:(x1,y1,x2,y2,dn)=>{o_+=`<path d="M${ax(x1)} ${ay(y1)}L${ax(x2)} ${ay(y2)}" stroke="${T.route}" stroke-width="1.3" fill="none" marker-end="url(#${id}m)"/>`;}
     };
     return {api:a,get:()=>o_};}
+  function clipPath(r){
+    const [x,y,w,hh]=r.r,m=WE;
+    let d=`M${f1(X(x+m))} ${f1(Y(y+m))}H${f1(X(x+w-m))}V${f1(Y(y+hh-m))}H${f1(X(x+m))}Z`;
+    (r.d||[]).forEach(([sd,t,k])=>{if(k==='weld')return;const dw=(DW[k]||1.3)+.3,dep=(DW[k]||1.3)+.5,horiz=(sd==='n'||sd==='s');
+      const cx=horiz?x+w*t:(sd==='w'?x:x+w),cy=horiz?(sd==='n'?y:y+hh):y+hh*t;
+      let rx,ry,rw,rh;if(horiz){rx=cx-dw/2;rw=dw;rh=dep;ry=sd==='n'?y:y+hh-dep;}else{ry=cy-dw/2;rh=dw;rw=dep;rx=sd==='w'?x:x+w-dep;}
+      d+=`M${f1(X(rx))} ${f1(Y(ry))}h${f1(P(rw))}v${f1(P(rh))}h${f1(-P(rw))}Z`;});
+    return d;}
   function windows(r){
     const [x,y,w,hh]=r.r,c=r.cab,n=c.n;let o_='';
     const opp={n:'s',s:'n',e:'w',w:'e'}[c.side],horiz=(opp==='n'||opp==='s');
@@ -187,7 +195,7 @@ function plan(deck,st,o){
   /* voce esta aqui */
   if(st.pin&&st.pin.deck===deck.id){const x=X(st.pin.x),y=Y(st.pin.y),left=x>PW*.38;
     const tx=left?x-106:x+30,ty=y-46;
-    h+=`<g pointer-events="none"><circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="none" stroke="${T.you}" stroke-width="1.6"/><circle cx="${f1(x)}" cy="${f1(y)}" r="3.8" fill="${T.you}"/><path d="M${f1(x+(left?-6:6))} ${f1(y-6)}L${f1(left?x-30:x+30)} ${f1(y-32)}" stroke="${T.you}" stroke-width="1"/><rect x="${f1(tx)}" y="${f1(ty)}" width="76" height="14" fill="${T.you}"/><text x="${f1(tx+38)}" y="${f1(ty+10.5)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="10.5" letter-spacing=".1em" fill="${T.youText}">YOU ARE HERE</text></g>`;}
+    h+=`<g pointer-events="none"><circle class="ping" cx="${f1(x)}" cy="${f1(y)}" r="9" fill="none" stroke="${T.you}" stroke-width="1.6"/><circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="none" stroke="${T.you}" stroke-width="1.6"/><circle cx="${f1(x)}" cy="${f1(y)}" r="3.8" fill="${T.you}"/><path d="M${f1(x+(left?-6:6))} ${f1(y-6)}L${f1(left?x-30:x+30)} ${f1(y-32)}" stroke="${T.you}" stroke-width="1"/><rect x="${f1(tx)}" y="${f1(ty)}" width="76" height="14" fill="${T.you}"/><text x="${f1(tx+38)}" y="${f1(ty+10.5)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="10.5" letter-spacing=".1em" fill="${T.youText}">YOU ARE HERE</text></g>`;}
   /* cotas, escala, figura, norte */
   const bx=X(bb[0]),by=Y(bb[1]+bb[3])+16;
   const dim=(x1,x2,t)=>`<g stroke="${T.sub}" stroke-width=".8" fill="none"><path d="M${f1(X(x1))} ${f1(by)}H${f1(X(x2))}M${f1(X(x1))} ${f1(by-4)}V${f1(by+4)}M${f1(X(x2))} ${f1(by-4)}V${f1(by+4)}M${f1(X(x1)-3)} ${f1(by+3)}l6 -6M${f1(X(x2)-3)} ${f1(by+3)}l6 -6"/></g><rect x="${f1((X(x1)+X(x2))/2-18)}" y="${f1(by-5)}" width="36" height="10" fill="${T.paper}"/><text x="${f1((X(x1)+X(x2))/2)}" y="${f1(by+3)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7.6" fill="${T.sub}">${t}</text>`;

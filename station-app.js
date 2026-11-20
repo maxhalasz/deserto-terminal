@@ -1,7 +1,7 @@
 /* ============================================================
-   Terminal da estacao (estacao.html): mapa que revela (com zoom e pan), caderno, cameras.
+   Terminal da estacao (estacao.html): mapa que revela (zoom, pan, animacoes), caderno, cameras.
    Estado vem do Firebase em sessions/<SESSION>/station/*
-     online, unlocked{level:true}, force, cams{}, map{rooms{},corr{},pin}, notes{}
+     online, unlocked{level:true}, force, cams{}, map{rooms{},corr{},pin,desc{sala:texto}}, notes{}
    ============================================================ */
 (function(){
 const S=window.STATION,R=window.StationRender;
@@ -10,31 +10,33 @@ const PW=850,PH=664; // tamanho do painel do mapa
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
+const REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let ref=null,STATE={},curDeck=null,selRoom=null,notesMode='shared',showCams=false,lastLq='lqC',view=null,viewKey='',plan=null,dragMoved=false;
+let prevRev=null,lastPlanDeck='',seenNotes=null,cardKey='',typeTok=0,lastPinKey='';
 const ME=(()=>{let v=LS.get('deserto:op');if(!v){v='OP-'+(1+Math.floor(Math.random()*9));LS.set('deserto:op',v);}return v;})();
 let minePrefs=[];try{minePrefs=JSON.parse(LS.get('deserto:notes','[]'));}catch(e){}
 
 const INTRO={
-  weather:'Open deck above the module block. Helideck, crane pedestals, lifeboats and the flare bridge. Weather permitting.',
-  module:'Module deck. Crew side to the west of the firewall, process modules to the east. Fire doors held closed.',
-  cellar:'Cellar deck. Cargo area, moonpool and the lower wellbay. Sea state affects the moonpool.',
-  lqE:'Deck E. Heliport access and building services.',lqD:'Deck D. Communications, camera room and offices.',lqC:'Deck C. Crew dormitories. Passes through the weather deck.',
-  lqB:'Deck B. Most of the corridor is closed off.',lqA:'Deck A. Mess hall, galley, lounge and infirmary.'};
+  weather:'Convés aberto acima do bloco de módulos. Heliponto, pedestais de guindaste, baleeiras e a ponte do flare. Se o tempo deixar.',
+  module:'Module deck. O lado das cabines a oeste do firewall, os módulos de processo a leste. Galerias externas dão a volta por fora.',
+  cellar:'Cellar deck. Área de carga, moonpool e o wellbay inferior. O estado do mar mexe no moonpool.',
+  lqE:'Deck E. Acesso ao heliponto e serviços do prédio.',lqD:'Deck D. Comunicações, sala de câmeras e escritórios.',lqC:'Deck C. Dormitórios de rotação. Atravessa o weather deck.',
+  lqB:'Deck B. Quase todo o corredor está fechado.',lqA:'Deck A. Refeitório, cozinha, sala de estar e enfermaria.'};
 
 /* ---------- niveis / decks ---------- */
 const unlockedMap=()=>STATE.unlocked||{};
 function isUnlocked(level){const u=unlockedMap();return !!(u[level]||Object.keys(S.LEGACY).some(k=>S.LEGACY[k]===level&&u[k]));}
-const forcedLevel=()=>STATE.force?S.levelId(STATE.force):null;
+const forcedLevel=()=>{const f=STATE.force?S.levelId(STATE.force):null;return f&&S.LEVELS.some(l=>l.id===f)?f:null;};
 const mapState=()=>STATE.map||{};
 const revRooms=()=>mapState().rooms||{};
 const revCorr=()=>mapState().corr||{};
+const descOf=r=>{const d=mapState().desc;return d&&typeof d[r.id]==='string'&&d[r.id].trim()?d[r.id]:(r.pub||'');};
 function defaultDeck(level){
   if(level==='quarters'){const has=k=>Object.keys(revRooms()).some(r=>S.roomIndex[r]&&S.roomIndex[r].deck===k);if(has(lastLq))return lastLq;return S.LQ_ORDER.find(has)||lastLq;}
-  if(level==='sub')return 'sub';
   return level;
 }
-function levelOfDeck(id){return id==='sub'?'sub':S.DECK_LEVEL[id];}
+const levelOfDeck=id=>S.DECK_LEVEL[id];
 function activeDeck(){
   const f=forcedLevel();
   if(f){if(curDeck&&levelOfDeck(curDeck)===f)return curDeck;return defaultDeck(f);}
@@ -42,54 +44,50 @@ function activeDeck(){
   const cnt={};Object.keys(revRooms()).forEach(k=>{const r=S.roomIndex[k];if(r)cnt[levelOfDeck(r.deck)]=(cnt[levelOfDeck(r.deck)]||0)+1;});
   const cand=S.LEVELS.filter(l=>isUnlocked(l.id)).sort((x,y)=>(cnt[y.id]||0)-(cnt[x.id]||0));return cand.length?defaultDeck(cand[0].id):null;
 }
+/* ---------- quanto do mapa ja foi levantado ---------- */
+function deckPct(deckId){const d=S.DECKS[deckId];if(!d)return 0;const rr=revRooms();return Math.round(d.rooms.filter(r=>rr[r.id]).length/d.rooms.length*100);}
+function levelPct(level){const ids=S.decksOfLevel(level);let n=0,t=0;const rr=revRooms();ids.forEach(id=>{const d=S.DECKS[id];t+=d.rooms.length;n+=d.rooms.filter(r=>rr[r.id]).length;});return t?Math.round(n/t*100):0;}
+function totalPct(){let n=0,t=0;const rr=revRooms();Object.values(S.DECKS).forEach(d=>{t+=d.rooms.length;n+=d.rooms.filter(r=>rr[r.id]).length;});return t?Math.round(n/t*100):0;}
 
 /* ---------- stack isometrico ---------- */
 function stackSVG(active){
-  const s=1.4,cx=148,TH=8,LIVE='#79c9b5',AMB='#d0a24f',SP=150,Y0=38;
+  const s=1.4,cx=148,TH=8,LIVE='#79c9b5',SP=186,Y0=44;
   const P=(x,y,cy)=>[cx+(x-y)*s*.866,cy+(x+y)*s*.5];
   const ps=pts=>pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
   const lvlActive=active?levelOfDeck(active):null;
   const rr=revRooms(),rc=revCorr();
   const norm=(d,x,y)=>[(x-d.bbox[0])/d.bbox[2]*114,(y-d.bbox[1])/d.bbox[3]*55];
   const rectPoly=(d,r,cy)=>[[r[0],r[1]],[r[0]+r[2],r[1]],[r[0]+r[2],r[1]+r[3]],[r[0],r[1]+r[3]]].map(q=>{const n=norm(d,q[0],q[1]);return P(n[0],n[1],cy);});
-  const ys=[0,1,2,3].map(i=>Y0+i*SP);
+  const ys=[0,1,2].map(i=>Y0+i*SP);
   let h='';
-  [[0,0],[114,0],[114,55],[0,55]].forEach(([x,y])=>{const a=P(x,y,ys[0]),b=P(x,y,ys[3]);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#22373b" stroke-dasharray="3 5"/>`;});
+  [[0,0],[114,0],[114,55],[0,55]].forEach(([x,y])=>{const a=P(x,y,ys[0]),b=P(x,y,ys[2]);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#22373b" stroke-dasharray="3 5"/>`;});
   [[38,27],[86,27]].forEach(([x,y])=>{const a=P(x,y,ys[0]),b=P(x,y,ys[2]);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${LIVE}" stroke-width="1.2" opacity=".55"/>`;[0,1,2].forEach(i=>{const q=P(x,y,ys[i]);h+=`<rect x="${q[0]-2.6}" y="${q[1]-2.6}" width="5.2" height="5.2" fill="${LIVE}" opacity=".8"/>`;});});
-  [['weather','weather'],['module','module'],['cellar','cellar']].forEach(([lvl,deckId],i)=>{
-    const lv=S.LEVELS.find(l=>l.id===lvl),sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=ys[i],d=S.DECKS[deckId];
+  ['weather','module','cellar'].forEach((lvl,i)=>{
+    const lv=S.LEVELS.find(l=>l.id===lvl),sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=ys[i],d=S.DECKS[lvl],pct=levelPct(lvl);
     const c=[[0,0],[114,0],[114,55],[0,55]].map(q=>P(q[0],q[1],cy));
     const top=sel?'#2a3b40':'#1b282c',s1=sel?'#16242a':'#111b1f',s2=sel?'#111d21':'#0e1619',ed=sel?LIVE:(unl?'#3b585d':'#26363a');
     let g=`<g data-lvl="${lvl}" class="${unl?'on':'lock'}" opacity="${unl?1:.5}">`;
     g+=`<polygon points="${ps([c[3],c[2],[c[2][0],c[2][1]+TH],[c[3][0],c[3][1]+TH]])}" fill="${s1}" stroke="${ed}"/><polygon points="${ps([c[1],c[2],[c[2][0],c[2][1]+TH],[c[1][0],c[1][1]+TH]])}" fill="${s2}" stroke="${ed}"/><polygon points="${ps(c)}" fill="${top}" stroke="${ed}" stroke-width="${sel?1.6:1}" ${unl?'':'stroke-dasharray="4 4"'}/>`;
     if(unl){
-      d.corr.forEach(co=>{if(rc[co.id])g+=`<polygon points="${ps(rectPoly(d,co.r,cy))}" fill="#0f191d"/>`;});
-      d.rooms.forEach(ro=>{if(rr[ro.id]){const off=ro.t==='off';g+=`<polygon points="${ps(rectPoly(d,ro.r,cy))}" fill="${off?'#3a3118':(sel?'#3b5359':'#2b3e43')}" stroke="${off?AMB:'#8fb5ae'}" stroke-width=".8"/>`;}});
+      d.corr.forEach(co=>{if(rc[co.id])g+=`<polygon class="sx" points="${ps(rectPoly(d,co.r,cy))}" fill="${co.open?'#1a2a2d':'#0f191d'}"/>`;});
+      d.rooms.forEach(ro=>{if(rr[ro.id]){const off=ro.t==='off';g+=`<polygon class="sx" points="${ps(rectPoly(d,ro.r,cy))}" fill="${off?'#3a3118':(sel?'#3b5359':'#2b3e43')}" stroke="${off?'#d0a24f':'#8fb5ae'}" stroke-width=".8"/>`;}});
     }
-    const y=cy+30;
-    g+=`<rect x="10" y="${y}" width="58" height="42" fill="${sel?LIVE:'#18252a'}" stroke="${sel?LIVE:'#3b585d'}"/><text x="17" y="${y+15}" font-family="IBM Plex Mono" font-size="10" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.tag}</text><text x="17" y="${y+28}" font-family="Barlow Condensed" font-weight="700" font-size="11" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.name.split(' ')[0].toUpperCase()}</text><text x="17" y="${y+38}" font-family="IBM Plex Mono" font-size="8" fill="${sel?'#07110f':'#5f7d80'}">${unl?lv.elev:'LOCKED'}</text>`;
+    const y=cy+34;
+    g+=`<rect x="10" y="${y}" width="66" height="46" fill="${sel?LIVE:'#18252a'}" stroke="${sel?LIVE:'#3b585d'}"/><text x="17" y="${y+15}" font-family="IBM Plex Mono" font-size="10" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.tag}</text><text x="17" y="${y+28}" font-family="Barlow Condensed" font-weight="700" font-size="11.5" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.name.split(' ')[0].toUpperCase()}</text><text x="17" y="${y+40}" font-family="IBM Plex Mono" font-size="8.5" fill="${sel?'#07110f':'#5f7d80'}">${unl?lv.elev:'LOCKED'}</text>${unl?`<text x="70" y="${y+40}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" font-weight="600" fill="${sel?'#07110f':LIVE}">${pct}%</text>`:''}`;
     if(sel){const a=P(114,27.5,cy);g+=`<path d="M${a[0]+10} ${a[1]}l12 -8v16z" fill="${LIVE}"/>`;}
     h+=g+'</g>';
   });
-  { // nivel submerso: sem levantamento
-    const lv=S.LEVELS.find(l=>l.id==='sub'),sel=lvlActive==='sub',unl=isUnlocked('sub'),cy=ys[3];
-    const c=[[0,0],[114,0],[114,55],[0,55]].map(q=>P(q[0],q[1],cy));
-    h+=`<g data-lvl="sub" class="${unl?'on':'lock'}" opacity="${unl?1:.5}"><polygon points="${ps(c)}" fill="#14201f" stroke="${sel?LIVE:'#3b585d'}" stroke-dasharray="6 5"/><text x="${cx}" y="${cy+78}" text-anchor="middle" font-family="IBM Plex Mono" font-size="9" fill="#5f7d80" letter-spacing=".2em">NOT SURVEYED</text>
-    <rect x="10" y="${cy+30}" width="58" height="42" fill="${sel?LIVE:'#18252a'}" stroke="${sel?LIVE:'#3b585d'}"/><text x="17" y="${cy+45}" font-family="IBM Plex Mono" font-size="10" fill="${sel?'#07110f':'#8aa8a4'}">${lv.tag}</text><text x="17" y="${cy+58}" font-family="Barlow Condensed" font-weight="700" font-size="10.5" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".08em">SUBMERGED</text><text x="17" y="${cy+68}" font-family="IBM Plex Mono" font-size="8" fill="${sel?'#07110f':'#5f7d80'}">${unl?lv.elev:'LOCKED'}</text></g>`;
-  }
   // torre de alojamento: seletor de decks
-  const qy=ys[3]+134,qu=isUnlocked('quarters'),qsel=lvlActive==='quarters';
-  h+=`<g data-lvl="quarters" class="${qu?'on':'lock'}"><rect x="10" y="${qy}" width="278" height="78" fill="${qsel?'#17262b':'#131f23'}" stroke="${qsel?LIVE:'#26434a'}"/><text x="20" y="${qy+16}" font-family="IBM Plex Mono" font-size="9.5" letter-spacing=".22em" fill="${qu?'#8aa8a4':'#4b6568'}">L-06 · LIVING QUARTERS ${qu?'':'· LOCKED'}</text></g>`;
+  const qy=ys[2]+150,qu=isUnlocked('quarters'),qsel=lvlActive==='quarters';
+  h+=`<g data-lvl="quarters" class="${qu?'on':'lock'}"><rect x="10" y="${qy}" width="278" height="92" fill="${qsel?'#17262b':'#131f23'}" stroke="${qsel?LIVE:'#26434a'}"/><text x="20" y="${qy+16}" font-family="IBM Plex Mono" font-size="9.5" letter-spacing=".22em" fill="${qu?'#8aa8a4':'#4b6568'}">L-06 · LIVING QUARTERS</text>${qu?`<text x="278" y="${qy+16}" text-anchor="end" font-family="IBM Plex Mono" font-size="10" font-weight="600" fill="${LIVE}">${levelPct('quarters')}%</text>`:`<text x="278" y="${qy+16}" text-anchor="end" font-family="IBM Plex Mono" font-size="8.5" fill="#4b6568">LOCKED</text>`}</g>`;
   S.LQ_ORDER.forEach((id,i)=>{
-    const x=20+i*52,on=qu&&active===id;
-    const has=Object.keys(rr).some(k=>S.roomIndex[k]&&S.roomIndex[k].deck===id);
-    h+=`<g data-deck="${id}" class="${qu?'on':'lock'}" opacity="${qu?1:.45}"><rect x="${x}" y="${qy+26}" width="46" height="40" fill="${on?LIVE:'#18252a'}" stroke="${on?LIVE:'#3b585d'}"/><text x="${x+8}" y="${qy+44}" font-family="Barlow Condensed" font-weight="700" font-size="17" fill="${on?'#07110f':'#cfe0dc'}">${id.slice(2)}</text><text x="${x+8}" y="${qy+58}" font-family="IBM Plex Mono" font-size="8" fill="${on?'#07110f':'#5f7d80'}">${S.LQ_NAMES[id].split(' · ')[1]}</text>${has&&!on?`<rect x="${x+36}" y="${qy+30}" width="5" height="5" fill="${LIVE}"/>`:''}</g>`;
+    const x=20+i*52,on=qu&&active===id,p=deckPct(id);
+    h+=`<g data-deck="${id}" class="${qu?'on':'lock'}" opacity="${qu?1:.45}"><rect x="${x}" y="${qy+26}" width="46" height="54" fill="${on?LIVE:'#18252a'}" stroke="${on?LIVE:'#3b585d'}"/><text x="${x+8}" y="${qy+44}" font-family="Barlow Condensed" font-weight="700" font-size="17" fill="${on?'#07110f':'#cfe0dc'}">${id.slice(2)}</text><text x="${x+8}" y="${qy+57}" font-family="IBM Plex Mono" font-size="8" fill="${on?'#07110f':'#5f7d80'}">${S.LQ_NAMES[id].split(' · ')[1]}</text><text x="${x+8}" y="${qy+72}" font-family="IBM Plex Mono" font-size="9.5" font-weight="600" fill="${on?'#07110f':LIVE}">${qu?p+'%':''}</text></g>`;
   });
   return h;
 }
 
-/* ---------- mapa: render, enquadramento no que foi revelado, zoom e pan ---------- */
-function surveyPct(deckId){const d=S.DECKS[deckId];if(!d)return 0;const rr=revRooms();return Math.round(d.rooms.filter(r=>rr[r.id]).length/d.rooms.length*100);}
+/* ---------- mapa: render, enquadramento, zoom, pan e animacoes ---------- */
 function camsOn(){const c=STATE.cams||{},o={};Object.keys(c).forEach(k=>{if(c[k]&&c[k].on)o[k]=1;});return o;}
 function revealedBox(d){
   const rr=revRooms(),rc=revCorr();let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9,n=0;
@@ -105,24 +103,38 @@ function fitView(d,p){
   if(w/h<PW/PH)w=h*PW/PH;else h=w*PH/PW;
   return {x:p.ox+(cxm-w/2)*p.px,y:p.oy+(cym-h/2)*p.px,w:w*p.px,h:h*p.px};
 }
-function applyView(){const svg=$('planwrap').querySelector('svg');if(svg&&view)svg.setAttribute('viewBox',`${view.x.toFixed(1)} ${view.y.toFixed(1)} ${view.w.toFixed(1)} ${view.h.toFixed(1)}`);}
-function zoomAt(f,sx,sy){ // sx,sy em px do painel (0..PW,0..PH); f>1 aproxima
+function applyView(){const svg=$('planwrap').querySelector('svg.cur');if(svg&&view)svg.setAttribute('viewBox',`${view.x.toFixed(1)} ${view.y.toFixed(1)} ${view.w.toFixed(1)} ${view.h.toFixed(1)}`);}
+function zoomAt(f,sx,sy){
   if(!view)return;const nw=Math.max(PW/9,Math.min(view.w/f,plan?plan.w*2:99999)),k=nw/view.w,nh=view.h*k;
   const fx=sx/PW,fy=sy/PH;view={x:view.x+(view.w-nw)*fx,y:view.y+(view.h-nh)*fy,w:nw,h:nh};applyView();}
-let planKeyDeck='';
 function renderPlan(deckId){
   const wrap=$('planwrap'),d=S.DECKS[deckId];
-  if(!d){
-    plan=null;view=null;
-    wrap.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:#6b6d68;line-height:1.7;text-align:center">${deckId==='sub'?'NO SURVEY DATA':'NO LEVEL SELECTED'}<br><span style="font-size:10px;letter-spacing:.12em;opacity:.7">${deckId==='sub'?'this level has not been surveyed':'select an unlocked level'}</span></div>`;return;}
+  if(!d){plan=null;view=null;wrap.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:#6b6d68;line-height:1.7;text-align:center">NO LEVEL SELECTED<br><span style="font-size:10px;letter-spacing:.12em;opacity:.7">select an unlocked level</span></div>`;lastPlanDeck='';return;}
   const pin=mapState().pin;
   const st={rooms:revRooms(),corr:revCorr(),pin:pin&&pin.deck===deckId?pin:null,sel:selRoom,showCams,camsOn:camsOn()};
   plan=R.plan(d,st,{W:Math.round(d.bbox[2]*7+84),maxH:99999,id:'pl',key:false});
+  // o que acabou de ser revelado neste deck
+  const cur={rooms:new Set(Object.keys(revRooms()).filter(k=>S.roomIndex[k]&&S.roomIndex[k].deck===deckId)),corr:new Set(Object.keys(revCorr()).filter(k=>S.corrIndex[k]&&S.corrIndex[k].deck===deckId))};
+  const sameDeck=lastPlanDeck===deckId&&prevRev;
+  const nr=sameDeck?[...cur.rooms].filter(k=>!prevRev.rooms.has(k)):[],nc=sameDeck?[...cur.corr].filter(k=>!prevRev.corr.has(k)):[];
+  const changed=nr.length||nc.length,deckChanged=lastPlanDeck!==deckId;
+  const oldHTML=wrap.querySelector('svg.cur')?wrap.innerHTML:'';
   wrap.innerHTML=plan.svg;
-  const svg=wrap.querySelector('svg');svg.removeAttribute('width');svg.removeAttribute('height');svg.removeAttribute('style');svg.setAttribute('preserveAspectRatio','xMidYMid meet');
-  const key=deckId+'|'+Object.keys(revRooms()).length+'|'+Object.keys(revCorr()).length;
-  if(key!==viewKey){view=fitView(d,plan);viewKey=key;}
+  const svg=wrap.querySelector('svg');svg.removeAttribute('width');svg.removeAttribute('height');svg.removeAttribute('style');svg.setAttribute('preserveAspectRatio','xMidYMid meet');svg.classList.add('cur');
+  const key=deckId+'|'+cur.rooms.size+'|'+cur.corr.size;
+  const refit=key!==viewKey;if(refit){view=fitView(d,plan);viewKey=key;}
   applyView();
+  // brilho nos elementos novos
+  const add=(r)=>{const x=plan.ox+r[0]*plan.px,y=plan.oy+r[1]*plan.px;const e=document.createElementNS('http://www.w3.org/2000/svg','rect');e.setAttribute('class','pulse');e.setAttribute('x',x-2);e.setAttribute('y',y-2);e.setAttribute('width',r[2]*plan.px+4);e.setAttribute('height',r[3]*plan.px+4);svg.appendChild(e);};
+  nr.forEach(k=>add(S.roomIndex[k].r));nc.forEach(k=>add(S.corrIndex[k].r));
+  if(!REDUCED){
+    if(changed&&oldHTML){ // o desenho antigo fica por baixo e o novo aparece por cima
+      svg.classList.add('fresh');const old=document.createElement('div');old.className='oldplan';old.innerHTML=oldHTML.replace('class="cur"','class="gone"');wrap.insertBefore(old,wrap.firstChild);
+      const g=old.querySelector('svg');if(g){g.removeAttribute('width');g.removeAttribute('height');g.classList.remove('cur');}
+      setTimeout(()=>{if(old.parentNode)old.remove();},1100);
+    }else if(deckChanged){svg.classList.add('fresh');}
+  }
+  prevRev=cur;lastPlanDeck=deckId;
 }
 function renderKey(){
   const T=R.T,it=[
@@ -139,19 +151,30 @@ function renderRecord(deckId){
   const r=d&&selRoom&&S.roomIndex[selRoom]&&S.roomIndex[selRoom].deck===deckId&&revRooms()[selRoom]?S.roomIndex[selRoom]:null;
   const nm=$('recName'),st=$('recStat');
   if(r){nm.textContent=r.n;st.textContent=r.st==='sealed'?'LOCKED':'UNLOCKED';st.className='stat '+(r.st==='sealed'?'lock':'open');}
-  else{nm.textContent=d?d.name:(deckId==='sub'?'Submerged level':'—');st.textContent='';st.className='stat';}
+  else{nm.textContent=d?d.name:'—';st.textContent='';st.className='stat';}
+}
+/* digita o texto do cartao como maquina de escrever */
+function typeInto(el,text){
+  const tok=++typeTok;
+  if(REDUCED||!text){el.textContent=text;return;}
+  el.textContent='';const caret=document.createElement('span');caret.className='caret';caret.textContent='▌';
+  let i=0;const step=Math.max(6,Math.min(16,1500/text.length));
+  (function tick(){if(tok!==typeTok)return;i=Math.min(text.length,i+1+(text.length>180?1:0));el.textContent=text.slice(0,i);if(i<text.length){el.appendChild(caret);setTimeout(tick,step);}})();
 }
 function renderCard(deckId){
   const d=S.DECKS[deckId],c=$('ncard');
   const tapes=`<div class="tape" style="left:-24px;top:6px;transform:rotate(-40deg)"></div><div class="tape" style="right:-22px;top:4px;transform:rotate(38deg)"></div>`;
   const r=d&&selRoom&&S.roomIndex[selRoom]&&S.roomIndex[selRoom].deck===deckId&&revRooms()[selRoom]?S.roomIndex[selRoom]:null;
-  if(r){const pr=r.n.split(' · '),code=/^M\d+$/.test(pr[0])?pr[0]:'';const area=Math.round(r.r[2]*r.r[3]);
-    c.innerHTML=`${tapes}<div class="k"><span>${esc(code?code+' · ':'')}${area} m²</span><span>${esc(d.lvl)}</span></div><h4>${esc(r.n.toUpperCase())}</h4><p>${esc(r.pub||'')}</p>`;
-  }else if(d){
-    c.innerHTML=`${tapes}<div class="k"><span>${esc(d.lvl)} · ${esc(d.elev)}</span><span>${surveyPct(deckId)}% surveyed</span></div><h4>${esc(d.name.toUpperCase())}</h4><p>${esc(INTRO[deckId]||'')} Select a room on the plan to read it.</p>`;
-  }else{
-    c.innerHTML=`${tapes}<div class="k"><span>${deckId==='sub'?'L-02':'NO LEVEL'}</span><span></span></div><h4>${deckId==='sub'?'SUBMERGED LEVEL':'NO DATA'}</h4><p>Nothing has been surveyed here.</p>`;
-  }
+  let head,title,text;
+  if(r){const pr=r.n.split(' · '),code=/^M\d+$/.test(pr[0])?pr[0]:'';const area=Math.round(r.r[2]*r.r[3]);head=`<span>${esc(code?code+' · ':'')}${area} m²</span><span>${esc(d.lvl)}</span>`;title=r.n.toUpperCase();text=descOf(r);}
+  else if(d){head=`<span>${esc(d.lvl)} · ${esc(d.elev)}</span><span>${deckPct(deckId)}% surveyed</span>`;title=d.name.toUpperCase();text=(INTRO[deckId]||'')+' Toque numa sala do mapa para ler.';}
+  else{head='<span>—</span><span></span>';title='NO DATA';text='Nada foi levantado aqui.';}
+  const key=(r?r.id:deckId||'-')+'|'+text;
+  if(key===cardKey&&c.dataset.has){ // so atualiza o cabecalho (ex.: porcentagem)
+    const k=c.querySelector('.k');if(k)k.innerHTML=head;return;}
+  cardKey=key;c.dataset.has='1';
+  c.innerHTML=`${tapes}<div class="k">${head}</div><h4>${esc(title)}</h4><p></p>`;
+  typeInto(c.querySelector('p'),text);
 }
 
 /* ---------- caderno ---------- */
@@ -163,8 +186,11 @@ function renderNotes(){
   const L=notesList(),box=$('nbl');
   const typing=document.activeElement&&document.activeElement.id==='ninp';const val=typing?document.activeElement.value:'';
   const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
-  const html=L.map(n=>{const mine=notesMode==='mine'||n.by===ME;const rt=n.r&&S.roomIndex[n.r]?`<span class="rt">${esc((S.roomIndex[n.r].n.split(' · ')[0]).toUpperCase().slice(0,10))}</span>`:'';
-    return `<div class="l ${mine?'me':'other'}">${esc(n.t)}${rt}${mine?`<i class="x" data-k="${esc(n.key)}">✕</i>`:''}</div>`;}).join('');
+  const first=seenNotes===null;if(first)seenNotes=new Set();
+  const modeKey=notesMode+':';
+  const html=L.map(n=>{const mine=notesMode==='mine'||n.by===ME;const k=modeKey+n.key,isNew=!first&&!seenNotes.has(k);seenNotes.add(k);
+    const rt=n.r&&S.roomIndex[n.r]?`<span class="rt">${esc((S.roomIndex[n.r].n.split(' · ')[0]).toUpperCase().slice(0,10))}</span>`:'';
+    return `<div class="l ${mine?'me':'other'}${isNew&&!REDUCED?' inkin':''}">${esc(n.t)}${rt}${mine?`<i class="x" data-k="${esc(n.key)}">✕</i>`:''}</div>`;}).join('');
   box.innerHTML=html+`<input class="ninp" id="ninp" placeholder="${L.length?'':'write a note…'}" maxlength="240" autocomplete="off" spellcheck="false">`;
   const inp=$('ninp');if(typing){inp.value=val;inp.focus();}
   if(atBottom||!typing)box.scrollTop=box.scrollHeight;
@@ -187,14 +213,14 @@ function renderAll(){
   const deck=activeDeck();
   if(deck!==curDeck&&!forcedLevel()){curDeck=deck;}
   const shown=forcedLevel()?deck:curDeck;
-  if(shown&&shown.startsWith&&shown.startsWith('lq'))lastLq=shown;
+  if(shown&&shown.startsWith('lq'))lastLq=shown;
   const unl=S.LEVELS.filter(l=>isUnlocked(l.id)).length;
   $('stackcount').textContent=unl+' / '+S.LEVELS.length+' LEVELS';
   $('stack').innerHTML=stackSVG(shown);
   renderPlan(shown);renderRecord(shown);renderCard(shown);
   const forced=forcedLevel();
-  const pct=shown&&S.DECKS[shown]?surveyPct(shown):0,seg=Math.round(pct/12.5);
-  $('topinfo').innerHTML=(forced?`<span class="forced">▲ DIRECTED VIEW</span>`:'')+`SURVEYED <span class="seg2" style="margin-left:6px">${'<i></i>'.repeat(seg)}${'<i class="o"></i>'.repeat(8-seg)}</span><span style="color:var(--live)">${pct}%</span>`;
+  const pct=shown&&S.DECKS[shown]?deckPct(shown):0,tot=totalPct(),seg=Math.round(pct/12.5);
+  $('topinfo').innerHTML=(forced?`<span class="forced">▲ DIRECTED VIEW</span>`:'')+`<span class="sv">SURVEYED <b>${pct}%</b></span><span class="bar"><i style="width:${pct}%"></i></span><span class="sv">TOTAL <b>${tot}%</b></span>`;
   $('btnCctv').className='btn'+(showCams?' on':'');
   const tk=STATE.ticker&&STATE.ticker.length?STATE.ticker:['COMM SYNC +7d','L-02 PRESSURE ELEVATED'];
   $('ticker').innerHTML='<b>▲ WARNING</b>'+tk.map(t=>`<span>${esc(t)}</span>`).join('');
@@ -243,18 +269,19 @@ function start(sessionRef){
     curDeck=defaultDeck(lv.dataset.lvl);selRoom=null;renderAll();});
   /* mapa: clique seleciona sala; arrastar move; roda e botoes dao zoom */
   const pw=$('planwrap');let drag=null;
+  const shownDeck=()=>forcedLevel()?activeDeck():curDeck;
   pw.addEventListener('click',e=>{if(dragMoved){dragMoved=false;return;}
     const r=e.target.closest('[data-room]');selRoom=r&&revRooms()[r.dataset.room]?r.dataset.room:null;
-    const deck=forcedLevel()?activeDeck():curDeck;renderPlan(deck);renderRecord(deck);renderCard(deck);});
+    const deck=shownDeck();renderPlan(deck);renderRecord(deck);renderCard(deck);});
   pw.addEventListener('pointerdown',e=>{if(!view)return;drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false};});
   addEventListener('pointermove',e=>{if(!drag||!view)return;const sc=Math.min(innerWidth/1600,innerHeight/1000);const k=view.w/(PW*sc);
     const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.moved&&Math.hypot(dx,dy)<5)return;drag.moved=true;pw.classList.add('drag');
     view.x=drag.vx-dx*k;view.y=drag.vy-dy*k;applyView();});
   addEventListener('pointerup',()=>{if(drag&&drag.moved)dragMoved=true;drag=null;pw.classList.remove('drag');setTimeout(()=>{dragMoved=false;},0);});
   pw.addEventListener('wheel',e=>{e.preventDefault();const b=pw.getBoundingClientRect(),k=PW/b.width;zoomAt(e.deltaY<0?1.18:1/1.18,(e.clientX-b.left)*k,(e.clientY-b.top)*k);},{passive:false});
-  pw.addEventListener('dblclick',()=>{viewKey='';const deck=forcedLevel()?activeDeck():curDeck;renderPlan(deck);});
+  const refit=()=>{viewKey='';renderPlan(shownDeck());};
+  pw.addEventListener('dblclick',refit);$('zFit').addEventListener('click',refit);
   $('zIn').addEventListener('click',()=>zoomAt(1.4,PW/2,PH/2));$('zOut').addEventListener('click',()=>zoomAt(1/1.4,PW/2,PH/2));
-  $('zFit').addEventListener('click',()=>{viewKey='';const deck=forcedLevel()?activeDeck():curDeck;renderPlan(deck);});
   $('btnCctv').addEventListener('click',()=>{showCams=!showCams;renderAll();});
   $('nmShared').addEventListener('click',()=>{notesMode='shared';renderNotes();});
   $('nmMine').addEventListener('click',()=>{notesMode='mine';renderNotes();});
