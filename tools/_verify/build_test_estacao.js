@@ -19,17 +19,18 @@ function seedFn(){return SEED;}
 })();
 </script>`;
 function seed(s){
-  const clean=['md0','md1','md11','md2','md3','md12'],cleanC=['mc_cn','mc_cm','mc_cs','mc_cp','mc_f1','mc_f2','mc_f3'];
+  const cleanR=['md_off','md_ow','md_om','md_cl','md_ol','md_gym','md0','md1','md2','md3','md12','md11','md_cd','md_lc','md_ppe','md_crw'];
+  const cleanC=['mc_s1','mc_f1','mc_m','mc_f2','mc_c1','mc_f3','mc_t','mc_k1','mc_k2'];
+  const dirtyR=['md4','md5','md6','md8','md_swu','md_swd','md_lab','md_chem'];
+  const dirtyC=['mc_dn1','mc_dn2','mc_dn3','mc_dm1','mc_lk','mc_dm3','mc_p1','mc_p3','mc_ds1','mc_dn4','mc_p4'];
   const T=Date.now()-3600e3;const R=a=>{const o={};a.forEach((k,i)=>o[k]={at:T+i*90e3});return o;},C=a=>{const o={};a.forEach(k=>o[k]=true);return o;};
   const base={online:true,unlocked:{weather:true,module:true,cellar:true,quarters:true},cams:{cam03:{on:true,pulledAt:0}},force:null,
-    files:{f1:{title:'Incident Report 04-A',body:'## Summary\n\nWeekly uplink missed. [[Redacted line]]. *Nothing else logged.*',level:'module',available:true,at:1},f2:{title:'Maintenance log · M22',body:'Seal applied 2013-06-02.',level:'control',available:true,at:2}},
-    map:{pin:{deck:'module',x:35,y:26.8},rooms:{},corr:{}},notes:{}};
-  if(s==='start'){base.map.rooms=R(['md0','md1']);base.map.corr=C(['mc_cm','mc_cp','mc_cn','mc_f2']);base.unlocked={module:true};}
-  if(s==='mid'){base.map.rooms=R([...clean,'md4','md5','md6','md8']);base.map.corr=C([...cleanC,'mc_dm','mc_dn','mc_ds','mc_p1','mc_p2']);
-    base.map.rooms.md_swu={at:T};base.map.rooms.md_swd={at:T};base.map.corr.mc_dm=true;
-    base.notes={a:{t:'boot room – 3 tool outlines empty',at:T+1e6,by:'OP-1',r:'md1'},b:{t:'fire door 2 jams. kick it low',at:T+2e6,by:'OP-2'},c:{t:'who has keys to M22?',at:T+3e6,by:'OP-3',r:'md8'},d:{t:'hum under the floor, same as 3:12',at:T+4e6,by:'OP-1'}};}
-  if(s==='late'){const all=['md0','md1','md11','md2','md3','md12','md4','md5','md6','md7','md8','md10','md_swu','md_swd','md_seu','md_sed'];base.map.rooms=R(all);base.map.corr=C(['mc_cn','mc_cm','mc_cs','mc_cp','mc_f1','mc_f2','mc_f3','mc_dn','mc_dm','mc_ds','mc_p1','mc_p2']);
-    base.map.rooms.wd1={at:T};base.map.rooms.wd2={at:T};base.map.corr.wc_n=true;base.map.corr.wc_w=true;}
+    map:{pin:{deck:'module',x:35.6,y:31.2},rooms:{},corr:{}},notes:{}};
+  if(s==='start'){base.map.rooms=R(['md1','md0']);base.map.corr=C(['mc_m','mc_f2','mc_t']);base.unlocked={module:true};}
+  if(s==='mid'){base.map.rooms=R([...cleanR,...dirtyR]);base.map.corr=C([...cleanC,...dirtyC]);
+    base.notes={a:{t:'boot room: 3 tool outlines empty',at:T+1e6,by:'OP-1',r:'md1'},b:{t:'fire door 2 jams. kick it low',at:T+2e6,by:'OP-2'},c:{t:'who has keys to M22?',at:T+3e6,by:'OP-3',r:'md8'},d:{t:'hum under the floor, same as 3:12',at:T+4e6,by:'OP-1'}};}
+  if(s==='late'){base.map.rooms=R([...cleanR,...dirtyR,'md7','md10','md9','md_inj','md_wc','md_se','md_ins','md_scba','md_trf']);base.map.corr=C([...cleanC,...dirtyC,'mc_dn4']);
+    base.map.rooms.wd1={at:T};base.map.corr.wc_n=true;}
   return base;
 }
 h=h.replace('<script>\nvar _unsubAuth','<script>\nvar _x');

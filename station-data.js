@@ -1,6 +1,6 @@
 /* ============================================================
    ØDEMARK A. — dados do mapa (PUBLICO: geometria + texto que o jogador pode ler)
-   Textos do Guardiao e camada DRE ficam em station-gm-data.js (so o guardiao.html carrega).
+   Textos do Guardiao ficam em station-gm-data.js (so o guardiao.html carrega).
    Unidade: metros. Retangulos [x, y, w, h]. Rooms e corredores sao COLADOS (bordas coincidentes):
    a espessura de parede e desenhada centrada na borda. Portas ficam sobre a parede compartilhada.
    ============================================================ */
@@ -10,14 +10,14 @@ const LEVELS=[
   {id:'quarters',tag:'L-06', name:'Living quarters',  elev:'+42 / +58 m'},
   {id:'module',  tag:'L-05', name:'Module deck',      elev:'+40 m'},
   {id:'cellar',  tag:'L-03', name:'Cellar deck',      elev:'+28 m'},
-  {id:'sub',     tag:'L-02', name:'Submerged level',  elev:'-40 / -260 m'}
+  {id:'sub',     tag:'L-02', name:'Submerged level',  elev:'-40 m'}
 ];
 // ids antigos do terminal (guardados no Firebase) -> ids novos
 const LEGACY={helipad:'weather',control:'module',mess:'quarters',drill:'cellar'};
 const DECK_LEVEL={weather:'weather',module:'module',cellar:'cellar',lqE:'quarters',lqD:'quarters',lqC:'quarters',lqB:'quarters',lqA:'quarters'};
 
 const R=(id,n,x,y,w,h,t,o)=>Object.assign({id,n,r:[x,y,w,h],t:t||'ind'},o||{});
-const C=(id,x,y,w,h,n)=>({id,r:[x,y,w,h],n:n||''});
+const C=(id,x,y,w,h,n,g)=>{const o={id,r:[x,y,w,h],n:n||''};if(g)o.g=g;return o;};
 
 /* ---------- auto-portas: uma porta em cada lado que encosta num corredor (max 2) ---------- */
 function ov(a0,a1,b0,b1){return Math.min(a1,b1)-Math.max(a0,b0);}
@@ -37,7 +37,7 @@ function autoDoors(room,corrs){
   return out.slice(0,2);
 }
 function build(deck){
-  deck.rooms.forEach(r=>{if(!r.d)r.d=autoDoors(r,deck.corr);});
+  deck.rooms.forEach(r=>{if(r.cab){r.d=[];for(let i=0;i<r.cab.n;i++)r.d.push([r.cab.side,Math.round((i+.5)/r.cab.n*1000)/1000,'cdoor','c']);}else if(!r.d)r.d=autoDoors(r,deck.corr);});
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   const eat=a=>{x0=Math.min(x0,a[0]);y0=Math.min(y0,a[1]);x1=Math.max(x1,a[0]+a[2]);y1=Math.max(y1,a[1]+a[3]);};
   deck.rooms.forEach(r=>eat(r.r));deck.corr.forEach(c=>eat(c.r));(deck.voids||[]).forEach(v=>eat(v));
@@ -45,45 +45,75 @@ function build(deck){
   return deck;
 }
 
-/* ============================== MODULE DECK +40 ============================== */
+/* ============================== MODULE DECK +40 ==============================
+   Lado limpo (oeste): ala dos oficiais (norte), ala da tripulacao (sul), lounge redondo no meio, tronco N-S.
+   Firewall em x 46-47.2 com tres fire doors. Lado sujo (leste): rede de corredores que dobram e se cruzam. */
 const module_=build({
  id:'module',lvl:'L-05',name:'Module deck',elev:'+40 m',dwg:'ØA-GA-02',
  corr:[
-  C('mc_cn',2,1.2,31,2.4,'C-40·N'),C('mc_cm',2,25.6,31,2.4,'C-40·M'),C('mc_cs',2,50,31,2.4,'C-40·S'),C('mc_cp',16,28,2.4,22,'C-40·P'),
-  C('mc_f1',33,1.2,1.2,2.4,'FD-1'),C('mc_f2',33,25.6,1.2,2.4,'FD-2'),C('mc_f3',33,50,1.2,2.4,'FD-3'),
-  C('mc_dn',34.2,1.2,79.2,2.4,'C-40·N'),C('mc_dm',34.2,25.6,79.2,2.4,'C-40·M'),C('mc_ds',34.2,50,79.2,2.4,'C-40·S'),
-  C('mc_p1',57,3.6,2.8,46.4,'C-40·P1'),C('mc_p2',83.8,3.6,2.8,46.4,'C-40·P2')],
- firewall:[[33,0,1.2,1.2],[33,3.6,1.2,22],[33,28,1.2,22],[33,52.4,1.2,2.6]],
- fireDoors:[{id:'FD-1',x:33.6,y:2.4,v:1},{id:'FD-2',x:33.6,y:26.8,v:1},{id:'FD-3',x:33.6,y:51.2,v:1}],
- voids:[[34.2,3.6,2.8,14.4],[34.2,35.6,2.8,14.4],[110.4,3.6,3,14.4],[110.4,35.6,3,14.4]],
+  // --- lado limpo ---
+  C('mc_s1',4,7.4,42,2.4,'C-40·N1','mg_s1'),C('mc_f1',46,7.4,1.2,2.4,'FD-1','mg_s1'),
+  C('mc_m',31,29.7,15,3,'C-40·M','mg_m'),C('mc_f2',46,29.7,1.2,3,'FD-2','mg_m'),
+  C('mc_c1',4,57,42,2.4,'C-40·S1','mg_c1'),C('mc_f3',46,57,1.2,2.4,'FD-3','mg_c1'),
+  C('mc_t',41.2,9.8,2.4,47.2,'C-40·T'),C('mc_k1',22.8,9.8,2.4,14.4,'C-40·K1'),C('mc_k2',22.8,38.2,2.4,18.8,'C-40·K2'),
+  // --- lado sujo ---
+  C('mc_dn1',47.2,7.4,22.8,2.4,'C-40·N1','mg_dn'),C('mc_dn2',70,3.4,2.4,6.4,'','mg_dn'),C('mc_dn3',72.4,3.4,51.6,2.4,'C-40·N3','mg_dn'),
+  C('mc_dn4',97.6,5.8,2.4,18.7,'C-40·N4'),C('mc_p1',67.6,9.8,2.4,17.7,'C-40·P1'),
+  C('mc_dm1',47.2,29.7,24.8,3,'C-40·M1','mg_dm'),C('mc_lk',69.6,27.5,2.4,2.2,'','mg_dm'),C('mc_dm3',67.6,24.5,56.4,3,'C-40·M3','mg_dm'),
+  C('mc_p3',69.6,32.7,2.4,24.3,'C-40·P3'),C('mc_p4',96,27.5,2.4,29.5,'C-40·P4'),
+  C('mc_ds1',47.2,57,73.8,2.4,'C-40·S1','mg_ds')],
+ firewall:[[46,1,1.2,6.4],[46,9.8,1.2,19.9],[46,32.7,1.2,24.3],[46,59.4,1.2,5.6]],
+ fireDoors:[{id:'FD-1',x:46.6,y:8.6,v:1},{id:'FD-2',x:46.6,y:31.2,v:1},{id:'FD-3',x:46.6,y:58.2,v:1}],
+ voids:[[47.2,9.8,2.8,12.3],[47.2,40.3,2.8,16.7],[70,9.8,2.4,14.7],[72,27.5,24,5.2],[43.6,9.8,2.4,19.9],[43.6,32.7,2.4,24.3],[25.2,17,16,4],[4,17,18.8,7.2],[4,38.2,9,11.4],[13,38.2,9.8,2.8],[25.2,38.2,5.8,2],[121,47,3,4.8]],
  rooms:[
-  R('md0','Accommodation',2,3.6,31,22,'hab',{eq:'cabins',pub:'Crew accommodation block. Fourteen cabins along the north and south walls and a lounge between them. Most of the cabin doors are closed.'}),
-  R('md1','Boot room',2,28,14,9,'ind',{eq:'lockers',pub:'Steel lockers with names on tape. Boots paired on a grated duckboard. A yellow stripe cuts the floor in two: clean on one side, dirty on the other.'}),
-  R('md11','Washroom',2,37,14,5,'hab',{eq:'wash',pub:'Showers and basins for the crew. A drain in the middle of the floor.'}),
-  R('md2','Control room',2,42,14,8,'ind',{eq:'console',lp:'t',pub:'Dim on purpose. Monitors over a mimic panel of small lamps. The chair backs are polished from use.'}),
-  R('md12','Dry store',18.4,28,14.6,14,'ind',{eq:'store',pub:'Shelving to the ceiling. Spare parts, tagged and counted.'}),
-  R('md3','Electrical shop',18.4,42,14.6,8,'ind',{eq:'elec',lp:'t',pub:'A shadow board with the outline of every tool. Three outlines are empty.'}),
-  R('md_swu','Stair W · up',34.2,18,2.8,7.6,'stair',{eq:'stair',dir:'up',to:'L-07',pub:'Stairs to the weather deck.'}),
-  R('md_swd','Stair W · down',34.2,28,2.8,7.6,'stair',{eq:'stair',dir:'dn',to:'L-03',pub:'Stairs to the cellar deck.'}),
-  R('md4','M10 · Wellbay',37,3.6,20,22,'ind',{eq:'wellheads',pub:'Twenty-four wellheads in rows on a grated floor, open to the cellar deck below. A constant hiss of gas overhead.'}),
-  R('md6','M20 · Separation',59.8,3.6,24,22,'ind',{eq:'separators',pub:'A forest of insulated pipe. Two horizontal vessels and the noise to keep you from talking.'}),
-  R('md8','M22 · Decommissioned',86.6,3.6,23.8,22,'off',{eq:'sealed',st:'sealed',d:[['s',.4,'gate','c'],['n',.5,'gate','c']],pub:'Mesh gate with chain and red lock-out seal. A lock-out tag on every valve. Laminated notice dated 2013, peeling at the corner.'}),
-  R('md_seu','Stair E · up',110.4,18,3,7.6,'stair',{eq:'stair',dir:'up',to:'L-07',pub:'Stairs to the weather deck.'}),
-  R('md5','M11 · Mud room',37,28,20,22,'ind',{eq:'mud',pub:'Shale shakers throwing grey mud. Everything is coated in it, the lab window included.'}),
-  R('md7','M21 · Compression',59.8,28,13,22,'ind',{eq:'compressors',pub:'Three compressors the size of a bus. A low hum that climbs through the soles of your boots.'}),
-  R('md10','M31 · Workshop',72.8,28,11,22,'ind',{eq:'workshop',pub:'A lathe and swarf on the floor. A radio playing static. Three burn marks on the bench.'}),
-  R('md9','M30 · Utilities',86.6,28,23.8,22,'ind',{eq:'utilities',pub:'Hot air and engine oil. Two large generators, one under a tarp.'}),
-  R('md_sed','Stair E · down',110.4,28,3,7.6,'stair',{eq:'stair',dir:'dn',to:'L-03',pub:'Stairs to the cellar deck.'})],
+  // ---- lado limpo: ala dos oficiais ----
+  R('md_off','Officers\' cabins',4,2.8,41.4,4.6,'hab',{cab:{n:9,side:'s'},eq:'cabinrow',pub:'Nine small cabins along the north hull, two bunks each. Brass name plates on the doors. A porthole the size of a dinner plate in every one.'}),
+  R('md_ow','Officers\' washroom',4,9.8,7,7.2,'hab',{eq:'wash',pub:'Showers and basins for the officers. Tiled white and always warm.'}),
+  R('md_om','Officers\' mess',11,9.8,11.8,7.2,'hab',{eq:'dining',pub:'A table for twelve with place cards. The good crockery is locked behind glass.'}),
+  R('md_cl','Clinic',25.2,9.8,8,7.2,'hab',{eq:'clinic',pub:'Two beds and a locked drug cabinet. A scale and a height chart on the wall.'}),
+  R('md_ol','Laundry',33.2,9.8,8,7.2,'hab',{eq:'laundry',pub:'Industrial washers and dryers. A nylon line across the room.'}),
+  // ---- lounge redondo e arredores ----
+  R('md_gym','Gym',4,24.2,13,14,'hab',{eq:'gym',d:[['e',.5,'open','r']],pub:'Free weights and two rowing machines. A mirror with a crack across one corner.'}),
+  R('md0','Lounge',17,24.2,14,14,'hab',{shape:'round',eq:'roundlounge',d:[['n',.5,'open','c'],['s',.5,'open','c'],['e',.5,'open','c'],['w',.5,'open','r']],pub:'A round room with armchairs in a ring and a low table at the centre. Both crew wings open onto it. The clock over the door runs five minutes slow.'}),
+  R('md1','Boot room',31,21,10.2,8.7,'ind',{eq:'lockers',pub:'Steel lockers with names on tape. Boots paired on a grated duckboard. A yellow stripe cuts the floor in two: clean on one side, dirty on the other.'}),
+  R('md2','Control room',31,32.7,10.2,7.5,'ind',{eq:'console',lp:'t',pub:'Dim on purpose. Monitors over a mimic panel of small lamps. The chair backs are polished from use.'}),
+  R('md3','Electrical shop',25.2,40.2,10.8,8.8,'ind',{eq:'elec',lp:'t',pub:'A shadow board with the outline of every tool. Three outlines are empty.'}),
+  R('md12','Dry store',36,40.2,5.2,8.8,'ind',{eq:'store',pub:'Shelving to the ceiling. Spare parts, tagged and counted.'}),
+  // ---- ala da tripulacao ----
+  R('md11','Crew washroom',4,49.6,9,7.4,'hab',{eq:'wash',pub:'Showers and basins for the crew. A drain in the middle of the floor.'}),
+  R('md_cd','Crew day room',13,41,9.8,16,'hab',{eq:'crewday',pub:'A sofa, a table and a card game left unfinished.'}),
+  R('md_lc','Crew laundry',25.2,49,8,8,'hab',{eq:'laundry',pub:'Washers and a drying rack. Detergent hangs in the air.'}),
+  R('md_ppe','PPE locker',33.2,49,8,8,'ind',{eq:'ppe',pub:'Coveralls, helmets and harnesses on labelled shelves.'}),
+  R('md_crw','Crew cabins',4,59.4,41.4,4.6,'hab',{cab:{n:9,side:'n'},eq:'cabinrow',pub:'Nine small cabins along the south hull, two bunks each. Names on tape. A porthole the size of a dinner plate in every one.'}),
+  // ---- lado sujo ----
+  R('md_ins','Instrument shop',47.2,2.4,10,5,'ind',{eq:'instr',pub:'Calibration benches and spare gauges in labelled drawers.'}),
+  R('md_scba','SCBA store',57.2,2.4,7,5,'ind',{eq:'dive',pub:'Breathing apparatus in wall cabinets. Every gauge reads full.'}),
+  R('md_trf','Transformer room',64.2,2.4,5.8,5,'ind',{eq:'xfmr',pub:'Three oil-filled transformers. The hum is higher than the compressors.'}),
+  R('md_swu','Stair W · up',47.2,22.1,2.8,7.6,'stair',{eq:'stair',dir:'up',to:'L-07',pub:'Stairs to the weather deck.'}),
+  R('md_swd','Stair W · down',47.2,32.7,2.8,7.6,'stair',{eq:'stair',dir:'dn',to:'L-03',pub:'Stairs to the cellar deck.'}),
+  R('md4','M10 · Wellbay',50,9.8,17.6,19.9,'ind',{eq:'wellheads',pub:'Twenty-four wellheads in rows on a grated floor, open to the cellar deck below. A constant hiss of gas overhead.'}),
+  R('md5','M11 · Mud room',50,32.7,19.6,17,'ind',{eq:'mud',pub:'Shale shakers throwing grey mud. Everything is coated in it, the lab window included.'}),
+  R('md_lab','Mud lab',50,49.7,7.2,7.3,'ind',{eq:'lab',pub:'A fume hood and a bench of sample jars with grey sediment.'}),
+  R('md_chem','Chemical store',57.2,49.7,12.4,7.3,'ind',{eq:'chemstore',pub:'Sacks and drums behind a chain. Hazard diamonds on every label.'}),
+  R('md6','M20 · Separation',72.4,5.8,25.2,18.7,'ind',{eq:'separators',pub:'A forest of insulated pipe. Two horizontal vessels and the noise to keep you from talking.'}),
+  R('md8','M22 · Decommissioned',100,5.8,24,18.7,'off',{eq:'sealed',st:'sealed',d:[['s',.4,'gate','c'],['n',.5,'gate','c']],pub:'Mesh gate with chain and red lock-out seal. A lock-out tag on every valve. Laminated notice dated 2013, peeling at the corner.'}),
+  R('md7','M21 · Compression',72,32.7,13,24.3,'ind',{eq:'compressors',pub:'Three compressors the size of a bus. A low hum that climbs through the soles of your boots.'}),
+  R('md10','M31 · Workshop',85,32.7,11,24.3,'ind',{eq:'workshop',pub:'A lathe and swarf on the floor. A radio playing static. Three burn marks on the bench.'}),
+  R('md9','M30 · Utilities',98.4,27.5,25.6,19.5,'ind',{eq:'utilities',pub:'Hot air and engine oil. Two large generators, one under a tarp.'}),
+  R('md_inj','M23 · Chemical injection',98.4,47,12,10,'ind',{eq:'inj',pub:'Three dosing tanks and a row of small pumps. The valve tags are in two languages.'}),
+  R('md_wc','WC and janitor',110.4,47,10.6,10,'ind',{eq:'wash',pub:'A cleaning cart, a mop bucket and two stalls.'}),
+  R('md_se','Stair E · up',121,51.8,3,7.6,'stair',{eq:'stair',dir:'up',to:'L-07',pub:'Stairs to the weather deck.'})],
  stairs:[],
- fire:[[12,26.8],[30,51.2],[40,26.8],[70,26.8],[100,26.8],[40,2.4],[100,2.4],[40,51.2],[100,51.2],[58.4,12],[84.9,40]],
- mcp:[[24,26.8],[48,26.8],[78,26.8],[108,26.8],[58.4,38],[84.9,12],[104,51.2],[46,2.4],[90,2.4]],
+ fire:[[8,8.6],[30,8.6],[42.4,20],[42.4,45],[8,58.2],[34,58.2],[50,8.6],[66,31.2],[80,26],[112,26],[100,58.2],[84,58.2],[71,45]],
+ mcp:[[18,8.6],[38,8.6],[42.4,35],[18,58.2],[38,58.2],[56,31.2],[90,26],[104,26],[110,58.2],[71,38],[97.2,40],[60,4.6]],
  esc:[
-  {k:'p',pts:[[6,26.8],[35.6,26.8],[35.6,20.4]],need:['mc_cm','mc_f2','mc_dm']},
-  {k:'p',pts:[[70,26.8],[35.6,26.8],[35.6,20.4]],need:['mc_dm']},
-  {k:'p',pts:[[70,26.8],[111.9,26.8],[111.9,20.4]],need:['mc_dm']},
-  {k:'s',pts:[[100,51.2],[58.4,51.2],[58.4,29.5]],need:['mc_ds','mc_p1']},
-  {k:'s',pts:[[104,2.4],[84.9,2.4],[84.9,24.5]],need:['mc_dn','mc_p2']}],
- cams:[{id:'cam03',x:80,y:26.8,corr:'mc_dm'}]
+  {k:'p',pts:[[27,31.2],[48.6,31.2],[48.6,24]],need:['mc_m','mc_f2','mc_dm1']},
+  {k:'p',pts:[[8,8.6],[42.4,8.6],[42.4,31.2]],need:['mc_s1','mc_t']},
+  {k:'p',pts:[[8,58.2],[42.4,58.2],[42.4,31.2]],need:['mc_c1','mc_t']},
+  {k:'p',pts:[[80,58.2],[119,58.2],[122.5,58.2],[122.5,54]],need:['mc_ds1']},
+  {k:'s',pts:[[56,8.6],[68.8,8.6],[68.8,26]],need:['mc_dn1','mc_p1']},
+  {k:'s',pts:[[60,58.2],[70.8,58.2],[70.8,35]],need:['mc_ds1','mc_p3']}],
+ cams:[{id:'cam03',x:56,y:31.2,corr:'mc_dm1'}]
 });
 
 /* ============================== WEATHER DECK +52 ============================== */
@@ -116,36 +146,48 @@ const weather_=build({
  cams:[]
 });
 
-/* ============================== CELLAR DECK +28 ============================== */
+/* ============================== CELLAR DECK +28 ==============================
+   Anel de corredor em volta do moonpool; corredor de carga que dobra para o leste; ramais, becos e salas pequenas. */
 const cellar_=build({
  id:'cellar',lvl:'L-03',name:'Cellar deck',elev:'+28 m',dwg:'ØA-GA-03',
  corr:[
-  C('cc_m',2,24,110,3,'C-28·M'),C('cc_n1',28,2,3,22,'C-28·N1'),C('cc_n2',67,2,3,22,'C-28·N2'),
-  C('cc_s1',16,27,3,25,'C-28·S1'),C('cc_s2',30,27,3,33,'C-28·S2'),C('cc_s3',68,27,3,25,'C-28·S3'),C('cc_e',71,36,41,3,'C-28·E')],
-
+  C('cc_w',17,31.8,28.6,2.8,'C-28·W','cg_w'),C('cc_cw',23.6,3,2.4,28.8,'C-28·N1'),C('cc_n1',56,15.6,2.4,6,''),
+  C('cc_rn',45.6,21.6,26.8,2.4,'C-28·R','cg_r'),C('cc_rs',45.6,42,26.8,2.4,'','cg_r'),C('cc_rw',45.6,24,2.4,18,'','cg_r'),C('cc_re',70,24,2.4,18,'','cg_r'),
+  C('cc_ne2',72.4,21.6,7.6,2.4,''),C('cc_ne',80,3,2.4,21,'C-28·N2'),C('cc_e',72.4,31.8,30,2.8,'C-28·E'),
+  C('cc_sw',17,34.6,2.4,19.8,'C-28·S1'),C('cc_sb',19.4,52,80.6,2.4,'C-28·B')],
+ voids:[[26,15.6,30,6],[58.4,15.6,21.6,6],[19.4,34.6,26.2,2],[29.4,36.6,8.2,7.8],[82.4,21.6,16,2.4]],
  rooms:[
-  R('cd1','Machine room',2,2,26,22,'ind',{eq:'sauna',pub:'A maze of silver ductwork overhead. A plywood sauna with a diverted steam valve. The steam is too thick to see the far wall.'}),
-  R('cd4','Cargo area',31,2,36,22,'ind',{eq:'cargo',pub:'Eight metre ceiling, yellow lifting marks on the deck and an opening to the sky. Containers form aisles.'}),
-  R('cd7','Lower wellbay',70,2,42,22,'ind',{eq:'xmas',pub:'The largest enclosed space on the platform. Christmas trees in rows. The echo comes back half a second late.'}),
-  R('cd2','Drying room',2,27,14,12,'ind',{eq:'drying',pub:'Two rows of dripping coveralls over a heater. They sway slowly, all the time.'}),
-  R('cd3','Desalination',2,39,14,13,'ind',{eq:'desal',pub:'White pipework and a high whine. A permanent puddle on the floor.'}),
-  R('cd10','Switchgear',19,27,11,25,'ind',{eq:'switch',pub:'Electrical cabinets with hand-written labels. Smell of ozone. An emergency light that has always flickered.'}),
-  R('cd5','Moonpool',33,27,19,23,'ind',{eq:'moonpool',pub:'A six metre square of black water in the floor, lit from below as the sea rises and falls. A yellow submersible hangs in the gantry.'}),
-  R('cd15','M12 · Decommissioned',33,50,19,10,'off',{eq:'sealed',st:'sealed',d:[['w',.5,'weld','c']],pub:'A steel plate welded across the doorway. The floor patched, the walls bare.'}),
-  R('cd6','Dive room',52,27,16,11,'ind',{eq:'dive',d:[['n',.5,'door','c'],['e',.5,'door','c']],pub:'Cylinders in racks and a suit hanging. A duty board with a marker that no longer wipes. A clipboard with the last name signed.'}),
-  R('cd12','Paint store',52,38,16,12,'ind',{eq:'paint',d:[['e',.5,'door','c']],pub:'Paint cans and solvent drums. An open box of half-face masks. The thinner catches in your throat.'}),
-  R('cd8','Umbilical winch',71,27,14,9,'ind',{eq:'winch',pub:'A steel reel the size of a car. A panel with two worn joysticks. The counter has not been zeroed since 2011.'}),
-  R('cd11','Fire pumps',85,27,10,9,'ind',{eq:'pumps',pub:'Two large red pumps and a pipe the width of a body going down through the floor.'}),
-  R('cd14','Storeroom',95,27,17,9,'ind',{eq:'store',pub:'Deep shelving with a light every second bay. Another company\'s label under the paint.'}),
-  R('cd9','ROV bay',71,39,18,13,'ind',{eq:'rov',pub:'Two yellow ROVs in cradles. A manipulator arm stripped on the bench. Three dusty monitors on blue screens.'}),
-  R('cd13','Waste',89,39,23,13,'ind',{eq:'waste',pub:'Two blue drums, a funnel and a scale. The extractor is switched off. People leave quickly.'})],
- stairs:[{x:29.5,y:4.6,w:3,h:4.6,dir:'up',lbl:'L-05'},{x:68.5,y:4.6,w:3,h:4.6,dir:'up',lbl:'L-05'},{x:17.5,y:49.4,w:3,h:4.6,dir:'up',lbl:'L-05'}],
- fire:[[6,25.5],[50,25.5],[90,25.5],[110,25.5],[29.5,12],[68.5,12],[17.5,34],[31.5,40],[69.5,45],[100,37.5]],
- mcp:[[24,25.5],[60,25.5],[100,25.5],[29.5,20],[68.5,20],[31.5,55],[69.5,30],[80,37.5]],
+  R('cd1','Machine room',4,3,19.6,22,'ind',{eq:'sauna',pub:'A maze of silver ductwork overhead. A plywood sauna with a diverted steam valve. The steam is too thick to see the far wall.'}),
+  R('cd4','Cargo area',26,3,54,12.6,'ind',{eq:'cargo',pub:'Eight metre ceiling, yellow lifting marks on the deck and an opening to the sky. Containers form aisles.'}),
+  R('cd7','Lower wellbay',82.4,3,36,18.6,'ind',{eq:'xmas',pub:'The largest enclosed space on the platform. Christmas trees in rows. The echo comes back half a second late.'}),
+  R('cd2','Drying room',4,27.4,13,11,'ind',{eq:'drying',pub:'Two rows of dripping coveralls over a heater. They sway slowly, all the time.'}),
+  R('cd3','Desalination',4,40,13,12,'ind',{eq:'desal',pub:'White pipework and a high whine. A permanent puddle on the floor.'}),
+  R('cd10','Switchgear',19.4,36.6,10,15.4,'ind',{eq:'switch',pub:'Electrical cabinets with hand-written labels. Smell of ozone. An emergency light that has always flickered.'}),
+  R('cd6','Dive room',37.6,36.6,8,7.8,'ind',{eq:'dive',pub:'Cylinders in racks and a suit hanging. A duty board with a marker that no longer wipes. A clipboard with the last name signed.'}),
+  R('cd12','Paint store',29.4,44.4,16.2,7.6,'ind',{eq:'paint',pub:'Paint cans and solvent drums. An open box of half-face masks. The thinner catches in your throat.'}),
+  R('cd5','Moonpool',48,24,22,18,'ind',{eq:'moonpool',pub:'A square of black water in the floor, lit from below as the sea rises and falls. A yellow submersible hangs in the gantry. A corridor runs all the way round it.'}),
+  R('cd8','Umbilical winch',45.6,44.4,14,7.6,'ind',{eq:'winch',pub:'A steel reel the size of a car. A panel with two worn joysticks. The counter has not been zeroed since 2011.'}),
+  R('cd11','Fire pumps',59.6,44.4,12.8,7.6,'ind',{eq:'pumps',pub:'Two large red pumps and a pipe the width of a body going down through the floor.'}),
+  R('cd_hpu','Hydraulic power unit',82.4,24,16,7.8,'ind',{eq:'hpu',pub:'A tank of hydraulic oil, two pumps and a pressure panel. Drip trays under every fitting.'}),
+  R('cd9','ROV bay',72.4,34.6,16,17.4,'ind',{eq:'rov',pub:'Two yellow ROVs in cradles. A manipulator arm stripped on the bench. Three dusty monitors on blue screens.'}),
+  R('cd13','Waste',88.4,34.6,11.6,17.4,'ind',{eq:'waste',pub:'Two blue drums, a funnel and a scale. The extractor is switched off. People leave quickly.'}),
+  R('cd_bal','Ballast control',102.4,26.4,14,11.8,'ind',{eq:'ballast',d:[['w',.5,'door','c']],pub:'A console with a diagram of the platform legs and the ballast tanks. Several indicators read amber.'}),
+  R('cd_swp','Seawater pumps',102.4,38.2,14,13.8,'ind',{eq:'pumps',d:[['n',.5,'door','r']],pub:'Large pumps on a raised floor and a pipe going down into the dark.'}),
+  R('cd14','Storeroom',19.4,54.4,12,7.6,'ind',{eq:'store',pub:'Deep shelving with a light every second bay. Another company\'s label under the paint.'}),
+  R('cd15','M12 · Decommissioned',31.4,54.4,16,7.6,'off',{eq:'sealed',st:'sealed',d:[['n',.5,'weld','c']],pub:'A steel plate welded across the doorway. The floor patched, the walls bare.'}),
+  R('cd_sp','Spare parts',47.4,54.4,16,7.6,'ind',{eq:'store',pub:'Valves, flanges and gaskets on racks. A paper inventory on a clipboard.'}),
+  R('cd_cab','Cable room',63.4,54.4,12,7.6,'ind',{eq:'cable',pub:'Cable reels in rows, each tagged with a date and a destination.'}),
+  R('cd_hot','Hot-work shop',75.4,54.4,14,7.6,'ind',{eq:'workshop',pub:'A welding bench and gas bottles chained to the wall. A burnt smell that never quite goes.'}),
+  R('cd_chm','Chemical store',89.4,54.4,10.6,7.6,'ind',{eq:'chemstore',pub:'Drums on spill trays, stacked two high.'})],
+ stairs:[{x:24.8,y:5.8,w:2.2,h:4.2,dir:'up',lbl:'L-05'},{x:81.2,y:5.8,w:2.2,h:4.2,dir:'up',lbl:'L-05'},{x:18.2,y:50.6,w:2.2,h:4.2,dir:'up',lbl:'L-05'}],
+ fire:[[6,3],[24.8,14],[24.8,28],[30,33.2],[40,33.2],[46.8,30],[58,22.8],[71.2,30],[90,33.2],[100,33.2],[18.2,45],[40,53.2],[70,53.2],[90,53.2],[81.2,14]],
+ mcp:[[24.8,20],[34,33.2],[46.8,38],[64,22.8],[80,33.2],[18.2,40],[50,53.2],[80,53.2],[81.2,8]],
  esc:[
-  {k:'p',pts:[[40,25.5],[29.5,25.5],[29.5,9]],need:['cc_m','cc_n1']},{k:'p',pts:[[60,25.5],[68.5,25.5],[68.5,9]],need:['cc_m','cc_n2']},
-  {k:'p',pts:[[17.5,30],[17.5,46]],need:['cc_s1']},{k:'s',pts:[[100,37.5],[71,37.5]],need:['cc_e']}],
- cams:[{id:'cam04',x:42,y:30,room:'cd5'},{id:'cam02',x:90,y:12,room:'cd7'}]
+  {k:'p',pts:[[40,33.2],[24.8,33.2],[24.8,9]],need:['cc_w','cc_cw']},
+  {k:'p',pts:[[75,22.8],[81.2,22.8],[81.2,9]],need:['cc_rn','cc_ne2','cc_ne']},
+  {k:'p',pts:[[18.2,36],[18.2,50]],need:['cc_sw']},
+  {k:'s',pts:[[95,33.2],[74,33.2]],need:['cc_e']}],
+ cams:[{id:'cam04',x:58,y:33,room:'cd5'},{id:'cam02',x:98,y:10,room:'cd7'}]
 });
 
 /* ============================== LIVING QUARTERS A–E (34 x 28) ============================== */
@@ -174,27 +216,35 @@ const lqD=lqDeck('lqD','D','Living quarters · Deck D','+54 m',
   {id:'lqD6',n:'Archive',w:5.6,eq:'archive',pub:'A sliding archive of six modules. Labels from 2011 to now. The earlier modules are empty, their labels scraped off.'},
   {id:'lqD8',n:'Coffee room',w:4,eq:'pantry',pub:'A sink, a coffee machine and a flask. Where everything that does not fit in the mess hall gets said.'},
   {id:'lqD10',n:'Training room',w:9,eq:'training',pub:'A CPR mannequin seated facing the door. A laminated muster map, Rev. 3, 2011. An induction video recorded in 2009.'}]);
-const lqC=lqDeck('lqC','C','Living quarters · Deck C','+50 m · crosses the weather deck',
- [{id:'lqC1',n:'Dormitories A',w:13,t:'hab',eq:'dorm',pub:'A door every 3.5 m along 23 m of corridor. Name cards, half in pen. Bunk, fold-down desk and a narrow locker. Walls thin enough to hear the neighbour.'},
-  {id:'lqC2',n:'Washrooms A',w:6.8,t:'hab',eq:'bath',pub:'Shower stalls with plastic curtains and white tile. An echo returns every drip. The door has had no lock since before the refit.'},
-  {id:'lqC3',n:'Cabins 1–6 · vacant',w:6.8,t:'off',eq:'dorm',pub:'Six unlocked cabins, made up. Bedspread pulled tight, pillow in place. A closed smell of light mildew.'}],
- [{id:'lqC5',n:'Study room',w:8.4,t:'hab',eq:'study',pub:'Two tables and a shelf of technical manuals. Three paperbacks with broken spines. One chair always pulled out, turned to the wall.'},
-  {id:'lqC6',n:'Quiet room',w:7.4,t:'hab',eq:'quiet',pub:'A sofa and one small round window. No equipment, no board, no sound.'},
-  {id:'lqC4',n:'Linen room',w:6,t:'hab',eq:'linen',pub:'Folded sheets and coveralls in plastic bags. Smell of bleach, the only good smell here.'},
-  {id:'lqC7',n:'Store',w:4.8,t:'hab',eq:'store',pub:'A cleaning cart and a vacuum cleaner. An unlocked door that nobody has ever taken anything from.'}],
- [R('lqC8','Weather deck exit',30.3,2,3.2,13.5,'ext',{eq:'hatch',d:[['s',.5,'open','r']],pub:'A wired-glass door. The first flight is visible; the rest goes dark.'})]);
-const lqB=lqDeck('lqB','B','Living quarters · Deck B','+46 m · mostly sealed',
- [{id:'lqB2',n:'TV room · disabled',w:6,h:8,t:'off',eq:'tv',d:[['s',.5,'door','r']],pub:'Stacked chairs shoulder high. A tube TV still plugged in. Even dust, no fingermarks.'},
-  {id:'lqB1',n:'Cabins 12–34 · sealed',w:12.3,t:'off',st:'sealed',eq:'dorm',pub:'Twenty-three closed doors along 23 m of corridor. Tape across every frame, already yellowed. An emergency light every ten metres. No smell at all.'},
-  {id:'lqB4',n:'Dormitories B',w:8.3,t:'hab',eq:'dorm',pub:'Six cabins lit at the end of a dark corridor. These doors open. From the last you can see the 30 m back to the core.'}],
- [{id:'lqB3',n:'Cabins 35–46 · sealed',w:11.3,t:'off',st:'sealed',eq:'dorm',pub:'Twelve more doors. The last one ajar, the tape torn. A mattress without a sheet and an open locker.'},
-  {id:'lqB6',n:'Washrooms · sealed',w:6,t:'off',st:'sealed',eq:'bath',pub:'Water cut at the main valve. A dry trap and the smell that rises from it. A mould line at knee height.'},
-  {id:'lqB7',n:'Washrooms B',w:4.5,t:'hab',eq:'bath',pub:'Two showers and a basin. A mirror with the silver coming off. A bulb that blinks at irregular intervals.'},
-  {id:'lqB8',n:'Plaster wall',w:4.8,t:'hab',eq:'plaster',pub:'The south corridor ends in a smooth wall. The same striped beige paper, peeled back 20 cm from the bottom. Behind it is not steel plate. It is plaster.'}],
- [R('lqB5','Storage',3.7,10,6,8,'off',{eq:'store',pub:'A rolled mattress tied with rope. Paperwork older than 2011, soft with damp. One box stamped by another company.'})]);
-// B: B2 tem altura 8 (y 2-10) e B5 (y 10-18) fica abaixo dele; B1 comeca depois dos 6 m
-lqB.rooms.forEach(r=>{if(r.id==='lqB1'){r.r[0]=9.7;} if(r.id==='lqB4'){r.r[0]=22;r.r[2]=8.3;}});
-lqB.rooms.find(r=>r.id==='lqB2').d=[['s',.5,'door','r']];lqB.rooms.find(r=>r.id==='lqB5').d=autoDoors(lqB.rooms.find(r=>r.id==='lqB5'),lqB.corr);
+/* Decks de dormitorio (C e B): cabines pequenas (2 pessoas) na parede externa norte e sul, cada uma com janela; corredores
+   proprios das alas, lavabos e salas de uso no miolo. */
+function lqDorm(id,suffix,name,elev,rooms,extra){
+  const corr=[C(id+'_n',3.7,6.6,26.6,2.4,'Corridor '+suffix+'1'),C(id+'_s',3.7,19,26.6,2.4,'Corridor '+suffix+'2'),C(id+'_l',27.9,9,2.4,10,'Link '+suffix)];
+  const all=rooms.concat([
+    R(id+'0','Core',.5,15.5,3.2,7,'ind',{eq:'lift',d:[['e',.67,'door','c']],pub:'Stair and lift core. A worn handrail and a lift with a folding gate.'}),
+    R(id+'9','Stairwell',30.3,15.5,3.2,7,'stair',{eq:'stair',d:[['w',.67,'door','c']],pub:'Fire door with a push bar. Five flights on the outside of the block.'})]).concat(extra||[]);
+  return build({id,lvl:'L-06',name,elev,dwg:'ØA-LQ-'+suffix,corr,rooms:all,fire:[[8,7.8],[22,7.8],[8,20.2],[22,20.2],[29.1,14]],mcp:[[14,7.8],[14,20.2],[29.1,10]],stairs:[],
+    esc:[{k:'p',pts:[[6,7.8],[29.1,7.8],[29.1,20.2],[31.9,20.2]],need:[id+'_n',id+'_l',id+'_s']},{k:'p',pts:[[6,20.2],[31.5,20.2]],need:[id+'_s']}],cams:[],voids:[]});
+}
+const lqC=lqDorm('lqC','C','Living quarters · Deck C','+50 m · crosses the weather deck',[
+  R('lqC1','Dormitories A',3.7,2,26.6,4.6,'hab',{cab:{n:6,side:'s'},eq:'cabinrow',pub:'Six small cabins along the north hull, two bunks each. Name cards, half in pen. Walls thin enough to hear the neighbour. A small round window in each.'}),
+  R('lqC3','Cabins 1–6 · vacant',3.7,21.4,26.6,4.6,'off',{cab:{n:6,side:'n'},eq:'cabinrow',pub:'Six unlocked cabins, made up. Bedspread pulled tight, pillow in place. A closed smell of light mildew.'}),
+  R('lqC2','Washrooms A',3.7,9,7,10,'hab',{eq:'bath',pub:'Shower stalls with plastic curtains and white tile. An echo returns every drip. The door has had no lock since before the refit.'}),
+  R('lqC5','Study room',10.7,9,8.4,10,'hab',{eq:'study',pub:'Two tables and a shelf of technical manuals. Three paperbacks with broken spines. One chair always pulled out, turned to the wall.'}),
+  R('lqC6','Quiet room',19.1,9,8.8,5,'hab',{eq:'quiet',pub:'A sofa and one small round window. No equipment, no board, no sound.'}),
+  R('lqC4','Linen room',19.1,14,4.4,5,'hab',{eq:'linen',pub:'Folded sheets and coveralls in plastic bags. Smell of bleach, the only good smell here.'}),
+  R('lqC7','Store',23.5,14,4.4,5,'hab',{eq:'store',pub:'A cleaning cart and a vacuum cleaner. An unlocked door that nobody has ever taken anything from.'})],
+  [R('lqC8','Weather deck exit',30.3,2,3.2,13.5,'ext',{eq:'hatch',d:[['s',.5,'open','r']],pub:'A wired-glass door. The first flight is visible; the rest goes dark.'})]);
+const lqB=lqDorm('lqB','B','Living quarters · Deck B','+46 m · mostly sealed',[
+  R('lqB4','Dormitories B',3.7,2,26.6,4.6,'hab',{cab:{n:6,side:'s'},eq:'cabinrow',pub:'Six cabins lit at the end of a dark corridor. These doors open. From the last you can see the length of the deck back to the core.'}),
+  R('lqB1','Cabins · sealed',3.7,21.4,15.3,4.6,'off',{st:'sealed',cab:{n:3,side:'n'},eq:'cabinrow',pub:'A row of closed doors. Tape across every frame, already yellowed. An emergency light every ten metres. No smell at all.'}),
+  R('lqB3','Cabins · sealed',19,21.4,11.3,4.6,'off',{st:'sealed',cab:{n:2,side:'n'},eq:'cabinrow',pub:'More closed doors. The last one ajar, the tape torn. A mattress without a sheet and an open locker.'}),
+  R('lqB2','TV room · disabled',3.7,9,6,5,'off',{eq:'tv',pub:'Stacked chairs shoulder high. A tube TV still plugged in. Even dust, no fingermarks.'}),
+  R('lqB5','Storage',3.7,14,6,5,'off',{eq:'store',pub:'A rolled mattress tied with rope. Paperwork older than 2011, soft with damp. One box stamped by another company.'}),
+  R('lqB6','Washrooms · sealed',10.7,9,6,10,'off',{st:'sealed',eq:'bath',pub:'Water cut at the main valve. A dry trap and the smell that rises from it. A mould line at knee height.'}),
+  R('lqB7','Washrooms B',16.7,9,5,10,'hab',{eq:'bath',pub:'Two showers and a basin. A mirror with the silver coming off. A bulb that blinks at irregular intervals.'}),
+  R('lqB8','Corridor end',21.7,9,6.2,10,'hab',{eq:'plaster',pub:'The corridor ends in a smooth wall covered in the same striped beige paper, peeling from the bottom edge.'})]);
+
 const lqA=(function(){
   const d=build({id:'lqA',lvl:'L-06',name:'Living quarters · Deck A',elev:'+42 m',dwg:'ØA-LQ-A',
    corr:[C('lqA_c',3.7,18,26.6,2,'Corridor A'),C('lqA_x',16,2,1.8,16,'Cross A')],

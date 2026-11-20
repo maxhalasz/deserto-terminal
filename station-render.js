@@ -7,7 +7,7 @@
 const T={paper:'#d9d6ca',wall:'#1b1d1f',corr:'#c1c2b8',room:'#eceae2',deck:'#e2e0d4',grate:'rgba(0,0,0,.11)',grid:'#bfbcae',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
   equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#2c7955',you:'#1b1d1f',youText:'#eceae2',sel:'#8a5a1a',amber:'#8a6a2a',
   sealBg:'#d2cebd',hazard:'#8a6a2a',fire:'#8e3b34'};
-const DW={door:1.3,double:2.4,open:2.6,gate:1.8,weld:1.4,hatch:1.0};
+const DW={door:1.3,cdoor:1.0,double:2.4,open:2.6,gate:1.8,weld:1.4,hatch:1.0};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const f1=v=>(Math.round(v*10)/10).toString();
 const inR=(r,x,y,e)=>x>r[0]-(e||0)&&x<r[0]+r[2]+(e||0)&&y>r[1]-(e||0)&&y<r[1]+r[3]+(e||0);
@@ -34,6 +34,7 @@ function plan(deck,st,o){
    <pattern id="${id}z" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="${T.sealBg}"/><rect width="3.2" height="9" fill="${T.amber}" opacity=".5"/></pattern>
    <pattern id="${id}h" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="${T.wall}"/><rect width="5" height="10" fill="${T.hazard}"/></pattern>
    <pattern id="${id}q" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="${T.equip}" stroke-width=".9"/></pattern>
+   <pattern id="${id}c" width="7" height="7" patternTransform="rotate(-45)" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="${T.corr}"/><line x1="0" y1="0" x2="0" y2="7" stroke="${T.wall}" stroke-width=".6" opacity=".45"/></pattern>
    <pattern id="${id}d" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M0 5L5 0" stroke="${T.grate}" stroke-width=".8"/></pattern>
    <marker id="${id}m" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="${T.route}"/></marker></defs>`;
   /* grade estrutural + bolhas */
@@ -61,25 +62,27 @@ function plan(deck,st,o){
     // paredes dos corredores
     corrs.forEach(c=>s+=rect(c.r,WE,T.wall));
     // vazios estruturais (poche solido)
-    (deck.voids||[]).forEach((v,i)=>{const vis=mode==='f'?nearFull(v):(st.ghost&&nearAny(v)&&!nearFull(v));if(vis)s+=rect(v,WE,T.wall);});
+    (deck.voids||[]).forEach((v,i)=>{const vis=mode==='f'?nearFull(v):(st.ghost&&nearAny(v)&&!nearFull(v));if(vis){s+=rect(v,WE,T.wall);if(v[2]*v[3]>40)s+=rect(v,-WE,`url(#${id}c)`);}});
     // firewall
     (deck.firewall||[]).forEach(f=>{const vis=mode==='f'?nearFull(f):(st.ghost&&nearAny(f)&&!nearFull(f));if(vis)s+=rect(f,0,`url(#${id}h)`,`stroke="${T.wall}" stroke-width="1"`);});
     // pisos dos corredores
-    corrs.forEach(c=>{s+=rect(c.r,0,T.corr,`data-corr="${c.id}"`)+rect(c.r,0,`url(#${id}g)`,'pointer-events="none"');});
+    corrs.forEach(c=>{s+=rect(c.r,0,T.corr,`data-corr="${c.id}"${c.g?` data-grp="${c.g}"`:''}`)+rect(c.r,0,`url(#${id}g)`,'pointer-events="none"');});
     // calha de cabos
     corrs.filter(c=>c.r[2]>=20||c.r[3]>=20).forEach(c=>{const [x,y,w,hh]=c.r,hz=w>=hh;s+=`<path d="${hz?`M${f1(X(x+.6))} ${f1(Y(y+hh/2))}H${f1(X(x+w-.6))}`:`M${f1(X(x+w/2))} ${f1(Y(y+.6))}V${f1(Y(y+hh-.6))}`}" stroke="${T.cable}" stroke-width=".8" stroke-dasharray="6 3" fill="none"/>`;});
     // paredes das salas
-    rooms.forEach(r=>{if(out&&r.t==='ext')return;s+=rect(r.r,WE,T.wall);});
+    rooms.forEach(r=>{if(out&&r.t==='ext')return;if(r.shape==='round'){const [x,y,w,hh]=r.r;s+=`<circle cx="${f1(X(x+w/2))}" cy="${f1(Y(y+hh/2))}" r="${f1(P(w/2+WE))}" fill="${T.wall}"/>`;}else s+=rect(r.r,WE,T.wall);});
     // pisos das salas
     rooms.forEach(r=>{
       if(out&&r.t==='ext'){s+=rect(r.r,0,T.deck,`data-room="${r.id}" stroke="${T.sub}" stroke-width="1" stroke-dasharray="6 4"`)+rect(r.r,0,`url(#${id}d)`,'pointer-events="none"');return;}
       const fill=r.st==='sealed'||r.t==='off'&&r.st?`url(#${id}z)`:T.room;
-      s+=rect(r.r,-WE,fill,`data-room="${r.id}"`);});
+      if(r.shape==='round'){const [x,y,w,hh]=r.r;s+=`<circle cx="${f1(X(x+w/2))}" cy="${f1(Y(y+hh/2))}" r="${f1(P(w/2-WE))}" fill="${fill}" data-room="${r.id}"/>`;}
+      else s+=rect(r.r,-WE,fill,`data-room="${r.id}"`);});
     // vestibulo de escada: degraus
     // portas
     rooms.forEach(r=>{if(out&&r.t==='ext')return;(r.d||[]).forEach(d=>{s+=door(r,d);});});
+    rooms.forEach(r=>{if(r.cab)s+=windows(r);});
     // equipamento
-    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq)return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}s+=`<g pointer-events="none">${a.get()}</g>`;});
+    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq)return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}">${rect(r.r,-WE,'#000')}</clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
     // etiquetas
     rooms.forEach(r=>{s+=label(r,mode);});
     // codigos de corredor
@@ -95,12 +98,20 @@ function plan(deck,st,o){
       rc:(x,y,w,hh,rx_,f)=>{o_+=`<rect x="${ax(x)}" y="${ay(y)}" width="${f1(P(w))}" height="${f1(P(hh))}" ${rx_?`rx="${f1(P(rx_))}"`:''} ${f?F:S}/>`;},
       ci:(x,y,rr,f,dsh)=>{o_+=`<circle cx="${ax(x)}" cy="${ay(y)}" r="${f1(P(rr))}" ${f?F:S}${dsh?' stroke-dasharray="4 3"':''}/>`;},
       ln:(x1,y1,x2,y2)=>{o_+=`<path d="M${ax(x1)} ${ay(y1)}L${ax(x2)} ${ay(y2)}" ${S}/>`;},
+      wall:(x1,y1,x2,y2)=>{o_+=`<path d="M${ax(x1)} ${ay(y1)}L${ax(x2)} ${ay(y2)}" stroke="${T.wall}" stroke-width="1.7" fill="none"/>`;},
       line2:(x1,y1,x2,y2)=>{o_+=`<path d="M${ax(x1)} ${ay(y1)}L${ax(x2)} ${ay(y2)}" stroke="${T.amber}" stroke-width="1.6" stroke-dasharray="6 4" fill="none"/>`;},
       tx:(x,y,t,sz,b,mid)=>{o_+=`<text x="${ax(x)}" y="${ay(y)}" text-anchor="${mid?'middle':'start'}" font-family="Barlow Condensed" font-weight="${b?700:500}" font-size="${sz*px/6.6}" fill="${T.equip}">${esc(t)}</text>`;},
       hatch:(x,y,w,hh)=>{o_+=`<rect x="${ax(x)}" y="${ay(y)}" width="${f1(P(w))}" height="${f1(P(hh))}" fill="url(#${id}q)" stroke="${T.equip}" stroke-width=".7"/>`;},
       arrow:(x1,y1,x2,y2,dn)=>{o_+=`<path d="M${ax(x1)} ${ay(y1)}L${ax(x2)} ${ay(y2)}" stroke="${T.route}" stroke-width="1.3" fill="none" marker-end="url(#${id}m)"/>`;}
     };
     return {api:a,get:()=>o_};}
+  function windows(r){
+    const [x,y,w,hh]=r.r,c=r.cab,n=c.n;let o_='';
+    const opp={n:'s',s:'n',e:'w',w:'e'}[c.side],horiz=(opp==='n'||opp==='s');
+    for(let i=0;i<n;i++){const t=(i+.5)/n;const cx=horiz?x+w*t:(opp==='w'?x:x+w),cy=horiz?(opp==='n'?y:y+hh):y+hh*t,ww=1.3;
+      if(horiz){const x0=X(cx-ww/2),x1=X(cx+ww/2),yy=Y(cy);o_+=`<rect x="${f1(x0)}" y="${f1(yy-P(.32))}" width="${f1(x1-x0)}" height="${f1(P(.64))}" fill="${T.room}"/><path d="M${f1(x0)} ${f1(yy-P(.14))}H${f1(x1)}M${f1(x0)} ${f1(yy+P(.14))}H${f1(x1)}" stroke="${T.wall}" stroke-width=".8"/><path d="M${f1(x0)} ${f1(yy-P(.32))}V${f1(yy+P(.32))}M${f1(x1)} ${f1(yy-P(.32))}V${f1(yy+P(.32))}" stroke="${T.wall}" stroke-width="1.2"/>`;}
+      else{const y0=Y(cy-ww/2),y1=Y(cy+ww/2),xx=X(cx);o_+=`<rect x="${f1(xx-P(.32))}" y="${f1(y0)}" width="${f1(P(.64))}" height="${f1(y1-y0)}" fill="${T.room}"/><path d="M${f1(xx-P(.14))} ${f1(y0)}V${f1(y1)}M${f1(xx+P(.14))} ${f1(y0)}V${f1(y1)}" stroke="${T.wall}" stroke-width=".8"/><path d="M${f1(xx-P(.32))} ${f1(y0)}H${f1(xx+P(.32))}M${f1(xx-P(.32))} ${f1(y1)}H${f1(xx+P(.32))}" stroke="${T.wall}" stroke-width="1.2"/>`;}}
+    return o_;}
   function door(r,d){
     const [s,t,k,to]=d,[x,y,w,hh]=r.r;
     const dw=DW[k]||1.3;

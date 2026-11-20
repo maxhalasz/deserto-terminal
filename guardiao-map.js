@@ -50,7 +50,7 @@ function init(sessionRef){
     const r=S.roomIndex[id],on=!!revRooms()[id],upd={};
     if(on)upd['map/rooms/'+id]=null;else{upd['map/rooms/'+id]={at:Date.now()};if(neigh)corrOfDoors(r).forEach(c=>{if(!revCorr()[c])upd['map/corr/'+c]=true;});}
     ref.update(upd);}
-  function toggleCorr(id){ref.child('map/corr/'+id).set(revCorr()[id]?null:true);}
+  function toggleCorr(id){const c=S.corrIndex[id],ids=c&&c.g?S.DECKS[c.deck].corr.filter(x=>x.g===c.g).map(x=>x.id):[id],on=!!revCorr()[id],upd={};ids.forEach(k=>{upd['map/corr/'+k]=on?null:true;});ref.update(upd);}
 
   function drawDecks(){
     const rr=revRooms();

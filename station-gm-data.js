@@ -3,9 +3,10 @@ window.STATION_GM={text:{
  "md0": {
   "p": 1,
   "b": [
-   "Painel branco encardido de sal",
-   "Cinco fileiras de janelinhas, a maioria escura",
-   "Porta estanque com roda de aperto"
+   "Sala redonda, poltronas em anel e mesa baixa no centro",
+   "As duas alas abrem pra ela: oficiais ao norte, tripulação ao sul",
+   "Relógio sobre a porta atrasado cinco minutos há anos",
+   "É onde todo mundo passa, então é onde todo mundo se vê"
   ]
  },
  "md1": {
@@ -746,6 +747,194 @@ window.STATION_GM={text:{
   "b": [
    "Ponto de reuniao 3, numero pintado no piso",
    "Quadro de chamada em branco, so a ultima linha preenchida a caneta"
+  ]
+ },
+ "md_off": {
+  "p": 1,
+  "b": [
+   "Nove cabines pequenas, duas pessoas em cada",
+   "Placa de latão com o nome na porta",
+   "Escotilha redonda do tamanho de um prato de jantar",
+   "A última cabine tem a cama feita e o nome raspado da placa"
+  ]
+ },
+ "md_crw": {
+  "p": 1,
+  "b": [
+   "Nove cabines pequenas, duas pessoas em cada",
+   "Nome em fita crepe, a maioria a caneta",
+   "Escotilha redonda em cada uma, vista pro mar",
+   "Duas camas desfeitas que ninguém reclama"
+  ]
+ },
+ "md_ow": {
+  "p": 0,
+  "b": [
+   "Azulejo branco, sempre morno",
+   "Um box com a cortina fechada e a luz acesa"
+  ]
+ },
+ "md_om": {
+  "p": 0,
+  "b": [
+   "Mesa pra doze, cartão de lugar à mão",
+   "Louça boa trancada em vitrine",
+   "Doze lugares, onze cartões legíveis"
+  ]
+ },
+ "md_cl": {
+  "p": 0,
+  "b": [
+   "Duas camas e armário de medicamentos trancado",
+   "Balança e régua de altura na parede",
+   "Registro de atendimentos com a última linha em branco"
+  ]
+ },
+ "md_ol": {
+  "p": 0,
+  "b": [
+   "Máquinas industriais e varal de nylon",
+   "Roupa esquecida que ninguém reclama"
+  ]
+ },
+ "md_gym": {
+  "p": 0,
+  "b": [
+   "Halteres e dois remos ergométricos",
+   "Espelho rachado num canto",
+   "O remo da esquerda ainda está morno"
+  ]
+ },
+ "md_cd": {
+  "p": 0,
+  "b": [
+   "Sofá, mesa e baralho jogado a meio",
+   "Cheiro de café requentado"
+  ]
+ },
+ "md_lc": {
+  "p": 0,
+  "b": [
+   "Máquinas e varal",
+   "Cheiro forte de detergente"
+  ]
+ },
+ "md_ppe": {
+  "p": 0,
+  "b": [
+   "Macacão, capacete e cinto por tamanho",
+   "Duas prateleiras de tamanho 44 vazias"
+  ]
+ },
+ "md_ins": {
+  "p": 0,
+  "b": [
+   "Bancadas de calibração e gavetas etiquetadas",
+   "Manômetros reserva, um com o vidro trincado"
+  ]
+ },
+ "md_scba": {
+  "p": 0,
+  "b": [
+   "Aparelhos de respiração em armários de parede",
+   "Todos os manômetros no cheio",
+   "Um armário sem lacre"
+  ]
+ },
+ "md_trf": {
+  "p": 0,
+  "b": [
+   "Três transformadores em óleo",
+   "Zumbido mais agudo que o dos compressores",
+   "Poça de óleo seca no canto"
+  ]
+ },
+ "md_lab": {
+  "p": 0,
+  "b": [
+   "Capela de exaustão e bancada de frascos com sedimento cinza",
+   "Etiquetas com datas que param em 2013"
+  ]
+ },
+ "md_chem": {
+  "p": 0,
+  "b": [
+   "Sacos e tambores atrás de uma corrente",
+   "Losangos de risco em todos os rótulos",
+   "Cheiro de ácido fraco"
+  ]
+ },
+ "md_inj": {
+  "p": 0,
+  "b": [
+   "Três tanques de dosagem e uma fileira de bombas pequenas",
+   "Etiquetas das válvulas em dois idiomas",
+   "Uma bomba gira em vazio"
+  ]
+ },
+ "md_wc": {
+  "p": 0,
+  "b": [
+   "Carrinho de limpeza, balde e dois sanitários",
+   "Cheiro de pinho barato"
+  ]
+ },
+ "md_se": {
+  "p": 0,
+  "b": [
+   "Escada leste subindo pro weather deck",
+   "Vento no vão"
+  ]
+ },
+ "cd_hpu": {
+  "p": 0,
+  "b": [
+   "Tanque de óleo hidráulico e duas bombas",
+   "Bandeja de gotejamento sob cada conexão",
+   "Painel de pressão com ponteiro parado no vermelho"
+  ]
+ },
+ "cd_bal": {
+  "p": 1,
+  "b": [
+   "Console com o diagrama das pernas e dos tanques de lastro",
+   "Vários indicadores em âmbar",
+   "Livro de registro com a última entrada às 03:12 sem assinatura"
+  ]
+ },
+ "cd_swp": {
+  "p": 0,
+  "b": [
+   "Bombas grandes em piso elevado",
+   "Tubo descendo pro escuro",
+   "O som da água dentro do tubo não bate com o nível"
+  ]
+ },
+ "cd_sp": {
+  "p": 0,
+  "b": [
+   "Válvulas, flanges e juntas em prateleira",
+   "Inventário em papel preso numa prancheta"
+  ]
+ },
+ "cd_cab": {
+  "p": 0,
+  "b": [
+   "Carretéis de cabo em fileiras etiquetados com data e destino",
+   "Um carretel destino \"M22\""
+  ]
+ },
+ "cd_hot": {
+  "p": 0,
+  "b": [
+   "Bancada de solda e cilindros acorrentados",
+   "Cheiro de queimado que não sai"
+  ]
+ },
+ "cd_chm": {
+  "p": 0,
+  "b": [
+   "Tambores sobre bacias de contenção, empilhados em dois níveis"
   ]
  }
 }};

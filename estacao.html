@@ -6,7 +6,7 @@
 <title>NEUROSTAT // PLATFORM SYSTEMS</title>
 <link rel="stylesheet" href="tools/vendor/fonts.css">
 <link rel="stylesheet" href="tools/vendor/fonts-docs.css">
-<link rel="stylesheet" href="station.css?v=m1">
+<link rel="stylesheet" href="station.css?v=m2">
 </head>
 <body>
 <div id="scene">
@@ -42,7 +42,7 @@
           <div class="cell" style="border-right:none">REV<b>4.4 · 2029</b></div>
         </div>
         <div class="tabs2">
-          <div class="tab2 on" data-tab="map"><kbd>F1</kbd>MAP / FILES</div>
+          <div class="tab2 on" data-tab="map"><kbd>F1</kbd>MAP</div>
           <div class="tab2" data-tab="cams"><kbd>F2</kbd>CAMERAS</div>
         </div>
 
@@ -50,17 +50,18 @@
         <div class="stage2" id="view-map">
           <div class="colL">
             <div class="cap"><span>VERTICAL STACK</span><b id="stackcount">—</b></div>
-            <svg id="stack" width="298" height="776" viewBox="0 0 298 776" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="stack" width="258" height="672" viewBox="0 0 298 776" xmlns="http://www.w3.org/2000/svg"></svg>
           </div>
           <div class="center" id="center">
             <div class="topbar">
-              <div class="tg"><span class="on">STRUCTURE</span><span class="dis">POWER</span><span class="dis">VENT</span><span class="btn" id="btnCctv">CCTV</span></div>
+              <div style="display:flex;gap:10px;align-items:center">
+                <div class="tg"><span class="on">STRUCTURE</span><span class="dis">POWER</span><span class="dis">VENT</span><span class="btn" id="btnCctv">CCTV</span></div>
+                <div class="tg"><span class="btn" id="zOut">−</span><span class="btn" id="zFit">FIT</span><span class="btn" id="zIn">+</span></div>
+              </div>
               <div id="topinfo" style="font-size:10px;letter-spacing:.2em;color:var(--ink-dim)"></div>
             </div>
             <div id="planwrap"></div>
-            <div id="docov"><div class="ph"><span id="dochead">FILE</span><span class="back" id="docback">← BACK</span></div><div class="body" id="docbody"></div></div>
-            <div class="pan2" id="pRecord"><div class="ph"><span>ROOM RECORD</span><b id="recTag">—</b></div><div id="recBody"></div></div>
-            <div class="pan2" id="pFiles"><div class="ph"><span>FILES</span><b id="fileTag">—</b></div><div id="fileBody"></div></div>
+            <div id="recstrip"><span class="lbl">ROOM</span><b id="recName">—</b><span id="recStat" class="stat"></span><span class="sp"></span><span class="key" id="planKey"></span></div>
             <div class="tick" id="ticker"></div>
           </div>
         </div>
@@ -99,10 +100,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="station-data.js?v=m1"></script>
-<script src="station-eq.js?v=m1"></script>
-<script src="station-render.js?v=m1"></script>
-<script src="station-app.js?v=m1"></script>
+<script src="station-data.js?v=m2"></script>
+<script src="station-eq.js?v=m2"></script>
+<script src="station-render.js?v=m2"></script>
+<script src="station-app.js?v=m2"></script>
 <script>
 var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
   if(!_authUser) return;
