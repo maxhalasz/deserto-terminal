@@ -266,7 +266,7 @@ function plan(deck,st,o){
     h+=`<line x1="${padL-2}" y1="${ky-18}" x2="${PW-padR+2}" y2="${ky-18}" stroke="${T.grid}"/><text x="${padL}" y="${ky+3}" font-family="Barlow Condensed" font-weight="700" font-size="10" letter-spacing=".22em" fill="${T.sub}">KEY</text>`;
     it.forEach((q,i)=>{h+=`<g transform="translate(${f1(cx)} ${ky})">${q[0]}<text x="${q[2]}" y="3" font-family="Barlow Condensed" font-weight="600" font-size="11" fill="${T.label}" letter-spacing=".05em">${q[1]}</text></g>`;cx+=widths[i]*sc;});
   }
-  h+=`<text x="${PW-padR}" y="${H-6}" text-anchor="end" font-family="IBM Plex Mono" font-size="7.5" fill="${T.sub}" letter-spacing=".1em">${esc(deck.dwg)} · REV 3 · ${esc(deck.name.toUpperCase())} ${esc(deck.elev)} · SCALE 1:500 @A1</text>`;
+  h+=`<text x="${PW-padR}" y="${H-6}" text-anchor="end" font-family="IBM Plex Mono" font-size="7.5" fill="${T.sub}" letter-spacing=".1em">${esc(deck.dwg)} · ${esc(deck.name.toUpperCase())} ${esc(deck.elev)} · SCALE 1:500 @A1</text>`;
   return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${PW}" height="${H}" viewBox="0 0 ${PW} ${H}" style="display:block;background:${T.paper}">${h}</svg>`,w:PW,h:H,px,ox,oy,toDeck:(sx,sy)=>[(sx-ox)/px,(sy-oy)/px],props:propIds};
 }
 window.StationRender={plan,T,propThumb,propG,setTheme};

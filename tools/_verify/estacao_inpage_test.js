@@ -88,6 +88,20 @@ setTimeout(async()=>{
     ok('pilha tem os 5 decks do alojamento',['lqE','lqD','lqC','lqB','lqA'].every(k=>document.querySelector('#stack [data-deck="'+k+'"]')));
     ok('pilha tem os 3 decks da plataforma',['weather','module','cellar'].every(k=>document.querySelector('#stack [data-lvl="'+k+'"]'))&&document.querySelectorAll('#stack polygon').length>20);
     ok('pilha diz onde chega cada um',/HELICOPTER/.test($('stack').textContent)&&/MOONPOOL/.test($('stack').textContent)&&/LIVING QUARTERS/.test($('stack').textContent));
+    // cabecalho sem revisao nem codigo; aviso editavel e vermelho
+    ok('sem REV nem codigo de barras no cabecalho',!/REV\b/.test(document.querySelector('.hdr').innerText)&&!document.getElementById('barcode'));
+    ok('rodape do mapa sem REV',!/REV \d/.test(document.querySelector('#planwrap svg').textContent));
+    ok('aviso aparece por padrao',/WARNING/.test($('ticker').textContent)&&$('ticker').style.display!=='none');
+    ok('aviso e vermelho',/rgb\((2[0-9]{2}|1[5-9][0-9]), ?[0-9]{1,2}, ?[0-9]{1,2}\)/.test(getComputedStyle(document.querySelector('#ticker b')).backgroundColor));
+    sessionRef.child('station/ticker').set(['SEM CONTATO COM A TERRA']);await sleep(250);
+    ok('aviso editado pelo Guardiao aparece',/SEM CONTATO/.test($('ticker').textContent)&&!/COMM SYNC/.test($('ticker').textContent));
+    sessionRef.child('station/ticker').set('off');await sleep(250);
+    ok('aviso removido some',$('ticker').style.display==='none');
+    sessionRef.child('station/ticker').set(null);await sleep(250);
+    ok('sem registro volta o padrao',/COMM SYNC/.test($('ticker').textContent));
+    // pilha: bloco do alojamento integrado
+    ok('contorno do bloco no module deck',!!document.querySelector('#stack .sk-blk'));
+    ok('heliponto A no teto +62 e sem H no weather',/HELIPORT A/.test($('stack').textContent)&&/\+62/.test($('stack').textContent)&&(($('stack').textContent.match(/>H</g)||[]).length===0)&&($('stack').innerHTML.match(/>H<\/text>/g)||[]).length===1);
     // tema claro/escuro
     click($('btnTheme'));ok('tema claro liga',document.documentElement.getAttribute('data-theme')==='light'&&/DARK/.test($('themeLbl').textContent));
     click($('btnTheme'));ok('tema escuro volta',document.documentElement.getAttribute('data-theme')==='dark');
@@ -108,6 +122,7 @@ setTimeout(async()=>{
     ok('botao YOU ARE HERE aparece com pino',!$('btnPin').classList.contains('hid'));
     click($('btnFull'));await sleep(400);
     ok('tela cheia liga',document.body.classList.contains('full')&&$('planwrap').offsetWidth>1200);
+    ok('caneta some na tela cheia',getComputedStyle(document.querySelector('.pen')).display==='none');
     const dn=document.getElementById('recName').textContent;
     document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));await sleep(300);
     ok('seta pra baixo desce de nivel',document.getElementById('recName').textContent!==dn&&/Cellar|Deck A|Living/i.test(document.getElementById('recName').textContent));

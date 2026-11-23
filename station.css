@@ -318,3 +318,13 @@ body.full .vig2{box-shadow:inset 0 0 90px rgba(0,0,0,.4)}
 .sk-dk.sel .sk-chip ~ text{fill:var(--livetext)}
 .sk-dk.on:hover .sk-top{stroke:var(--live)}
 .sk-dk.lock .sk-top{stroke-dasharray:4 4}
+
+/* ----- aviso vermelho alarmante, caneta so na mesa ----- */
+:root{--alarm:#e5222b;--alarmtx:#ff8c86}
+html[data-theme="light"]{--alarm:#cf111b;--alarmtx:#8f0a12}
+.tick{background:var(--panel);border-color:var(--alarm);color:var(--alarmtx);box-shadow:0 0 0 1px var(--alarm),0 0 14px rgba(229,34,43,.28)}
+.tick b{background:var(--alarm);color:#fff;letter-spacing:.2em;animation:alarmb 1.8s ease-in-out infinite}
+@keyframes alarmb{0%,100%{background:var(--alarm)}50%{background:#8f1219}}
+@media (prefers-reduced-motion:reduce){.tick b{animation:none}}
+body.full .pen{display:none}
+.sk-blk{fill:var(--live);fill-opacity:.14;stroke:var(--live);stroke-width:1.3;stroke-dasharray:4 3}

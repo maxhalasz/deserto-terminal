@@ -34,6 +34,12 @@ function init(sessionRef){
     <div id="mpSel" style="margin-top:14px"></div>
   </div>
   <div class="card">
+    <div class="hd"><div class="name"><b>AVISO</b> // faixa vermelha no terminal</div><span id="mpTkSt" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim)"></span></div>
+    <div class="hint">Uma linha por aviso. Aparece em vermelho na base do mapa dos jogadores, na hora. Apagar todas as linhas ou <b>REMOVER AVISO</b> esconde a faixa.</div>
+    <textarea id="mpTk" rows="3" style="width:100%;background:var(--panel2);border:1px solid var(--live-dim);border-radius:4px;color:var(--ink);font-family:inherit;font-size:13px;line-height:1.6;padding:10px 12px;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" id="mpTkOff">REMOVER AVISO</button><button class="btn" id="mpTkDef">RESTAURAR PADRÃO</button></div>
+  </div>
+  <div class="card">
     <div class="hd"><div class="name dim">CADERNO // <b>notas dos jogadores</b></div><button class="btn" id="mpNotesClr">apagar todas</button></div>
     <div id="mpNotes" style="display:flex;flex-direction:column;gap:6px"></div>
   </div>`;
@@ -48,6 +54,10 @@ function init(sessionRef){
       Object.keys(v.files||{}).forEach(k=>{if(v.files[k].level===old)upd['files/'+k+'/level']=nw;});});
     if(Object.keys(upd).length)ref.update(upd);});
 
+  /* faixa de aviso: sem registro = padrao; 'off' = escondida; senao a lista que o Guardiao escreveu */
+  const TK_DEF=['COMM SYNC +7d','L-02 PRESSURE ELEVATED'];
+  const tkList=()=>{const t=ST.ticker;if(t==='off')return [];if(t&&typeof t==='object')return Object.values(t).filter(x=>typeof x==='string'&&x.trim());return TK_DEF;};
+  function drawTicker(){const ta=$('mpTk');if(!ta)return;if(document.activeElement!==ta)ta.value=tkList().join('\n');const off=ST.ticker==='off';$('mpTkOff').classList.toggle('is-on',off);$('mpTkOff').textContent=off?'AVISO REMOVIDO — LIGAR DE NOVO':'REMOVER AVISO';}
   const revRooms=()=>(ST.map&&ST.map.rooms)||{},revCorr=()=>(ST.map&&ST.map.corr)||{};
   /* grava uma revelacao guardando o inverso pra poder desfazer */
   function apply(upd,label){
@@ -175,7 +185,10 @@ function init(sessionRef){
   else $('mpMode').style.display='none';
   if(window.StationLayout&&window.StationProps)window.StationLayout.seedDefaults(sessionRef,S,window.StationProps.items).catch(()=>{});
   /* nao reescreve o painel da sala enquanto o Guardiao digita nele */
-  ref.on('value',snap=>{ST=snap.val()||{};const ae=document.activeElement;if(ae&&$('mpSel')&&$('mpSel').contains(ae)){drawDecks();drawPlan();drawNotes();return;}drawAll();});
+  let tkT;$('mpTk').addEventListener('input',e=>{clearTimeout(tkT);const v=e.target.value;$('mpTkSt').textContent='salvando…';tkT=setTimeout(()=>{const L=v.split('\n').map(x=>x.trim()).filter(Boolean);ref.child('ticker').set(L.length?L:'off').then(()=>{$('mpTkSt').textContent='✓ no ar';setTimeout(()=>{const x=$('mpTkSt');if(x)x.textContent='';},1400);});},450);});
+  $('mpTkOff').addEventListener('click',()=>{if(ST.ticker==='off')ref.child('ticker').remove();else ref.child('ticker').set('off');});
+  $('mpTkDef').addEventListener('click',()=>{ref.child('ticker').remove();$('mpTk').blur();});
+  ref.on('value',snap=>{ST=snap.val()||{};drawTicker();const ae=document.activeElement;if(ae&&$('mpSel')&&$('mpSel').contains(ae)){drawDecks();drawPlan();drawNotes();return;}drawAll();});
   gmRef.on('value',snap=>{GMN=snap.val()||{};if(!sel)return;const ta=$('mpGmNote');if(ta&&document.activeElement!==ta)ta.value=GMN[sel]||'';});
   drawAll();
 }

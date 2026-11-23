@@ -64,6 +64,15 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
    document.getElementById('mpPlan').dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:cx,clientY:cy}));
    document.dispatchEvent(new KeyboardEvent('keydown',{key:'p',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'p'}));await sl(300);
    const p1=data.sessions.x.station.map.pin;ok('tecla P poe o pino onde o mouse esta',p1&&JSON.stringify(p1)!==p0&&p1.deck==='module');}
+  // ---- aviso do terminal ----
+  {const tk=document.getElementById('mpTk');ok('campo do aviso mostra o padrao',/COMM SYNC/.test(tk.value));
+   tk.focus();tk.value='ALARME GERAL\\nTROQUEM DE TURNO';tk.dispatchEvent(new Event('input',{bubbles:true}));await sl(800);
+   ok('aviso editado grava a lista',Array.isArray(data.sessions.x.station.ticker)&&data.sessions.x.station.ticker.length===2&&data.sessions.x.station.ticker[0]==='ALARME GERAL');tk.blur();
+   document.getElementById('mpTkOff').click();await sl(300);
+   ok('remover aviso grava off',data.sessions.x.station.ticker==='off');
+   ok('botao mostra aviso removido',/REMOVIDO/.test(document.getElementById('mpTkOff').textContent));
+   document.getElementById('mpTkOff').click();await sl(300);
+   ok('religar volta ao padrao',data.sessions.x.station.ticker===undefined&&/COMM SYNC/.test(document.getElementById('mpTk').value));}
   // ---- customizador de props ----
   const ev=(t,el,x,y)=>el.dispatchEvent(new PointerEvent(t,{bubbles:true,clientX:x,clientY:y,button:0,pointerId:1}));
   const gp=()=>((data.sessions.x.gm||{}).props)||{},mp=()=>(((data.sessions.x.station||{}).map||{}).props)||{};
