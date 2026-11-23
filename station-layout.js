@@ -41,7 +41,7 @@ function seedDefaults(sessionRef,S,ITEMS){
       if(have[id]||!S.roomIndex[id])return;
       const rec={noeq:D[id].noeq!==false,seed:1,t:Date.now(),items:D[id].items};
       upd['gm/layout/'+id]=rec;n++;
-      if(map.rooms&&map.rooms[id]&&!(map.veil&&map.veil[id])){const u=publishUpd(S,ITEMS,id,rec,true,map.props||{});Object.keys(u).forEach(k=>{upd['station/'+k]=u[k];});}
+      if(map.rooms&&map.rooms[id]&&!map.veilAll){const u=publishUpd(S,ITEMS,id,rec,true,map.props||{});Object.keys(u).forEach(k=>{upd['station/'+k]=u[k];});}
     });
     return n?sessionRef.update(upd).then(()=>n):0;
   });

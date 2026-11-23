@@ -105,18 +105,18 @@ setTimeout(async()=>{
     // tema claro/escuro
     click($('btnTheme'));ok('tema claro liga',document.documentElement.getAttribute('data-theme')==='light'&&/DARK/.test($('themeLbl').textContent));
     click($('btnTheme'));ok('tema escuro volta',document.documentElement.getAttribute('data-theme')==='dark');
-    // sala coberta: so o nome, sem o que tem dentro
+    // mapa coberto: so o nome, sem o que tem dentro
     click(document.querySelector('[data-lvl="module"]'));await sleep(200);
     {const mk=r=>({deck:'module',x:r[0]+r[2]/2,y:r[1]+r[3]/2,rot:0,sc:1,w:1,h:1,ops:[['rc',-.5,-.5,1,1,0,1]],lbl:'',inl:0,txt:0});
      sessionRef.child('station/map/props/pv').set(mk(STATION.roomIndex.md4.r));await sleep(250);
      ok('prop aparece antes de cobrir',!!document.querySelector('#planwrap [data-prop="pv"]'));
      const eq0=document.querySelectorAll('#planwrap svg.cur g[clip-path]').length;
-     sessionRef.child('station/map/veil/md4').set(true);await sleep(300);
+     sessionRef.child('station/map/veilAll').set(true);await sleep(300);
      const sv=document.querySelector('#planwrap svg.cur');
-     ok('sala coberta some com o equipamento',document.querySelectorAll('#planwrap svg.cur g[clip-path]').length===eq0-1);
+     ok('mapa coberto some com o equipamento',document.querySelectorAll('#planwrap svg.cur g[clip-path]').length===0);
      ok('sala coberta some com o prop',!document.querySelector('#planwrap [data-prop="pv"]'));
      ok('sala coberta mostra so o nome',/WELLBAY/i.test(sv.textContent)&&!/350 m²/.test(sv.textContent));
-     sessionRef.child('station/map/veil').set(null);sessionRef.child('station/map/props/pv').set(null);await sleep(250);
+     sessionRef.child('station/map/veilAll').set(null);sessionRef.child('station/map/props/pv').set(null);await sleep(250);
      ok('descobrir volta o conteudo',/350 m²/.test(document.querySelector('#planwrap svg.cur').textContent));}
     // tela cheia, setas trocam de nivel, pino
     ok('botao YOU ARE HERE aparece com pino',!$('btnPin').classList.contains('hid'));

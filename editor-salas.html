@@ -5,9 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EDITOR DE SALAS // Guardião</title>
 <link rel="stylesheet" href="tools/vendor/fonts.css">
+<link rel="stylesheet" href="tools/vendor/fonts-docs.css">
 <style>
   :root{--bg:#101214;--panel:#171a1d;--panel2:#1d2125;--line:#2a3035;--ink:#cdd4d8;--ink-dim:#6a767d;--live:#62e0c4;--live-dim:#2f6f62;--warn:#d8a24a;--danger:#d65a5a;
-    --font:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace}
+    --font:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
   body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:13px;line-height:1.45;overflow:hidden}
@@ -65,14 +66,14 @@
 <script src="firebase-config.js"></script>
 <script src="station-data.js?v=n1"></script>
 <script src="station-eq.js?v=m5"></script>
-<script src="station-render.js?v=n1"></script>
+<script src="station-render.js?v=o1"></script>
 <script src="station-props.js?v=m6"></script>
 <script src="station-props-more.js?v=m6"></script>
 <script src="station-props-rooms.js?v=n1"></script>
 <script src="station-props-gm.local.js"></script>
-<script src="station-layout.js?v=n1"></script>
+<script src="station-layout.js?v=o1"></script>
 <script src="station-layouts.js?v=n1"></script>
-<script src="editor-salas.js?v=m6"></script>
+<script src="editor-salas.js?v=o1"></script>
 <script>
 var _unsubAuth=firebase.auth().onAuthStateChanged(function(u){
   if(!u)return;_unsubAuth();

@@ -42,23 +42,20 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
   // ---- sala coberta (so o nome) e tecla P ----
   document.querySelector('#mpDecks [data-d="module"]').click();await sl(150);
   document.querySelector('[data-room="md2"]').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));await sl(150);
-  ok('botao de cobrir existe na ficha',!!document.getElementById('mpVeil')&&/COBRIR/.test(document.getElementById('mpVeil').textContent));
-  document.getElementById('mpVeil').click();await sl(300);
-  {const m=data.sessions.x.station.map;ok('cobrir revela a sala ja coberta',m.veil&&m.veil.md2===true&&!!m.rooms.md2);
-   ok('sala coberta nao publica o layout',!Object.keys(m.props||{}).some(k=>k.indexOf('L~md2~')===0)&&!(m.noeq||{}).md2);}
-  ok('GM ve o selo COBERTA no mapa',/COBERTA/.test(document.getElementById('mpPlan').textContent));
-  document.getElementById('mpVeil').click();await sl(300);
-  {const m=data.sessions.x.station.map;ok('descobrir apaga o veu',!(m.veil&&m.veil.md2));ok('descobrir publica o layout da sala',Object.keys(m.props||{}).filter(k=>k.indexOf('L~md2~')===0).length===1);}
-  document.getElementById('mpVeilNew').click();await sl(60);
-  document.querySelector('[data-room="md3"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));await sl(300);
-  ok('revelar ja coberta grava o veu junto',data.sessions.x.station.map.rooms.md3&&data.sessions.x.station.map.veil&&data.sessions.x.station.map.veil.md3===true);
-  document.getElementById('mpVeilNew').click();await sl(60);
-  document.getElementById('mpUndo').click();await sl(250);
-  ok('desfazer tira sala e veu',!data.sessions.x.station.map.rooms.md3&&!(data.sessions.x.station.map.veil&&data.sessions.x.station.map.veil.md3));
+  document.querySelector('[data-room="md2"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));await sl(300);
+  ok('botao de cobrir o mapa existe',!!document.getElementById('mpVeilAll')&&/COBRIR O MAPA/.test(document.getElementById('mpVeilAll').textContent));
+  ok('nao ha botao de cobrir por sala',!document.getElementById('mpVeil')&&!document.getElementById('mpVeilNone')&&!document.getElementById('mpVeilNew'));
   document.getElementById('mpVeilAll').click();await sl(300);
-  ok('cobrir salas cobre todas as reveladas do deck',['md0','md1','md4','md2'].filter(k=>data.sessions.x.station.map.rooms[k]).every(k=>data.sessions.x.station.map.veil&&data.sessions.x.station.map.veil[k]));
-  document.getElementById('mpVeilNone').click();await sl(300);
-  ok('descobrir salas limpa o deck',!Object.keys(data.sessions.x.station.map.veil||{}).length);
+  {const m=data.sessions.x.station.map;ok('cobrir grava veilAll',m.veilAll===true);
+   ok('mapa coberto tira os itens publicados',!Object.keys(m.props||{}).some(k=>k.indexOf('L~')===0)&&!Object.keys(m.noeq||{}).some(k=>m.noeq[k]));}
+  ok('GM nao ve selo COBERTA',!/COBERTA/.test(document.getElementById('mpPlan').textContent));
+  ok('botao vira DESCOBRIR',/DESCOBRIR/.test(document.getElementById('mpVeilAll').textContent));
+  document.querySelector('[data-room="md3"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));await sl(300);
+  ok('revelar com o mapa coberto nao publica itens',!!data.sessions.x.station.map.rooms.md3&&!Object.keys(data.sessions.x.station.map.props||{}).some(k=>k.indexOf('L~md3~')===0));
+  document.getElementById('mpUndo').click();await sl(250);
+  ok('desfazer tira a sala',!data.sessions.x.station.map.rooms.md3);
+  document.getElementById('mpVeilAll').click();await sl(300);
+  {const m=data.sessions.x.station.map;ok('descobrir apaga veilAll',!m.veilAll);ok('descobrir publica o layout das salas reveladas',Object.keys(m.props||{}).filter(k=>k.indexOf('L~md2~')===0).length===1);}
   {document.getElementById('tab-mapa').classList.add('active');const sv=document.querySelector('#mpPlan svg'),b=sv.getBoundingClientRect(),cx=b.left+b.width*.55,cy=b.top+b.height*.5;
    const p0=JSON.stringify(data.sessions.x.station.map.pin);
    document.getElementById('mpPlan').dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:cx,clientY:cy}));

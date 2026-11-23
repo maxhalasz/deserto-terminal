@@ -59,7 +59,7 @@ function plan(deck,st,o){
   const ox=padL-bb[0]*px,oy=padT-bb[1]*px,H=Math.ceil(padT+bb[3]*px+botH);
   const X=v=>ox+v*px,Y=v=>oy+v*px,P=m=>m*px;
   const out=deck.outdoor,WE=out?.12:.25;
-  const veiled=r=>!!(st.veil&&st.veil[r.id]);
+  const veiled=r=>!!st.veilAll;
   const showR=r=>st.rooms&&st.rooms[r.id]?'f':(st.ghost?'g':null);
   const showC=c=>st.corr&&st.corr[c.id]?'f':(st.ghost?'g':null);
   const fullRects=[];deck.rooms.forEach(r=>{if(showR(r)==='f')fullRects.push(r.r);});deck.corr.forEach(c=>{if(showC(c)==='f')fullRects.push(c.r);});
@@ -69,7 +69,7 @@ function plan(deck,st,o){
   const ptFull=(x,y)=>deck.corr.some(c=>showC(c)==='f'&&inR(c.r,x,y,.2));
   const ptAny=(x,y)=>deck.corr.some(c=>showC(c)&&inR(c.r,x,y,.2));
   const rect=(r,e,fill,extra)=>`<rect x="${f1(X(r[0]-e))}" y="${f1(Y(r[1]-e))}" width="${f1(P(r[2]+2*e))}" height="${f1(P(r[3]+2*e))}" fill="${fill}" ${extra||''}/>`;
-  let propIds=[];
+  let propIds=[];const LAB={g:'',f:''};
   let h=`<defs>
    <pattern id="${id}g" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0L4 4M4 0L0 4" stroke="${T.grate}" stroke-width=".5"/></pattern>
    <pattern id="${id}z" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="${T.sealBg}"/><rect width="3.2" height="9" fill="${T.amber}" opacity=".5"/></pattern>
@@ -124,12 +124,12 @@ function plan(deck,st,o){
     rooms.forEach(r=>{if(r.cab)s+=windows(r);});
     // equipamento
     if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(st.noeq&&st.noeq[r.id])||veiled(r))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
-    // etiquetas
-    rooms.forEach(r=>{s+=label(r,mode);});
+    // etiquetas (desenhadas depois de tudo, ver LAB)
+    let lab='';rooms.forEach(r=>{lab+=label(r,mode);});
     // codigos de corredor
     if(mode==='f')corrs.forEach(c=>{if(!c.n||c.r[2]*c.r[3]<30)return;const [x,y,w,hh]=c.r,hz=w>=hh;if((hz?w:hh)<14)return;
-      const cx=X(x+w/2),cy=Y(y+hh/2);s+=`<text x="${f1(cx)}" y="${f1(cy+2.6)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="${T.sub}" letter-spacing=".22em" ${hz?'':`transform="rotate(-90 ${f1(cx)} ${f1(cy)})"`} pointer-events="none">${esc(c.n)}</text>`;});
-    return s;
+      const cx=X(x+w/2),cy=Y(y+hh/2);lab+=`<text x="${f1(cx)}" y="${f1(cy+2.6)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="${T.sub}" letter-spacing=".22em" ${hz?'':`transform="rotate(-90 ${f1(cx)} ${f1(cy)})"`} pointer-events="none">${esc(c.n)}</text>`;});
+    LAB[mode]=lab;return s;
   };
   function api(r){const [rx,ry,rw,rh]=r.r,sealed=r.st==='sealed';let o_='';
     const dash=sealed?' stroke-dasharray="3 2"':'';
@@ -190,8 +190,19 @@ function plan(deck,st,o){
     else o_+=leaf(cx-tx*dw/2,cy-ty*dw/2,cx+tx*dw/2,cy+ty*dw/2,dw);
     return o_;
   }
+  /* caixas (px) dos itens publicados que estao dentro da sala: o nome da sala foge delas */
+  function propBoxes(r){
+    if(!st.props||!st.props.length)return [];
+    const out=[];
+    st.props.forEach(p=>{if(p.deck!==deck.id||(p.hidden&&!st.ghost)||!inR(r.r,p.x,p.y,.2))return;
+      const a=(p.rot||0)*Math.PI/180,pw=(p.w||1)*(p.sx||1)*(p.sc||1),ph=(p.h||1)*(p.sy||1)*(p.sc||1);
+      const ex=(Math.abs(pw*Math.cos(a))+Math.abs(ph*Math.sin(a)))/2,ey=(Math.abs(pw*Math.sin(a))+Math.abs(ph*Math.cos(a)))/2;
+      out.push([X(p.x-ex),Y(p.y-ey),P(ex*2),P(ey*2)]);});
+    return out;}
+  const ovA=(a,b)=>Math.max(0,Math.min(a[0]+a[2],b[0]+b[2])-Math.max(a[0],b[0]))*Math.max(0,Math.min(a[1]+a[3],b[1]+b[3])-Math.max(a[1],b[1]));
   function label(r,mode){
     if(out&&r.t==='ext'&&mode!=='f')return '';
+    if(st.noLabel&&st.noLabel[r.id])return '';
     const [x,y,w,hh]=r.r;
     if(veiled(r)&&mode==='f'&&r.t!=='stair'){const nm=r.n.split(' · ').filter((q,i)=>!(i===0&&/^Md+$/.test(q))).join(' · '),wpx=P(w),hpx=P(hh);let fs=Math.max(7.5,Math.min(15,wpx/(nm.length*.58)));let lines=[nm];
       if(nm.length*.58*fs>wpx*.9){const wd=nm.split(' ');const mid=Math.ceil(wd.length/2);lines=wd.length>1?[wd.slice(0,mid).join(' '),wd.slice(mid).join(' ')]:[nm];fs=Math.max(7,Math.min(14,wpx*.9/(Math.max(...lines.map(l=>l.length))*.6)));}
@@ -204,8 +215,24 @@ function plan(deck,st,o){
     let lines=[name];if(name.length*.58*fs>wpx*.94){const alt=name.split(' · ').length>1?name.split(' · '):name.split(' ');if(alt.length>1){const mid=Math.ceil(alt.length/2);lines=[alt.slice(0,mid).join(' '),alt.slice(mid).join(' ')];}
       fs=Math.max(6.6,Math.min(fs*1.2,wpx/(Math.max(...lines.map(l=>l.length))*.6)));}
     const pos=r.lp||(r.eq==='cabins'||w*hh<260?'c':'br');
-    let ax,ay,an;
-    if(pos==='br'){ax=X(x+w)-6;ay=Y(y+hh)-12-(lines.length-1)*(fs+1.6);an='end';}else if(pos==='t'){ax=X(x+w/2);ay=Y(y)+P(2.9);an='middle';}else{ax=X(x+w/2);ay=Y(y+hh/2)-(lines.length-1)*(fs+1)/2;an='middle';}
+    const n1=lines.length,tw=Math.max(...lines.map(l=>l.length),String(area).length+6)*.6*fs,th=n1*(fs+1.6)+8;
+    const cand=[];
+    const at=(p,fx,fy)=>{ // candidatos: p = 'br' | 't' | 'c' | ponto relativo (fx,fy) da sala
+      if(p==='br')return {ax:X(x+w)-6,ay:Y(y+hh)-12-(n1-1)*(fs+1.6),an:'end'};
+      if(p==='t')return {ax:X(x+w/2),ay:Y(y)+P(2.9),an:'middle'};
+      const cx=fx==null?X(x+w/2):X(x+w*fx),cy=fy==null?Y(y+hh/2):Y(y+hh*fy);
+      return {ax:cx,ay:cy-(n1-1)*(fs+1)/2,an:'middle'};};
+    cand.push(at(pos));
+    const boxes=propBoxes(r);
+    let best=cand[0];
+    if(boxes.length){
+      const rb=[X(x)+2,Y(y)+2,P(w)-4,P(hh)-4];
+      const boxOf=c=>[c.an==='end'?c.ax-tw:c.ax-tw/2,c.ay-fs,tw,th];
+      const score=c=>{const b=boxOf(c);let s=boxes.reduce((a,q)=>a+ovA(b,q),0);if(b[0]<rb[0]||b[1]<rb[1]||b[0]+b[2]>rb[0]+rb[2]||b[1]+b[3]>rb[1]+rb[3])s+=1e6;return s;};
+      let bs=score(best);
+      if(bs>0){[at('c'),at('t'),at('br')].concat([[.2,.2],[.5,.2],[.8,.2],[.2,.5],[.8,.5],[.2,.8],[.5,.8],[.8,.8]].map(q=>at('g',q[0],q[1]))).forEach(c=>{const s=score(c);if(s<bs){bs=s;best=c;}});}
+    }
+    const {ax,ay,an}=best;
     const halo=out&&r.t==='ext'?T.deck:T.room;
     let s=`<g pointer-events="none">`;
     lines.forEach((l,i)=>{s+=`<text x="${f1(ax)}" y="${f1(ay+i*(fs+1.6))}" text-anchor="${an}" font-family="Barlow Condensed" font-weight="700" font-size="${f1(fs)}" fill="${T.label}" letter-spacing=".06em" style="text-transform:uppercase" paint-order="stroke" stroke="${halo}" stroke-width="3.2" stroke-linejoin="round">${esc(l)}</text>`;});
@@ -221,8 +248,6 @@ function plan(deck,st,o){
     const list=st.props.filter(p=>p.deck===deck.id&&(st.ghost||inRev(p)));propIds=list.map(p=>p.id);
     if(list.length)h+=`<g class="props"${st.ghost?'':' pointer-events="none"'}>${list.map(p=>propG(p,{px,X,Y,P,pid:id,hit:!!st.ghost})).join('')}</g>`;}
 
-  /* GM: selo nas salas cobertas (os jogadores veem so o nome) */
-  if(st.veilMark)deck.rooms.forEach(r=>{if(showR(r)==='f'&&st.veilMark[r.id]){const x=X(r.r[0])+5,y=Y(r.r[1])+5;h+=`<g pointer-events="none"><rect x="${f1(x)}" y="${f1(y)}" width="44" height="11" fill="${T.amber}"/><text x="${f1(x+22)}" y="${f1(y+8.4)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="9.5" letter-spacing=".12em" fill="${T.youText}">COBERTA</text></g>`;}});
   /* fire doors do firewall */
   (deck.fireDoors||[]).forEach(f=>{if(!(st.ghost?ptAny(f.x,f.y):ptFull(f.x,f.y)))return;
     const x=X(f.x),y=Y(f.y);h+=`<g pointer-events="none"><rect x="${f1(x-P(.2))}" y="${f1(y-P(1.2))}" width="${f1(P(.4))}" height="${f1(P(2.4))}" fill="url(#${id}h)" stroke="${T.wall}" stroke-width="1"/><text x="${f1(x+P(1.2))}" y="${f1(y-P(1.5))}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.label}" paint-order="stroke" stroke="${T.corr}" stroke-width="2.4">${f.id}</text></g>`;});
@@ -240,6 +265,9 @@ function plan(deck,st,o){
   /* cameras */
   if(st.showCams)(deck.cams||[]).forEach(c=>{if(!(st.camsOn&&st.camsOn[c.id]))return;const vis=c.room?(st.rooms&&st.rooms[c.room]):(st.corr&&st.corr[c.corr]);if(!vis&&!st.ghost)return;
     const x=X(c.x),y=Y(c.y);h+=`<g pointer-events="none"><rect x="${f1(x-9)}" y="${f1(y-7)}" width="18" height="14" fill="${T.room}" stroke="${T.amber}" stroke-width="1.3"/><path d="M${f1(x-5)} ${f1(y-3)}h7v6h-7zM${f1(x+2)} ${f1(y-1)}l4 -2v6l-4 -2z" fill="none" stroke="${T.amber}"/><text x="${f1(x)}" y="${f1(y+18)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.8" fill="${T.amber}" paint-order="stroke" stroke="${T.corr}" stroke-width="2.4">${c.id.toUpperCase().replace('CAM','CAM-')}</text></g>`;});
+  /* nomes das salas: sempre por cima do conteudo */
+  if(st.ghost&&LAB.g)h+=`<g opacity=".32">${LAB.g}</g>`;
+  h+=LAB.f;
   /* selecao */
   if(st.sel){const r=deck.rooms.find(q=>q.id===st.sel);if(r&&(showR(r))){const x=X(r.r[0]),y=Y(r.r[1]),w=P(r.r[2]),hh=P(r.r[3]),k=Math.min(13,w/3,hh/3);
     h+=`<g stroke="${T.sel}" fill="none" stroke-width="2.4" pointer-events="none"><path d="M${f1(x-6)} ${f1(y+k)}V${f1(y-6)}H${f1(x+k)}M${f1(x+w+6)} ${f1(y+k)}V${f1(y-6)}H${f1(x+w-k)}M${f1(x-6)} ${f1(y+hh-k)}V${f1(y+hh+6)}H${f1(x+k)}M${f1(x+w+6)} ${f1(y+hh-k)}V${f1(y+hh+6)}H${f1(x+w-k)}"/></g>`;}}
