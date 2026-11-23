@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NEUROSTAT // PLATFORM SYSTEMS</title>
+<title>KELVARA // PLATFORM SYSTEMS</title>
 <link rel="stylesheet" href="tools/vendor/fonts.css">
 <link rel="stylesheet" href="tools/vendor/fonts-docs.css">
-<link rel="stylesheet" href="station.css?v=m4">
+<link rel="stylesheet" href="station.css?v=n1">
 </head>
 <body>
 <div id="scene">
@@ -19,7 +19,7 @@
       <div id="standby">
         <div class="dot"></div>
         <div class="msg">AWAITING UPLINK</div>
-        <div class="sub">neurostat platform systems &nbsp;//&nbsp; node idle</div>
+        <div class="sub">kelvara petrochemicals as &nbsp;//&nbsp; node idle</div>
       </div>
 
       <div id="camfeed">
@@ -33,10 +33,10 @@
 
       <div id="terminal">
         <div class="hdr">
-          <div class="logo">N</div>
-          <div class="brand"><b>NEUROSTAT</b><span>PLATFORM SYSTEMS</span></div>
-          <div class="cell">UNIT<b>NS-7734 / SEC A-4</b></div>
-          <div class="cell">NODE<b>STATION-MAP</b></div>
+          <div class="logo">K</div>
+          <div class="brand"><b>KELVARA</b><span>PETROCHEMICALS AS</span></div>
+          <div class="cell">INSTALLATION<b>ØDEMARK A.</b></div>
+          <div class="cell">SYSTEM<b>STATION-MAP</b></div>
           <div class="sp"></div>
           <div class="cell" id="barcode" style="border-left:1px solid var(--line2)"></div>
           <div class="cell" style="border-right:none">REV<b>4.4 · 2029</b></div>
@@ -44,24 +44,28 @@
         <div class="tabs2">
           <div class="tab2 on" data-tab="map"><kbd>F1</kbd>MAP</div>
           <div class="tab2" data-tab="cams"><kbd>F2</kbd>CAMERAS</div>
+          <div class="tabsp"></div>
+          <div class="tabx right" id="btnTheme" title="Alterna entre modo escuro e claro">◐ <b id="themeLbl">LIGHT</b></div>
         </div>
 
         <!-- ===== MAP ===== -->
         <div class="stage2" id="view-map">
           <div class="colL">
             <div class="cap"><span>VERTICAL STACK</span><b id="stackcount">—</b></div>
-            <svg id="stack" width="258" height="672" viewBox="0 0 298 776" xmlns="http://www.w3.org/2000/svg"></svg>
+            <svg id="stack" width="298" height="776" viewBox="0 0 298 776" xmlns="http://www.w3.org/2000/svg"></svg>
           </div>
           <div class="center" id="center">
             <div class="topbar">
               <div style="display:flex;gap:10px;align-items:center">
                 <div class="tg"><span class="on">STRUCTURE</span><span class="dis">POWER</span><span class="dis">VENT</span><span class="btn" id="btnCctv">CCTV</span></div>
-                <div class="tg"><span class="btn" id="zOut">−</span><span class="btn" id="zFit">FIT</span><span class="btn" id="zIn">+</span></div>
+                <div class="tg"><span class="btn" id="zOut">−</span><span class="btn" id="zFit">FIT</span><span class="btn" id="zIn">+</span><span class="btn" id="zRoom" title="Zoom na sala selecionada (Z)">ROOM</span></div>
+                <div class="tg"><span class="btn hid" id="btnPin" title="Leva a vista até o pino VOCÊ ESTÁ AQUI (H)">⌖ YOU ARE HERE</span><span class="btn" id="btnFull" title="Mapa em tela cheia (F). Setas ↑ ↓ trocam de nível">⛶ FULL</span></div>
               </div>
               <div id="topinfo" style="font-size:10px;letter-spacing:.2em;color:var(--ink-dim)"></div>
             </div>
             <div id="planwrap"></div>
-            <div id="recstrip"><span class="lbl">ROOM</span><b id="recName">—</b><span id="recStat" class="stat"></span><span class="sp"></span><span class="key" id="planKey"></span></div>
+            <div id="recstrip"><span class="lbl">ROOM</span><b id="recName">—</b><span class="sp"></span><span class="key" id="planKey"></span></div>
+            <div id="recdesc"></div>
             <div class="tick" id="ticker"></div>
           </div>
         </div>
@@ -79,13 +83,13 @@
 
       <div class="roll"></div><div class="vig2"></div><div class="lines"></div><div class="grain" id="grain"></div><div class="glare"></div><div class="dust"></div>
     </div>
-    <div class="plateB"><span><i class="led"></i>NEUROSTAT · NS-7734</span><span class="vent" id="vent"></span><span>PLATFORM SYSTEMS</span></div>
+    <div class="plateB"><span><i class="led"></i>KELVARA · ØDEMARK A.</span><span class="vent" id="vent"></span><span>PLATFORM SYSTEMS</span></div>
   </div>
 
   <!-- CADERNO NA MESA -->
   <div class="rcol" id="notes">
     <div class="ncard" id="ncard"></div>
-    <div class="ntools"><span class="on" id="nmShared">SHARED</span><span id="nmMine">MINE</span><span class="cnt" id="ncount"></span></div>
+    <div class="ntools"><span class="on" id="nmShared">SHARED</span><span class="cnt" id="ncount"></span></div>
     <div class="nb">
       <div class="rings"></div>
       <div class="hd"><span>FIELD NOTEBOOK</span><span id="nbSub">shared with team</span></div>
@@ -100,10 +104,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="firebase-config.js"></script>
-<script src="station-data.js?v=m4"></script>
+<script src="station-data.js?v=n1"></script>
 <script src="station-eq.js?v=m5"></script>
-<script src="station-render.js?v=m6"></script>
-<script src="station-app.js?v=m6"></script>
+<script src="station-render.js?v=n1"></script>
+<script src="station-app.js?v=n1"></script>
 <script>
 var _unsubAuth = firebase.auth().onAuthStateChanged(function(_authUser){
   if(!_authUser) return;

@@ -13,19 +13,20 @@ const norm=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(
 function init(sessionRef){
   const ref=sessionRef.child('station'),gmRef=sessionRef.child('gm/mapnotes');
   const root=document.getElementById('tab-mapa');if(!root)return;
-  let ST={},deck='module',sel=null,pinMode=false,neigh=true,GMN={},lastP=null;
+  let ST={},deck='module',sel=null,pinMode=false,neigh=true,GMN={},lastP=null,veilNew=false,mouse=null;
+  try{veilNew=localStorage.getItem('deserto:veilNew')==='1';}catch(e){}
   const hist=[]; // pilha de desfazer: {label, inv}
 
   root.innerHTML=`
   <div class="card">
     <div class="hd"><div class="name"><b>MAPA</b> // revelação</div><div style="display:flex;gap:8px;align-items:center"><button class="btn" id="mpUndo" disabled style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">↶ DESFAZER</button><div class="power" id="mpPin"><span class="led"></span><span id="mpPinTxt">POSICIONAR PINO</span></div></div></div>
     <div class="hint">Clique numa <b>sala</b> ou <b>corredor</b> pra revelar ou ocultar pros jogadores. Revelar sala também revela o corredor onde ela abre (desligue abaixo).
-      <b>Shift+clique</b> só seleciona, sem mudar nada. Salas apagadas no desenho ainda não foram reveladas; o que está sólido eles já veem. <b>Ctrl+Z</b> desfaz a última revelação.</div>
+      <b>Shift+clique</b> só seleciona, sem mudar nada. <b>P</b> coloca o pino "você está aqui" onde o mouse estiver. Salas apagadas no desenho ainda não foram reveladas; o que está sólido eles já veem. <b>Ctrl+Z</b> desfaz a última revelação.</div>
     <div id="mpDecks" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;position:relative">
-      <a class="btn" href="editor-salas.html" target="_blank" title="Abre o editor de salas (monta o interior de cada sala e salva sozinho)" style="text-decoration:none">EDITOR DE SALAS ↗</a><button class="btn" id="mpMode" title="Alterna entre revelar o mapa e customizar as salas com props">MODO: REVELAR</button><button class="btn" id="mpAll">REVELAR DECK INTEIRO</button><button class="btn" id="mpNone">OCULTAR DECK</button><button class="btn" id="mpPinClr">TIRAR PINO</button>
+      <a class="btn" href="editor-salas.html" target="_blank" title="Abre o editor de salas (monta o interior de cada sala e salva sozinho)" style="text-decoration:none">EDITOR DE SALAS ↗</a><button class="btn" id="mpMode" title="Alterna entre revelar o mapa e customizar as salas com props">MODO: REVELAR</button><button class="btn" id="mpAll">REVELAR DECK INTEIRO</button><button class="btn" id="mpNone">OCULTAR DECK</button><button class="btn" id="mpVeilAll" title="Cobre o conteúdo de todas as salas reveladas deste deck">COBRIR SALAS</button><button class="btn" id="mpVeilNone">DESCOBRIR SALAS</button><button class="btn" id="mpPinClr">TIRAR PINO</button>
       <input id="mpSearch" type="text" placeholder="buscar sala (nome ou código)…" autocomplete="off" style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:12px;padding:7px 10px">
-      <label style="font-size:11px;color:var(--ink-dim);letter-spacing:.06em;display:flex;gap:6px;align-items:center"><input type="checkbox" id="mpNeigh" checked> corredor vizinho junto</label>
+      <label style="font-size:11px;color:var(--ink-dim);letter-spacing:.06em;display:flex;gap:6px;align-items:center"><input type="checkbox" id="mpNeigh" checked> corredor vizinho junto</label><label style="font-size:11px;color:var(--ink-dim);letter-spacing:.06em;display:flex;gap:6px;align-items:center" title="Salas reveladas daqui pra frente aparecem só com o nome; você descobre o conteúdo quando quiser"><input type="checkbox" id="mpVeilNew"> revelar já coberta</label>
       <div id="mpResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--panel2);border:1px solid var(--live-dim);border-radius:4px;max-height:260px;overflow:auto"></div>
     </div>
     <div id="mpPlan" style="border:1px solid var(--line);background:#d9d6ca;line-height:0;overflow:auto"></div>
@@ -51,7 +52,7 @@ function init(sessionRef){
   /* grava uma revelacao guardando o inverso pra poder desfazer */
   function apply(upd,label){
     const inv={};
-    Object.keys(upd).forEach(p=>{const m=p.match(/^map\/(rooms|corr|props|noeq)\/(.+)$/);if(!m)return;const cur=((ST.map&&ST.map[m[1]])||{})[m[2]];inv[p]=cur===undefined?null:cur;});
+    Object.keys(upd).forEach(p=>{const m=p.match(/^map\/(rooms|corr|props|noeq|veil)\/(.+)$/);if(!m)return;const cur=((ST.map&&ST.map[m[1]])||{})[m[2]];inv[p]=cur===undefined?null:cur;});
     if(Object.keys(inv).length){hist.push({label,inv});if(hist.length>60)hist.shift();}
     ref.update(upd);drawUndo();
   }
@@ -63,12 +64,22 @@ function init(sessionRef){
       const p=s==='n'?[x+w*t,y-.7]:s==='s'?[x+w*t,y+h+.7]:s==='w'?[x-.7,y+h*t]:[x+w+.7,y+h*t];
       const c=d.corr.find(c=>p[0]>c.r[0]&&p[0]<c.r[0]+c.r[2]&&p[1]>c.r[1]&&p[1]<c.r[1]+c.r[3]);if(c)out.push(c.id);});
     return out;}
-  const layUpd=(id,on,upd)=>{if(PR)Object.assign(upd,PR.layoutUpd(id,on));};
-  function roomUpd(id,upd){const r=S.roomIndex[id];if(!revRooms()[id]){upd['map/rooms/'+id]={at:Date.now()};layUpd(id,true,upd);if(neigh)corrOfDoors(r).forEach(c=>{if(!revCorr()[c])upd['map/corr/'+c]=true;});}return upd;}
+  const veilOf=()=>(ST.map&&ST.map.veil)||{};
+  const layUpd=(id,on,upd,vl)=>{if(PR)Object.assign(upd,PR.layoutUpd(id,on,vl));};
+  /* revela uma sala: ja coberta se a opcao estiver ligada */
+  function revealKeys(id,upd){upd['map/rooms/'+id]={at:Date.now()};if(veilNew){upd['map/veil/'+id]=true;layUpd(id,false,upd,true);}else layUpd(id,true,upd);}
+  function roomUpd(id,upd){const r=S.roomIndex[id];if(!revRooms()[id]){revealKeys(id,upd);if(neigh)corrOfDoors(r).forEach(c=>{if(!revCorr()[c])upd['map/corr/'+c]=true;});}return upd;}
   function toggleRoom(id){
     const r=S.roomIndex[id],on=!!revRooms()[id],upd={};
-    if(on){upd['map/rooms/'+id]=null;layUpd(id,false,upd);}else roomUpd(id,upd);
+    if(on){upd['map/rooms/'+id]=null;upd['map/veil/'+id]=null;layUpd(id,false,upd);}else roomUpd(id,upd);
     apply(upd,(on?'ocultou ':'revelou ')+r.n);}
+  function toggleVeil(id){const r=S.roomIndex[id],v=!!veilOf()[id],upd={};
+    if(!v){upd['map/veil/'+id]=true;if(!revRooms()[id]){upd['map/rooms/'+id]={at:Date.now()};if(neigh)corrOfDoors(r).forEach(c=>{if(!revCorr()[c])upd['map/corr/'+c]=true;});}layUpd(id,false,upd,true);}
+    else{upd['map/veil/'+id]=null;if(revRooms()[id])layUpd(id,true,upd,false);}
+    apply(upd,(v?'descobriu o conteúdo de ':'cobriu o conteúdo de ')+r.n);}
+  function veilDeck(on){const d=S.DECKS[deck],upd={};
+    d.rooms.forEach(r=>{if(!revRooms()[r.id])return;const v=!!veilOf()[r.id];if(on&&!v){upd['map/veil/'+r.id]=true;layUpd(r.id,false,upd,true);}else if(!on&&v){upd['map/veil/'+r.id]=null;layUpd(r.id,true,upd,false);}});
+    if(Object.keys(upd).length)apply(upd,(on?'cobriu':'descobriu')+' o conteúdo do deck');}
   function toggleCorr(id){const c=S.corrIndex[id],ids=c&&c.g?S.DECKS[c.deck].corr.filter(x=>x.g===c.g).map(x=>x.id):[id],on=!!revCorr()[id],upd={};ids.forEach(k=>{upd['map/corr/'+k]=on?null:true;});apply(upd,(on?'ocultou ':'revelou ')+'corredor '+(c.n||c.id));}
 
   const curDesc=r=>{const d=ST.map&&ST.map.desc;return d&&typeof d[r.id]==='string'&&d[r.id].trim()?d[r.id]:(r.pub||'');};
@@ -81,7 +92,7 @@ function init(sessionRef){
   function drawPlan(){
     const d=S.DECKS[deck],pin=ST.map&&ST.map.pin;
     if(PR&&PR.dragging())return;
-    const st={rooms:revRooms(),corr:revCorr(),ghost:true,pin:pin&&pin.deck===deck?pin:null,sel,showCams:true,camsOn:camsOn(),props:PR?PR.list(deck):null};
+    const st={rooms:revRooms(),corr:revCorr(),ghost:true,pin:pin&&pin.deck===deck?pin:null,sel,showCams:true,camsOn:camsOn(),props:PR?PR.list(deck):null,veilMark:veilOf()};
     const p=R.plan(d,st,{W:PR&&PR.active()?PR.width():800,maxH:PR&&PR.active()?99999:560,id:'gm'});lastP=p;$('mpPlan').innerHTML=p.svg;
     $('mpPlan').querySelectorAll('[data-room],[data-corr]').forEach(e=>{e.style.cursor=pinMode?'crosshair':(PR&&PR.active()?(PR.armed()?'copy':'default'):'pointer');});
   }
@@ -94,7 +105,7 @@ function init(sessionRef){
     box.innerHTML=`
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
       <div style="font-size:14px;color:var(--ink)">${esc(r.n)} <span style="font-size:10px;color:var(--ink-dim);letter-spacing:.1em">${esc(r.id)} · ${Math.round(r.r[2]*r.r[3])} m² · ${esc(S.DECKS[r.deck].lvl)}</span></div>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span id="mpFocusSt" style="font-size:10px;color:var(--live);letter-spacing:.1em"></span><button class="btn" id="mpFocus" title="Revela a sala (se estiver oculta) e leva a atenção de todos os terminais até ela, com um pulso">DESTACAR PRA MESA</button><button class="btn lock${on?' is-on':''}" id="mpTog">${on?'REVELADA — OCULTAR':'OCULTA — REVELAR'}</button></div></div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span id="mpFocusSt" style="font-size:10px;color:var(--live);letter-spacing:.1em"></span><button class="btn" id="mpFocus" title="Revela a sala (se estiver oculta) e leva a atenção de todos os terminais até ela, com um pulso">DESTACAR PRA MESA</button><button class="btn${veilOf()[sel]?' is-on':''}" id="mpVeil" title="Coberta: os jogadores veem a sala com só o nome centralizado, sem o que tem dentro">${veilOf()[sel]?'CONTEÚDO COBERTO — DESCOBRIR':'COBRIR CONTEÚDO'}</button><button class="btn lock${on?' is-on':''}" id="mpTog">${on?'REVELADA — OCULTAR':'OCULTA — REVELAR'}</button></div></div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:5px"><div style="font-size:10px;letter-spacing:.2em;color:var(--ink-dim)">O QUE OS JOGADORES LEEM <span style="color:var(--live)">· edita ao vivo</span></div><span id="mpDescSt" style="font-size:10px;letter-spacing:.1em;color:var(--ink-dim);margin-left:auto"></span><button class="btn" id="mpDescRst" style="padding:3px 9px;font-size:10px">restaurar padrão</button></div>
     <textarea id="mpDesc" style="width:100%;min-height:96px;background:var(--panel2);border:1px solid var(--live-dim);border-radius:4px;color:var(--ink);font-family:inherit;font-size:13px;line-height:1.6;padding:10px 12px;resize:vertical;margin-bottom:12px">${esc(curDesc(r))}</textarea>
     <div style="font-size:10px;letter-spacing:.2em;color:${g&&g.p?'var(--live)':'var(--ink-dim)'};margin-bottom:5px">DESCRIÇÃO DO GUARDIÃO ${g?(g.p?'· PARADA DO TOUR':'· SÓ PASSA NA FRENTE'):''}</div>
@@ -102,6 +113,7 @@ function init(sessionRef){
     <div style="font-size:10px;letter-spacing:.2em;color:var(--ink-dim);margin-bottom:5px">SUAS NOTAS (só você vê)</div>
     <textarea id="mpGmNote" style="width:100%;min-height:80px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:13px;padding:8px 10px;resize:vertical" placeholder="Props, quem está aqui, o que muda por ato.">${esc(GMN[sel]||'')}</textarea>`;
     $('mpTog').addEventListener('click',()=>toggleRoom(sel));
+    $('mpVeil').addEventListener('click',()=>toggleVeil(sel));
     $('mpFocus').addEventListener('click',()=>{const id=sel,upd={};if(!revRooms()[id])roomUpd(id,upd);upd['map/focus']={room:id,at:Date.now()};
       const revealing=!!upd['map/rooms/'+id];if(revealing)apply(Object.assign({},upd),'revelou e destacou '+S.roomIndex[id].n);else ref.update(upd);
       $('mpFocusSt').textContent='✓ na tela da mesa';setTimeout(()=>{const x=$('mpFocusSt');if(x)x.textContent='';},2200);});
@@ -139,10 +151,17 @@ function init(sessionRef){
     else {sel=null;drawAll();}
     if(room)drawSel();});
   $('mpPin').addEventListener('click',()=>{pinMode=!pinMode;drawAll();});
+  function pinAt(cx,cy){const svg=$('mpPlan').querySelector('svg');if(!svg||!lastP)return false;const b=svg.getBoundingClientRect();if(cx<b.left||cx>b.right||cy<b.top||cy>b.bottom)return false;
+    const k=lastP.w/b.width,[x,y]=lastP.toDeck((cx-b.left)*k,(cy-b.top)*k);ref.child('map/pin').set({deck,x:Math.round(x*10)/10,y:Math.round(y*10)/10,at:Date.now()});return true;}
+  $('mpPlan').addEventListener('mousemove',e=>{mouse={x:e.clientX,y:e.clientY};});$('mpPlan').addEventListener('mouseleave',()=>{mouse=null;});
+  addEventListener('keydown',e=>{if((e.key==='p'||e.key==='P')&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&root.classList.contains('active')&&!(e.target&&/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))){
+    e.preventDefault();if(mouse&&pinAt(mouse.x,mouse.y)){const t=$('mpPinTxt');t.textContent='PINO POSICIONADO ✓';setTimeout(()=>{if($('mpPinTxt'))$('mpPinTxt').textContent=pinMode?'CLIQUE NO MAPA…':'POSICIONAR PINO';},1400);}else{pinMode=!pinMode;drawAll();}}});
   $('mpPinClr').addEventListener('click',()=>ref.child('map/pin').remove());
   $('mpNeigh').addEventListener('change',e=>{neigh=e.target.checked;});
-  $('mpAll').addEventListener('click',()=>{const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(!revRooms()[r.id]){upd['map/rooms/'+r.id]={at:Date.now()};layUpd(r.id,true,upd);}});d.corr.forEach(c=>{if(!revCorr()[c.id])upd['map/corr/'+c.id]=true;});apply(upd,'revelou o deck inteiro');});
-  $('mpNone').addEventListener('click',()=>{if(!confirm('Ocultar todo o deck dos jogadores? (dá pra desfazer com Ctrl+Z)'))return;const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(revRooms()[r.id]){upd['map/rooms/'+r.id]=null;layUpd(r.id,false,upd);}});d.corr.forEach(c=>{if(revCorr()[c.id])upd['map/corr/'+c.id]=null;});apply(upd,'ocultou o deck');});
+  $('mpVeilNew').checked=veilNew;$('mpVeilNew').addEventListener('change',e=>{veilNew=e.target.checked;try{localStorage.setItem('deserto:veilNew',veilNew?'1':'0');}catch(x){}});
+  $('mpVeilAll').addEventListener('click',()=>veilDeck(true));$('mpVeilNone').addEventListener('click',()=>veilDeck(false));
+  $('mpAll').addEventListener('click',()=>{const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(!revRooms()[r.id])revealKeys(r.id,upd);});d.corr.forEach(c=>{if(!revCorr()[c.id])upd['map/corr/'+c.id]=true;});apply(upd,'revelou o deck inteiro');});
+  $('mpNone').addEventListener('click',()=>{if(!confirm('Ocultar todo o deck dos jogadores? (dá pra desfazer com Ctrl+Z)'))return;const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(revRooms()[r.id]){upd['map/rooms/'+r.id]=null;upd['map/veil/'+r.id]=null;layUpd(r.id,false,upd);}});d.corr.forEach(c=>{if(revCorr()[c.id])upd['map/corr/'+c.id]=null;});apply(upd,'ocultou o deck');});
   $('mpUndo').addEventListener('click',undo);
   addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&root.classList.contains('active')&&!(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))){e.preventDefault();undo();}});
   $('mpSearch').addEventListener('input',e=>search(e.target.value));
@@ -154,6 +173,7 @@ function init(sessionRef){
   if(window.GuardiaoProps){PR=window.GuardiaoProps.create({sessionRef,S,R,$,getDeck:()=>deck,getST:()=>ST,getLastP:()=>lastP,redraw:drawPlan,pushHist});PR.bind();
     $('mpMode').addEventListener('click',()=>{const on=!PR.active();PR.setActive(on);$('mpPlan').style.maxHeight=on?'640px':'';$('mpMode').textContent=on?'MODO: PROPS':'MODO: REVELAR';$('mpMode').classList.toggle('is-on',on);$('mpSel').style.display=on?'none':'';drawPlan();});}
   else $('mpMode').style.display='none';
+  if(window.StationLayout&&window.StationProps)window.StationLayout.seedDefaults(sessionRef,S,window.StationProps.items).catch(()=>{});
   /* nao reescreve o painel da sala enquanto o Guardiao digita nele */
   ref.on('value',snap=>{ST=snap.val()||{};const ae=document.activeElement;if(ae&&$('mpSel')&&$('mpSel').contains(ae)){drawDecks();drawPlan();drawNotes();return;}drawAll();});
   gmRef.on('value',snap=>{GMN=snap.val()||{};if(!sel)return;const ta=$('mpGmNote');if(ta&&document.activeElement!==ta)ta.value=GMN[sel]||'';});

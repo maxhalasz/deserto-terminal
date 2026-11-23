@@ -6,18 +6,18 @@
 (function(){
 const S=window.STATION,R=window.StationRender;
 const CAM_DURATION=6000,CAM_COOLDOWN=60000;
-const PW=850,PH=664; // tamanho do painel do mapa
+let PW=810,PH=664; // tamanho do painel do mapa (medido do DOM: muda em tela cheia)
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:v;}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,v);}catch(e){}}};
 const REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+let theme='dark',fullMode=false,apiFull=false;
 let ref=null,STATE={},curDeck=null,selRoom=null,notesMode='shared',showCams=false,lastLq='lqC',view=null,viewKey='',plan=null,dragMoved=false;
 let prevRev=null,lastPlanDeck='',seenNotes=null,cardKey='',typeTok=0,lastPinKey='';
 let prevProps=null,lastSig={stack:'',plan:'',notes:''},focusToken='',focusPulsed='',lastFocusAt=0,viewAnim=0,wasOnline=null,forceFit=false;
 const pointers=new Map();let pinch=null;
 const ME=(()=>{let v=LS.get('deserto:op');if(!v){v='OP-'+Math.random().toString(36).slice(2,5).toUpperCase();LS.set('deserto:op',v);}return v;})();
-let minePrefs=[];try{minePrefs=JSON.parse(LS.get('deserto:notes','[]'));}catch(e){}
 
 /* ---------- niveis / decks ---------- */
 const unlockedMap=()=>STATE.unlocked||{};
@@ -40,41 +40,66 @@ function activeDeck(){
   const cand=S.LEVELS.filter(l=>isUnlocked(l.id)).sort((x,y)=>(cnt[y.id]||0)-(cnt[x.id]||0));return cand.length?defaultDeck(cand[0].id):null;
 }
 
-/* ---------- stack isometrico ---------- */
+/* ---------- pilha isométrica: a plataforma vista de cima/diagonal, com a torre de alojamento ao lado ---------- */
+const LQ_ELEV={lqE:58,lqD:54,lqC:50,lqB:46,lqA:42},PL_ELEV={weather:52,module:40,cellar:28};
 function stackSVG(active){
-  const s=1.4,cx=148,TH=8,LIVE='#79c9b5',SP=186,Y0=44;
-  const P=(x,y,cy)=>[cx+(x-y)*s*.866,cy+(x+y)*s*.5];
+  const s=1.25,PCX=166,LCX=66,TH=8,Y0=130,PM=14.5,WL=20;
+  const P=(x,y,cy,cx)=>[cx+(x-y)*s*.866,cy+(x+y)*s*.5];
   const ps=pts=>pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
-  const lvlActive=active?levelOfDeck(active):null;
+  const yOf=e=>Y0+(52-e)*PM;
+  const lvlActive=active?levelOfDeck(active):null,qu=isUnlocked('quarters'),pin=mapState().pin;
   const rr=revRooms(),rc=revCorr();
-  const norm=(d,x,y)=>[(x-d.bbox[0])/d.bbox[2]*114,(y-d.bbox[1])/d.bbox[3]*55];
-  const rectPoly=(d,r,cy)=>[[r[0],r[1]],[r[0]+r[2],r[1]],[r[0]+r[2],r[1]+r[3]],[r[0],r[1]+r[3]]].map(q=>{const n=norm(d,q[0],q[1]);return P(n[0],n[1],cy);});
-  const ys=[0,1,2].map(i=>Y0+i*SP);
+  const nrm=(d,x,y,W,H)=>[(x-d.bbox[0])/d.bbox[2]*W,(y-d.bbox[1])/d.bbox[3]*H];
+  const poly=(d,r,cy,cx,W,H)=>[[r[0],r[1]],[r[0]+r[2],r[1]],[r[0]+r[2],r[1]+r[3]],[r[0],r[1]+r[3]]].map(q=>{const n=nrm(d,q[0],q[1],W,H);return P(n[0],n[1],cy,cx);});
+  const slab=(d,cy,cx,W,H,sel,unl,rev)=>{
+    const c=[[0,0],[W,0],[W,H],[0,H]].map(q=>P(q[0],q[1],cy,cx)),t=TH;
+    let g=`<polygon class="sk-s1" points="${ps([c[3],c[2],[c[2][0],c[2][1]+t],[c[3][0],c[3][1]+t]])}"/><polygon class="sk-s2" points="${ps([c[1],c[2],[c[2][0],c[2][1]+t],[c[1][0],c[1][1]+t]])}"/><polygon class="sk-top" points="${ps(c)}"/>`;
+    if(unl&&rev){d.corr.forEach(co=>{if(rc[co.id])g+=`<polygon class="sk-co" points="${ps(poly(d,co.r,cy,cx,W,H))}"/>`;});
+      d.rooms.forEach(ro=>{if(rr[ro.id])g+=`<polygon class="sk-ro${ro.t==='off'?' off':''}" points="${ps(poly(d,ro.r,cy,cx,W,H))}"/>`;});}
+    return g;};
   let h='';
-  [[0,0],[114,0],[114,55],[0,55]].forEach(([x,y])=>{const a=P(x,y,ys[0]),b=P(x,y,ys[2]);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#22373b" stroke-dasharray="3 5"/>`;});
-  [[38,27],[86,27]].forEach(([x,y])=>{const a=P(x,y,ys[0]),b=P(x,y,ys[2]);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${LIVE}" stroke-width="1.2" opacity=".55"/>`;[0,1,2].forEach(i=>{const q=P(x,y,ys[i]);h+=`<rect x="${q[0]-2.6}" y="${q[1]-2.6}" width="5.2" height="5.2" fill="${LIVE}" opacity=".8"/>`;});});
-  ['weather','module','cellar'].forEach((lvl,i)=>{
-    const lv=S.LEVELS.find(l=>l.id===lvl),sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=ys[i],d=S.DECKS[lvl];
-    const c=[[0,0],[114,0],[114,55],[0,55]].map(q=>P(q[0],q[1],cy));
-    const top=sel?'#2a3b40':'#1b282c',s1=sel?'#16242a':'#111b1f',s2=sel?'#111d21':'#0e1619',ed=sel?LIVE:(unl?'#3b585d':'#26363a');
-    let g=`<g data-lvl="${lvl}" class="${unl?'on':'lock'}" opacity="${unl?1:.5}">`;
-    g+=`<polygon points="${ps([c[3],c[2],[c[2][0],c[2][1]+TH],[c[3][0],c[3][1]+TH]])}" fill="${s1}" stroke="${ed}"/><polygon points="${ps([c[1],c[2],[c[2][0],c[2][1]+TH],[c[1][0],c[1][1]+TH]])}" fill="${s2}" stroke="${ed}"/><polygon points="${ps(c)}" fill="${top}" stroke="${ed}" stroke-width="${sel?1.6:1}" ${unl?'':'stroke-dasharray="4 4"'}/>`;
-    if(unl){
-      d.corr.forEach(co=>{if(rc[co.id])g+=`<polygon class="sx" points="${ps(rectPoly(d,co.r,cy))}" fill="${co.open?'#1a2a2d':'#0f191d'}"/>`;});
-      d.rooms.forEach(ro=>{if(rr[ro.id]){const off=ro.t==='off';g+=`<polygon class="sx" points="${ps(rectPoly(d,ro.r,cy))}" fill="${off?'#3a3118':(sel?'#3b5359':'#2b3e43')}" stroke="${off?'#d0a24f':'#8fb5ae'}" stroke-width=".8"/>`;}});
-    }
-    const y=cy+34;
-    g+=`<rect x="10" y="${y}" width="66" height="46" fill="${sel?LIVE:'#18252a'}" stroke="${sel?LIVE:'#3b585d'}"/><text x="17" y="${y+15}" font-family="IBM Plex Mono" font-size="10" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.tag}</text><text x="17" y="${y+28}" font-family="Barlow Condensed" font-weight="700" font-size="11.5" fill="${sel?'#07110f':'#8aa8a4'}" letter-spacing=".1em">${lv.name.split(' ')[0].toUpperCase()}</text><text x="17" y="${y+40}" font-family="IBM Plex Mono" font-size="8.5" fill="${sel?'#07110f':'#5f7d80'}">${unl?lv.elev:'LOCKED'}</text>`;
-    if(sel){const a=P(114,27.5,cy);g+=`<path d="M${a[0]+10} ${a[1]}l12 -8v16z" fill="${LIVE}"/>`;}
+  /* plano do mar */
+  const wy=yOf(WL),wc=[[0,0],[114,0],[114,55],[0,55]].map(q=>P(q[0],q[1],wy,PCX));
+  h+=`<polygon points="${ps(wc)}" class="sk-sea"/><text x="${wc[2][0]-4}" y="${wc[2][1]+12}" text-anchor="end" class="sk-d" font-size="7.5" letter-spacing=".14em">SEA LEVEL</text>`;
+  /* pernas */
+  [[0,0],[114,0],[114,55],[0,55]].forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,wy,PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
+  [[0,0],[30,0],[30,20],[0,20]].forEach(([x,y])=>{const a=P(x,y,yOf(42),LCX),b=P(x,y,wy,LCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
+  [[38,27],[86,27]].forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,yOf(28),PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-shaft"/>`;[52,40,28].forEach(e=>{const q=P(x,y,yOf(e),PCX);h+=`<rect x="${q[0]-2.4}" y="${q[1]-2.4}" width="4.8" height="4.8" class="sk-shaftd"/>`;});});
+  /* decks da plataforma */
+  [['weather','L-07','WEATHER','+52 m'],['module','L-05','MODULE','+40 m'],['cellar','L-03','CELLAR','+28 m']].forEach(([lvl,tag,nm,el])=>{
+    const sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=yOf(PL_ELEV[lvl]),d=S.DECKS[lvl];
+    const rev=Object.keys(rr).some(k=>S.roomIndex[k]&&S.roomIndex[k].deck===lvl);
+    let g=`<g data-lvl="${lvl}" class="sk-dk ${unl?'on':'lock'}${sel?' sel':''}">`+slab(d,cy,PCX,114,55,sel,unl,rev);
+    const cx=232,y=cy-34;
+    g+=`<rect x="${cx}" y="${y}" width="64" height="40" class="sk-chip"/><text x="${cx+6}" y="${y+13}" class="sk-d" font-size="8.5" letter-spacing=".1em">${tag}</text><text x="${cx+6}" y="${y+25}" class="sk-t" font-weight="700" font-size="11.5" letter-spacing=".08em" style="font-family:'Barlow Condensed'">${nm}</text><text x="${cx+6}" y="${y+35}" class="sk-d" font-size="8">${unl?el:'LOCKED'}</text>`;
+    if(pin&&pin.deck===lvl){const n=nrm(d,pin.x,pin.y,114,55),q=P(n[0],n[1],cy,PCX);g+=`<circle cx="${q[0]}" cy="${q[1]}" r="3.4" class="sk-pin"/><circle cx="${q[0]}" cy="${q[1]}" r="6.5" class="sk-pinr"/>`;}
     h+=g+'</g>';
   });
-  // torre de alojamento: seletor de decks
-  const qy=ys[2]+150,qu=isUnlocked('quarters'),qsel=lvlActive==='quarters';
-  h+=`<g data-lvl="quarters" class="${qu?'on':'lock'}"><rect x="10" y="${qy}" width="278" height="92" fill="${qsel?'#17262b':'#131f23'}" stroke="${qsel?LIVE:'#26434a'}"/><text x="20" y="${qy+16}" font-family="IBM Plex Mono" font-size="9.5" letter-spacing=".22em" fill="${qu?'#8aa8a4':'#4b6568'}">L-06 · LIVING QUARTERS</text>${qu?'':`<text x="278" y="${qy+16}" text-anchor="end" font-family="IBM Plex Mono" font-size="8.5" fill="#4b6568">LOCKED</text>`}</g>`;
-  S.LQ_ORDER.forEach((id,i)=>{
-    const x=20+i*52,on=qu&&active===id;
-    h+=`<g data-deck="${id}" class="${qu?'on':'lock'}" opacity="${qu?1:.45}"><rect x="${x}" y="${qy+26}" width="46" height="54" fill="${on?LIVE:'#18252a'}" stroke="${on?LIVE:'#3b585d'}"/><text x="${x+8}" y="${qy+44}" font-family="Barlow Condensed" font-weight="700" font-size="17" fill="${on?'#07110f':'#cfe0dc'}">${id.slice(2)}</text><text x="${x+8}" y="${qy+57}" font-family="IBM Plex Mono" font-size="8" fill="${on?'#07110f':'#5f7d80'}">${S.LQ_NAMES[id].split(' · ')[1]}</text></g>`;
+  /* torre de alojamento: cinco decks, cada um selecionável */
+  S.LQ_ORDER.forEach(id=>{
+    const e=LQ_ELEV[id],cy=yOf(e),d=S.DECKS[id],on=qu&&active===id;
+    const rev=Object.keys(rr).some(k=>S.roomIndex[k]&&S.roomIndex[k].deck===id);
+    let g=`<g data-deck="${id}" class="sk-dk sk-lq ${qu?'on':'lock'}${on?' sel':''}">`+slab(d,cy,LCX,30,20,on,qu,rev);
+    g+=`<text x="6" y="${cy+14}" class="sk-t" font-weight="700" font-size="19" style="font-family:'Barlow Condensed'">${id.slice(2)}</text><text x="6" y="${cy+25}" class="sk-d" font-size="7.5">+${e}</text>`;
+    if(pin&&pin.deck===id){const n=nrm(d,pin.x,pin.y,30,20),q=P(n[0],n[1],cy,LCX);g+=`<circle cx="${q[0]}" cy="${q[1]}" r="2.6" class="sk-pin"/><circle cx="${q[0]}" cy="${q[1]}" r="5" class="sk-pinr"/>`;}
+    h+=g+'</g>';
   });
+  h+=`<text x="6" y="${yOf(58)-22}" class="sk-d" font-size="8" letter-spacing=".1em">L-06</text><text x="6" y="${yOf(58)-12}" class="sk-t" font-weight="600" font-size="8.5" letter-spacing=".06em">LIVING QUARTERS</text>`;
+  /* ponte: convés C da torre encosta no weather deck */
+  const bridgeA=P(30,0,yOf(50),LCX),bridgeB=P(0,55,yOf(52),PCX);
+  h+=`<path d="M${bridgeA[0]} ${bridgeA[1]}L${bridgeB[0]} ${bridgeB[1]}" class="sk-bridge"/>`;
+  /* chegadas */
+  const wdk=S.DECKS.weather,hc=nrm(wdk,18,22,114,55),hp=P(hc[0],hc[1],yOf(52),PCX);
+  h+=`<circle cx="${hp[0]}" cy="${hp[1]}" r="6" class="sk-ln"/><text x="${hp[0]}" y="${hp[1]+3.3}" text-anchor="middle" class="sk-t" font-size="8.5" font-weight="700">H</text>`;
+  h+=`<path d="M${hp[0]} ${hp[1]-46}V${hp[1]-10}" class="sk-arr"/><path d="M${hp[0]-4.5} ${hp[1]-14}l4.5 6l4.5 -6z" class="sk-arrf"/><text x="${hp[0]+9}" y="${hp[1]-36}" class="sk-l" font-size="9" font-weight="700">1</text>`;
+  const cr=P(96,24,yOf(52),PCX),bt=P(104,30,wy,PCX);
+  h+=`<path d="M${cr[0]} ${cr[1]}V${bt[1]-8}" class="sk-arr"/><rect x="${cr[0]-2.5}" y="${cr[1]-2.5}" width="5" height="5" class="sk-arrf"/><path d="M${bt[0]-13} ${bt[1]-3}h26l-4 7h-18z" class="sk-fill"/><text x="${cr[0]+8}" y="${cr[1]+4}" class="sk-l" font-size="9" font-weight="700">2</text>`;
+  const mp=P(54.5,28.4,yOf(28),PCX),mw=P(54.5,28.4,wy,PCX);
+  h+=`<circle cx="${mp[0]}" cy="${mp[1]}" r="4.5" class="sk-ln"/><path d="M${mp[0]} ${mp[1]+4}V${mw[1]-8}" class="sk-arr"/><path d="M${mw[0]-4.5} ${mw[1]-10}l4.5 7l4.5 -7z" class="sk-arrf"/><text x="${mp[0]+9}" y="${mp[1]+16}" class="sk-l" font-size="9" font-weight="700">3</text>`;
+  const ly=wc[2][1]+34;
+  h+=`<text x="10" y="${ly}" class="sk-l" font-size="7.5">1</text><text x="20" y="${ly}" class="sk-t" font-size="7.5" letter-spacing=".06em">HELICOPTER · HELIDECK</text>`;
+  h+=`<text x="10" y="${ly+13}" class="sk-l" font-size="7.5">2</text><text x="20" y="${ly+13}" class="sk-t" font-size="7.5" letter-spacing=".06em">SUPPLY BOAT · CRANE</text>`;
+  h+=`<text x="10" y="${ly+26}" class="sk-l" font-size="7.5">3</text><text x="20" y="${ly+26}" class="sk-t" font-size="7.5" letter-spacing=".06em">MOONPOOL · WATER ACCESS</text>`;
   return h;
 }
 
@@ -87,6 +112,8 @@ function revealedBox(d){
   if(!n)return {box:d.bbox.slice(),n:0};
   return {box:[x0-4,y0-5,x1-x0+8,y1-y0+10],n};
 }
+function measure(){const w=$('planwrap');if(w&&w.clientWidth>50&&w.clientHeight>50){PW=w.clientWidth;PH=w.clientHeight;}}
+function viewFor(r,m){m=m||5;let w=Math.max(r[2]+2*m,28),h=r[3]+2*m;if(w/h<PW/PH)w=h*PW/PH;else h=w*PH/PW;const cx=r[0]+r[2]/2,cy=r[1]+r[3]/2;return {x:plan.ox+(cx-w/2)*plan.px,y:plan.oy+(cy-h/2)*plan.px,w:w*plan.px,h:h*plan.px};}
 function fitView(d,p){
   const rb=revealedBox(d),b=rb.box;
   let w=Math.max(b[2],62),h=Math.max(b[3],w*PH/PW*.55);
@@ -105,17 +132,17 @@ function setView(tg,animate){
 function outsideView(r){if(!view||!plan)return true;const x=plan.ox+r[0]*plan.px,y=plan.oy+r[1]*plan.px,w=r[2]*plan.px,h=r[3]*plan.px;return x<view.x+8||y<view.y+8||x+w>view.x+view.w-8||y+h>view.y+view.h-8;}
 function applyView(){const svg=$('planwrap').querySelector('svg.cur');if(svg&&view)svg.setAttribute('viewBox',`${view.x.toFixed(1)} ${view.y.toFixed(1)} ${view.w.toFixed(1)} ${view.h.toFixed(1)}`);}
 function zoomAt(f,sx,sy){
-  if(!view)return;const nw=Math.max(PW/9,Math.min(view.w/f,plan?plan.w*2:99999)),k=nw/view.w,nh=view.h*k;
+  if(!view)return;const nw=Math.max(PW/16,Math.min(view.w/f,plan?plan.w*2:99999)),k=nw/view.w,nh=view.h*k;
   const fx=sx/PW,fy=sy/PH;view={x:view.x+(view.w-nw)*fx,y:view.y+(view.h-nh)*fy,w:nw,h:nh};applyView();}
 function renderPlan(deckId){
-  const wrap=$('planwrap'),d=S.DECKS[deckId];
+  const wrap=$('planwrap'),d=S.DECKS[deckId];measure();
   if(!d){plan=null;view=null;wrap.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:#6b6d68;line-height:1.7;text-align:center">NO LEVEL SELECTED<br><span style="font-size:10px;letter-spacing:.12em;opacity:.7">select an unlocked level</span></div>`;lastPlanDeck='';return;}
   const pin=mapState().pin;
-  const PRP=mapState().props||{},prSig=Object.keys(PRP).sort().map(k=>k+':'+PRP[k].x+','+PRP[k].y+','+PRP[k].rot+','+PRP[k].sc+','+PRP[k].sx+','+PRP[k].sy+','+(PRP[k].lbl||'')).join(';')+'|'+Object.keys(mapState().noeq||{}).sort().join();
+  const PRP=mapState().props||{},prSig=Object.keys(PRP).sort().map(k=>k+':'+PRP[k].x+','+PRP[k].y+','+PRP[k].rot+','+PRP[k].sc+','+PRP[k].sx+','+PRP[k].sy+','+(PRP[k].lbl||'')).join(';')+'|'+Object.keys(mapState().noeq||{}).sort().join()+'|v'+Object.keys(mapState().veil||{}).sort().join()+'|'+theme+'|'+PW+'x'+PH;
   const sig=[deckId,Object.keys(revRooms()).sort().join(),Object.keys(revCorr()).sort().join(),pin&&pin.deck===deckId?pin.x+','+pin.y:'',selRoom,showCams,Object.keys(camsOn()).join(),focusToken,prSig].join('|');
   if(sig===lastSig.plan&&wrap.querySelector('svg.cur')&&!forceFit)return;
   lastSig.plan=sig;
-  const st={rooms:revRooms(),corr:revCorr(),pin:pin&&pin.deck===deckId?pin:null,sel:selRoom,showCams,camsOn:camsOn(),props:Object.keys(PRP).map(k=>Object.assign({id:k},PRP[k])),noeq:mapState().noeq||{}};
+  const st={rooms:revRooms(),corr:revCorr(),pin:pin&&pin.deck===deckId?pin:null,sel:selRoom,showCams,camsOn:camsOn(),props:Object.keys(PRP).map(k=>Object.assign({id:k},PRP[k])),noeq:mapState().noeq||{},veil:mapState().veil||{}};
   plan=R.plan(d,st,{W:Math.round(d.bbox[2]*7+84),maxH:99999,id:'pl',key:false});
   // o que acabou de ser revelado neste deck
   const cur={rooms:new Set(Object.keys(revRooms()).filter(k=>S.roomIndex[k]&&S.roomIndex[k].deck===deckId)),corr:new Set(Object.keys(revCorr()).filter(k=>S.corrIndex[k]&&S.corrIndex[k].deck===deckId))};
@@ -159,8 +186,8 @@ function renderKey(){
 function renderRecord(deckId){
   const d=S.DECKS[deckId];
   const r=d&&selRoom&&S.roomIndex[selRoom]&&S.roomIndex[selRoom].deck===deckId&&revRooms()[selRoom]?S.roomIndex[selRoom]:null;
-  const nm=$('recName'),st=$('recStat');
-  if(r){nm.textContent=r.n;st.textContent=r.st==='sealed'?'LOCKED':'UNLOCKED';st.className='stat '+(r.st==='sealed'?'lock':'open');}
+  const nm=$('recName'),st=$('recStat')||{};
+  if(r){nm.textContent=r.n;st.textContent='';st.className='stat';}
   else{nm.textContent=d?d.name:'—';st.textContent='';st.className='stat';}
 }
 /* digita o texto do cartao como maquina de escrever */
@@ -179,6 +206,7 @@ function renderCard(deckId){
   if(r){const pr=r.n.split(' · '),code=/^M\d+$/.test(pr[0])?pr[0]:'';const area=Math.round(r.r[2]*r.r[3]);head=`<span>${esc(code?code+' · ':'')}${area} m²</span><span>${esc(d.lvl)}</span>`;title=r.n.toUpperCase();text=descOf(r);}
   else if(d){head=`<span>${esc(d.lvl)} · ${esc(d.elev)}</span><span></span>`;title=d.name.toUpperCase();text=d.intro||'';}
   else{head='<span>—</span><span></span>';title='NO DATA';text='Sem dados. Nenhuma informação disponível neste nível.';}
+  const rd=$('recdesc');if(rd)rd.textContent=text||'';
   const key=(r?r.id:deckId||'-')+'|'+text;
   if(key===cardKey&&c.dataset.has){ // so atualiza o cabecalho (ex.: porcentagem)
     const k=c.querySelector('.k');if(k)k.innerHTML=head;return;}
@@ -189,7 +217,6 @@ function renderCard(deckId){
 
 /* ---------- caderno ---------- */
 function notesList(){
-  if(notesMode==='mine')return minePrefs.map((n,i)=>Object.assign({key:'m'+i},n)).sort((a,b)=>a.at-b.at);
   const N=STATE.notes||{};return Object.keys(N).map(k=>Object.assign({key:k},N[k])).sort((a,b)=>(a.at||0)-(b.at||0));
 }
 function renderNotes(){
@@ -200,22 +227,19 @@ function renderNotes(){
   const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
   const first=seenNotes===null;if(first)seenNotes=new Set();
   const modeKey=notesMode+':';
-  const html=L.map(n=>{const mine=notesMode==='mine'||n.by===ME;const k=modeKey+n.key,isNew=!first&&!seenNotes.has(k);seenNotes.add(k);
+  const html=L.map(n=>{const mine=n.by===ME;const k=modeKey+n.key,isNew=!first&&!seenNotes.has(k);seenNotes.add(k);
     const rt=n.r&&S.roomIndex[n.r]?`<span class="rt" data-r="${esc(n.r)}">${esc((S.roomIndex[n.r].n.split(' · ')[0]).toUpperCase().slice(0,10))}</span>`:'';
     return `<div class="l ${mine?'me':'other'}${isNew&&!REDUCED?' inkin':''}">${esc(n.t)}${rt}${mine?`<i class="x" data-k="${esc(n.key)}">✕</i>`:''}</div>`;}).join('');
   box.innerHTML=html+`<input class="ninp" id="ninp" placeholder="${L.length?'':'write a note…'}" maxlength="240" autocomplete="off" spellcheck="false">`;
   const inp=$('ninp');if(typing){inp.value=val;inp.focus();try{inp.setSelectionRange(ss,se);}catch(e){}}
   if(atBottom||!typing)box.scrollTop=box.scrollHeight;
   $('ncount').textContent=L.length?L.length+(L.length===1?' note':' notes'):'empty';
-  $('nmShared').classList.toggle('on',notesMode==='shared');$('nmMine').classList.toggle('on',notesMode==='mine');
-  $('nbSub').textContent=notesMode==='shared'?'shared with team':'only on this device';
 }
 function addNote(t){
   t=t.trim();if(!t)return;
   const room=selRoom&&S.roomIndex[selRoom]&&revRooms()[selRoom]?selRoom:null;
   const n={t,at:Date.now(),by:ME};if(room)n.r=room;
-  if(notesMode==='mine'){minePrefs.push(n);LS.set('deserto:notes',JSON.stringify(minePrefs));renderNotes();}
-  else ref.child('station/notes').push(n);
+  ref.child('station/notes').push(n);
 }
 
 /* ---------- levar a atencao a uma sala (chip da nota ou "destacar" do Guardiao) ---------- */
@@ -223,8 +247,7 @@ function focusRoom(id){
   const r=S.roomIndex[id];if(!r||!revRooms()[id])return;const lvl=levelOfDeck(r.deck);
   if(!isUnlocked(lvl)||(forcedLevel()&&forcedLevel()!==lvl))return;
   curDeck=r.deck;selRoom=id;focusToken=id+'|'+Date.now();renderAll();
-  if(plan){const rr=r.r,w=Math.max(rr[2]+16,36),h=w*PH/PW,cx=rr[0]+rr[2]/2,cy=rr[1]+rr[3]/2;
-    setView({x:plan.ox+(cx-w/2)*plan.px,y:plan.oy+(cy-h/2)*plan.px,w:w*plan.px,h:h*plan.px},true);}
+  if(plan)setView(viewFor(r.r,8),true);
 }
 
 /* ---------- render geral ---------- */
@@ -237,12 +260,13 @@ function renderAll(){
   const shown=forcedLevel()?deck:curDeck;
   if(shown&&shown.startsWith('lq'))lastLq=shown;
   $('stackcount').textContent='';
-  const ssig=[shown,JSON.stringify(unlockedMap()),Object.keys(revRooms()).sort().join(),Object.keys(revCorr()).sort().join()].join('|');
+  const pn=mapState().pin,ssig=[shown,theme,JSON.stringify(unlockedMap()),Object.keys(revRooms()).sort().join(),Object.keys(revCorr()).sort().join(),pn?pn.deck+','+pn.x+','+pn.y:''].join('|');
   if(ssig!==lastSig.stack){lastSig.stack=ssig;$('stack').innerHTML=stackSVG(shown);}
   renderPlan(shown);renderRecord(shown);renderCard(shown);
   const forced=forcedLevel();
   $('topinfo').innerHTML=forced?`<span class="forced">▲ DIRECTED VIEW</span>`:'';
   $('btnCctv').className='btn'+(showCams?' on':'');
+  $('btnPin').classList.toggle('hid',!pn);
   const tk=STATE.ticker&&STATE.ticker.length?STATE.ticker:['COMM SYNC +7d','L-02 PRESSURE ELEVATED'];
   $('ticker').innerHTML='<b>▲ WARNING</b>'+tk.map(t=>`<span>${esc(t)}</span>`).join('');
   renderNotes();renderCameras();
@@ -276,24 +300,57 @@ function fit(){const s=Math.min(innerWidth/1600,innerHeight/1000);$('scene').sty
 function barcode(){let s=5,x=0,h='';for(let i=0;i<34;i++){s=(s*16807)%2147483647;const w=1+(s%3);h+=`<i style="left:${x}px;width:${w}px"></i>`;x+=w+1+(s>>3)%2;}$('barcode').innerHTML=`<span class="bc" style="width:${x}px">${h}</span>`;}
 function setTab(t){document.querySelectorAll('.tab2').forEach(x=>x.classList.toggle('on',x.dataset.tab===t));$('view-map').style.display=t==='map'?'block':'none';$('view-cams').style.display=t==='cams'?'block':'none';}
 
+/* ---------- tema, tela cheia, pino e navegacao por nivel ---------- */
+const ELEV_ORDER=['lqE','lqD','weather','lqC','lqB','lqA','module','cellar']; // do mais alto ao mais baixo
+const shownDeckId=()=>forcedLevel()?activeDeck():curDeck;
+function applyTheme(m){theme=m==='light'?'light':'dark';document.documentElement.setAttribute('data-theme',theme);R.setTheme(theme);LS.set('deserto:theme',theme);
+  const l=$('themeLbl');if(l)l.textContent=theme==='dark'?'LIGHT':'DARK';lastSig.stack='';lastSig.plan='';if(ref)renderAll();}
+function setFull(on,fromApi){
+  fullMode=!!on;document.body.classList.toggle('full',fullMode);const b=$('btnFull');b.classList.toggle('act',fullMode);b.textContent=fullMode?'✕ EXIT FULL':'⛶ FULL';
+  if(!fromApi){try{if(fullMode){apiFull=true;const p=document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();if(p&&p.catch)p.catch(()=>{apiFull=false;});}else if(document.fullscreenElement){apiFull=false;document.exitFullscreen();}}catch(e){apiFull=false;}}
+  measure();forceFit=true;lastSig.plan='';renderPlan(shownDeckId());}
+function stepDeck(dir){
+  if(forcedLevel())return;const cur=shownDeckId();let i=ELEV_ORDER.indexOf(cur);if(i<0)return;let j=i+dir;
+  while(j>=0&&j<ELEV_ORDER.length&&!isUnlocked(levelOfDeck(ELEV_ORDER[j])))j+=dir;
+  if(j<0||j>=ELEV_ORDER.length)return;curDeck=ELEV_ORDER[j];selRoom=null;forceFit=true;renderAll();}
+function goPin(){
+  const pin=mapState().pin;if(!pin)return;const lvl=levelOfDeck(pin.deck);
+  if(!isUnlocked(lvl)||(forcedLevel()&&forcedLevel()!==lvl))return;
+  if(shownDeckId()!==pin.deck){curDeck=pin.deck;selRoom=null;}
+  const d=S.DECKS[pin.deck],hit=d&&d.rooms.find(r=>revRooms()[r.id]&&pin.x>=r.r[0]&&pin.x<=r.r[0]+r.r[2]&&pin.y>=r.r[1]&&pin.y<=r.r[1]+r.r[3]);
+  if(hit)selRoom=hit.id;renderAll();
+  if(plan)setView(viewFor([pin.x-7,pin.y-5,14,10],6),true);}
+function zoomToRoom(){
+  const id=selRoom,r=id&&S.roomIndex[id];if(!r||!plan||!revRooms()[id])return;
+  setView(viewFor(r.r,4),true);}
 function start(sessionRef){
   ref=sessionRef;
+  applyTheme(LS.get('deserto:theme','dark'));
   barcode();buildCams();renderKey();fit();addEventListener('resize',fit);
+  document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement&&apiFull&&fullMode){apiFull=false;setFull(false,true);}});
   $('vent').innerHTML='<i></i>'.repeat(26);
   document.querySelectorAll('.tab2').forEach(t=>t.addEventListener('click',()=>setTab(t.dataset.tab)));
   addEventListener('keydown',e=>{
     if(e.key==='F1'){e.preventDefault();setTab('map');return;}if(e.key==='F2'){e.preventDefault();setTab('cams');return;}
-    if((e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))||!view||$('view-map').style.display==='none')return;
-    const k=view.w*.12;let used=true;
-    if(e.key==='ArrowLeft')view.x-=k;else if(e.key==='ArrowRight')view.x+=k;else if(e.key==='ArrowUp')view.y-=k;else if(e.key==='ArrowDown')view.y+=k;
-    else if(e.key==='+'||e.key==='=')zoomAt(1.3,PW/2,PH/2);else if(e.key==='-')zoomAt(1/1.3,PW/2,PH/2);
-    else if(e.key==='0'){forceFit=true;renderPlan(forcedLevel()?activeDeck():curDeck);}
-    else if(e.key==='Escape'){selRoom=null;const dk=forcedLevel()?activeDeck():curDeck;renderPlan(dk);renderRecord(dk);renderCard(dk);}
+    if((e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))||e.ctrlKey||e.metaKey||e.altKey||$('view-map').style.display==='none')return;
+    const key=e.key.length===1?e.key.toLowerCase():e.key;let used=true;
+    if(key==='f'){setFull(!fullMode);e.preventDefault();return;}
+    if(key==='h'){goPin();e.preventDefault();return;}
+    if(key==='z'){zoomToRoom();e.preventDefault();return;}
+    if(key==='t'){applyTheme(theme==='dark'?'light':'dark');e.preventDefault();return;}
+    if(key==='Escape'){if(selRoom){selRoom=null;const dk=shownDeckId();renderPlan(dk);renderRecord(dk);renderCard(dk);}else if(fullMode)setFull(false);e.preventDefault();return;}
+    if(fullMode&&(key==='ArrowUp'||key==='PageUp')){stepDeck(-1);e.preventDefault();return;}
+    if(fullMode&&(key==='ArrowDown'||key==='PageDown')){stepDeck(1);e.preventDefault();return;}
+    if(!view)return;
+    const k=view.w*.12;
+    if(key==='ArrowLeft')view.x-=k;else if(key==='ArrowRight')view.x+=k;else if(key==='ArrowUp')view.y-=k;else if(key==='ArrowDown')view.y+=k;
+    else if(key==='+'||key==='=')zoomAt(1.3,PW/2,PH/2);else if(key==='-')zoomAt(1/1.3,PW/2,PH/2);
+    else if(key==='0'){forceFit=true;renderPlan(shownDeckId());}
     else used=false;
     if(used){e.preventDefault();applyView();}});
   $('stack').addEventListener('click',e=>{
     const dk=e.target.closest('[data-deck]');
-    if(dk&&dk.classList.contains('on')){curDeck=dk.dataset.deck;selRoom=null;renderAll();return;}
+    if(dk&&dk.classList.contains('on')){if(forcedLevel())return;curDeck=dk.dataset.deck;selRoom=null;renderAll();return;}
     const lv=e.target.closest('[data-lvl]');if(!lv||lv.classList.contains('lock'))return;
     if(forcedLevel())return;
     curDeck=defaultDeck(lv.dataset.lvl);selRoom=null;renderAll();});
@@ -316,15 +373,13 @@ function start(sessionRef){
   addEventListener('pointerup',e=>{pointers.delete(e.pointerId);if(pointers.size<2)pinch=null;if(drag&&drag.moved)dragMoved=true;drag=null;pw.classList.remove('drag');setTimeout(()=>{dragMoved=false;},0);});
   pw.addEventListener('wheel',e=>{e.preventDefault();const b=pw.getBoundingClientRect(),k=PW/b.width;zoomAt(e.deltaY<0?1.18:1/1.18,(e.clientX-b.left)*k,(e.clientY-b.top)*k);},{passive:false});
   const refit=()=>{forceFit=true;renderPlan(shownDeck());};
-  pw.addEventListener('dblclick',refit);$('zFit').addEventListener('click',refit);
+  pw.addEventListener('dblclick',e=>{const r=e.target.closest('[data-room]');if(r&&revRooms()[r.dataset.room]){selRoom=r.dataset.room;const dk=shownDeckId();renderPlan(dk);renderRecord(dk);renderCard(dk);zoomToRoom();}else refit();});$('zFit').addEventListener('click',refit);
+  $('zRoom').addEventListener('click',zoomToRoom);$('btnPin').addEventListener('click',goPin);$('btnFull').addEventListener('click',()=>setFull(!fullMode));$('btnTheme').addEventListener('click',()=>applyTheme(theme==='dark'?'light':'dark'));
   $('zIn').addEventListener('click',()=>zoomAt(1.4,PW/2,PH/2));$('zOut').addEventListener('click',()=>zoomAt(1/1.4,PW/2,PH/2));
   $('btnCctv').addEventListener('click',()=>{showCams=!showCams;renderAll();});
-  $('nmShared').addEventListener('click',()=>{notesMode='shared';renderNotes();});
-  $('nmMine').addEventListener('click',()=>{notesMode='mine';renderNotes();});
   $('nbl').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ninp'){const v=e.target.value;e.target.value='';addNote(v);e.preventDefault();}});
   $('nbl').addEventListener('click',e=>{const rt=e.target.closest('.rt');if(rt){focusRoom(rt.dataset.r);return;}const x=e.target.closest('.x');if(!x)return;
-    if(notesMode==='mine'){const tgt=notesList().find(n=>n.key===x.dataset.k);if(tgt){minePrefs=minePrefs.filter(n=>!(n.at===tgt.at&&n.t===tgt.t));LS.set('deserto:notes',JSON.stringify(minePrefs));renderNotes();}}
-    else ref.child('station/notes/'+x.dataset.k).remove();});
+    ref.child('station/notes/'+x.dataset.k).remove();});
   $('camgrid').addEventListener('click',e=>{
     const card=e.target.closest('.camcard');if(!card)return;const id=card.dataset.id,c=(STATE.cams||{})[id]||{};
     if(!c.on)return;const now=Date.now();if(now-(c.pulledAt||0)<CAM_COOLDOWN)return;

@@ -43,13 +43,14 @@ function init(sessionRef){
   const itemsOf=id=>((LAY[id]||{}).items)||{};
   function ensure(){if(!LAY[roomId])LAY[roomId]={items:{},noeq:false};if(!LAY[roomId].items)LAY[roomId].items={};return LAY[roomId];}
   const revealed=id=>!!(PUB.map&&PUB.map.rooms&&PUB.map.rooms[id]);
+  const veiledR=id=>!!(PUB.map&&PUB.map.veil&&PUB.map.veil[id]);
   const pubProps=()=>(PUB.map&&PUB.map.props)||{};
 
   /* ---------- salvar (sozinho) ---------- */
   function setStatus(t,keep){status=t;$('status').textContent=t;clearTimeout(statusT);if(!keep)statusT=setTimeout(()=>{$('status').textContent='';},4000);}
   function toWrite(id){
-    const r=LAY[id];if(!r||(!SL.count(r)&&!r.noeq))return null;
-    const out={noeq:!!r.noeq,t:Date.now(),items:{}};
+    const r=LAY[id];if(!r)return null;
+    const out={noeq:!!r.noeq,t:Date.now(),items:{}};if(!SL.count(r))out.empty=true;
     Object.keys(r.items).forEach(k=>{const it=Object.assign({},r.items[k]);const c=ITEMS[it.k];
       if(c&&c.priv)it.s={w:c.w,h:c.h,ops:c.ops,inl:c.inl?1:0,txt:c.txt?1:0};else delete it.s;
       Object.keys(it).forEach(f=>{if(it[f]===undefined)delete it[f];});out.items[k]=it;});
@@ -59,7 +60,7 @@ function init(sessionRef){
     setStatus('salvando…',true);
     const ps=ids.map(id=>{const w=toWrite(id);
       const upd={};upd['gm/layout/'+id]=w;
-      Object.assign(upd,prefixed(SL.publishUpd(S,ITEMS,id,w,revealed(id),pubProps())));
+      Object.assign(upd,prefixed(SL.publishUpd(S,ITEMS,id,w,revealed(id)&&!veiledR(id),pubProps())));
       return sessionRef.update(upd);});
     Promise.all(ps).then(()=>setStatus('✓ salvo '+pad(new Date().getHours())+':'+pad(new Date().getMinutes()))).catch(e=>setStatus('⚠ não salvou: '+(e&&e.message||e),true));
   }
@@ -148,7 +149,7 @@ function init(sessionRef){
     const others=Object.keys(LAY).filter(k=>k!==roomId&&SL.count(LAY[k])&&S.roomIndex[k]);
     rt.innerHTML=`<div class="sh">ESTA SALA</div><div class="ib">
       <label class="ck"><input type="checkbox" id="noeq" ${rr&&rr.noeq?'checked':''}> esconder o equipamento padrão (só os meus itens)</label>
-      <div class="row"><button class="btn" data-a="mirH">espelhar ↔</button><button class="btn" data-a="mirV">espelhar ↕</button><button class="btn" data-a="paste" ${clip?'':'disabled'}>COLAR${clip?' ('+clip.length+')':''}</button><button class="btn" data-a="all">SELECIONAR TUDO</button><button class="btn dng" data-a="clear">LIMPAR SALA</button></div>
+      <div class="row"><button class="btn" data-a="mirH">espelhar ↔</button><button class="btn" data-a="mirV">espelhar ↕</button><button class="btn" data-a="paste" ${clip?'':'disabled'}>COLAR${clip?' ('+clip.length+')':''}</button><button class="btn" data-a="all">SELECIONAR TUDO</button><button class="btn dng" data-a="clear">LIMPAR SALA</button>${SL.defaultOf(roomId)?'<button class="btn" data-a="reset" title="Volta ao layout que veio pronto com o mapa">RESTAURAR PADRÃO</button>':''}</div>
       <div class="row"><select id="cpFrom"><option value="">copiar o layout de…</option>${others.map(k=>`<option value="${esc(k)}">${esc(S.roomIndex[k].n)} (${SL.count(LAY[k])})</option>`).join('')}</select><button class="btn" id="cpGo">COPIAR PRA CÁ</button></div></div>`;
   }
 
@@ -157,6 +158,7 @@ function init(sessionRef){
   function act(a){
     const r=room();if(!r)return;
     if(a==='all'){sel=new Set(Object.keys(itemsOf(roomId)));draw();drawIns();return;}
+    if(a==='reset'){const d=SL.defaultOf(roomId);if(!d||!confirm('Voltar esta sala ao layout padrão? O que você montou nela será trocado (Ctrl+Z desfaz).'))return;mut(x=>{x.items=d.items;x.noeq=d.noeq;});sel.clear();return;}
     if(a==='clear'){const n=SL.count(rec());if(!n||!confirm('Apagar os '+n+' itens desta sala? (Ctrl+Z desfaz)'))return;mut(x=>{x.items={};x.noeq=false;});sel.clear();return;}
     if(a==='paste'){if(!clip)return;const ids=[];mut(x=>{clip.forEach(c=>{const id=newId();ids.push(id);x.items[id]=Object.assign({},clone(c),{x:r2(num(c.x)+(clip.fromRoom===roomId?.5:0)),y:r2(num(c.y)+(clip.fromRoom===roomId?.5:0))});});});sel=new Set(ids);renderAll();return;}
     if(a==='mirH'||a==='mirV'){mut(x=>{Object.values(x.items).forEach(it=>{if(a==='mirH'){it.x=r2(r.r[2]-num(it.x));it.rot=((-num(it.rot))%360+360)%360;}else{it.y=r2(r.r[3]-num(it.y));it.rot=(((180-num(it.rot))%360)+360)%360;}});});return;}
@@ -290,6 +292,7 @@ function init(sessionRef){
   layRef.on('value',s=>{const v=s.val()||{};const keep={};dirty.forEach(k=>{if(LAY[k])keep[k]=LAY[k];});
     LAY=Object.assign({},v,keep);if(drag)return;drawRooms();if(roomId&&!dirty.has(roomId)){draw();drawIns();}});
   stRef.on('value',s=>{PUB=s.val()||{};if(drag)return;drawRooms();if(roomId)draw();});
+  if(window.StationLayout)SL.seedDefaults(sessionRef,S,ITEMS).catch(()=>{});
   renderAll();
   return {state:()=>({roomId,LAY,sel:[...sel]}),pick,flush};
 }

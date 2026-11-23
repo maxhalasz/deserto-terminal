@@ -39,6 +39,31 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
   ok('busca acha a sala',/Lounge/.test(document.getElementById('mpResults').innerText));
   document.querySelector('#mpResults [data-id]').click();await sl(200);
   ok('clicar no resultado seleciona a sala',/Lounge/.test(document.getElementById('mpSel').innerText));
+  // ---- sala coberta (so o nome) e tecla P ----
+  document.querySelector('#mpDecks [data-d="module"]').click();await sl(150);
+  document.querySelector('[data-room="md2"]').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));await sl(150);
+  ok('botao de cobrir existe na ficha',!!document.getElementById('mpVeil')&&/COBRIR/.test(document.getElementById('mpVeil').textContent));
+  document.getElementById('mpVeil').click();await sl(300);
+  {const m=data.sessions.x.station.map;ok('cobrir revela a sala ja coberta',m.veil&&m.veil.md2===true&&!!m.rooms.md2);
+   ok('sala coberta nao publica o layout',!Object.keys(m.props||{}).some(k=>k.indexOf('L~md2~')===0)&&!(m.noeq||{}).md2);}
+  ok('GM ve o selo COBERTA no mapa',/COBERTA/.test(document.getElementById('mpPlan').textContent));
+  document.getElementById('mpVeil').click();await sl(300);
+  {const m=data.sessions.x.station.map;ok('descobrir apaga o veu',!(m.veil&&m.veil.md2));ok('descobrir publica o layout da sala',Object.keys(m.props||{}).filter(k=>k.indexOf('L~md2~')===0).length===1);}
+  document.getElementById('mpVeilNew').click();await sl(60);
+  document.querySelector('[data-room="md3"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));await sl(300);
+  ok('revelar ja coberta grava o veu junto',data.sessions.x.station.map.rooms.md3&&data.sessions.x.station.map.veil&&data.sessions.x.station.map.veil.md3===true);
+  document.getElementById('mpVeilNew').click();await sl(60);
+  document.getElementById('mpUndo').click();await sl(250);
+  ok('desfazer tira sala e veu',!data.sessions.x.station.map.rooms.md3&&!(data.sessions.x.station.map.veil&&data.sessions.x.station.map.veil.md3));
+  document.getElementById('mpVeilAll').click();await sl(300);
+  ok('cobrir salas cobre todas as reveladas do deck',['md0','md1','md4','md2'].filter(k=>data.sessions.x.station.map.rooms[k]).every(k=>data.sessions.x.station.map.veil&&data.sessions.x.station.map.veil[k]));
+  document.getElementById('mpVeilNone').click();await sl(300);
+  ok('descobrir salas limpa o deck',!Object.keys(data.sessions.x.station.map.veil||{}).length);
+  {document.getElementById('tab-mapa').classList.add('active');const sv=document.querySelector('#mpPlan svg'),b=sv.getBoundingClientRect(),cx=b.left+b.width*.55,cy=b.top+b.height*.5;
+   const p0=JSON.stringify(data.sessions.x.station.map.pin);
+   document.getElementById('mpPlan').dispatchEvent(new MouseEvent('mousemove',{bubbles:true,clientX:cx,clientY:cy}));
+   document.dispatchEvent(new KeyboardEvent('keydown',{key:'p',bubbles:true}));window.dispatchEvent(new KeyboardEvent('keydown',{key:'p'}));await sl(300);
+   const p1=data.sessions.x.station.map.pin;ok('tecla P poe o pino onde o mouse esta',p1&&JSON.stringify(p1)!==p0&&p1.deck==='module');}
   // ---- customizador de props ----
   const ev=(t,el,x,y)=>el.dispatchEvent(new PointerEvent(t,{bubbles:true,clientX:x,clientY:y,button:0,pointerId:1}));
   const gp=()=>((data.sessions.x.gm||{}).props)||{},mp=()=>(((data.sessions.x.station||{}).map||{}).props)||{};
@@ -51,7 +76,7 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
   const re=document.querySelector('#mpPlan [data-room="md4"]').getBoundingClientRect(),cx=re.left+re.width/2,cy=re.top+re.height/2;
   ev('pointerdown',document.querySelector('#mpPlan [data-room="md4"]'),cx,cy);ev('pointerup',document.querySelector('#mpPlan'),cx,cy);await sl(300);
   const ids=Object.keys(gp());ok('colocar grava no gm/props',ids.length===1&&gp()[ids[0]].k==='mesa'&&gp()[ids[0]].shown===false);
-  ok('item oculto NAO vai pra map/props',Object.keys(mp()).length===0);
+  ok('item oculto NAO vai pra map/props',Object.keys(mp()).filter(k=>k.indexOf('L~')!==0).length===0);
   ok('item oculto aparece no mapa do GM tracejado',!!document.querySelector('#mpPlan .prop.ph'));
   const id=ids[0];
   document.getElementById('ppShow').click();await sl(300);

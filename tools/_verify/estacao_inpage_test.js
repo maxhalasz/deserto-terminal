@@ -12,10 +12,10 @@ setTimeout(async()=>{
     click(document.querySelector('[data-lvl="module"]'));
     click(document.querySelector('#planwrap [data-room="md4"]'));
     ok('selecionar sala mostra nome na faixa',/Wellbay/i.test($('recName').textContent));
-    ok('sala aberta aparece UNLOCKED',/UNLOCKED/.test($('recStat').textContent));
+    ok('sala aberta nao mostra LOCKED/UNLOCKED',!/LOCKED/i.test(document.getElementById('scene').innerText));
     ok('cartao mostra o nome da sala',/WELLBAY/i.test($('ncard').innerHTML));
     click(document.querySelector('#planwrap [data-room="md8"]'));
-    ok('sala selada aparece LOCKED',/^LOCKED/.test($('recStat').textContent));
+    ok('sala selada tambem nao mostra LOCKED',!/LOCKED/i.test(document.getElementById('scene').innerText)&&!document.getElementById('recStat'));
     ok('sala oculta nao existe no DOM',!document.querySelector('#planwrap [data-room="md9"]'));
     ok('nenhum nivel submerso na pagina',!/SUBMERGED|NOT SURVEYED/.test(document.getElementById('scene').innerText));
     ok('nada de survey nem porcentagem na tela',!/survey|levantad|\d+\s?%|\bTOTAL\b/i.test(document.getElementById('scene').innerText)&&!/\d+%/.test(document.getElementById('stack').textContent));
@@ -82,6 +82,44 @@ setTimeout(async()=>{
       ok('prop de layout esticado (sx) aparece',/scale\([\d.]+ [\d.]+\)/.test(document.querySelector('#planwrap [data-prop="L~md4~500~i1"]').getAttribute('transform')));}
      sessionRef.child('station/map/props').set(null);sessionRef.child('station/map/rooms/md9').set(null);await sleep(200);
      ok('apagar prop tira do mapa',!document.querySelector('#planwrap [data-prop]'));}
+    // caderno: so compartilhado
+    ok('sem botao MINE',!document.getElementById('nmMine')&&!/MINE/.test(document.querySelector('.ntools').textContent));
+    // pilha isometrica com a torre de alojamento
+    ok('pilha tem os 5 decks do alojamento',['lqE','lqD','lqC','lqB','lqA'].every(k=>document.querySelector('#stack [data-deck="'+k+'"]')));
+    ok('pilha tem os 3 decks da plataforma',['weather','module','cellar'].every(k=>document.querySelector('#stack [data-lvl="'+k+'"]'))&&document.querySelectorAll('#stack polygon').length>20);
+    ok('pilha diz onde chega cada um',/HELICOPTER/.test($('stack').textContent)&&/MOONPOOL/.test($('stack').textContent)&&/LIVING QUARTERS/.test($('stack').textContent));
+    // tema claro/escuro
+    click($('btnTheme'));ok('tema claro liga',document.documentElement.getAttribute('data-theme')==='light'&&/DARK/.test($('themeLbl').textContent));
+    click($('btnTheme'));ok('tema escuro volta',document.documentElement.getAttribute('data-theme')==='dark');
+    // sala coberta: so o nome, sem o que tem dentro
+    click(document.querySelector('[data-lvl="module"]'));await sleep(200);
+    {const mk=r=>({deck:'module',x:r[0]+r[2]/2,y:r[1]+r[3]/2,rot:0,sc:1,w:1,h:1,ops:[['rc',-.5,-.5,1,1,0,1]],lbl:'',inl:0,txt:0});
+     sessionRef.child('station/map/props/pv').set(mk(STATION.roomIndex.md4.r));await sleep(250);
+     ok('prop aparece antes de cobrir',!!document.querySelector('#planwrap [data-prop="pv"]'));
+     const eq0=document.querySelectorAll('#planwrap svg.cur g[clip-path]').length;
+     sessionRef.child('station/map/veil/md4').set(true);await sleep(300);
+     const sv=document.querySelector('#planwrap svg.cur');
+     ok('sala coberta some com o equipamento',document.querySelectorAll('#planwrap svg.cur g[clip-path]').length===eq0-1);
+     ok('sala coberta some com o prop',!document.querySelector('#planwrap [data-prop="pv"]'));
+     ok('sala coberta mostra so o nome',/WELLBAY/i.test(sv.textContent)&&!/350 m²/.test(sv.textContent));
+     sessionRef.child('station/map/veil').set(null);sessionRef.child('station/map/props/pv').set(null);await sleep(250);
+     ok('descobrir volta o conteudo',/350 m²/.test(document.querySelector('#planwrap svg.cur').textContent));}
+    // tela cheia, setas trocam de nivel, pino
+    ok('botao YOU ARE HERE aparece com pino',!$('btnPin').classList.contains('hid'));
+    click($('btnFull'));await sleep(400);
+    ok('tela cheia liga',document.body.classList.contains('full')&&$('planwrap').offsetWidth>1200);
+    const dn=document.getElementById('recName').textContent;
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true}));await sleep(300);
+    ok('seta pra baixo desce de nivel',document.getElementById('recName').textContent!==dn&&/Cellar|Deck A|Living/i.test(document.getElementById('recName').textContent));
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));await sleep(300);
+    ok('seta pra cima sobe de nivel',document.getElementById('recName').textContent===dn||/Module/i.test(document.getElementById('recName').textContent));
+    for(let i=0;i<9;i++){document.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true}));await sleep(120);}
+    ok('as setas passam pelos decks do alojamento',/Deck E|Living quarters/i.test(document.getElementById('recName').textContent));
+    click($('btnPin'));await sleep(500);
+    ok('YOU ARE HERE leva ao deck do pino',/Module/i.test(document.getElementById('recName').textContent)||/M\d|Boot|Control|Lounge|Gym|Crew|Officer|Electrical/i.test(document.getElementById('recName').textContent));
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await sleep(150);
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await sleep(250);
+    ok('Esc sai da tela cheia',!document.body.classList.contains('full'));
     sessionRef.child('station/force').set('cellar');
     ok('forcado vai pro cellar',/Cellar deck/i.test($('recName').textContent)&&/DIRECTED VIEW/.test($('topinfo').innerHTML));
     sessionRef.child('station/force').set(null);

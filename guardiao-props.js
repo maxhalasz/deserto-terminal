@@ -43,7 +43,8 @@ function create(ctx){
     Object.keys(LAYR).forEach(room=>{const r=S.roomIndex[room];if(!r||r.deck!==deck)return;const its=(LAYR[room]||{}).items||{};
       Object.keys(its).sort((a,b)=>((its[a].z||0)-(its[b].z||0))||(a<b?-1:1)).forEach(id=>{const p=SL.toProp(S,ITEMS,room,SL.PFX(room)+id,its[id]);if(p){p.hidden=!rr[room]||!!its[id].sec;p.noHit=true;out.push(p);}});});
     return out;}
-  const layoutUpd=(room,on)=>SL.publishUpd(S,ITEMS,room,LAYR[room]||null,on,pub());
+  const veiled=room=>{const m=getST().map;return !!(m&&m.veil&&m.veil[room]);};
+  const layoutUpd=(room,on,vl)=>SL.publishUpd(S,ITEMS,room,LAYR[room]||null,on&&!(vl===undefined?veiled(room):vl),pub());
   function list(deck){
     return layoutProps(deck).concat(Object.keys(GP).filter(id=>GP[id]&&GP[id].deck===deck).sort().map(id=>{const d=GP[id],it=itemOf(d,id);
       return {id,deck:d.deck,x:num(d.x),y:num(d.y),rot:num(d.rot),sc:d.sc||1,sx:d.sx||1,sy:d.sy||1,w:it?it.w:1,h:it?it.h:1,ops:it?it.ops:[],inl:it&&it.inl,txt:it&&it.txt,

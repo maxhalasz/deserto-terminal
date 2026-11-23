@@ -31,6 +31,22 @@ function publishUpd(S,ITEMS,roomId,rec,on,pubProps){
   upd['map/noeq/'+roomId]=(on&&rec&&rec.noeq)?true:null;
   return upd;
 }
+/* primeira vez: copia o layout padrao (station-layouts.js) pro Firebase das salas que ainda nao tem registro, e
+   publica o das salas que ja estao reveladas (e nao cobertas). Salas que o mestre editou ou limpou nunca sao tocadas. */
+function seedDefaults(sessionRef,S,ITEMS){
+  const D=window.STATION_LAYOUTS;if(!D||!sessionRef)return Promise.resolve(0);
+  return Promise.all([sessionRef.child('gm/layout').once('value'),sessionRef.child('station/map').once('value')]).then(([a,b])=>{
+    const have=a.val()||{},map=b.val()||{},upd={};let n=0;
+    Object.keys(D).forEach(id=>{
+      if(have[id]||!S.roomIndex[id])return;
+      const rec={noeq:D[id].noeq!==false,seed:1,t:Date.now(),items:D[id].items};
+      upd['gm/layout/'+id]=rec;n++;
+      if(map.rooms&&map.rooms[id]&&!(map.veil&&map.veil[id])){const u=publishUpd(S,ITEMS,id,rec,true,map.props||{});Object.keys(u).forEach(k=>{upd['station/'+k]=u[k];});}
+    });
+    return n?sessionRef.update(upd).then(()=>n):0;
+  });
+}
+const defaultOf=id=>{const d=window.STATION_LAYOUTS&&window.STATION_LAYOUTS[id];return d?{noeq:d.noeq!==false,items:JSON.parse(JSON.stringify(d.items))}:null;};
 const count=rec=>Object.keys(items(rec)).length;
-window.StationLayout={PFX,zpad,toProp,projection,publishUpd,count,catalog};
+window.StationLayout={PFX,zpad,toProp,projection,publishUpd,count,catalog,seedDefaults,defaultOf};
 })();

@@ -4,9 +4,11 @@
    corredores com grade, cotas, bolhas de grade estrutural, escala, figura humana, legenda.
    ============================================================ */
 (function(){
-const T={paper:'#d9d6ca',wall:'#1b1d1f',corr:'#c1c2b8',room:'#eceae2',deck:'#e2e0d4',grate:'rgba(0,0,0,.11)',grid:'#bfbcae',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
-  equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#2c7955',you:'#1b1d1f',youText:'#eceae2',sel:'#8a5a1a',amber:'#8a6a2a',
-  sealBg:'#d2cebd',hazard:'#8a6a2a',fire:'#8e3b34',pink:'#26282a',stain:'rgba(92,34,28,.72)'};
+const T={paper:'#e4e1d6',wall:'#1b1d1f',corr:'#c1c2b8',room:'#efede5',deck:'#dedbcf',grate:'rgba(0,0,0,.11)',grid:'#bdb9aa',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
+  equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#d9531e',you:'#1b1d1f',youText:'#eceae2',sel:'#d9531e',amber:'#b8480f',
+  sealBg:'#d2cebd',hazard:'#d9531e',fire:'#9c2f1b',pink:'#26282a',stain:'rgba(92,34,28,.72)'};
+const THEME={dark:{paper:'#e4e1d6',room:'#efede5',corr:'#c1c2b8',deck:'#dedbcf',grid:'#bdb9aa'},light:{paper:'#eceae2',room:'#fbfaf6',corr:'#d6d3c8',deck:'#f4f3ee',grid:'#cfccbe'}};
+function setTheme(m){Object.assign(T,THEME[m]||THEME.dark);}
 const DW={door:1.3,cdoor:1.0,double:2.4,open:2.6,gate:1.8,weld:1.4,hatch:1.0};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const f1=v=>(Math.round(v*10)/10).toString();
@@ -57,6 +59,7 @@ function plan(deck,st,o){
   const ox=padL-bb[0]*px,oy=padT-bb[1]*px,H=Math.ceil(padT+bb[3]*px+botH);
   const X=v=>ox+v*px,Y=v=>oy+v*px,P=m=>m*px;
   const out=deck.outdoor,WE=out?.12:.25;
+  const veiled=r=>!!(st.veil&&st.veil[r.id]);
   const showR=r=>st.rooms&&st.rooms[r.id]?'f':(st.ghost?'g':null);
   const showC=c=>st.corr&&st.corr[c.id]?'f':(st.ghost?'g':null);
   const fullRects=[];deck.rooms.forEach(r=>{if(showR(r)==='f')fullRects.push(r.r);});deck.corr.forEach(c=>{if(showC(c)==='f')fullRects.push(c.r);});
@@ -120,7 +123,7 @@ function plan(deck,st,o){
     rooms.forEach(r=>{if(out&&r.t==='ext')return;(r.d||[]).forEach(d=>{s+=door(r,d);});});
     rooms.forEach(r=>{if(r.cab)s+=windows(r);});
     // equipamento
-    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(st.noeq&&st.noeq[r.id]))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
+    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(st.noeq&&st.noeq[r.id])||veiled(r))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
     // etiquetas
     rooms.forEach(r=>{s+=label(r,mode);});
     // codigos de corredor
@@ -190,6 +193,10 @@ function plan(deck,st,o){
   function label(r,mode){
     if(out&&r.t==='ext'&&mode!=='f')return '';
     const [x,y,w,hh]=r.r;
+    if(veiled(r)&&mode==='f'&&r.t!=='stair'){const nm=r.n.split(' · ').filter((q,i)=>!(i===0&&/^Md+$/.test(q))).join(' · '),wpx=P(w),hpx=P(hh);let fs=Math.max(7.5,Math.min(15,wpx/(nm.length*.58)));let lines=[nm];
+      if(nm.length*.58*fs>wpx*.9){const wd=nm.split(' ');const mid=Math.ceil(wd.length/2);lines=wd.length>1?[wd.slice(0,mid).join(' '),wd.slice(mid).join(' ')]:[nm];fs=Math.max(7,Math.min(14,wpx*.9/(Math.max(...lines.map(l=>l.length))*.6)));}
+      const cx=X(x+w/2),cy=Y(y+hh/2)-(lines.length-1)*(fs+1)/2+fs*.34;
+      return `<g pointer-events="none">${lines.map((l,i)=>`<text x="${f1(cx)}" y="${f1(cy+i*(fs+1.6))}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="${f1(fs)}" fill="${T.label}" letter-spacing=".08em" style="text-transform:uppercase" paint-order="stroke" stroke="${T.room}" stroke-width="3.2" stroke-linejoin="round">${esc(l)}</text>`).join('')}</g>`;}
     if(r.t==='stair'){const txt=(r.dir==='dn'?'DN ':'UP ')+(r.to||'');const cx=X(x+w/2),cy=Y(y+hh/2);return `<text x="${f1(cx)}" y="${f1(cy+2)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.8" fill="${T.label}" letter-spacing=".14em" transform="rotate(-90 ${f1(cx)} ${f1(cy)})" paint-order="stroke" stroke="${T.room}" stroke-width="2.6" pointer-events="none">${txt}</text>`;}
     const parts=r.n.split(' · ');const code=/^M\d+$/.test(parts[0])?parts[0]:'';const name=(code?parts.slice(1).join(' · '):r.n);
     const area=Math.round(w*hh);
@@ -210,10 +217,12 @@ function plan(deck,st,o){
   if(st.ghost)h+=`<g opacity=".32">${layer('g')}</g>`;
   h+=layer('f');
   /* props do customizador */
-  if(st.props&&st.props.length){const inRev=p=>deck.rooms.some(r=>showR(r)==='f'&&inR(r.r,p.x,p.y,.3))||ptFull(p.x,p.y);
+  if(st.props&&st.props.length){const inRev=p=>deck.rooms.some(r=>showR(r)==='f'&&!veiled(r)&&inR(r.r,p.x,p.y,.3))||(ptFull(p.x,p.y)&&!deck.rooms.some(r=>veiled(r)&&inR(r.r,p.x,p.y,.3)));
     const list=st.props.filter(p=>p.deck===deck.id&&(st.ghost||inRev(p)));propIds=list.map(p=>p.id);
     if(list.length)h+=`<g class="props"${st.ghost?'':' pointer-events="none"'}>${list.map(p=>propG(p,{px,X,Y,P,pid:id,hit:!!st.ghost})).join('')}</g>`;}
 
+  /* GM: selo nas salas cobertas (os jogadores veem so o nome) */
+  if(st.veilMark)deck.rooms.forEach(r=>{if(showR(r)==='f'&&st.veilMark[r.id]){const x=X(r.r[0])+5,y=Y(r.r[1])+5;h+=`<g pointer-events="none"><rect x="${f1(x)}" y="${f1(y)}" width="44" height="11" fill="${T.amber}"/><text x="${f1(x+22)}" y="${f1(y+8.4)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="9.5" letter-spacing=".12em" fill="${T.youText}">COBERTA</text></g>`;}});
   /* fire doors do firewall */
   (deck.fireDoors||[]).forEach(f=>{if(!(st.ghost?ptAny(f.x,f.y):ptFull(f.x,f.y)))return;
     const x=X(f.x),y=Y(f.y);h+=`<g pointer-events="none"><rect x="${f1(x-P(.2))}" y="${f1(y-P(1.2))}" width="${f1(P(.4))}" height="${f1(P(2.4))}" fill="url(#${id}h)" stroke="${T.wall}" stroke-width="1"/><text x="${f1(x+P(1.2))}" y="${f1(y-P(1.5))}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.label}" paint-order="stroke" stroke="${T.corr}" stroke-width="2.4">${f.id}</text></g>`;});
@@ -260,5 +269,5 @@ function plan(deck,st,o){
   h+=`<text x="${PW-padR}" y="${H-6}" text-anchor="end" font-family="IBM Plex Mono" font-size="7.5" fill="${T.sub}" letter-spacing=".1em">${esc(deck.dwg)} · REV 3 · ${esc(deck.name.toUpperCase())} ${esc(deck.elev)} · SCALE 1:500 @A1</text>`;
   return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${PW}" height="${H}" viewBox="0 0 ${PW} ${H}" style="display:block;background:${T.paper}">${h}</svg>`,w:PW,h:H,px,ox,oy,toDeck:(sx,sy)=>[(sx-ox)/px,(sy-oy)/px],props:propIds};
 }
-window.StationRender={plan,T,propThumb,propG};
+window.StationRender={plan,T,propThumb,propG,setTheme};
 })();

@@ -13,6 +13,7 @@ const snap=p=>({val:()=>{const v=get(p);return v==null?null:JSON.parse(JSON.stri
 const notify=()=>L.forEach(l=>l.cb(snap(l.p)));
 const node=p=>({child:c=>node(p+'/'+c),on:(e,cb)=>{L.push({p,cb});cb(snap(p));},set:v=>{set(p,v);notify();return Promise.resolve();},update:o=>{Object.keys(o).forEach(k=>set(p+'/'+k,o[k]));notify();return Promise.resolve();},remove:()=>{set(p,null);notify();return Promise.resolve();},once:()=>Promise.resolve(snap(p))});
 window.sessionRef=node('sessions/x');
+const qs=new URLSearchParams(location.search);if(!qs.get('seed'))delete window.STATION_LAYOUTS;
 window.EDITOR=EditorSalas.init(sessionRef);
 const q=new URLSearchParams(location.search);
 if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'OK    ':'FALHA ')+n);const sl=ms=>new Promise(r=>setTimeout(r,ms));
@@ -22,6 +23,18 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
  const lay=()=>(((data.sessions.x.gm||{}).layout)||{}).md4,pubp=()=>(((data.sessions.x.station||{}).map||{}).props)||{},its=()=>(lay()&&lay().items)||{};
  const center=el=>{const b=el.getBoundingClientRect();return [b.left+b.width/2,b.top+b.height/2];};
  try{
+  if(qs.get('seed')){await sl(900);
+   const lay=((data.sessions.x.gm||{}).layout)||{};
+   ok('semente: todas as salas ganham layout',Object.keys(lay).length>=120&&Object.keys(window.STATION_LAYOUTS).length>=120);
+   ok('semente: sala revelada ja chega publicada na mesa',Object.keys(((data.sessions.x.station||{}).map||{}).props||{}).some(k=>k.indexOf('L~md4~')===0));
+   ok('semente: sala oculta fica so no mestre',!Object.keys(((data.sessions.x.station||{}).map||{}).props||{}).some(k=>k.indexOf('L~md1~')===0)&&Object.keys(lay.md1.items).length>5);
+   ok('semente: equipamento antigo escondido',((data.sessions.x.station||{}).map||{}).noeq&&data.sessions.x.station.map.noeq.md4===true);
+   document.querySelector('#rlist [data-r="md4"]').click();await sl(300);
+   ok('botao restaurar padrao existe',!!document.querySelector('[data-a="reset"]'));
+   ok('itens do padrao existem no catalogo',Object.keys(window.STATION_LAYOUTS).every(r=>Object.values(window.STATION_LAYOUTS[r].items).every(i=>StationProps.items[i.k])));
+   ok('nenhum item do padrao cai fora da sala',Object.keys(window.STATION_LAYOUTS).every(r=>{const R=STATION.roomIndex[r].r;return Object.values(window.STATION_LAYOUTS[r].items).every(i=>i.x>=-.2&&i.y>=-.2&&i.x<=R[2]+.2&&i.y<=R[3]+.2);}));
+   $('side').querySelector('[data-a="clear"]').click&&0;
+  }else{
   ok('lista de salas aparece',document.querySelectorAll('#rlist [data-r]').length>5);
   ok('nenhum item do catalogo privado vaza',!/DRE|Carcosa|caisson/i.test(document.body.innerText));
   document.querySelector('#rlist [data-r="md4"]').click();await sl(250);
@@ -85,6 +98,7 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
   // exportar nao quebra
   $('bExp').click();await sl(100);ok('exportar nao quebra',true);
   ok('status mostra salvo',/salvo/.test($('status').textContent));
+  }
  }catch(e){out.push('EXCECAO '+e.message+' @'+(e.stack||'').split('\\n')[1]);}
  const pre=document.createElement('pre');pre.id='testout';pre.textContent=out.join('\\n');document.body.appendChild(pre);},1200);}
 </script>`;
