@@ -12,8 +12,8 @@ const snap=(v,on)=>on?Math.round(v*4)/4:Math.round(v*100)/100;
 
 function create(ctx){
   const {sessionRef,S,R,$,getDeck,getST,getLastP,redraw,pushHist}=ctx;
-  const SP=window.StationProps,ITEMS=SP.items;
-  let active=false,arm=null,selId=null,cat='mob',q='',GP={},drag=null,lastRot=0,zi=1;const ZW=[800,1200,1700,2400];
+  const SP=window.StationProps,ITEMS=SP.items,SL=window.StationLayout;
+  let LAYR={},active=false,arm=null,selId=null,cat='mob',q='',GP={},drag=null,lastRot=0,zi=1;const ZW=[800,1200,1700,2400];
   if(!document.getElementById('propsCss')){const st=document.createElement('style');st.id='propsCss';st.textContent=".pbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;justify-content:space-between}\n.pgrid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;max-height:230px;overflow:auto;padding:2px}\n.ptile{width:92px;background:#eceae2;border:1px solid #9a9889;border-radius:3px;padding:5px 3px 4px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit;color:#222;font-size:10px;line-height:1.2}\n.ptile svg{width:40px;height:40px}.ptile:hover{border-color:var(--live)}.ptile.on{outline:2px solid #d0a24f;border-color:#d0a24f;background:#f3eedb}\n.pins{background:var(--panel2);border:1px solid var(--live-dim);border-radius:4px;padding:10px 12px;margin-bottom:6px}\n.pchip{background:var(--bg);border:1px solid var(--line);border-radius:12px;color:var(--ink);font-family:inherit;font-size:11px;padding:3px 10px;cursor:pointer}\n.pchip.h{opacity:.6;border-style:dashed}.pchip.on{border-color:#d0a24f;color:#d0a24f}.pchip:hover{border-color:var(--live)}";document.head.appendChild(st);}
   const gpRef=sessionRef.child('gm/props');
   const planEl=()=>$('mpPlan'),box=()=>$('mpProps');
@@ -24,7 +24,7 @@ function create(ctx){
   /* ---- publicacao ---- */
   function proj(d,id){
     const it=itemOf(d,id);if(!it)return null;
-    return {deck:d.deck,x:num(d.x),y:num(d.y),rot:num(d.rot),sc:d.sc||1,w:it.w,h:it.h,ops:it.ops,lbl:d.lbl||'',inl:it.inl?1:0,txt:it.txt?1:0};
+    return {deck:d.deck,x:num(d.x),y:num(d.y),rot:num(d.rot),sc:d.sc||1,sx:d.sx||1,sy:d.sy||1,w:it.w,h:it.h,ops:it.ops,lbl:d.lbl||'',inl:it.inl?1:0,txt:it.txt?1:0};
   }
   /* grava (null = apagar), com inverso pro Ctrl+Z */
   function save(id,nd,label,noHist){
@@ -39,10 +39,15 @@ function create(ctx){
   const newId=()=>'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 
   /* ---- lista pro renderer ---- */
+  function layoutProps(deck){const out=[],rr=(getST().map||{}).rooms||{};
+    Object.keys(LAYR).forEach(room=>{const r=S.roomIndex[room];if(!r||r.deck!==deck)return;const its=(LAYR[room]||{}).items||{};
+      Object.keys(its).sort((a,b)=>((its[a].z||0)-(its[b].z||0))||(a<b?-1:1)).forEach(id=>{const p=SL.toProp(S,ITEMS,room,SL.PFX(room)+id,its[id]);if(p){p.hidden=!rr[room]||!!its[id].sec;p.noHit=true;out.push(p);}});});
+    return out;}
+  const layoutUpd=(room,on)=>SL.publishUpd(S,ITEMS,room,LAYR[room]||null,on,pub());
   function list(deck){
-    return Object.keys(GP).filter(id=>GP[id]&&GP[id].deck===deck).sort().map(id=>{const d=GP[id],it=itemOf(d,id);
-      return {id,deck:d.deck,x:num(d.x),y:num(d.y),rot:num(d.rot),sc:d.sc||1,w:it?it.w:1,h:it?it.h:1,ops:it?it.ops:[],inl:it&&it.inl,txt:it&&it.txt,
-        lbl:d.lbl||'',hidden:!d.shown,sel:id===selId,unk:!it};});
+    return layoutProps(deck).concat(Object.keys(GP).filter(id=>GP[id]&&GP[id].deck===deck).sort().map(id=>{const d=GP[id],it=itemOf(d,id);
+      return {id,deck:d.deck,x:num(d.x),y:num(d.y),rot:num(d.rot),sc:d.sc||1,sx:d.sx||1,sy:d.sy||1,w:it?it.w:1,h:it?it.h:1,ops:it?it.ops:[],inl:it&&it.inl,txt:it&&it.txt,
+        lbl:d.lbl||'',hidden:!d.shown,sel:id===selId,unk:!it};}));
   }
   const inRevealed=(deckId,x,y)=>{const st=getST().map||{},d=S.DECKS[deckId],rr=st.rooms||{},cc=st.corr||{};
     const inb=(r,e)=>x>r[0]-e&&x<r[0]+r[2]+e&&y>r[1]-e&&y<r[1]+r[3]+e;
@@ -54,7 +59,7 @@ function create(ctx){
   function drawPanel(){
     const b=box();if(!b)return;b.style.display=active?'block':'none';if(!active)return;
     const ae=document.activeElement;if(ae&&b.contains(ae)&&/INPUT|TEXTAREA/.test(ae.tagName)&&ae.id!=='ppSearch'){return;}
-    const deck=getDeck(),mine=list(deck),ql=norm(q).trim();
+    const deck=getDeck(),mine=list(deck).filter(p=>GP[p.id]),ql=norm(q).trim();
     const items=SP.order.map(id=>ITEMS[id]).filter(i=>ql?norm(i.n).includes(ql):i.cat===cat);
     const sel=selId&&GP[selId]&&GP[selId].deck===deck?GP[selId]:null,sit=sel?itemOf(sel,selId):null;
     let ins='';
@@ -65,7 +70,7 @@ function create(ctx){
         ${out?'<div style="font-size:11px;color:var(--warn);margin-bottom:8px">⚠ Item revelado, mas a sala/corredor onde ele está ainda não foi revelado: os jogadores só o veem quando o lugar aparecer.</div>':''}
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
           <button class="btn" data-pa="rot-15">⟲ −15°</button><button class="btn" data-pa="rot15">⟳ +15°</button><button class="btn" data-pa="rot90">⟳ 90°</button>
-          <button class="btn" data-pa="sc-">− tamanho</button><button class="btn" data-pa="sc+">+ tamanho</button>
+          <button class="btn" data-pa="w-">− largura</button><button class="btn" data-pa="w+">+ largura</button><button class="btn" data-pa="sc-">− tamanho</button><button class="btn" data-pa="sc+">+ tamanho</button>
           <button class="btn" data-pa="dup">DUPLICAR</button><button class="btn" data-pa="del">APAGAR</button></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <label style="flex:1;min-width:180px;font-size:10px;letter-spacing:.14em;color:var(--ink-dim)">RÓTULO <span style="color:var(--live)">· os jogadores leem</span><input id="ppLbl" type="text" maxlength="40" value="${esc(sel.lbl||'')}" style="display:block;width:100%;margin-top:3px;background:var(--panel2);border:1px solid var(--live-dim);border-radius:4px;color:var(--ink);font-family:inherit;font-size:12px;padding:6px 8px"></label>
@@ -92,6 +97,8 @@ function create(ctx){
     if(a.startsWith('rot')){const v=a==='rot90'?90:+a.slice(3);nd.rot=((num(d.rot)+v)%360+360)%360;lastRot=nd.rot;}
     else if(a==='sc+')nd.sc=Math.min(4,Math.round((d.sc||1)*125)/100);
     else if(a==='sc-')nd.sc=Math.max(.25,Math.round((d.sc||1)*80)/100);
+    else if(a==='w+')nd.sx=Math.min(8,Math.round((d.sx||1)*125)/100);
+    else if(a==='w-')nd.sx=Math.max(.1,Math.round((d.sx||1)*80)/100);
     else if(a==='show')nd.shown=!d.shown;
     save(selId,nd,(a==='show'?(nd.shown?'revelou ':'ocultou '):'ajustou ')+((itemOf(d,selId)||{}).n||'prop'));
   }
@@ -147,10 +154,11 @@ function create(ctx){
       else if(k.startsWith('Arrow')){e.preventDefault();const st=e.shiftKey?1:.25,d=GP[selId];
         save(selId,Object.assign({},d,{x:snap(num(d.x)+(k==='ArrowRight'?st:k==='ArrowLeft'?-st:0),1),y:snap(num(d.y)+(k==='ArrowDown'?st:k==='ArrowUp'?-st:0),1)}),'moveu prop');}
     });
+    sessionRef.child('gm/layout').on('value',s=>{LAYR=s.val()||{};if(!drag)redraw();});
     gpRef.on('value',s=>{GP=s.val()||{};if(selId&&!GP[selId])selId=null;if(!drag){redraw();drawPanel();}});
   }
 
-  return {bind,list,width:()=>ZW[zi],active:()=>active,dragging:()=>!!drag,armed:()=>arm,
+  return {bind,list,layoutUpd,width:()=>ZW[zi],active:()=>active,dragging:()=>!!drag,armed:()=>arm,
     setActive:v=>{active=!!v;if(!active){arm=null;}drawPanel();redraw();},drawPanel,
     state:()=>({GP,selId,arm})};
 }

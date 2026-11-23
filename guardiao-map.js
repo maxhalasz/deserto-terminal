@@ -23,7 +23,7 @@ function init(sessionRef){
       <b>Shift+clique</b> só seleciona, sem mudar nada. Salas apagadas no desenho ainda não foram reveladas; o que está sólido eles já veem. <b>Ctrl+Z</b> desfaz a última revelação.</div>
     <div id="mpDecks" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;position:relative">
-      <button class="btn" id="mpMode" title="Alterna entre revelar o mapa e customizar as salas com props">MODO: REVELAR</button><button class="btn" id="mpAll">REVELAR DECK INTEIRO</button><button class="btn" id="mpNone">OCULTAR DECK</button><button class="btn" id="mpPinClr">TIRAR PINO</button>
+      <a class="btn" href="editor-salas.html" target="_blank" title="Abre o editor de salas (monta o interior de cada sala e salva sozinho)" style="text-decoration:none">EDITOR DE SALAS ↗</a><button class="btn" id="mpMode" title="Alterna entre revelar o mapa e customizar as salas com props">MODO: REVELAR</button><button class="btn" id="mpAll">REVELAR DECK INTEIRO</button><button class="btn" id="mpNone">OCULTAR DECK</button><button class="btn" id="mpPinClr">TIRAR PINO</button>
       <input id="mpSearch" type="text" placeholder="buscar sala (nome ou código)…" autocomplete="off" style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:12px;padding:7px 10px">
       <label style="font-size:11px;color:var(--ink-dim);letter-spacing:.06em;display:flex;gap:6px;align-items:center"><input type="checkbox" id="mpNeigh" checked> corredor vizinho junto</label>
       <div id="mpResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--panel2);border:1px solid var(--live-dim);border-radius:4px;max-height:260px;overflow:auto"></div>
@@ -51,7 +51,7 @@ function init(sessionRef){
   /* grava uma revelacao guardando o inverso pra poder desfazer */
   function apply(upd,label){
     const inv={};
-    Object.keys(upd).forEach(p=>{const m=p.match(/^map\/(rooms|corr)\/(.+)$/);if(!m)return;const cur=(m[1]==='rooms'?revRooms():revCorr())[m[2]];inv[p]=cur===undefined?null:cur;});
+    Object.keys(upd).forEach(p=>{const m=p.match(/^map\/(rooms|corr|props|noeq)\/(.+)$/);if(!m)return;const cur=((ST.map&&ST.map[m[1]])||{})[m[2]];inv[p]=cur===undefined?null:cur;});
     if(Object.keys(inv).length){hist.push({label,inv});if(hist.length>60)hist.shift();}
     ref.update(upd);drawUndo();
   }
@@ -63,10 +63,11 @@ function init(sessionRef){
       const p=s==='n'?[x+w*t,y-.7]:s==='s'?[x+w*t,y+h+.7]:s==='w'?[x-.7,y+h*t]:[x+w+.7,y+h*t];
       const c=d.corr.find(c=>p[0]>c.r[0]&&p[0]<c.r[0]+c.r[2]&&p[1]>c.r[1]&&p[1]<c.r[1]+c.r[3]);if(c)out.push(c.id);});
     return out;}
-  function roomUpd(id,upd){const r=S.roomIndex[id];if(!revRooms()[id]){upd['map/rooms/'+id]={at:Date.now()};if(neigh)corrOfDoors(r).forEach(c=>{if(!revCorr()[c])upd['map/corr/'+c]=true;});}return upd;}
+  const layUpd=(id,on,upd)=>{if(PR)Object.assign(upd,PR.layoutUpd(id,on));};
+  function roomUpd(id,upd){const r=S.roomIndex[id];if(!revRooms()[id]){upd['map/rooms/'+id]={at:Date.now()};layUpd(id,true,upd);if(neigh)corrOfDoors(r).forEach(c=>{if(!revCorr()[c])upd['map/corr/'+c]=true;});}return upd;}
   function toggleRoom(id){
     const r=S.roomIndex[id],on=!!revRooms()[id],upd={};
-    if(on)upd['map/rooms/'+id]=null;else roomUpd(id,upd);
+    if(on){upd['map/rooms/'+id]=null;layUpd(id,false,upd);}else roomUpd(id,upd);
     apply(upd,(on?'ocultou ':'revelou ')+r.n);}
   function toggleCorr(id){const c=S.corrIndex[id],ids=c&&c.g?S.DECKS[c.deck].corr.filter(x=>x.g===c.g).map(x=>x.id):[id],on=!!revCorr()[id],upd={};ids.forEach(k=>{upd['map/corr/'+k]=on?null:true;});apply(upd,(on?'ocultou ':'revelou ')+'corredor '+(c.n||c.id));}
 
@@ -140,8 +141,8 @@ function init(sessionRef){
   $('mpPin').addEventListener('click',()=>{pinMode=!pinMode;drawAll();});
   $('mpPinClr').addEventListener('click',()=>ref.child('map/pin').remove());
   $('mpNeigh').addEventListener('change',e=>{neigh=e.target.checked;});
-  $('mpAll').addEventListener('click',()=>{const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(!revRooms()[r.id])upd['map/rooms/'+r.id]={at:Date.now()};});d.corr.forEach(c=>{if(!revCorr()[c.id])upd['map/corr/'+c.id]=true;});apply(upd,'revelou o deck inteiro');});
-  $('mpNone').addEventListener('click',()=>{if(!confirm('Ocultar todo o deck dos jogadores? (dá pra desfazer com Ctrl+Z)'))return;const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(revRooms()[r.id])upd['map/rooms/'+r.id]=null;});d.corr.forEach(c=>{if(revCorr()[c.id])upd['map/corr/'+c.id]=null;});apply(upd,'ocultou o deck');});
+  $('mpAll').addEventListener('click',()=>{const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(!revRooms()[r.id]){upd['map/rooms/'+r.id]={at:Date.now()};layUpd(r.id,true,upd);}});d.corr.forEach(c=>{if(!revCorr()[c.id])upd['map/corr/'+c.id]=true;});apply(upd,'revelou o deck inteiro');});
+  $('mpNone').addEventListener('click',()=>{if(!confirm('Ocultar todo o deck dos jogadores? (dá pra desfazer com Ctrl+Z)'))return;const d=S.DECKS[deck],upd={};d.rooms.forEach(r=>{if(revRooms()[r.id]){upd['map/rooms/'+r.id]=null;layUpd(r.id,false,upd);}});d.corr.forEach(c=>{if(revCorr()[c.id])upd['map/corr/'+c.id]=null;});apply(upd,'ocultou o deck');});
   $('mpUndo').addEventListener('click',undo);
   addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&root.classList.contains('active')&&!(e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))){e.preventDefault();undo();}});
   $('mpSearch').addEventListener('input',e=>search(e.target.value));

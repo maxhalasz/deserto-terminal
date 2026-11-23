@@ -75,6 +75,11 @@ setTimeout(async()=>{
      sessionRef.child('station/map/rooms/md9').set({at:Date.now()});await sleep(300);
      ok('prop aparece quando a sala e revelada',!!document.querySelector('#planwrap [data-prop="pb"]'));
      ok('prop nao e clicavel no terminal',!!document.querySelector('#planwrap g.props[pointer-events="none"]'));
+     {const n0=document.querySelectorAll('#planwrap svg.cur g[clip-path]').length;sessionRef.child('station/map/noeq/md4').set(true);await sleep(300);
+      ok('noeq esconde o equipamento padrao da sala',document.querySelectorAll('#planwrap svg.cur g[clip-path]').length===n0-1);
+      sessionRef.child('station/map/noeq/md4').set(null);
+      sessionRef.child('station/map/props/L~md4~500~i1').set(Object.assign(mkp(q4),{sx:3,sy:1}));await sleep(300);
+      ok('prop de layout esticado (sx) aparece',/scale\([\d.]+ [\d.]+\)/.test(document.querySelector('#planwrap [data-prop="L~md4~500~i1"]').getAttribute('transform')));}
      sessionRef.child('station/map/props').set(null);sessionRef.child('station/map/rooms/md9').set(null);await sleep(200);
      ok('apagar prop tira do mapa',!document.querySelector('#planwrap [data-prop]'));}
     sessionRef.child('station/force').set('cellar');

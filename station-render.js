@@ -33,7 +33,7 @@ function propOps(ops,pid){
 }
 /* um prop dentro de <g> no espaco da planta. p={id,x,y,rot,sc,w,h,ops,lbl,inl,txt,hidden,sel,unk} */
 function propG(p,o){
-  const w=p.w||1,h=p.h||1,sc=p.sc||1,rot=p.rot||0,pid=o.pid||'pl';
+  const w=p.w||1,h=p.h||1,sc=p.sc||1,sx=p.sx||1,sy=p.sy||1,rot=p.rot||0,pid=o.pid||'pl';
   const cx=o.X(p.x),cy=o.Y(p.y),k=o.px*sc;
   let inner=propOps(p.ops,pid);
   if(p.unk)inner+=`<rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" fill="none" stroke="${T.pink}" stroke-width="1" stroke-dasharray="3 2" ${NS}/><text y=".14" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size=".5" fill="${T.pink}">?</text>`;
@@ -41,8 +41,8 @@ function propG(p,o){
     inner+=`<text transform="rotate(${-rot})" y="${pn(sz*.33)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="${pn(sz)}" fill="${p.txt?T.pink:T.pink}">${esc(L)}</text>`;}
   if(o.hit)inner=`<rect x="${-Math.max(w,.9)/2}" y="${-Math.max(h,.9)/2}" width="${Math.max(w,.9)}" height="${Math.max(h,.9)}" fill="transparent" stroke="none" pointer-events="all"/>`+inner;
   if(p.sel)inner+=`<rect x="${-w/2-.12}" y="${-h/2-.12}" width="${w+.24}" height="${h+.24}" fill="none" stroke="${T.sel}" stroke-width="1.6" stroke-dasharray="5 3" ${NS}/>`;
-  let s=`<g class="prop${p.hidden?' ph':''}" data-prop="${esc(p.id)}" transform="translate(${pn(cx)} ${pn(cy)}) rotate(${rot}) scale(${pn(k)})"${p.hidden?' opacity=".5" stroke-dasharray="3 2"':''}>${inner}</g>`;
-  if(!p.inl&&p.lbl)s+=`<text x="${pn(cx)}" y="${pn(cy+o.P(Math.hypot(w,h)/2*sc)+8)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.8" fill="${T.sub}" paint-order="stroke" stroke="${T.room}" stroke-width="2.6" pointer-events="none">${esc(p.lbl)}</text>`;
+  let s=`<g class="prop${p.hidden?' ph':''}" data-prop="${esc(p.id)}" transform="translate(${pn(cx)} ${pn(cy)}) rotate(${rot}) scale(${pn(k*sx)} ${pn(k*sy)})"${p.hidden?' opacity=".5" stroke-dasharray="3 2"':''}>${inner}</g>`;
+  if(!p.inl&&p.lbl)s+=`<text x="${pn(cx)}" y="${pn(cy+o.P(Math.hypot(w*sx,h*sy)/2*sc)+8)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.8" fill="${T.sub}" paint-order="stroke" stroke="${T.room}" stroke-width="2.6" pointer-events="none">${esc(p.lbl)}</text>`;
   return s;
 }
 function propThumb(it,size){
@@ -53,7 +53,7 @@ function propThumb(it,size){
 function plan(deck,st,o){
   const id=o.id||'sp',PW=o.W,bb=deck.bbox;
   const padL=36,padT=36,padR=30,keyH=o.key===false?0:50,botH=50+keyH;
-  let px=Math.min((PW-padL-padR)/bb[2],((o.maxH||9999)-padT-botH)/bb[3],14);px=Math.floor(px*100)/100;
+  let px=Math.min((PW-padL-padR)/bb[2],((o.maxH||9999)-padT-botH)/bb[3],o.maxPx||14);px=Math.floor(px*100)/100;
   const ox=padL-bb[0]*px,oy=padT-bb[1]*px,H=Math.ceil(padT+bb[3]*px+botH);
   const X=v=>ox+v*px,Y=v=>oy+v*px,P=m=>m*px;
   const out=deck.outdoor,WE=out?.12:.25;
@@ -120,7 +120,7 @@ function plan(deck,st,o){
     rooms.forEach(r=>{if(out&&r.t==='ext')return;(r.d||[]).forEach(d=>{s+=door(r,d);});});
     rooms.forEach(r=>{if(r.cab)s+=windows(r);});
     // equipamento
-    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq)return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
+    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(st.noeq&&st.noeq[r.id]))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
     // etiquetas
     rooms.forEach(r=>{s+=label(r,mode);});
     // codigos de corredor

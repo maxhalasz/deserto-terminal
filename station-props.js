@@ -14,7 +14,7 @@ function def(id,n,cat,w,h,fn,opt){
     ln:(x1,y1,x2,y2,f)=>ops.push(['ln',x1,y1,x2,y2,f||0]),pl:(pts,cl,f)=>ops.push(['pl',pts,cl?1:0,f||0]),
     tx:(x,y,t,sz,b)=>ops.push(['tx',x,y,String(t),sz||.3,b?1:0]),ha:(x,y,ww,hh)=>ops.push(['ha',x,y,ww,hh])};
   fn(o);
-  ITEMS[id]=Object.assign({id,n,cat,w,h,ops},opt||{});if(ORDER.indexOf(id)<0)ORDER.push(id);
+  ITEMS[id]=Object.assign({id,n,cat,w,h,ops,priv:!!(window.StationProps&&window.StationProps.priv)},opt||{});if(ORDER.indexOf(id)<0)ORDER.push(id);
 }
 
 /* ---------- MOBILIA ---------- */

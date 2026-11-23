@@ -5,9 +5,9 @@ const seed={online:true,map:{pin:{deck:'module',x:35,y:26.8},rooms:{md0:{at:1},m
 const h=`<!doctype html><html><head><meta charset="utf-8">${css}</head><body><div class="top"><h1>PAINEL DO <span>GUARDIÃO</span></h1></div>
 <div class="tabs"><button class="tab">ESTAÇÃO</button><button class="tab active">MAPA</button><button class="tab">SUBMARINO</button></div>
 <div id="tab-mapa" class="tabpanel active"></div>
-<script src="station-data.js"></script><script src="station-eq.js"></script><script src="station-render.js"></script><script src="station-gm-data.js"></script><script src="station-props.js"></script><script src="guardiao-props.js"></script><script src="guardiao-map.js"></script>
+<script src="station-data.js"></script><script src="station-eq.js"></script><script src="station-render.js"></script><script src="station-gm-data.js"></script><script src="station-props.js"></script><script src="station-props-more.js"></script><script src="station-layout.js"></script><script src="guardiao-props.js"></script><script src="guardiao-map.js"></script>
 <script>
-let data={sessions:{x:{station:${JSON.stringify(seed)}}}};const L=[];
+let data={sessions:{x:{station:${JSON.stringify(seed)},gm:{layout:{md2:{noeq:true,items:{a:{k:"mesa",x:2,y:2,rot:0,sc:1,sx:1,sy:1,z:0},b:{k:"cadeira",x:3,y:2,rot:0,sc:1,sx:1,sy:1,z:0,sec:1}}}}}}}};const L=[];
 const get=p=>p.split('/').filter(Boolean).reduce((o,k)=>o==null?o:o[k],data);
 const set=(p,v)=>{const a=p.split('/').filter(Boolean);let o=data;for(let i=0;i<a.length-1;i++){if(o[a[i]]==null||typeof o[a[i]]!=='object')o[a[i]]={};o=o[a[i]];}if(v===null)delete o[a[a.length-1]];else o[a[a.length-1]]=v;};
 const snap=p=>({val:()=>{const v=get(p);return v==null?null:JSON.parse(JSON.stringify(v));}});
@@ -30,9 +30,11 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
   document.querySelector('[data-room="md2"]').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));
   document.getElementById('mpFocus').click();await sl(300);
   ok('destacar revela a sala escondida',!!data.sessions.x.station.map.rooms.md2);
+  {const pp=data.sessions.x.station.map.props||{};ok('revelar a sala publica o layout dela',Object.keys(pp).filter(k=>k.indexOf('L~md2~')===0).length===1);ok('item secreto do layout nao e publicado',!Object.keys(pp).some(k=>/~b$/.test(k)));ok('layout com noeq publica noeq',!!(data.sessions.x.station.map.noeq&&data.sessions.x.station.map.noeq.md2));}
   ok('destacar grava o foco',data.sessions.x.station.map.focus&&data.sessions.x.station.map.focus.room==='md2');
   document.getElementById('mpUndo').click();await sl(300);
   ok('desfazer tira a sala revelada pelo destaque',!data.sessions.x.station.map.rooms.md2);
+  ok('desfazer tambem despublica o layout',!Object.keys(data.sessions.x.station.map.props||{}).some(k=>k.indexOf('L~md2~')===0)&&!(data.sessions.x.station.map.noeq||{}).md2);
   const sr=document.getElementById('mpSearch');sr.value='lounge';sr.dispatchEvent(new Event('input',{bubbles:true}));
   ok('busca acha a sala',/Lounge/.test(document.getElementById('mpResults').innerText));
   document.querySelector('#mpResults [data-id]').click();await sl(200);
