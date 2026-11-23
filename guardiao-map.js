@@ -23,12 +23,13 @@ function init(sessionRef){
       <b>Shift+clique</b> só seleciona, sem mudar nada. Salas apagadas no desenho ainda não foram reveladas; o que está sólido eles já veem. <b>Ctrl+Z</b> desfaz a última revelação.</div>
     <div id="mpDecks" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;position:relative">
-      <button class="btn" id="mpAll">REVELAR DECK INTEIRO</button><button class="btn" id="mpNone">OCULTAR DECK</button><button class="btn" id="mpPinClr">TIRAR PINO</button>
+      <button class="btn" id="mpMode" title="Alterna entre revelar o mapa e customizar as salas com props">MODO: REVELAR</button><button class="btn" id="mpAll">REVELAR DECK INTEIRO</button><button class="btn" id="mpNone">OCULTAR DECK</button><button class="btn" id="mpPinClr">TIRAR PINO</button>
       <input id="mpSearch" type="text" placeholder="buscar sala (nome ou código)…" autocomplete="off" style="flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);border-radius:4px;color:var(--ink);font-family:inherit;font-size:12px;padding:7px 10px">
       <label style="font-size:11px;color:var(--ink-dim);letter-spacing:.06em;display:flex;gap:6px;align-items:center"><input type="checkbox" id="mpNeigh" checked> corredor vizinho junto</label>
       <div id="mpResults" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--panel2);border:1px solid var(--live-dim);border-radius:4px;max-height:260px;overflow:auto"></div>
     </div>
     <div id="mpPlan" style="border:1px solid var(--line);background:#d9d6ca;line-height:0;overflow:auto"></div>
+    <div id="mpProps" style="display:none;margin-top:14px"></div>
     <div id="mpSel" style="margin-top:14px"></div>
   </div>
   <div class="card">
@@ -36,6 +37,7 @@ function init(sessionRef){
     <div id="mpNotes" style="display:flex;flex-direction:column;gap:6px"></div>
   </div>`;
   const $=id=>document.getElementById(id);
+  let PR=null;
 
   /* ---- migracao dos ids antigos de nivel (helipad/control/mess/drill) ---- */
   ref.once('value').then(snap=>{const v=snap.val()||{},upd={};
@@ -53,7 +55,8 @@ function init(sessionRef){
     if(Object.keys(inv).length){hist.push({label,inv});if(hist.length>60)hist.shift();}
     ref.update(upd);drawUndo();
   }
-  function undo(){const h=hist.pop();if(!h)return;ref.update(h.inv);drawUndo();}
+  function undo(){const h=hist.pop();if(!h)return;(h.root==='s'?sessionRef:ref).update(h.inv);drawUndo();}
+  const pushHist=h=>{hist.push(h);if(hist.length>60)hist.shift();drawUndo();};
   function drawUndo(){const b=$('mpUndo');if(!b)return;const h=hist[hist.length-1];b.disabled=!h;b.textContent=h?'↶ DESFAZER: '+h.label:'↶ DESFAZER';}
   function corrOfDoors(r){const d=S.DECKS[r.deck],[x,y,w,h]=r.r,out=[];
     (r.d||[]).forEach(([s,t,k,to])=>{if(to!=='c')return;
@@ -76,9 +79,10 @@ function init(sessionRef){
   function camsOn(){const c=ST.cams||{},o={};Object.keys(c).forEach(k=>{if(c[k]&&c[k].on)o[k]=1;});return o;}
   function drawPlan(){
     const d=S.DECKS[deck],pin=ST.map&&ST.map.pin;
-    const st={rooms:revRooms(),corr:revCorr(),ghost:true,pin:pin&&pin.deck===deck?pin:null,sel,showCams:true,camsOn:camsOn()};
-    const p=R.plan(d,st,{W:800,maxH:560,id:'gm'});lastP=p;$('mpPlan').innerHTML=p.svg;
-    $('mpPlan').querySelectorAll('[data-room],[data-corr]').forEach(e=>{e.style.cursor=pinMode?'crosshair':'pointer';});
+    if(PR&&PR.dragging())return;
+    const st={rooms:revRooms(),corr:revCorr(),ghost:true,pin:pin&&pin.deck===deck?pin:null,sel,showCams:true,camsOn:camsOn(),props:PR?PR.list(deck):null};
+    const p=R.plan(d,st,{W:PR&&PR.active()?PR.width():800,maxH:PR&&PR.active()?99999:560,id:'gm'});lastP=p;$('mpPlan').innerHTML=p.svg;
+    $('mpPlan').querySelectorAll('[data-room],[data-corr]').forEach(e=>{e.style.cursor=pinMode?'crosshair':(PR&&PR.active()?(PR.armed()?'copy':'default'):'pointer');});
   }
   function drawSel(){
     const box=$('mpSel');
@@ -124,6 +128,7 @@ function init(sessionRef){
   /* ---- eventos ---- */
   $('mpDecks').addEventListener('click',e=>{const b=e.target.closest('[data-d]');if(!b)return;deck=b.dataset.d;sel=null;drawAll();});
   $('mpPlan').addEventListener('click',e=>{
+    if(PR&&PR.active())return;
     const svg=$('mpPlan').querySelector('svg');if(!svg||!lastP)return;
     if(pinMode){const b=svg.getBoundingClientRect(),k=lastP.w/b.width;const [x,y]=lastP.toDeck((e.clientX-b.left)*k,(e.clientY-b.top)*k);
       ref.child('map/pin').set({deck,x:Math.round(x*10)/10,y:Math.round(y*10)/10,at:Date.now()});pinMode=false;drawAll();return;}
@@ -145,6 +150,9 @@ function init(sessionRef){
   $('mpNotes').addEventListener('click',e=>{const k=e.target.dataset&&e.target.dataset.k;if(k&&e.target.classList.contains('del'))ref.child('notes/'+k).remove();});
   $('mpNotesClr').addEventListener('click',()=>{if(confirm('Apagar todas as notas dos jogadores?'))ref.child('notes').remove();});
 
+  if(window.GuardiaoProps){PR=window.GuardiaoProps.create({sessionRef,S,R,$,getDeck:()=>deck,getST:()=>ST,getLastP:()=>lastP,redraw:drawPlan,pushHist});PR.bind();
+    $('mpMode').addEventListener('click',()=>{const on=!PR.active();PR.setActive(on);$('mpPlan').style.maxHeight=on?'640px':'';$('mpMode').textContent=on?'MODO: PROPS':'MODO: REVELAR';$('mpMode').classList.toggle('is-on',on);$('mpSel').style.display=on?'none':'';drawPlan();});}
+  else $('mpMode').style.display='none';
   /* nao reescreve o painel da sala enquanto o Guardiao digita nele */
   ref.on('value',snap=>{ST=snap.val()||{};const ae=document.activeElement;if(ae&&$('mpSel')&&$('mpSel').contains(ae)){drawDecks();drawPlan();drawNotes();return;}drawAll();});
   gmRef.on('value',snap=>{GMN=snap.val()||{};if(!sel)return;const ta=$('mpGmNote');if(ta&&document.activeElement!==ta)ta.value=GMN[sel]||'';});

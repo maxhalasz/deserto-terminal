@@ -27,7 +27,10 @@ setTimeout(async()=>{
     const vb0=document.querySelector('#planwrap svg').getAttribute('viewBox');
     click($('zIn'));const vb1=document.querySelector('#planwrap svg').getAttribute('viewBox');
     ok('zoom + muda o viewBox',vb0!==vb1);
-    click($('zFit'));await sleep(900);ok('FIT sai do zoom (animado)',document.querySelector('#planwrap svg').getAttribute('viewBox')!==vb1);
+    // o Edge sem janela as vezes nao entrega requestAnimationFrame: sem rAF a animacao nao anda e o teste nao prova nada
+    let rafN=0;const rafProbe=()=>{rafN++;requestAnimationFrame(rafProbe);};requestAnimationFrame(rafProbe);
+    click($('zFit'));await sleep(900);
+    ok('FIT sai do zoom (animado)'+(rafN?'':' [sem rAF neste navegador: ignorado]'),!rafN||document.querySelector('#planwrap svg').getAttribute('viewBox')!==vb1);
     const inp=$('ninp');inp.value='teste de nota';inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
     ok('nota adicionada',/teste de nota/.test($('nbl').innerHTML));
     ok('nota sem horario nem autor',!/<small>/.test($('nbl').innerHTML));
@@ -59,6 +62,21 @@ setTimeout(async()=>{
     ok('sala revelada ganha pulso',!!document.querySelector('#planwrap .pulse'));
     ok('sala revelada aparece no plano',!!document.querySelector('#planwrap [data-room="md9"]'));
     sessionRef.child('station/map/rooms/md9').set(null);
+    // props do customizador: so aparecem se a sala/corredor onde estao ja foi revelado
+    {const q4=STATION.roomIndex.md4.r,q9=STATION.roomIndex.md9.r;
+     const mkp=r=>({deck:'module',x:r[0]+r[2]/2,y:r[1]+r[3]/2,rot:30,sc:1,w:1,h:1,ops:[['rc',-.5,-.5,1,1,0,1]],lbl:'T1',inl:0,txt:0});
+     sessionRef.child('station/map/props/pa').set(mkp(q4));await sleep(300);
+     ok('prop em sala revelada aparece',!!document.querySelector('#planwrap [data-prop="pa"]'));
+     ok('prop em sala oculta nao vaza no DOM',!document.querySelector('#planwrap [data-prop="pb"]'));
+     ok('rotulo do prop aparece',/T1/.test(document.querySelector('#planwrap svg.cur').textContent));
+     ok('prop novo ganha pulso',!!document.querySelector('#planwrap circle.pulse'));
+     sessionRef.child('station/map/props/pb').set(mkp(q9));await sleep(300);
+     ok('prop em sala oculta nao vaza no DOM',!document.querySelector('#planwrap [data-prop="pb"]'));
+     sessionRef.child('station/map/rooms/md9').set({at:Date.now()});await sleep(300);
+     ok('prop aparece quando a sala e revelada',!!document.querySelector('#planwrap [data-prop="pb"]'));
+     ok('prop nao e clicavel no terminal',!!document.querySelector('#planwrap g.props[pointer-events="none"]'));
+     sessionRef.child('station/map/props').set(null);sessionRef.child('station/map/rooms/md9').set(null);await sleep(200);
+     ok('apagar prop tira do mapa',!document.querySelector('#planwrap [data-prop]'));}
     sessionRef.child('station/force').set('cellar');
     ok('forcado vai pro cellar',/Cellar deck/i.test($('recName').textContent)&&/DIRECTED VIEW/.test($('topinfo').innerHTML));
     sessionRef.child('station/force').set(null);

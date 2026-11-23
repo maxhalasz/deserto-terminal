@@ -5,7 +5,7 @@ const seed={online:true,map:{pin:{deck:'module',x:35,y:26.8},rooms:{md0:{at:1},m
 const h=`<!doctype html><html><head><meta charset="utf-8">${css}</head><body><div class="top"><h1>PAINEL DO <span>GUARDIÃO</span></h1></div>
 <div class="tabs"><button class="tab">ESTAÇÃO</button><button class="tab active">MAPA</button><button class="tab">SUBMARINO</button></div>
 <div id="tab-mapa" class="tabpanel active"></div>
-<script src="station-data.js"></script><script src="station-eq.js"></script><script src="station-render.js"></script><script src="station-gm-data.js"></script><script src="guardiao-map.js"></script>
+<script src="station-data.js"></script><script src="station-eq.js"></script><script src="station-render.js"></script><script src="station-gm-data.js"></script><script src="station-props.js"></script><script src="guardiao-props.js"></script><script src="guardiao-map.js"></script>
 <script>
 let data={sessions:{x:{station:${JSON.stringify(seed)}}}};const L=[];
 const get=p=>p.split('/').filter(Boolean).reduce((o,k)=>o==null?o:o[k],data);
@@ -37,7 +37,42 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
   ok('busca acha a sala',/Lounge/.test(document.getElementById('mpResults').innerText));
   document.querySelector('#mpResults [data-id]').click();await sl(200);
   ok('clicar no resultado seleciona a sala',/Lounge/.test(document.getElementById('mpSel').innerText));
- }catch(e){out.push('EXCECAO '+e.message);}
+  // ---- customizador de props ----
+  const ev=(t,el,x,y)=>el.dispatchEvent(new PointerEvent(t,{bubbles:true,clientX:x,clientY:y,button:0,pointerId:1}));
+  const gp=()=>((data.sessions.x.gm||{}).props)||{},mp=()=>(((data.sessions.x.station||{}).map||{}).props)||{};
+  document.getElementById('mpMode').click();await sl(100);
+  ok('modo props abre o painel',document.getElementById('mpProps').style.display==='block'&&/Mobília/.test(document.getElementById('mpProps').innerText));
+  document.querySelector('#mpDecks [data-d="module"]').click();await sl(150);
+  const w0=+document.querySelector('#mpPlan svg').getAttribute('width');document.querySelector('#mpProps [data-pa="zin"]').click();await sl(150);
+  ok('zoom do mapa aumenta o desenho',+document.querySelector('#mpPlan svg').getAttribute('width')>w0);
+  document.querySelector('#mpProps [data-arm="mesa"]').click();await sl(100);
+  const re=document.querySelector('#mpPlan [data-room="md4"]').getBoundingClientRect(),cx=re.left+re.width/2,cy=re.top+re.height/2;
+  ev('pointerdown',document.querySelector('#mpPlan [data-room="md4"]'),cx,cy);ev('pointerup',document.querySelector('#mpPlan'),cx,cy);await sl(300);
+  const ids=Object.keys(gp());ok('colocar grava no gm/props',ids.length===1&&gp()[ids[0]].k==='mesa'&&gp()[ids[0]].shown===false);
+  ok('item oculto NAO vai pra map/props',Object.keys(mp()).length===0);
+  ok('item oculto aparece no mapa do GM tracejado',!!document.querySelector('#mpPlan .prop.ph'));
+  const id=ids[0];
+  document.getElementById('ppShow').click();await sl(300);
+  ok('revelar publica o desenho',mp()[id]&&Array.isArray(mp()[id].ops)&&mp()[id].ops.length>0&&mp()[id].k===undefined);
+  document.querySelector('#mpProps [data-pa="rot90"]').click();await sl(250);
+  ok('girar 90 grava nos dois lugares',gp()[id].rot===90&&mp()[id].rot===90);
+  const pe=document.querySelector('#mpPlan [data-prop="'+id+'"]').getBoundingClientRect(),px0=gp()[id].x;
+  ev('pointerdown',document.querySelector('#mpPlan [data-prop="'+id+'"]'),pe.left+pe.width/2,pe.top+pe.height/2);
+  ev('pointermove',document.querySelector('#mpPlan'),pe.left+pe.width/2+40,pe.top+pe.height/2);
+  ev('pointerup',document.querySelector('#mpPlan'),pe.left+pe.width/2+40,pe.top+pe.height/2);await sl(300);
+  ok('arrastar move o item e republica',gp()[id].x>px0&&mp()[id].x===gp()[id].x);
+  document.getElementById('ppLbl').value='C-9';document.getElementById('ppLbl').dispatchEvent(new Event('input',{bubbles:true}));await sl(700);
+  ok('rotulo vai pros jogadores',mp()[id].lbl==='C-9');
+  document.getElementById('mpUndo').click();await sl(300);
+  ok('desfazer volta o movimento',gp()[id].x===px0);
+  document.querySelector('#mpProps [data-pa="del"]').click();await sl(300);
+  ok('apagar tira dos dois',!gp()[id]&&!mp()[id]);
+  document.querySelector('#mpProps [data-cat="mar"]').click();await sl(50);
+  document.querySelector('#mpProps [data-arm="marc"]').click();await sl(50);
+  ev('pointerdown',document.querySelector('#mpPlan [data-room="md4"]'),cx,cy);ev('pointerup',document.querySelector('#mpPlan'),cx,cy);await sl(250);
+  ok('marcador nasce numerado',Object.values(gp()).some(g=>g.k==='marc'&&g.lbl==='1'));
+  ok('catalogo publico nao cita DRE',!/DRE|Carcosa|Coro/i.test(window.StationProps.order.map(i=>window.StationProps.items[i].n).join(' ')));
+  }catch(e){out.push('EXCECAO '+e.message+' @'+(e.stack||'').split('\\n')[1]);}
  const pre=document.createElement('pre');pre.id='testout';pre.textContent=out.join('\\n');document.body.appendChild(pre);},1200);}
 </script></body></html>`;
 fs.writeFileSync(__dirname+'/../../_test_guardiao.html',h);console.log('ok');

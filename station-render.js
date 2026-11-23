@@ -6,12 +6,49 @@
 (function(){
 const T={paper:'#d9d6ca',wall:'#1b1d1f',corr:'#c1c2b8',room:'#eceae2',deck:'#e2e0d4',grate:'rgba(0,0,0,.11)',grid:'#bfbcae',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
   equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#2c7955',you:'#1b1d1f',youText:'#eceae2',sel:'#8a5a1a',amber:'#8a6a2a',
-  sealBg:'#d2cebd',hazard:'#8a6a2a',fire:'#8e3b34'};
+  sealBg:'#d2cebd',hazard:'#8a6a2a',fire:'#8e3b34',pink:'#26282a',stain:'rgba(92,34,28,.72)'};
 const DW={door:1.3,cdoor:1.0,double:2.4,open:2.6,gate:1.8,weld:1.4,hatch:1.0};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const f1=v=>(Math.round(v*10)/10).toString();
 const inR=(r,x,y,e)=>x>r[0]-(e||0)&&x<r[0]+r[2]+(e||0)&&y>r[1]-(e||0)&&y<r[1]+r[3]+(e||0);
 const touchR=(a,b,e)=>{e=e||.3;return Math.min(a[0]+a[2],b[0]+b[2])-Math.max(a[0],b[0])>=-e&&Math.min(a[1]+a[3],b[1]+b[3])-Math.max(a[1],b[1])>=-e;};
+
+/* ---------- props do customizador (ops em metros; ver station-props.js) ---------- */
+const parr=a=>Array.isArray(a)?a:(a&&typeof a==='object'?Object.keys(a).sort((x,y)=>x-y).map(k=>a[k]):[]);
+const NS='vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"';
+const pf=(f,closed)=>f==1?`fill="${T.eqFill}" stroke="${T.pink}" stroke-width="1.05"`:f==2?`fill="rgba(138,106,42,.2)" stroke="${T.amber}" stroke-width="1.15"`:f==3?`fill="${T.pink}" stroke="${T.pink}" stroke-width="1"`:f==4?(closed?`fill="${T.stain}" stroke="none"`:`fill="none" stroke="${T.stain}" stroke-width="2.4"`):`fill="none" stroke="${T.pink}" stroke-width="1.05"`;
+const pn=v=>Math.round(v*1000)/1000;
+function propOps(ops,pid){
+  let s='';
+  parr(ops).forEach(o=>{o=parr(o);const t=o[0];
+    if(t==='rc')s+=`<rect x="${pn(o[1])}" y="${pn(o[2])}" width="${pn(o[3])}" height="${pn(o[4])}"${o[5]?` rx="${pn(o[5])}"`:''} ${pf(o[6])} ${NS}/>`;
+    else if(t==='ci')s+=`<circle cx="${pn(o[1])}" cy="${pn(o[2])}" r="${pn(o[3])}" ${pf(o[4],1)} ${NS}/>`;
+    else if(t==='ln')s+=`<path d="M${pn(o[1])} ${pn(o[2])}L${pn(o[3])} ${pn(o[4])}" ${o[5]==4?pf(4,0):pf(o[5]==2?2:0).replace(/fill="[^"]*"/,'fill="none"')} ${NS}/>`;
+    else if(t==='pl'){const p=parr(o[1]);let d='';for(let i=0;i+1<p.length;i+=2)d+=(i?'L':'M')+pn(p[i])+' '+pn(p[i+1]);if(+o[2])d+='Z';
+      s+=`<path d="${d}" ${(+o[2])?pf(o[3],1):pf(o[3],0).replace(/fill="[^"]*"/,'fill="none"')} ${NS}/>`;}
+    else if(t==='ha')s+=`<rect x="${pn(o[1])}" y="${pn(o[2])}" width="${pn(o[3])}" height="${pn(o[4])}" fill="url(#${pid||'pl'}q)" stroke="${T.amber}" stroke-width=".8" ${NS}/>`;
+    else if(t==='tx')s+=`<text x="${pn(o[1])}" y="${pn(o[2])}" text-anchor="middle" font-family="Barlow Condensed" font-weight="${+o[5]?700:500}" font-size="${pn(o[4])}" fill="${T.pink}">${esc(o[3])}</text>`;
+  });
+  return s;
+}
+/* um prop dentro de <g> no espaco da planta. p={id,x,y,rot,sc,w,h,ops,lbl,inl,txt,hidden,sel,unk} */
+function propG(p,o){
+  const w=p.w||1,h=p.h||1,sc=p.sc||1,rot=p.rot||0,pid=o.pid||'pl';
+  const cx=o.X(p.x),cy=o.Y(p.y),k=o.px*sc;
+  let inner=propOps(p.ops,pid);
+  if(p.unk)inner+=`<rect x="${-w/2}" y="${-h/2}" width="${w}" height="${h}" fill="none" stroke="${T.pink}" stroke-width="1" stroke-dasharray="3 2" ${NS}/><text y=".14" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size=".5" fill="${T.pink}">?</text>`;
+  if(p.inl&&p.lbl){const L=String(p.lbl),sz=p.txt?Math.min(.5,(w*1.1)/Math.max(1,L.length*.5)):Math.min(.46,.8/Math.max(1,L.length*.55));
+    inner+=`<text transform="rotate(${-rot})" y="${pn(sz*.33)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="${pn(sz)}" fill="${p.txt?T.pink:T.pink}">${esc(L)}</text>`;}
+  if(o.hit)inner=`<rect x="${-Math.max(w,.9)/2}" y="${-Math.max(h,.9)/2}" width="${Math.max(w,.9)}" height="${Math.max(h,.9)}" fill="transparent" stroke="none" pointer-events="all"/>`+inner;
+  if(p.sel)inner+=`<rect x="${-w/2-.12}" y="${-h/2-.12}" width="${w+.24}" height="${h+.24}" fill="none" stroke="${T.sel}" stroke-width="1.6" stroke-dasharray="5 3" ${NS}/>`;
+  let s=`<g class="prop${p.hidden?' ph':''}" data-prop="${esc(p.id)}" transform="translate(${pn(cx)} ${pn(cy)}) rotate(${rot}) scale(${pn(k)})"${p.hidden?' opacity=".5" stroke-dasharray="3 2"':''}>${inner}</g>`;
+  if(!p.inl&&p.lbl)s+=`<text x="${pn(cx)}" y="${pn(cy+o.P(Math.hypot(w,h)/2*sc)+8)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.8" fill="${T.sub}" paint-order="stroke" stroke="${T.room}" stroke-width="2.6" pointer-events="none">${esc(p.lbl)}</text>`;
+  return s;
+}
+function propThumb(it,size){
+  const m=Math.max(it.w,it.h)/2+.18,S=size||44;
+  return `<svg width="${S}" height="${S}" viewBox="${-m} ${-m} ${m*2} ${m*2}" style="display:block">${propOps(it.ops,'pt')}${it.unk?'':''}${it.inl&&!it.txt?`<text y="${pn(.14)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size=".42" fill="${T.pink}">1</text>`:''}${it.txt?`<text y=".12" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size=".4" fill="${T.pink}">Aa</text>`:''}</svg>`;
+}
 
 function plan(deck,st,o){
   const id=o.id||'sp',PW=o.W,bb=deck.bbox;
@@ -29,6 +66,7 @@ function plan(deck,st,o){
   const ptFull=(x,y)=>deck.corr.some(c=>showC(c)==='f'&&inR(c.r,x,y,.2));
   const ptAny=(x,y)=>deck.corr.some(c=>showC(c)&&inR(c.r,x,y,.2));
   const rect=(r,e,fill,extra)=>`<rect x="${f1(X(r[0]-e))}" y="${f1(Y(r[1]-e))}" width="${f1(P(r[2]+2*e))}" height="${f1(P(r[3]+2*e))}" fill="${fill}" ${extra||''}/>`;
+  let propIds=[];
   let h=`<defs>
    <pattern id="${id}g" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0L4 4M4 0L0 4" stroke="${T.grate}" stroke-width=".5"/></pattern>
    <pattern id="${id}z" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="${T.sealBg}"/><rect width="3.2" height="9" fill="${T.amber}" opacity=".5"/></pattern>
@@ -171,6 +209,10 @@ function plan(deck,st,o){
 
   if(st.ghost)h+=`<g opacity=".32">${layer('g')}</g>`;
   h+=layer('f');
+  /* props do customizador */
+  if(st.props&&st.props.length){const inRev=p=>deck.rooms.some(r=>showR(r)==='f'&&inR(r.r,p.x,p.y,.3))||ptFull(p.x,p.y);
+    const list=st.props.filter(p=>p.deck===deck.id&&(st.ghost||inRev(p)));propIds=list.map(p=>p.id);
+    if(list.length)h+=`<g class="props"${st.ghost?'':' pointer-events="none"'}>${list.map(p=>propG(p,{px,X,Y,P,pid:id,hit:!!st.ghost})).join('')}</g>`;}
 
   /* fire doors do firewall */
   (deck.fireDoors||[]).forEach(f=>{if(!(st.ghost?ptAny(f.x,f.y):ptFull(f.x,f.y)))return;
@@ -216,7 +258,7 @@ function plan(deck,st,o){
     it.forEach((q,i)=>{h+=`<g transform="translate(${f1(cx)} ${ky})">${q[0]}<text x="${q[2]}" y="3" font-family="Barlow Condensed" font-weight="600" font-size="11" fill="${T.label}" letter-spacing=".05em">${q[1]}</text></g>`;cx+=widths[i]*sc;});
   }
   h+=`<text x="${PW-padR}" y="${H-6}" text-anchor="end" font-family="IBM Plex Mono" font-size="7.5" fill="${T.sub}" letter-spacing=".1em">${esc(deck.dwg)} · REV 3 · ${esc(deck.name.toUpperCase())} ${esc(deck.elev)} · SCALE 1:500 @A1</text>`;
-  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${PW}" height="${H}" viewBox="0 0 ${PW} ${H}" style="display:block;background:${T.paper}">${h}</svg>`,w:PW,h:H,px,ox,oy,toDeck:(sx,sy)=>[(sx-ox)/px,(sy-oy)/px]};
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${PW}" height="${H}" viewBox="0 0 ${PW} ${H}" style="display:block;background:${T.paper}">${h}</svg>`,w:PW,h:H,px,ox,oy,toDeck:(sx,sy)=>[(sx-ox)/px,(sy-oy)/px],props:propIds};
 }
-window.StationRender={plan,T};
+window.StationRender={plan,T,propThumb,propG};
 })();
