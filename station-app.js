@@ -44,6 +44,9 @@ function activeDeck(){
 const LQ_ELEV={lqE:58,lqD:54,lqC:50,lqB:46,lqA:42},PL_ELEV={weather:52,module:40,cellar:28};
 function stackSVG(active){
   const s=1.25,PCX=166,LCX=66,TH=8,Y0=146,PM=12,WL=20;
+  /* geometria do bloco, do poco e das chegadas: vem de STATION.STACK (em metros da placa) quando o mapa define; senao o padrao antigo */
+  const ST=S.STACK,kk=ST?114/ST.plate[0]:1,PWd=114,PHd=ST?ST.plate[1]*kk:55,LW=ST?ST.blk[2]*kk:30,LH=ST?ST.blk[3]*kk:20;
+  const SHAFTS=ST?ST.shafts.map(p=>[p[0]*kk,p[1]*kk]):[[38,27],[86,27]],CRN=ST?[ST.crane[0]*kk,ST.crane[1]*kk]:[96,24],MPL=ST?[ST.moon[0]*kk,ST.moon[1]*kk]:[54.5,28.4];
   const P=(x,y,cy,cx)=>[cx+(x-y)*s*.866,cy+(x+y)*s*.5];
   const ps=pts=>pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
   const yOf=e=>Y0+(52-e)*PM;
@@ -59,23 +62,23 @@ function stackSVG(active){
     return g;};
   let h='';
   /* plano do mar */
-  const wy=yOf(WL),wc=[[0,0],[114,0],[114,55],[0,55]].map(q=>P(q[0],q[1],wy,PCX));
+  const wy=yOf(WL),wc=[[0,0],[PWd,0],[PWd,PHd],[0,PHd]].map(q=>P(q[0],q[1],wy,PCX));
   h+=`<polygon points="${ps(wc)}" class="sk-sea"/><text x="${wc[2][0]-4}" y="${wc[2][1]+12}" text-anchor="end" class="sk-d" font-size="7.5" letter-spacing=".14em">SEA LEVEL</text>`;
   /* pernas */
-  [[0,0],[114,0],[114,55],[0,55]].forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,wy,PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
-  [[38,27],[86,27]].forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,yOf(28),PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-shaft"/>`;[52,40,28].forEach(e=>{const q=P(x,y,yOf(e),PCX);h+=`<rect x="${q[0]-2.4}" y="${q[1]-2.4}" width="4.8" height="4.8" class="sk-shaftd"/>`;});});
+  [[0,0],[PWd,0],[PWd,PHd],[0,PHd]].forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,wy,PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
+  SHAFTS.forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,yOf(28),PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-shaft"/>`;[52,40,28].forEach(e=>{const q=P(x,y,yOf(e),PCX);h+=`<rect x="${q[0]-2.4}" y="${q[1]-2.4}" width="4.8" height="4.8" class="sk-shaftd"/>`;});});
   /* decks da plataforma */
   [['weather','L-07','WEATHER','+52 m'],['module','L-05','MODULE','+40 m'],['cellar','L-03','CELLAR','+28 m']].forEach(([lvl,tag,nm,el])=>{
     const sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=yOf(PL_ELEV[lvl]),d=S.DECKS[lvl];
     const rev=Object.keys(rr).some(k=>S.roomIndex[k]&&S.roomIndex[k].deck===lvl);
-    let g=`<g data-lvl="${lvl}" class="sk-dk ${unl?'on':'lock'}${sel?' sel':''}">`+slab(d,cy,PCX,114,55,sel,unl,rev);
+    let g=`<g data-lvl="${lvl}" class="sk-dk ${unl?'on':'lock'}${sel?' sel':''}">`+slab(d,cy,PCX,PWd,PHd,sel,unl,rev);
     const cx=232,y=cy-34;
     g+=`<rect x="${cx}" y="${y}" width="64" height="40" class="sk-chip"/><text x="${cx+6}" y="${y+13}" class="sk-d" font-size="8.5" letter-spacing=".1em">${tag}</text><text x="${cx+6}" y="${y+25}" class="sk-t" font-weight="700" font-size="11.5" letter-spacing=".08em" style="font-family:'Barlow Condensed'">${nm}</text><text x="${cx+6}" y="${y+35}" class="sk-d" font-size="8">${unl?el:'LOCKED'}</text>`;
-    if(pin&&pin.deck===lvl){const n=nrm(d,pin.x,pin.y,114,55),q=P(n[0],n[1],cy,PCX);g+=`<circle cx="${q[0]}" cy="${q[1]}" r="3.4" class="sk-pin"/><circle cx="${q[0]}" cy="${q[1]}" r="6.5" class="sk-pinr"/>`;}
+    if(pin&&pin.deck===lvl){const n=nrm(d,pin.x,pin.y,PWd,PHd),q=P(n[0],n[1],cy,PCX);g+=`<circle cx="${q[0]}" cy="${q[1]}" r="3.4" class="sk-pin"/><circle cx="${q[0]}" cy="${q[1]}" r="6.5" class="sk-pinr"/>`;}
     h+=g+'</g>';
   });
   /* o alojamento e um bloco da plataforma: contorno no module deck (+40), na ponta oeste, longe dos poços e do flare */
-  const LQN=[1.5,14],lqc=[[0,0],[30,0],[30,20],[0,20]],mdy=yOf(40);
+  const LQN=ST?[ST.blk[0]*kk,ST.blk[1]*kk]:[1.5,14],lqc=[[0,0],[LW,0],[LW,LH],[0,LH]],mdy=yOf(40);
   h+=`<polygon points="${ps(lqc.map(q=>P(LQN[0]+q[0],LQN[1]+q[1],mdy,PCX)))}" class="sk-blk"/>`;
   lqc.forEach(([x,y])=>{const a=P(x,y,yOf(62),LCX),b=P(x,y,yOf(42),LCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
   lqc.forEach(([x,y])=>{const a=P(x,y,yOf(42),LCX),b=P(LQN[0]+x,LQN[1]+y,mdy,PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
@@ -85,25 +88,25 @@ function stackSVG(active){
   S.LQ_ORDER.forEach(id=>{
     const e=LQ_ELEV[id],cy=yOf(e),d=S.DECKS[id],on=qu&&active===id;
     const rev=Object.keys(rr).some(k=>S.roomIndex[k]&&S.roomIndex[k].deck===id);
-    let g=`<g data-deck="${id}" class="sk-dk sk-lq ${qu?'on':'lock'}${on?' sel':''}">`+slab(d,cy,LCX,30,20,on,qu,rev);
+    let g=`<g data-deck="${id}" class="sk-dk sk-lq ${qu?'on':'lock'}${on?' sel':''}">`+slab(d,cy,LCX,LW,LH,on,qu,rev);
     g+=`<text x="6" y="${cy+14}" class="sk-t" font-weight="700" font-size="19" style="font-family:'Barlow Condensed'">${id.slice(2)}</text><text x="6" y="${cy+25}" class="sk-d" font-size="7.5">+${e}</text>`;
-    if(pin&&pin.deck===id){const n=nrm(d,pin.x,pin.y,30,20),q=P(n[0],n[1],cy,LCX);g+=`<circle cx="${q[0]}" cy="${q[1]}" r="2.6" class="sk-pin"/><circle cx="${q[0]}" cy="${q[1]}" r="5" class="sk-pinr"/>`;}
+    if(pin&&pin.deck===id){const n=nrm(d,pin.x,pin.y,LW,LH),q=P(n[0],n[1],cy,LCX);g+=`<circle cx="${q[0]}" cy="${q[1]}" r="2.6" class="sk-pin"/><circle cx="${q[0]}" cy="${q[1]}" r="5" class="sk-pinr"/>`;}
     h+=g+'</g>';
   });
   h+=`<text x="6" y="${yOf(62)-16}" class="sk-d" font-size="8" letter-spacing=".1em">L-06</text><text x="6" y="${yOf(62)-6}" class="sk-t" font-weight="600" font-size="8.5" letter-spacing=".06em">LIVING QUARTERS</text>`;
   /* ponte: convés C da torre encosta no weather deck */
-  const bridgeA=P(30,0,yOf(50),LCX),bridgeB=P(0,55,yOf(52),PCX);
+  const bridgeA=P(LW,0,yOf(50),LCX),bridgeB=P(0,PHd,yOf(52),PCX);
   h+=`<path d="M${bridgeA[0]} ${bridgeA[1]}L${bridgeB[0]} ${bridgeB[1]}" class="sk-bridge"/>`;
   /* chegadas */
   const rc0=yOf(62),rfp=lqc.map(q=>P(q[0],q[1],rc0,LCX)),rb=rfp.map(p=>[p[0],p[1]+5]);
   h+=`<polygon points="${ps([rfp[3],rfp[2],[rfp[2][0],rfp[2][1]+5],[rfp[3][0],rfp[3][1]+5]])}" class="sk-s1"/><polygon points="${ps([rfp[1],rfp[2],[rfp[2][0],rfp[2][1]+5],[rfp[1][0],rfp[1][1]+5]])}" class="sk-s2"/><polygon points="${ps(rfp)}" class="sk-top"/>`;
-  const hp=P(15,10,rc0,LCX);
+  const hp=P(LW/2,LH/2,rc0,LCX);
   h+=`<circle cx="${hp[0]}" cy="${hp[1]}" r="5.5" class="sk-ln"/><text x="${hp[0]}" y="${hp[1]+3}" text-anchor="middle" class="sk-t" font-size="8" font-weight="700">H</text>`;
   h+=`<text x="106" y="${rc0+8}" class="sk-d" font-size="7.5" letter-spacing=".08em">+62 · HELIPORT A</text><text x="106" y="${rc0+19}" class="sk-d" font-size="7" letter-spacing=".08em">+52 · WEATHER ENTERS</text>`;
   h+=`<path d="M${hp[0]+30} ${rc0-14}L${hp[0]+7} ${hp[1]-4}" class="sk-arr"/><path d="M${hp[0]+10} ${hp[1]-10}l-5.5 5.5l7.5 1.5z" class="sk-arrf"/><text x="${hp[0]+33}" y="${rc0-10}" class="sk-l" font-size="9" font-weight="700">1</text>`;
-  const cr=P(96,24,yOf(52),PCX),bt=P(104,30,wy,PCX);
+  const cr=P(CRN[0],CRN[1],yOf(52),PCX),bt=P(CRN[0]+8,CRN[1]+6,wy,PCX);
   h+=`<path d="M${cr[0]} ${cr[1]}V${bt[1]-8}" class="sk-arr"/><rect x="${cr[0]-2.5}" y="${cr[1]-2.5}" width="5" height="5" class="sk-arrf"/><path d="M${bt[0]-13} ${bt[1]-3}h26l-4 7h-18z" class="sk-fill"/><text x="${cr[0]+8}" y="${cr[1]+4}" class="sk-l" font-size="9" font-weight="700">2</text>`;
-  const mp=P(54.5,28.4,yOf(28),PCX),mw=P(54.5,28.4,wy,PCX);
+  const mp=P(MPL[0],MPL[1],yOf(28),PCX),mw=P(MPL[0],MPL[1],wy,PCX);
   h+=`<circle cx="${mp[0]}" cy="${mp[1]}" r="4.5" class="sk-ln"/><path d="M${mp[0]} ${mp[1]+4}V${mw[1]-8}" class="sk-arr"/><path d="M${mw[0]-4.5} ${mw[1]-10}l4.5 7l4.5 -7z" class="sk-arrf"/><text x="${mp[0]+9}" y="${mp[1]+16}" class="sk-l" font-size="9" font-weight="700">3</text>`;
   const ly=wc[2][1]+34;
   h+=`<text x="10" y="${ly}" class="sk-l" font-size="7.5">1</text><text x="20" y="${ly}" class="sk-t" font-size="7.5" letter-spacing=".06em">HELICOPTER · HELIPORT A</text>`;

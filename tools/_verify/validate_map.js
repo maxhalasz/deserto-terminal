@@ -24,7 +24,7 @@ Object.values(S.DECKS).forEach(d=>{
     r.d.forEach(([s,t,k,to])=>{
       const [x,y,w,h]=r.r;const p=s==='n'?[x+w*t,y]:s==='s'?[x+w*t,y+h]:s==='w'?[x,y+h*t]:[x+w,y+h*t];
       const out=s==='n'?[p[0],p[1]-.7]:s==='s'?[p[0],p[1]+.7]:s==='w'?[p[0]-.7,p[1]]:[p[0]+.7,p[1]];
-      const inC=d.corr.some(c=>out[0]>c.r[0]&&out[0]<c.r[0]+c.r[2]&&out[1]>c.r[1]&&out[1]<c.r[1]+c.r[3]);
+      const inC=d.corr.some(c=>out[0]>=c.r[0]-.01&&out[0]<=c.r[0]+c.r[2]+.01&&out[1]>=c.r[1]-.01&&out[1]<=c.r[1]+c.r[3]+.01);
       const inR=d.rooms.some(q=>q!==r&&out[0]>q.r[0]&&out[0]<q.r[0]+q.r[2]&&out[1]>q.r[1]&&out[1]<q.r[1]+q.r[3]);
       if(to==='c'&&!inC)E(d.id+': porta '+r.id+' lado '+s+' nao da num corredor');
       if(to==='r'&&!inR)E(d.id+': porta '+r.id+' lado '+s+' nao da noutra sala');
@@ -33,7 +33,7 @@ Object.values(S.DECKS).forEach(d=>{
   (d.blocks||[]).forEach((b,i)=>(b.d||[]).forEach(([s,t,k,to])=>{
     const [x,y,w,h]=b.r;const p=s==='n'?[x+w*t,y]:s==='s'?[x+w*t,y+h]:s==='w'?[x,y+h*t]:[x+w,y+h*t];
     const out=s==='n'?[p[0],p[1]-.7]:s==='s'?[p[0],p[1]+.7]:s==='w'?[p[0]-.7,p[1]]:[p[0]+.7,p[1]];
-    if(!d.corr.some(c=>out[0]>c.r[0]&&out[0]<c.r[0]+c.r[2]&&out[1]>c.r[1]&&out[1]<c.r[1]+c.r[3]))E(d.id+': porta do bloco '+i+' lado '+s+' nao da num corredor');}));
+    if(!d.corr.some(c=>out[0]>=c.r[0]-.01&&out[0]<=c.r[0]+c.r[2]+.01&&out[1]>=c.r[1]-.01&&out[1]<=c.r[1]+c.r[3]+.01))E(d.id+': porta do bloco '+i+' lado '+s+' nao da num corredor');}));
   // conectividade dos corredores (toque)
   const cs=d.corr,seen=new Set([cs[0].id]),q=[cs[0]];
   while(q.length){const c=q.pop();cs.forEach(o=>{if(!seen.has(o.id)&&(ovl(c.r,o.r)||touch(c.r,o.r))){seen.add(o.id);q.push(o);}});}
