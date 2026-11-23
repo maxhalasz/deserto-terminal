@@ -14,7 +14,9 @@ const REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').
 
 let ref=null,STATE={},curDeck=null,selRoom=null,notesMode='shared',showCams=false,lastLq='lqC',view=null,viewKey='',plan=null,dragMoved=false;
 let prevRev=null,lastPlanDeck='',seenNotes=null,cardKey='',typeTok=0,lastPinKey='';
-const ME=(()=>{let v=LS.get('deserto:op');if(!v){v='OP-'+(1+Math.floor(Math.random()*9));LS.set('deserto:op',v);}return v;})();
+let lastSig={stack:'',plan:'',notes:''},focusToken='',focusPulsed='',lastFocusAt=0,viewAnim=0,wasOnline=null,forceFit=false;
+const pointers=new Map();let pinch=null;
+const ME=(()=>{let v=LS.get('deserto:op');if(!v){v='OP-'+Math.random().toString(36).slice(2,5).toUpperCase();LS.set('deserto:op',v);}return v;})();
 let minePrefs=[];try{minePrefs=JSON.parse(LS.get('deserto:notes','[]'));}catch(e){}
 
 /* ---------- niveis / decks ---------- */
@@ -92,6 +94,15 @@ function fitView(d,p){
   if(w/h<PW/PH)w=h*PW/PH;else h=w*PH/PW;
   return {x:p.ox+(cxm-w/2)*p.px,y:p.oy+(cym-h/2)*p.px,w:w*p.px,h:h*p.px};
 }
+function setView(tg,animate){
+  cancelAnimationFrame(viewAnim);
+  if(!animate||REDUCED||!view){view=tg;applyView();return;}
+  const a={x:view.x,y:view.y,w:view.w,h:view.h},t0=performance.now(),D=650;
+  (function f(now){const k=Math.min(1,(now-t0)/D),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    view={x:a.x+(tg.x-a.x)*e,y:a.y+(tg.y-a.y)*e,w:a.w+(tg.w-a.w)*e,h:a.h+(tg.h-a.h)*e};applyView();
+    if(k<1)viewAnim=requestAnimationFrame(f);})(t0);
+}
+function outsideView(r){if(!view||!plan)return true;const x=plan.ox+r[0]*plan.px,y=plan.oy+r[1]*plan.px,w=r[2]*plan.px,h=r[3]*plan.px;return x<view.x+8||y<view.y+8||x+w>view.x+view.w-8||y+h>view.y+view.h-8;}
 function applyView(){const svg=$('planwrap').querySelector('svg.cur');if(svg&&view)svg.setAttribute('viewBox',`${view.x.toFixed(1)} ${view.y.toFixed(1)} ${view.w.toFixed(1)} ${view.h.toFixed(1)}`);}
 function zoomAt(f,sx,sy){
   if(!view)return;const nw=Math.max(PW/9,Math.min(view.w/f,plan?plan.w*2:99999)),k=nw/view.w,nh=view.h*k;
@@ -100,6 +111,9 @@ function renderPlan(deckId){
   const wrap=$('planwrap'),d=S.DECKS[deckId];
   if(!d){plan=null;view=null;wrap.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:#6b6d68;line-height:1.7;text-align:center">NO LEVEL SELECTED<br><span style="font-size:10px;letter-spacing:.12em;opacity:.7">select an unlocked level</span></div>`;lastPlanDeck='';return;}
   const pin=mapState().pin;
+  const sig=[deckId,Object.keys(revRooms()).sort().join(),Object.keys(revCorr()).sort().join(),pin&&pin.deck===deckId?pin.x+','+pin.y:'',selRoom,showCams,Object.keys(camsOn()).join(),focusToken].join('|');
+  if(sig===lastSig.plan&&wrap.querySelector('svg.cur')&&!forceFit)return;
+  lastSig.plan=sig;
   const st={rooms:revRooms(),corr:revCorr(),pin:pin&&pin.deck===deckId?pin:null,sel:selRoom,showCams,camsOn:camsOn()};
   plan=R.plan(d,st,{W:Math.round(d.bbox[2]*7+84),maxH:99999,id:'pl',key:false});
   // o que acabou de ser revelado neste deck
@@ -111,11 +125,16 @@ function renderPlan(deckId){
   wrap.innerHTML=plan.svg;
   const svg=wrap.querySelector('svg');svg.removeAttribute('width');svg.removeAttribute('height');svg.removeAttribute('style');svg.setAttribute('preserveAspectRatio','xMidYMid meet');svg.classList.add('cur');
   const key=deckId+'|'+cur.rooms.size+'|'+cur.corr.size;
-  const refit=key!==viewKey;if(refit){view=fitView(d,plan);viewKey=key;}
+  if(key!==viewKey||forceFit){const tg=fitView(d,plan);
+    if(deckChanged||!view)view=tg;
+    else if(forceFit)setView(tg,true);
+    else if([...nr.map(k=>S.roomIndex[k].r),...nc.map(k=>S.corrIndex[k].r)].some(outsideView))setView(tg,true);
+    viewKey=key;forceFit=false;}
   applyView();
   // brilho nos elementos novos
   const add=(r)=>{const x=plan.ox+r[0]*plan.px,y=plan.oy+r[1]*plan.px;const e=document.createElementNS('http://www.w3.org/2000/svg','rect');e.setAttribute('class','pulse');e.setAttribute('x',x-2);e.setAttribute('y',y-2);e.setAttribute('width',r[2]*plan.px+4);e.setAttribute('height',r[3]*plan.px+4);svg.appendChild(e);};
   nr.forEach(k=>add(S.roomIndex[k].r));nc.forEach(k=>add(S.corrIndex[k].r));
+  if(focusToken&&focusPulsed!==focusToken){const fr=S.roomIndex[focusToken.split('|')[0]];if(fr&&fr.deck===deckId){add(fr.r);svg.lastChild.setAttribute('class','pulse long');}focusPulsed=focusToken;}
   if(!REDUCED){
     if(changed&&oldHTML){ // o desenho antigo fica por baixo e o novo aparece por cima
       svg.classList.add('fresh');const old=document.createElement('div');old.className='oldplan';old.innerHTML=oldHTML.replace('class="cur"','class="gone"');wrap.insertBefore(old,wrap.firstChild);
@@ -172,15 +191,17 @@ function notesList(){
 }
 function renderNotes(){
   const L=notesList(),box=$('nbl');
-  const typing=document.activeElement&&document.activeElement.id==='ninp';const val=typing?document.activeElement.value:'';
+  const nsig=notesMode+'|'+L.map(n=>n.key+':'+n.t+':'+(n.r||'')).join('|');
+  if(nsig===lastSig.notes&&box.querySelector('.ninp'))return;lastSig.notes=nsig;
+  const typing=document.activeElement&&document.activeElement.id==='ninp';const val=typing?document.activeElement.value:'';const ss=typing?document.activeElement.selectionStart:0,se=typing?document.activeElement.selectionEnd:0;
   const atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
   const first=seenNotes===null;if(first)seenNotes=new Set();
   const modeKey=notesMode+':';
   const html=L.map(n=>{const mine=notesMode==='mine'||n.by===ME;const k=modeKey+n.key,isNew=!first&&!seenNotes.has(k);seenNotes.add(k);
-    const rt=n.r&&S.roomIndex[n.r]?`<span class="rt">${esc((S.roomIndex[n.r].n.split(' · ')[0]).toUpperCase().slice(0,10))}</span>`:'';
+    const rt=n.r&&S.roomIndex[n.r]?`<span class="rt" data-r="${esc(n.r)}">${esc((S.roomIndex[n.r].n.split(' · ')[0]).toUpperCase().slice(0,10))}</span>`:'';
     return `<div class="l ${mine?'me':'other'}${isNew&&!REDUCED?' inkin':''}">${esc(n.t)}${rt}${mine?`<i class="x" data-k="${esc(n.key)}">✕</i>`:''}</div>`;}).join('');
   box.innerHTML=html+`<input class="ninp" id="ninp" placeholder="${L.length?'':'write a note…'}" maxlength="240" autocomplete="off" spellcheck="false">`;
-  const inp=$('ninp');if(typing){inp.value=val;inp.focus();}
+  const inp=$('ninp');if(typing){inp.value=val;inp.focus();try{inp.setSelectionRange(ss,se);}catch(e){}}
   if(atBottom||!typing)box.scrollTop=box.scrollHeight;
   $('ncount').textContent=L.length?L.length+(L.length===1?' note':' notes'):'empty';
   $('nmShared').classList.toggle('on',notesMode==='shared');$('nmMine').classList.toggle('on',notesMode==='mine');
@@ -194,8 +215,18 @@ function addNote(t){
   else ref.child('station/notes').push(n);
 }
 
+/* ---------- levar a atencao a uma sala (chip da nota ou "destacar" do Guardiao) ---------- */
+function focusRoom(id){
+  const r=S.roomIndex[id];if(!r||!revRooms()[id])return;const lvl=levelOfDeck(r.deck);
+  if(!isUnlocked(lvl)||(forcedLevel()&&forcedLevel()!==lvl))return;
+  curDeck=r.deck;selRoom=id;focusToken=id+'|'+Date.now();renderAll();
+  if(plan){const rr=r.r,w=Math.max(rr[2]+16,36),h=w*PH/PW,cx=rr[0]+rr[2]/2,cy=rr[1]+rr[3]/2;
+    setView({x:plan.ox+(cx-w/2)*plan.px,y:plan.oy+(cy-h/2)*plan.px,w:w*plan.px,h:h*plan.px},true);}
+}
+
 /* ---------- render geral ---------- */
-function renderStatic(){const online=!!STATE.online;$('standby').style.display=online?'none':'flex';$('terminal').className=online?'on':'';}
+function renderStatic(){const online=!!STATE.online;$('standby').style.display=online?'none':'flex';const T=$('terminal');T.classList.toggle('on',online);
+  if(wasOnline===false&&online&&!REDUCED){T.classList.add('boot');setTimeout(()=>T.classList.remove('boot'),1700);}wasOnline=online;}
 function renderAll(){
   renderStatic();
   const deck=activeDeck();
@@ -203,7 +234,8 @@ function renderAll(){
   const shown=forcedLevel()?deck:curDeck;
   if(shown&&shown.startsWith('lq'))lastLq=shown;
   $('stackcount').textContent='';
-  $('stack').innerHTML=stackSVG(shown);
+  const ssig=[shown,JSON.stringify(unlockedMap()),Object.keys(revRooms()).sort().join(),Object.keys(revCorr()).sort().join()].join('|');
+  if(ssig!==lastSig.stack){lastSig.stack=ssig;$('stack').innerHTML=stackSVG(shown);}
   renderPlan(shown);renderRecord(shown);renderCard(shown);
   const forced=forcedLevel();
   $('topinfo').innerHTML=forced?`<span class="forced">▲ DIRECTED VIEW</span>`:'';
@@ -246,7 +278,16 @@ function start(sessionRef){
   barcode();buildCams();renderKey();fit();addEventListener('resize',fit);
   $('vent').innerHTML='<i></i>'.repeat(26);
   document.querySelectorAll('.tab2').forEach(t=>t.addEventListener('click',()=>setTab(t.dataset.tab)));
-  addEventListener('keydown',e=>{if(e.key==='F1'){e.preventDefault();setTab('map');}else if(e.key==='F2'){e.preventDefault();setTab('cams');}});
+  addEventListener('keydown',e=>{
+    if(e.key==='F1'){e.preventDefault();setTab('map');return;}if(e.key==='F2'){e.preventDefault();setTab('cams');return;}
+    if((e.target&&/INPUT|TEXTAREA/.test(e.target.tagName))||!view||$('view-map').style.display==='none')return;
+    const k=view.w*.12;let used=true;
+    if(e.key==='ArrowLeft')view.x-=k;else if(e.key==='ArrowRight')view.x+=k;else if(e.key==='ArrowUp')view.y-=k;else if(e.key==='ArrowDown')view.y+=k;
+    else if(e.key==='+'||e.key==='=')zoomAt(1.3,PW/2,PH/2);else if(e.key==='-')zoomAt(1/1.3,PW/2,PH/2);
+    else if(e.key==='0'){forceFit=true;renderPlan(forcedLevel()?activeDeck():curDeck);}
+    else if(e.key==='Escape'){selRoom=null;const dk=forcedLevel()?activeDeck():curDeck;renderPlan(dk);renderRecord(dk);renderCard(dk);}
+    else used=false;
+    if(used){e.preventDefault();applyView();}});
   $('stack').addEventListener('click',e=>{
     const dk=e.target.closest('[data-deck]');
     if(dk&&dk.classList.contains('on')){curDeck=dk.dataset.deck;selRoom=null;renderAll();return;}
@@ -259,20 +300,26 @@ function start(sessionRef){
   pw.addEventListener('click',e=>{if(dragMoved){dragMoved=false;return;}
     const r=e.target.closest('[data-room]');selRoom=r&&revRooms()[r.dataset.room]?r.dataset.room:null;
     const deck=shownDeck();renderPlan(deck);renderRecord(deck);renderCard(deck);});
-  pw.addEventListener('pointerdown',e=>{if(!view)return;drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false};});
-  addEventListener('pointermove',e=>{if(!drag||!view)return;const sc=Math.min(innerWidth/1600,innerHeight/1000);const k=view.w/(PW*sc);
+  pw.addEventListener('pointerdown',e=>{if(!view)return;pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===2){const [a,b]=[...pointers.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)};drag=null;return;}
+    drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false};});
+  addEventListener('pointermove',e=>{
+    if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pinch&&pointers.size===2&&view){const [a,b]=[...pointers.values()],d=Math.hypot(a.x-b.x,a.y-b.y),bb=pw.getBoundingClientRect(),k=PW/bb.width;
+      if(pinch.d>0&&Math.abs(d-pinch.d)>2){zoomAt(d/pinch.d,((a.x+b.x)/2-bb.left)*k,((a.y+b.y)/2-bb.top)*k);pinch.d=d;dragMoved=true;}return;}
+    if(!drag||!view)return;const sc=Math.min(innerWidth/1600,innerHeight/1000);const k=view.w/(PW*sc);
     const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!drag.moved&&Math.hypot(dx,dy)<5)return;drag.moved=true;pw.classList.add('drag');
     view.x=drag.vx-dx*k;view.y=drag.vy-dy*k;applyView();});
-  addEventListener('pointerup',()=>{if(drag&&drag.moved)dragMoved=true;drag=null;pw.classList.remove('drag');setTimeout(()=>{dragMoved=false;},0);});
+  addEventListener('pointerup',e=>{pointers.delete(e.pointerId);if(pointers.size<2)pinch=null;if(drag&&drag.moved)dragMoved=true;drag=null;pw.classList.remove('drag');setTimeout(()=>{dragMoved=false;},0);});
   pw.addEventListener('wheel',e=>{e.preventDefault();const b=pw.getBoundingClientRect(),k=PW/b.width;zoomAt(e.deltaY<0?1.18:1/1.18,(e.clientX-b.left)*k,(e.clientY-b.top)*k);},{passive:false});
-  const refit=()=>{viewKey='';renderPlan(shownDeck());};
+  const refit=()=>{forceFit=true;renderPlan(shownDeck());};
   pw.addEventListener('dblclick',refit);$('zFit').addEventListener('click',refit);
   $('zIn').addEventListener('click',()=>zoomAt(1.4,PW/2,PH/2));$('zOut').addEventListener('click',()=>zoomAt(1/1.4,PW/2,PH/2));
   $('btnCctv').addEventListener('click',()=>{showCams=!showCams;renderAll();});
   $('nmShared').addEventListener('click',()=>{notesMode='shared';renderNotes();});
   $('nmMine').addEventListener('click',()=>{notesMode='mine';renderNotes();});
   $('nbl').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ninp'){const v=e.target.value;e.target.value='';addNote(v);e.preventDefault();}});
-  $('nbl').addEventListener('click',e=>{const x=e.target.closest('.x');if(!x)return;
+  $('nbl').addEventListener('click',e=>{const rt=e.target.closest('.rt');if(rt){focusRoom(rt.dataset.r);return;}const x=e.target.closest('.x');if(!x)return;
     if(notesMode==='mine'){const tgt=notesList().find(n=>n.key===x.dataset.k);if(tgt){minePrefs=minePrefs.filter(n=>!(n.at===tgt.at&&n.t===tgt.t));LS.set('deserto:notes',JSON.stringify(minePrefs));renderNotes();}}
     else ref.child('station/notes/'+x.dataset.k).remove();});
   $('camgrid').addEventListener('click',e=>{
@@ -284,7 +331,8 @@ function start(sessionRef){
     Object.keys(cams).forEach(id=>{const p=cams[id]&&cams[id].pulledAt;if(!p||seenPulls[id]===p)return;seenPulls[id]=p;if(now-p<CAM_DURATION)playCamera(id);});renderCameras();});
   ref.child('station').on('value',snap=>{STATE=snap.val()||{};
     if(curDeck&&!isUnlocked(levelOfDeck(curDeck))){curDeck=null;selRoom=null;}
-    renderAll();});
+    renderAll();
+    const f=mapState().focus;if(f&&f.at&&f.at!==lastFocusAt){lastFocusAt=f.at;if(Date.now()-f.at<12000)focusRoom(f.room);}});
   setInterval(renderCameras,1000);
   setInterval(()=>{const t=new Date().toTimeString().slice(0,8);const c=$('clock'),tc=$('camtc');if(c)c.textContent=t;if(tc)tc.textContent=t;},1000);
   renderAll();

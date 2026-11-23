@@ -25,6 +25,18 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
   ok('nao lista o nivel submerso',!/Submerged|SUBMERGED/.test(document.body.innerText));
   document.querySelector('#mpPlan [data-corr="mw_n"]').dispatchEvent(new MouseEvent('click',{bubbles:true}));await sl(300);
   ok('corredor em grupo revela todos os trechos',!!data.sessions.x.station.map.corr.mw_nl1&&!!data.sessions.x.station.map.corr.mw_nl2);
+  document.getElementById('mpUndo').click();await sl(300);
+  ok('desfazer oculta o grupo de novo',!data.sessions.x.station.map.corr.mw_nl1&&!data.sessions.x.station.map.corr.mw_nl2);
+  document.querySelector('[data-room="md2"]').dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}));
+  document.getElementById('mpFocus').click();await sl(300);
+  ok('destacar revela a sala escondida',!!data.sessions.x.station.map.rooms.md2);
+  ok('destacar grava o foco',data.sessions.x.station.map.focus&&data.sessions.x.station.map.focus.room==='md2');
+  document.getElementById('mpUndo').click();await sl(300);
+  ok('desfazer tira a sala revelada pelo destaque',!data.sessions.x.station.map.rooms.md2);
+  const sr=document.getElementById('mpSearch');sr.value='lounge';sr.dispatchEvent(new Event('input',{bubbles:true}));
+  ok('busca acha a sala',/Lounge/.test(document.getElementById('mpResults').innerText));
+  document.querySelector('#mpResults [data-id]').click();await sl(200);
+  ok('clicar no resultado seleciona a sala',/Lounge/.test(document.getElementById('mpSel').innerText));
  }catch(e){out.push('EXCECAO '+e.message);}
  const pre=document.createElement('pre');pre.id='testout';pre.textContent=out.join('\\n');document.body.appendChild(pre);},1200);}
 </script></body></html>`;

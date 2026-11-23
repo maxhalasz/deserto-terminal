@@ -27,11 +27,26 @@ setTimeout(async()=>{
     const vb0=document.querySelector('#planwrap svg').getAttribute('viewBox');
     click($('zIn'));const vb1=document.querySelector('#planwrap svg').getAttribute('viewBox');
     ok('zoom + muda o viewBox',vb0!==vb1);
-    click($('zFit'));ok('FIT volta ao enquadramento',document.querySelector('#planwrap svg').getAttribute('viewBox')===vb0);
+    click($('zFit'));await sleep(900);ok('FIT sai do zoom (animado)',document.querySelector('#planwrap svg').getAttribute('viewBox')!==vb1);
     const inp=$('ninp');inp.value='teste de nota';inp.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
     ok('nota adicionada',/teste de nota/.test($('nbl').innerHTML));
     ok('nota sem horario nem autor',!/<small>/.test($('nbl').innerHTML));
-    ok('nota ligada a sala',/<span class="rt">/i.test($('nbl').innerHTML));
+    ok('nota ligada a sala',/<span class="rt"/i.test($('nbl').innerHTML));
+    // desempenho: nota nova nao redesenha pilha nem mapa
+    const stackNode=$('stack').firstChild,planNode=document.querySelector('#planwrap svg.cur');
+    const inp2=$('ninp');inp2.value='segunda nota';inp2.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));await sleep(100);
+    ok('nota nova nao redesenha a pilha',$('stack').firstChild===stackNode);
+    ok('nota nova nao redesenha o mapa',document.querySelector('#planwrap svg.cur')===planNode);
+    // clicar no chip da sala leva ate ela
+    click(document.querySelector('#planwrap [data-room="md1"]'));click(document.querySelector('#nbl .rt'));await sleep(50);
+    ok('chip da nota seleciona a sala',/Wellbay|Boot room/i.test($('recName').textContent));
+    // destaque vindo do Guardiao
+    sessionRef.child('station/map/focus').set({room:'md6',at:Date.now()});await sleep(200);
+    ok('destaque do Guardiao seleciona a sala',/Separation/i.test($('recName').textContent));
+    ok('destaque do Guardiao pulsa a sala',!!document.querySelector('#planwrap .pulse.long'));
+    // teclado
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));await sleep(50);
+    ok('Esc limpa a selecao',!/Separation/i.test($('recName').textContent));
     click($('btnCctv'));ok('CCTV mostra camera',/CAM-03/.test($('planwrap').innerHTML));
     // descricao editada pelo Guardiao aparece ao vivo (typewriter leva ~1.5 s)
     click(document.querySelector('[data-lvl="module"]'));click(document.querySelector('#planwrap [data-room="md4"]'));

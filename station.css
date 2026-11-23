@@ -194,4 +194,12 @@ html,body{width:100%;height:100%;overflow:hidden;background:#12100e;color:var(--
 #topinfo .bar{display:inline-block;width:78px;height:6px;background:#10252b;margin:0 12px;position:relative}
 #topinfo .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--live);transition:width .9s ease}
 .sx{animation:fadein .8s ease both}
-@media (prefers-reduced-motion:reduce){.pulse,.ping,.sx,.inkin{animation:none!important}}
+.pulse.long{animation:pulselong 3.4s ease-out forwards}
+@keyframes pulselong{0%{opacity:0}8%{opacity:1}30%{opacity:.25}45%{opacity:1}70%{opacity:.2}100%{opacity:0}}
+#planwrap [data-room]:hover{stroke:#8a5a1a;stroke-width:1.4}
+.nbl .l .rt{cursor:pointer}.nbl .l .rt:hover{background:#9b2d25;color:#f3efe2}
+#terminal.boot .hdr,#terminal.boot .tabs2,#terminal.boot .stage2{animation:bootin 1.5s steps(1) both}
+@keyframes bootin{0%{opacity:0}8%{opacity:.7}14%{opacity:.1}22%{opacity:.9}30%{opacity:.35}45%{opacity:1}100%{opacity:1}}
+#terminal.boot:before{content:"";position:absolute;left:0;right:0;height:70px;top:-70px;z-index:30;pointer-events:none;background:linear-gradient(180deg,transparent,rgba(121,201,181,.22),transparent);animation:bootsweep 1.5s ease-in both}
+@keyframes bootsweep{from{top:-70px}to{top:100%}}
+@media (prefers-reduced-motion:reduce){.pulse,.ping,.sx,.inkin,.pulse.long,#terminal.boot *,#terminal.boot:before{animation:none!important}}
