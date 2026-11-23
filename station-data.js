@@ -122,33 +122,38 @@ const module_=build({
  cams:[{id:'cam03',x:56,y:31.2,corr:'mc_dm1'}]
 });
 
-/* ============================== WEATHER DECK +52 ============================== */
+/* ============================== WEATHER DECK +52 ==============================
+   Convés aberto: rede de passarelas que dobram (corredor principal de 3 m em degraus), becos, pontes e blocos de tamanhos diferentes. */
 const weather_=build({
  id:'weather',lvl:'L-07',name:'Weather deck',elev:'+52 m',dwg:'ØA-GA-01',outdoor:true,
  corr:[
-  C('wc_n',2,2,106,2,'Walkway N'),C('wc_s',2,51,106,2,'Walkway S'),C('wc_w',2,2,2,51,'Walkway W'),C('wc_e',106,2,2,51,'Walkway E'),
-  C('wc_x1',4,36,32,2,'Cross walkway'),C('wc_v1',36,4,2,47,'Walkway V1'),C('wc_v2',62,4,2,47,'Walkway V2'),C('wc_v3',80,4,2,47,'Walkway V3'),C('wc_x2',82,21,24,2,'Cross walkway'),
-  C('wc_fb',108,12,22,2.4,'Flare bridge'),C('wc_bb',108,36,18,2.4,'Bridge B')],
+  C('ow_n',2,4,55,2,'Walkway N','og_n'),C('ow_n2',57,4,3,6,'','og_n'),
+  C('ow_h',2,38,34,2,'Walkway W','og_w'),C('ow_e',34,6,2,34,'','og_w'),
+  C('ow_m1',36,22,24,3,'Main walkway','og_m'),C('ow_m2',57,10,3,15,'','og_m'),C('ow_m3',57,10,34,3,'','og_m'),C('ow_m4',88,10,3,44,'','og_m'),
+  C('ow_x',60,27,28,2,'Cross walkway'),
+  C('ow_s',2,52,100,2,'Walkway S'),
+  C('ow_fb',91,30,24,2.4,'Flare bridge'),C('ow_bb',91,42,20,2.4,'Bridge B')],
  rooms:[
-  R('wd1','Helideck',4,4,32,32,'ext',{eq:'heli',pub:'A 22 m circle with the H worn off. Safety net slanting outward. A yellow rope with a sign across the access.'}),
-  R('wd2','Engine house',4,38,32,13,'ind',{eq:'engine',pub:'Lift motor behind a grille, two grey sprinkler tanks. Smell of hot grease.'}),
-  R('wd3','Laydown area',38,4,24,47,'ext',{eq:'containers',pub:'Containers stacked two high and a crane hook swinging by itself. The windiest spot on the platform.'}),
-  R('wd4','Tower top',64,4,16,22,'ext',{eq:'tower',pub:'White lattice climbing fifty metres. A cage ladder with no end in sight.'}),
-  R('wd5','Gas vent',64,28,16,23,'ext',{eq:'vent',pub:'A grey stack, paint peeling in bands. When it opens, the whole platform hears it.'}),
-  R('wd6','Lifeboats',82,4,24,17,'ind',{eq:'lifeboats',pub:'Four orange capsules in inclined cradles, seventy seats each. The muster board is mostly blank lines.'}),
-  R('wd7','PPE store',82,23,24,16,'ind',{eq:'ppe',pub:'Harnesses and helmets in rows. A personnel basket in the corner, dried kelp caught in the mesh.'}),
-  R('wd14','Muster station 3',82,39,24,12,'ext',{eq:'muster',pub:'Assembly point. Painted number three on the deck.'}),
-  R('wd8','Crane 1',16,-4,12,6,'ext',{eq:'crane',pub:'Glazed cab high on the pedestal. Sixty metre boom.'}),
-  R('wd9','Crane 2',60,-4,12,6,'ext',{eq:'crane',pub:'An office chair lashed down with rope inside the cab.'}),
-  R('wd10','Crane 3',60,53,12,6,'ext',{eq:'crane',pub:'Cracked glass in one corner, mended with tape gone yellow.'}),
-  R('wd11','Flare boom',130,8,14,10,'ext',{eq:'flare',pub:'The end of an eighty metre walkway with no shelter and no stop. The guard rail hums in the wind.'}),
-  R('wd13','Old platform',126,28,24,24,'off',{eq:'old',st:'sealed',d:[],pub:'Orange with rust from base to top. A second helipad marking, barely visible. No lights, no antennas.'})],
- stairs:[{x:37,y:27,w:2,h:3.4,dir:'dn',lbl:'L-05'},{x:107,y:27,w:2,h:3.4,dir:'dn',lbl:'L-05'}],
- fire:[[10,3],[50,3],[90,3],[10,52],[50,52],[90,52],[3,26],[107,10],[107,44]],
- mcp:[[30,3],[70,3],[100,3],[30,52],[70,52],[3,14],[3,40],[107,26]],
+  R('wd1','Helideck',2,6,32,32,'ext',{eq:'heli',pub:'Heliponto. Área de pouso e decolagem dos helicópteros que levam e trazem a tripulação.'}),
+  R('wd2','Engine house',2,40,24,12,'ind',{eq:'engine',pub:'Casa de máquinas. Abriga o motor do elevador e os tanques do sistema de sprinklers.'}),
+  R('wd15','Utility shed',26,40,10,12,'ind',{eq:'store',pub:'Casa de utilidades. Guarda ferramentas e material de apoio ao convés.'}),
+  R('wd4','Tower top',36,6,21,16,'ext',{eq:'tower',pub:'Topo da torre. Estrutura em treliça que sustenta equipamentos no alto da plataforma.'}),
+  R('wd3','Laydown area',36,25,24,27,'ext',{eq:'containers',pub:'Área de descarga. Espaço aberto onde os guindastes deixam os contêineres e a carga recebida dos barcos.'}),
+  R('wd6','Lifeboats',60,13,28,14,'ind',{eq:'lifeboats',pub:'Baleeiras. Cápsulas salva-vidas fechadas usadas para evacuar a tripulação em emergência.'}),
+  R('wd7','PPE store',60,29,28,11,'ind',{eq:'ppe',pub:'Depósito de EPI. Guarda cintos, capacetes e o cesto usado para transferir pessoal por guindaste.'}),
+  R('wd5','Gas vent',60,40,28,12,'ext',{eq:'vent',pub:'Respiro de gás. Chaminé que libera o gás com segurança quando a pressão passa do limite.'}),
+  R('wd14','Muster station 3',91,13,18,14,'ext',{eq:'muster',pub:'Ponto de reunião 3. Local onde a tripulação se apresenta e é contada durante um alarme.'}),
+  R('wd8','Crane 1',8,-2,12,6,'ext',{eq:'crane',pub:'Guindaste 1. Iça carga entre os barcos de apoio e o convés.'}),
+  R('wd9','Crane 2',70,4,12,6,'ext',{eq:'crane',pub:'Guindaste 2. Iça carga e material entre os barcos de apoio e o convés.'}),
+  R('wd10','Crane 3',30,54,12,6,'ext',{eq:'crane',pub:'Guindaste 3. Iça carga e material entre os barcos de apoio e o convés.'}),
+  R('wd11','Flare boom',115,25,14,12,'ext',{eq:'flare',pub:'Ponta do flare. Lança que leva o queimador de gás em excesso para longe da plataforma.'}),
+  R('wd13','Old platform',111,38,24,22,'off',{eq:'old',st:'sealed',d:[],pub:'Plataforma antiga. Estrutura vizinha desativada, ligada à principal por uma passarela.'})],
+ stairs:[{x:35,y:23.5,w:2,h:3.4,dir:'dn',lbl:'L-05'},{x:89.5,y:50,w:2,h:3.4,dir:'dn',lbl:'L-05'}],
+ fire:[[3,5],[20,5],[45,5],[3,39],[20,39],[35,12],[35,34],[48,23.5],[75,11.5],[89.5,20],[89.5,40],[40,53],[80,53],[100,53]],
+ mcp:[[10,5],[30,5],[35,20],[50,23.5],[58.5,17],[80,11.5],[89.5,30],[60,53],[95,31.2]],
  esc:[
-  {k:'p',pts:[[37,10],[37,27]],need:['wc_v1']},{k:'p',pts:[[37,46],[37,27]],need:['wc_v1']},
-  {k:'p',pts:[[107,10],[107,27]],need:['wc_e']},{k:'p',pts:[[107,46],[107,27]],need:['wc_e']}],
+  {k:'p',pts:[[35,10],[35,23.5]],need:['ow_e']},{k:'p',pts:[[35,36],[35,23.5]],need:['ow_e']},
+  {k:'p',pts:[[89.5,20],[89.5,48.5]],need:['ow_m4']},{k:'s',pts:[[10,53],[88,53]],need:['ow_s']},{k:'s',pts:[[58.5,12],[58.5,23.5],[40,23.5]],need:['ow_m1','ow_m2']}],
  cams:[]
 });
 
@@ -317,6 +322,7 @@ const PUB_PT={
  wd5:'Respiro de gás. Chaminé que libera o gás com segurança quando a pressão passa do limite.',
  wd6:'Baleeiras. Cápsulas salva-vidas fechadas usadas para evacuar a tripulação em emergência.',
  wd7:'Depósito de EPI. Guarda cintos, capacetes e o cesto usado para transferir pessoal por guindaste.',
+ wd15:'Casa de utilidades. Guarda ferramentas e material de apoio ao convés.',
  wd14:'Ponto de reunião 3. Local onde a tripulação se apresenta e é contada durante um alarme.',
  wd8:'Guindaste 1. Içacarga entre os barcos de apoio e o convés.',
  wd9:'Guindaste 2. Içacarga e material entre os barcos de apoio e o convés.',

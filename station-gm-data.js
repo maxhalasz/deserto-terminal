@@ -936,5 +936,13 @@ window.STATION_GM={text:{
   "b": [
    "Tambores sobre bacias de contenção, empilhados em dois níveis"
   ]
+ },
+ "wd15": {
+  "p": 0,
+  "b": [
+   "Prateleira de ferramenta e cabo de amarração",
+   "Um galão de óleo sem etiqueta",
+   "Chave de roda de contêiner pendurada num prego"
+  ]
  }
 }};
