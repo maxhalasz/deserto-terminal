@@ -54,7 +54,7 @@ function init(sessionRef){
     if(Object.keys(upd).length)ref.update(upd);});
 
   /* faixa de aviso: sem registro = padrao; 'off' = escondida; senao a lista que o Guardiao escreveu */
-  const TK_DEF=['COMM SYNC +7d','L-02 PRESSURE ELEVATED'];
+  const TK_DEF=['COMM SYNC +7d','MOONPOOL LEVEL HIGH'];
   const tkList=()=>{const t=ST.ticker;if(t==='off')return [];if(t&&typeof t==='object')return Object.values(t).filter(x=>typeof x==='string'&&x.trim());return TK_DEF;};
   function drawTicker(){const ta=$('mpTk');if(!ta)return;if(document.activeElement!==ta)ta.value=tkList().join('\n');const off=ST.ticker==='off';$('mpTkOff').classList.toggle('is-on',off);$('mpTkOff').textContent=off?'AVISO REMOVIDO — LIGAR DE NOVO':'REMOVER AVISO';}
   const revRooms=()=>(ST.map&&ST.map.rooms)||{},revCorr=()=>(ST.map&&ST.map.corr)||{};
@@ -180,7 +180,7 @@ function init(sessionRef){
   if(window.GuardiaoProps){PR=window.GuardiaoProps.create({sessionRef,S,R,$,getDeck:()=>deck,getST:()=>ST,getLastP:()=>lastP,redraw:drawPlan,pushHist});PR.bind();
     $('mpMode').addEventListener('click',()=>{const on=!PR.active();PR.setActive(on);$('mpPlan').style.maxHeight=on?'640px':'';$('mpMode').textContent=on?'MODO: PROPS':'MODO: REVELAR';$('mpMode').classList.toggle('is-on',on);$('mpSel').style.display=on?'none':'';drawPlan();});}
   else $('mpMode').style.display='none';
-  if(window.StationLayout&&window.StationProps)window.StationLayout.seedDefaults(sessionRef,S,window.StationProps.items).catch(()=>{});
+  if(window.StationLayout&&window.StationProps)window.StationLayout.migrate(sessionRef,S.REV).then(()=>window.StationLayout.seedDefaults(sessionRef,S,window.StationProps.items)).catch(()=>{});
   /* nao reescreve o painel da sala enquanto o Guardiao digita nele */
   let tkT;$('mpTk').addEventListener('input',e=>{clearTimeout(tkT);const v=e.target.value;$('mpTkSt').textContent='salvando…';tkT=setTimeout(()=>{const L=v.split('\n').map(x=>x.trim()).filter(Boolean);ref.child('ticker').set(L.length?L:'off').then(()=>{$('mpTkSt').textContent='✓ no ar';setTimeout(()=>{const x=$('mpTkSt');if(x)x.textContent='';},1400);});},450);});
   $('mpTkOff').addEventListener('click',()=>{if(ST.ticker==='off')ref.child('ticker').remove();else ref.child('ticker').set('off');});

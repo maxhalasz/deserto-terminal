@@ -20,7 +20,7 @@ setTimeout(async()=>{
     ok('nenhum nivel submerso na pagina',!/SUBMERGED|NOT SURVEYED/.test(document.getElementById('scene').innerText));
     ok('nada de survey nem porcentagem na tela',!/survey|levantad|\d+\s?%|\bTOTAL\b/i.test(document.getElementById('scene').innerText)&&!/\d+%/.test(document.getElementById('stack').textContent));
     await sleep(2600);
-    ok('descricao no formato Nome. Explicacao.',/^Módulo desativado\. Antigo módulo/.test($('ncard').querySelector('p').textContent));
+    ok('descricao no formato Nome. Explicacao.',/^Módulo desativado \(injeção de gás\)\. Antigo módulo/.test($('ncard').querySelector('p').textContent));
     click(document.querySelector('[data-lvl="module"]'));click(document.querySelector('#planwrap [data-room="md4"]'));
     ok('nenhum texto sobre DRE na pagina',!/DRE/.test(document.getElementById('scene').innerText));
     ok('nao ha painel de arquivos',!document.getElementById('fileBody')&&!document.getElementById('pFiles'));
@@ -76,7 +76,7 @@ setTimeout(async()=>{
      ok('prop aparece quando a sala e revelada',!!document.querySelector('#planwrap [data-prop="pb"]'));
      ok('prop nao e clicavel no terminal',!!document.querySelector('#planwrap g.props[pointer-events="none"]'));
      {const n0=document.querySelectorAll('#planwrap svg.cur g[clip-path]').length;sessionRef.child('station/map/noeq/md4').set(true);await sleep(300);
-      ok('noeq esconde o equipamento padrao da sala',document.querySelectorAll('#planwrap svg.cur g[clip-path]').length===n0-1);
+      {const est=Object.keys(STATION.roomIndex).filter(k=>/stair|lift|moonpool|shaft|jetty|tower|hatch|vest/.test(STATION.roomIndex[k].eq||'')&&STATION.roomIndex[k].deck==='module').length;ok('equipamento padrao fica fora do mapa (so estrutura)',n0<=est);}
       sessionRef.child('station/map/noeq/md4').set(null);
       sessionRef.child('station/map/props/L~md4~500~i1').set(Object.assign(mkp(q4),{sx:3,sy:1}));await sleep(300);
       ok('prop de layout esticado (sx) aparece',/scale\([\d.]+ [\d.]+\)/.test(document.querySelector('#planwrap [data-prop="L~md4~500~i1"]').getAttribute('transform')));}
@@ -115,9 +115,9 @@ setTimeout(async()=>{
      const sv=document.querySelector('#planwrap svg.cur');
      ok('mapa coberto some com o equipamento',document.querySelectorAll('#planwrap svg.cur g[clip-path]').length===0);
      ok('sala coberta some com o prop',!document.querySelector('#planwrap [data-prop="pv"]'));
-     ok('sala coberta mostra so o nome',/WELLBAY/i.test(sv.textContent)&&!/350 m²/.test(sv.textContent));
+     ok('sala coberta mostra so o nome',/WELLBAY/i.test(sv.textContent)&&!/528 m²/.test(sv.textContent));
      sessionRef.child('station/map/veilAll').set(null);sessionRef.child('station/map/props/pv').set(null);await sleep(250);
-     ok('descobrir volta o conteudo',/350 m²/.test(document.querySelector('#planwrap svg.cur').textContent));}
+     ok('descobrir volta o conteudo',/528 m²/.test(document.querySelector('#planwrap svg.cur').textContent));}
     // tela cheia, setas trocam de nivel, pino
     ok('botao YOU ARE HERE aparece com pino',!$('btnPin').classList.contains('hid'));
     click($('btnFull'));await sleep(400);

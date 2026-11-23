@@ -1,24 +1,22 @@
 /* ============================================================
-   ØDEMARK A. — dados do mapa (PUBLICO: geometria + texto que o jogador pode ler)
+   ØDEMARK A. — dados do mapa (PUBLICO: geometria + texto que o jogador pode ler). Pitch A.
+   Gerado a partir de _preview_scratch/pitches/gen (kit, catalogo, pa_*.js; node adopt.js a). Unidade: metros; salas e corredores colados.
    Textos do Guardiao ficam em station-gm-data.js (so o guardiao.html carrega).
-   Unidade: metros. Retangulos [x, y, w, h]. Rooms e corredores sao COLADOS (bordas coincidentes):
-   a espessura de parede e desenhada centrada na borda. Portas ficam sobre a parede compartilhada.
    ============================================================ */
 (function(){
-const LEVELS=[
-  {id:'weather', tag:'L-07', name:'Weather deck',     elev:'+52 m'},
-  {id:'quarters',tag:'L-06', name:'Living quarters',  elev:'+42 / +58 m'},
-  {id:'module',  tag:'L-05', name:'Module deck',      elev:'+40 m'},
-  {id:'cellar',  tag:'L-03', name:'Cellar deck',      elev:'+28 m'}
-];
-// ids antigos do terminal (guardados no Firebase) -> ids novos
-const LEGACY={helipad:'weather',control:'module',mess:'quarters',drill:'cellar'};
-const DECK_LEVEL={weather:'weather',module:'module',cellar:'cellar',lqE:'quarters',lqD:'quarters',lqC:'quarters',lqB:'quarters',lqA:'quarters'};
+window.OLDR={"md_off":{"n":"Officers' cabins","t":"hab","eq":"cabinrow","cab":{"n":9,"side":"s"},"pub":"Cabines dos oficiais. Nove cabines de duas camas ao longo do casco norte, onde dormem a chefia e os oficiais. Cada uma tem uma escotilha para o lado de fora."},"md_ow":{"n":"Officers' washroom","t":"hab","eq":"wash","pub":"Banheiro dos oficiais. Chuveiros e pias de uso exclusivo da ala dos oficiais."},"md_om":{"n":"Officers' mess","t":"hab","eq":"dining","pub":"Refeitório dos oficiais. Sala onde os oficiais fazem as refeições e reuniões informais."},"md_cl":{"n":"Clinic","t":"hab","eq":"clinic","pub":"Enfermaria. Presta os primeiros socorros e guarda os medicamentos da plataforma."},"md_ol":{"n":"Laundry","t":"hab","eq":"laundry","pub":"Lavanderia dos oficiais. Lava e seca roupa de cama e macacões da ala dos oficiais."},"md_gym":{"n":"Gym","t":"hab","eq":"gym","pub":"Academia. Equipamentos de exercício para a tripulação nas folgas."},"md0":{"n":"Lounge","t":"hab","eq":"roundlounge","shape":"round","pub":"Lounge. Sala redonda de convivência ligada às duas alas, com sofás, quadros, armários individuais e máquinas de venda, usada para relaxar perto dos quartos ou de manhã."},"md1":{"n":"Boot room","t":"ind","eq":"lockers","pub":"Sala de botas. Passagem de troca de botas e macacão entre o lado limpo e o lado sujo; a faixa amarela no piso marca a divisão."},"md2":{"n":"Control room","t":"ind","eq":"console","lp":"t","pub":"Sala de controle. Monitora e comanda os sistemas da plataforma a partir de painéis e monitores."},"md3":{"n":"Electrical shop","t":"ind","eq":"elec","lp":"t","pub":"Oficina elétrica. Faz a manutenção e o reparo de painéis, motores e cabos elétricos."},"md12":{"n":"Dry store","t":"ind","eq":"store","pub":"Depósito seco. Guarda peças de reposição e material que não pode pegar umidade."},"md11":{"n":"Crew washroom","t":"hab","eq":"wash","pub":"Banheiro da tripulação. Chuveiros e pias de uso da ala da tripulação."},"md_cd":{"n":"Crew day room","t":"hab","eq":"crewday","pub":"Sala de convivência da tripulação. Espaço de descanso e jogos nas folgas."},"md_lc":{"n":"Crew laundry","t":"hab","eq":"laundry","pub":"Lavanderia da tripulação. Lava e seca roupa e macacões da tripulação."},"md_ppe":{"n":"PPE locker","t":"ind","eq":"ppe","pub":"Armário de EPI. Guarda e distribui os equipamentos de proteção individual: macacões, capacetes e cintos."},"md_crw":{"n":"Crew cabins","t":"hab","eq":"cabinrow","cab":{"n":9,"side":"n"},"pub":"Cabines da tripulação. Nove cabines de duas camas ao longo do casco sul, onde dorme o resto da tripulação. Cada uma tem uma escotilha para o lado de fora."},"md_ins":{"n":"Instrument shop","t":"ind","eq":"instr","pub":"Oficina de instrumentação. Calibra e conserta os manômetros e sensores da plataforma."},"md_scba":{"n":"SCBA store","t":"ind","eq":"dive","pub":"Depósito de respiradores autônomos. Guarda os aparelhos de respiração usados em emergências com gás ou fumaça."},"md_trf":{"n":"Transformer room","t":"ind","eq":"xfmr","pub":"Sala de transformadores. Reduz a tensão da energia gerada para alimentar os equipamentos."},"md_swu":{"n":"Stair W · up","t":"stair","eq":"stair","dir":"up","to":"L-07","pub":"Escada de subida. Liga o module deck ao weather deck."},"md_swd":{"n":"Stair W · down","t":"stair","eq":"stair","dir":"dn","to":"L-03","pub":"Escada de descida. Liga o module deck ao cellar deck."},"md4":{"n":"M10 · Wellbay","t":"ind","eq":"wellheads","pub":"Área dos poços (wellbay). Abriga as cabeças de poço, que controlam a saída do óleo e do gás do reservatório até a plataforma."},"md5":{"n":"M11 · Mud room","t":"ind","eq":"mud","pub":"Sala de lama. Prepara, bombeia e filtra a lama de perfuração, que resfria a broca e carrega os fragmentos de rocha até a superfície."},"md_lab":{"n":"Mud lab","t":"ind","eq":"lab","pub":"Laboratório de lama. Analisa as amostras de lama e de sedimento que sobem do poço."},"md_chem":{"n":"Chemical store","t":"ind","eq":"chemstore","pub":"Depósito de químicos. Guarda os produtos usados no tratamento do poço e do óleo."},"md6":{"n":"M20 · Separation","t":"ind","eq":"separators","pub":"Separação. Separa o óleo, o gás e a água que chegam misturados dos poços."},"md8":{"n":"M22 · Decommissioned","t":"off","eq":"sealed","st":"sealed","pub":"Módulo desativado. Antigo módulo de processo fora de operação, com válvulas e energia isoladas por bloqueio de segurança."},"md7":{"n":"M21 · Compression","t":"ind","eq":"compressors","pub":"Compressão. Comprime o gás separado para enviá-lo por duto ou reinjetá-lo no poço."},"md10":{"n":"M31 · Workshop","t":"ind","eq":"workshop","pub":"Oficina. Usina e conserta peças metálicas e ferramentas da plataforma."},"md9":{"n":"M30 · Utilities","t":"ind","eq":"utilities","pub":"Utilidades. Gera a energia e o ar quente da plataforma com geradores e sistemas auxiliares."},"md_inj":{"n":"M23 · Chemical injection","t":"ind","eq":"inj","pub":"Injeção de químicos. Dosa produtos químicos nas linhas para evitar corrosão e incrustação."},"md_wc":{"n":"WC and janitor","t":"ind","eq":"wash","pub":"Sanitários e zeladoria. Banheiros de apoio ao módulo e guarda de material de limpeza."},"md_se":{"n":"Stair E · up","t":"stair","eq":"stair","dir":"up","to":"L-07","pub":"Escada de subida. Liga o module deck ao weather deck."},"wd1":{"n":"Helideck","t":"ext","eq":"heli","pub":"Heliponto. Área de pouso e decolagem dos helicópteros que levam e trazem a tripulação."},"wd2":{"n":"Engine house","t":"ind","eq":"engine","pub":"Casa de máquinas. Abriga o motor do elevador e os tanques do sistema de sprinklers."},"wd15":{"n":"Utility shed","t":"ind","eq":"store","pub":"Casa de utilidades. Guarda ferramentas e material de apoio ao convés."},"wd4":{"n":"Tower top","t":"ext","eq":"tower","pub":"Topo da torre. Estrutura em treliça que sustenta equipamentos no alto da plataforma."},"wd3":{"n":"Laydown area","t":"ext","eq":"containers","pub":"Área de descarga. Espaço aberto onde os guindastes deixam os contêineres e a carga recebida dos barcos."},"wd6":{"n":"Lifeboats","t":"ind","eq":"lifeboats","pub":"Baleeiras. Cápsulas salva-vidas fechadas usadas para evacuar a tripulação em emergência."},"wd7":{"n":"PPE store","t":"ind","eq":"ppe","pub":"Depósito de EPI. Guarda cintos, capacetes e o cesto usado para transferir pessoal por guindaste."},"wd5":{"n":"Gas vent","t":"ext","eq":"vent","pub":"Respiro de gás. Chaminé que libera o gás com segurança quando a pressão passa do limite."},"wd14":{"n":"Muster station 3","t":"ext","eq":"muster","pub":"Ponto de reunião 3. Local onde a tripulação se apresenta e é contada durante um alarme."},"wd8":{"n":"Crane 1","t":"ext","eq":"crane","pub":"Guindaste 1. Içacarga entre os barcos de apoio e o convés."},"wd9":{"n":"Crane 2","t":"ext","eq":"crane","pub":"Guindaste 2. Içacarga e material entre os barcos de apoio e o convés."},"wd10":{"n":"Crane 3","t":"ext","eq":"crane","pub":"Guindaste 3. Içacarga e material entre os barcos de apoio e o convés."},"wd11":{"n":"Flare boom","t":"ext","eq":"flare","pub":"Ponta do flare. Lança que leva o queimador de gás em excesso para longe da plataforma."},"wd13":{"n":"Old platform","t":"off","eq":"old","st":"sealed","pub":"Plataforma antiga. Estrutura vizinha desativada, ligada à principal por uma passarela."},"cd1":{"n":"Machine room","t":"ind","eq":"sauna","pub":"Sala de máquinas. Concentra a ventilação e o aquecimento do deck, além da sauna usada pela tripulação."},"cd4":{"n":"Cargo area","t":"ind","eq":"cargo","pub":"Área de carga. Recebe, guarda e movimenta contêineres e materiais trazidos pelos guindastes."},"cd7":{"n":"Lower wellbay","t":"ind","eq":"xmas","pub":"Wellbay inferior. Parte baixa da área dos poços, onde ficam as árvores de natal, conjuntos de válvulas que controlam o fluxo de cada poço."},"cd2":{"n":"Drying room","t":"ind","eq":"drying","pub":"Sala de secagem. Seca macacões e roupa de trabalho molhados."},"cd3":{"n":"Desalination","t":"ind","eq":"desal","pub":"Dessalinização. Transforma água do mar em água doce para uso na plataforma."},"cd10":{"n":"Switchgear","t":"ind","eq":"switch","pub":"Quadro de força. Distribui e protege a energia elétrica enviada aos equipamentos."},"cd6":{"n":"Dive room","t":"ind","eq":"dive","pub":"Sala de mergulho. Guarda e prepara o equipamento dos mergulhadores e controla a escala de mergulho."},"cd12":{"n":"Paint store","t":"ind","eq":"paint","pub":"Depósito de tinta. Guarda tintas e solventes usados na manutenção contra a corrosão."},"cd5":{"n":"Moonpool","t":"ind","eq":"moonpool","pub":"Moonpool. Abertura no piso por onde equipamentos e submersíveis descem direto ao mar; um corredor em volta dá acesso a todos os lados."},"cd8":{"n":"Umbilical winch","t":"ind","eq":"winch","pub":"Guincho do umbilical. Enrola e desenrola o cabo que liga a plataforma aos veículos submarinos."},"cd11":{"n":"Fire pumps","t":"ind","eq":"pumps","pub":"Bombas de incêndio. Bombeiam água do mar para os sistemas de combate a incêndio."},"cd_hpu":{"n":"Hydraulic power unit","t":"ind","eq":"hpu","pub":"Unidade hidráulica. Fornece pressão de óleo para acionar válvulas e equipamentos."},"cd9":{"n":"ROV bay","t":"ind","eq":"rov","pub":"Baia de ROV. Guarda e prepara os veículos operados remotamente usados em inspeção submarina."},"cd13":{"n":"Waste","t":"ind","eq":"waste","pub":"Resíduos. Armazena o lixo e os resíduos oleosos até o transporte para terra."},"cd_bal":{"n":"Ballast control","t":"ind","eq":"ballast","pub":"Controle de lastro. Controla a água dos tanques que mantêm a plataforma estável."},"cd_swp":{"n":"Seawater pumps","t":"ind","eq":"pumps","pub":"Bombas de água do mar. Puxam água do mar para o resfriamento e para o sistema de incêndio."},"cd14":{"n":"Storeroom","t":"ind","eq":"store","pub":"Almoxarifado. Guarda material de consumo e peças de reposição do deck."},"cd15":{"n":"M12 · Decommissioned","t":"off","eq":"sealed","st":"sealed","pub":"Módulo desativado. Antigo módulo de processo fora de operação, com a entrada fechada por chapa soldada."},"cd_sp":{"n":"Spare parts","t":"ind","eq":"store","pub":"Peças de reposição. Guarda válvulas, flanges e juntas para a manutenção."},"cd_cab":{"n":"Cable room","t":"ind","eq":"cable","pub":"Sala de cabos. Guarda os carretéis de cabo elétrico e de controle."},"cd_hot":{"n":"Hot-work shop","t":"ind","eq":"workshop","pub":"Oficina de trabalho a quente. Solda e corta metal sob permissão e controle do risco de incêndio."},"cd_chm":{"n":"Chemical store","t":"ind","eq":"chemstore","pub":"Depósito de químicos. Guarda tambores de produtos químicos sobre bacias de contenção."},"cd_pwt":{"n":"Produced water treatment","t":"ind","pub":"Tratamento de água produzida. Separa o óleo residual da água que sobe com o petróleo antes de devolvê-la ao mar."},"cd_slop":{"n":"Slop tank room","t":"ind","pub":"Tanque de resíduos oleosos. Recebe o óleo recolhido dos drenos e das bacias de contenção."},"cd_clo":{"n":"Chlorination unit","t":"ind","pub":"Unidade de cloração. Dosa cloro na água do mar para impedir incrustação nas linhas e nas bombas."},"cd_egen":{"n":"Emergency generator room","t":"ind","pub":"Gerador de emergência. Mantém luz e bombas de incêndio ligadas quando a energia principal cai."},"lqE1":{"n":"Heliport access","t":"ext","eq":"hatch","pub":"Acesso ao heliponto. Escotilha e escada que levam à cobertura do alojamento e ao heliponto."},"lqE2":{"n":"Lift motor room","t":"ind","eq":"engine","pub":"Casa de máquinas do elevador. Abriga o motor do elevador e o tanque do sistema de sprinklers."},"lqE4":{"n":"Air handling units","t":"ind","eq":"ahu","pub":"Unidades de ar-condicionado. Renovam, filtram e esfriam o ar de todos os decks do alojamento."},"lqE6":{"n":"Antenna deck","t":"ext","eq":"antenna","pub":"Convés de antenas. Mastro e antenas de rádio e satélite que ligam a plataforma ao resto do mundo."},"lqE0":{"n":"Core","t":"ind","eq":"lift","pub":"Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento."},"lqE9":{"n":"Stairwell","t":"stair","eq":"stair","pub":"Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento."},"lqD1":{"n":"Communications","t":"ind","eq":"comms","pub":"Comunicações. Central de rádio e satélite para falar com a costa, os barcos e os helicópteros."},"lqD2":{"n":"Camera room","t":"ind","eq":"cameras","pub":"Sala de câmeras. Monitora as câmeras de segurança da plataforma e registra ocorrências."},"lqD3":{"n":"OIM office","t":"ind","eq":"office","pub":"Escritório do OIM. Sala do gerente da instalação, responsável por toda a plataforma."},"lqD4":{"n":"Meeting room","t":"ind","eq":"meeting","pub":"Sala de reunião. Reuniões de segurança e de planejamento."},"lqD5":{"n":"Offices","t":"ind","eq":"office","pub":"Escritórios. Trabalho administrativo e de planejamento."},"lqD6":{"n":"Archive","t":"ind","eq":"archive","pub":"Arquivo. Guarda registros, relatórios e documentos da operação."},"lqD8":{"n":"Coffee room","t":"ind","eq":"pantry","pub":"Sala do café. Pequena copa para a pausa da equipe administrativa."},"lqD10":{"n":"Training room","t":"ind","eq":"training","pub":"Sala de treinamento. Aulas de segurança, primeiros socorros e indução de quem chega."},"lqD0":{"n":"Core","t":"ind","eq":"lift","pub":"Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento."},"lqD9":{"n":"Stairwell","t":"stair","eq":"stair","pub":"Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento."},"lqC1":{"n":"Dormitories A","t":"hab","eq":"cabinrow","cab":{"n":6,"side":"s"},"pub":"Dormitórios A. Cabines de duas camas para equipes de rotação que passam períodos curtos a bordo."},"lqC3":{"n":"Cabins 1–6 · vacant","t":"off","eq":"cabinrow","cab":{"n":6,"side":"n"},"pub":"Cabines 1 a 6 (vagas). Cabines de reserva, mantidas arrumadas para quando chegar mais gente."},"lqC2":{"n":"Washrooms A","t":"hab","eq":"bath","pub":"Banheiros A. Chuveiros e pias de uso dos dormitórios do deck."},"lqC5":{"n":"Study room","t":"hab","eq":"study","pub":"Sala de estudo. Espaço silencioso com manuais técnicos para estudo e leitura."},"lqC6":{"n":"Quiet room","t":"hab","eq":"quiet","pub":"Sala de silêncio. Espaço de descanso curto longe do barulho."},"lqC4":{"n":"Linen room","t":"hab","eq":"linen","pub":"Rouparia. Guarda lençóis, toalhas e macacões limpos."},"lqC7":{"n":"Store","t":"hab","eq":"store","pub":"Depósito. Guarda o material de limpeza do deck."},"lqC0":{"n":"Core","t":"ind","eq":"lift","pub":"Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento."},"lqC9":{"n":"Stairwell","t":"stair","eq":"stair","pub":"Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento."},"lqC8":{"n":"Weather deck exit","t":"ext","eq":"hatch","pub":"Saída para o weather deck. Porta que liga o alojamento ao convés externo."},"lqB4":{"n":"Dormitories B","t":"hab","eq":"cabinrow","cab":{"n":6,"side":"s"},"pub":"Dormitórios B. Cabines de duas camas para equipes de rotação, ainda em uso."},"lqB1":{"n":"Cabins · sealed","t":"off","eq":"cabinrow","st":"sealed","cab":{"n":3,"side":"n"},"pub":"Cabines desativadas. Antigas cabines fechadas por falta de uso depois da redução da tripulação."},"lqB3":{"n":"Cabins · sealed","t":"off","eq":"cabinrow","st":"sealed","cab":{"n":2,"side":"n"},"pub":"Cabines desativadas. Mais cabines fechadas por falta de uso."},"lqB2":{"n":"TV room · disabled","t":"off","eq":"tv","pub":"Sala de TV (desativada). Antiga sala de convivência com televisão, fora de uso."},"lqB5":{"n":"Storage","t":"off","eq":"store","pub":"Depósito. Guarda colchões, papelada e materiais antigos do deck."},"lqB6":{"n":"Washrooms · sealed","t":"off","eq":"bath","st":"sealed","pub":"Banheiros (desativados). Antigos chuveiros e pias das cabines fechadas, com a água cortada."},"lqB7":{"n":"Washrooms B","t":"hab","eq":"bath","pub":"Banheiros B. Chuveiros e pias de uso dos dormitórios que ainda funcionam."},"lqB8":{"n":"Corridor end","t":"hab","eq":"plaster","pub":"Fim do corredor. Extremidade do corredor sul do deck."},"lqB0":{"n":"Core","t":"ind","eq":"lift","pub":"Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento."},"lqB9":{"n":"Stairwell","t":"stair","eq":"stair","pub":"Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento."},"lqA0":{"n":"Core","t":"ind","eq":"lift","pub":"Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento."},"lqA9":{"n":"Stairwell","t":"stair","eq":"stair","pub":"Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento."},"lqA1":{"n":"Mess hall","t":"hab","eq":"dining","pub":"Refeitório. Onde a tripulação faz as refeições, em turnos."},"lqA3":{"n":"Galley","t":"hab","eq":"galley","pub":"Cozinha. Prepara as refeições de toda a plataforma."},"lqA4":{"n":"Pantry","t":"hab","eq":"store","pub":"Despensa. Guarda os alimentos secos e enlatados."},"lqA5":{"n":"Cold room","t":"hab","eq":"cold","pub":"Câmara fria. Conserva carnes, laticínios e alimentos perecíveis."},"lqA2":{"n":"Lounge","t":"hab","eq":"lounge","pub":"Sala de estar. Espaço de convivência com sofá, TV e videogame."},"lqA6":{"n":"Laundry","t":"hab","eq":"laundry","pub":"Lavanderia. Lava e seca roupa de cama e macacões de todo o alojamento."},"lqA7":{"n":"Infirmary","t":"hab","eq":"infirmary","pub":"Enfermaria. Atende doentes e feridos até uma eventual remoção."},"lqA8":{"n":"Medic's room","t":"hab","eq":"office","pub":"Sala do médico. Consultas e guarda dos prontuários da tripulação."},"lqA10":{"n":"Common room","t":"hab","eq":"quiet","pub":"Sala de descanso. Espaço de repouso com poltronas voltadas para a janela."}};
+/* ============================================================
+   KIT DOS PITCHES (so preview; nada daqui vai pro repo ate o Max escolher).
+   Monta decks em metros, posiciona salas RENTE aos corredores (row), cria portas, vazios (poche) e seguranca sozinho,
+   e entrega window.STATION no mesmo formato do station-data.js.
+   ============================================================ */
+(function(root){
+const PL={};
+const CATN={};PL.CAT=CATN;PL.cat=o=>Object.assign(CATN,o);
+const OLD=()=>root.OLDR||{};
+const r1=v=>Math.round(v*100)/100;
 
-const R=(id,n,x,y,w,h,t,o)=>Object.assign({id,n,r:[x,y,w,h],t:t||'ind'},o||{});
-const C=(id,x,y,w,h,n,g,open)=>{const o={id,r:[x,y,w,h],n:n||''};if(g)o.g=g;if(open)o.open=true;return o;};
-
-/* ---------- auto-portas: uma porta em cada lado que encosta num corredor (max 2) ---------- */
+/* ---------- portas automaticas (igual ao station-data.js) ---------- */
 function ov(a0,a1,b0,b1){return Math.min(a1,b1)-Math.max(a0,b0);}
 function autoDoors(room,corrs){
   const [x,y,w,h]=room.r,out=[];
@@ -33,389 +31,465 @@ function autoDoors(room,corrs){
     const t=ax==='x'?(mid-x)/w:(mid-y)/h;
     out.push([s,Math.round(Math.max(.12,Math.min(.88,t))*100)/100,room.t==='stair'?'open':'door','c']);
   });
-  return out.slice(0,2);
+  return out.slice(0,room.maxDoors||2);
 }
-function build(deck){
-  deck.rooms.forEach(r=>{if(r.cab){r.d=[];for(let i=0;i<r.cab.n;i++)r.d.push([r.cab.side,Math.round((i+.5)/r.cab.n*1000)/1000,'cdoor','c']);}else if(!r.d)r.d=autoDoors(r,deck.corr);});
+
+/* ---------- sala a partir do catalogo (+ snapshot das salas antigas) ---------- */
+function mkRoom(id,x,y,w,h,o){
+  const base=Object.assign({},OLD()[id]||{},CATN[id]||{},o||{});
+  if(!base.n)throw new Error('sala sem nome: '+id);
+  delete base.r;delete base.deck;if(!(o&&o.d)&&!(CATN[id]&&CATN[id].d))delete base.d;
+  return Object.assign({id,r:[r1(x),r1(y),r1(w),r1(h)],t:'ind'},base);
+}
+
+/* ---------- deck ---------- */
+PL.deck=meta=>{
+  const D=Object.assign({rooms:[],corr:[],voids:[],blocks:[],stairs:[],esc:[],cams:[],fire:[],mcp:[],firewall:[],fireDoors:[]},meta);
+  const rectOf=a=>{if(Array.isArray(a))return a;const o=D.rooms.find(r=>r.id===a)||D.corr.find(c=>c.id===a);if(!o)throw new Error('ancora desconhecida '+a);return o.r;};
+  D.at=rectOf;
+  D.c=(id,x,y,w,h,n,g,open)=>{const o={id,r:[r1(x),r1(y),r1(w),r1(h)],n:n||''};if(g)o.g=g;if(open)o.open=true;D.corr.push(o);return o.r;};
+  D.r=(id,x,y,w,h,o)=>{const m=mkRoom(id,x,y,w,h,o);D.rooms.push(m);return m.r;};
+  D.v=(x,y,w,h)=>{D.voids.push([r1(x),r1(y),r1(w),r1(h)]);};
+  D.blk=(x,y,w,h,n,sub,d)=>{D.blocks.push({r:[r1(x),r1(y),r1(w),r1(h)],n,sub,d});};
+  /* fileira de salas coladas num lado da ancora. side n|s: start = x absoluto, len = largura; side e|w: start = y absoluto, len = altura.
+     item = [id,len,depth,opts] | [null,gap] | ['#',len,depth] (vazio) */
+  D.row=(anchor,side,start,items)=>{
+    const a=rectOf(anchor);let p=start;const out={};
+    items.forEach(it=>{
+      const [id,len,dep,o]=it;
+      if(id===null){p+=len;return;}
+      let x,y,w,h;
+      if(side==='n'){x=p;w=len;h=dep;y=a[1]-dep;}
+      else if(side==='s'){x=p;w=len;h=dep;y=a[1]+a[3];}
+      else if(side==='w'){y=p;h=len;w=dep;x=a[0]-dep;}
+      else{y=p;h=len;w=dep;x=a[0]+a[2];}
+      if(id==='#')D.v(x,y,w,h);else out[id]=D.r(id,x,y,w,h,o);
+      p+=len;
+    });
+    return out;};
+  return D;
+};
+
+/* ---------- acabamento: portas, bbox, vazios, seguranca ---------- */
+function eatBox(D){
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
   const eat=a=>{x0=Math.min(x0,a[0]);y0=Math.min(y0,a[1]);x1=Math.max(x1,a[0]+a[2]);y1=Math.max(y1,a[1]+a[3]);};
-  deck.rooms.forEach(r=>eat(r.r));deck.corr.forEach(c=>eat(c.r));(deck.voids||[]).forEach(v=>eat(v));
-  deck.bbox=[x0,y0,x1-x0,y1-y0];
-  return deck;
+  D.rooms.forEach(r=>eat(r.r));D.corr.forEach(c=>eat(c.r));D.voids.forEach(eat);D.blocks.forEach(b=>eat(b.r));
+  return [x0,y0,x1-x0,y1-y0];
 }
-
-/* ============================== MODULE DECK +40 ==============================
-   Lado limpo (oeste): ala dos oficiais (norte), ala da tripulacao (sul), lounge redondo no meio, tronco N-S.
-   Firewall em x 46-47.2 com tres fire doors. Lado sujo (leste): rede de corredores que dobram e se cruzam. */
-const module_=build({
- id:'module',lvl:'L-05',name:'Module deck',elev:'+40 m',dwg:'ØA-GA-02',
- corr:[
-  // --- lado limpo ---
-  C('mc_s1',3,7.4,43,2.4,'C-40·N1','mg_s1'),C('mc_f1',46,7.4,1.2,2.4,'FD-1','mg_s1'),
-  C('mc_m',31,29.7,15,3,'C-40·M','mg_m'),C('mc_f2',46,29.7,1.2,3,'FD-2','mg_m'),
-  C('mc_c1',3,57,43,2.4,'C-40·S1','mg_c1'),C('mc_f3',46,57,1.2,2.4,'FD-3','mg_c1'),
-  C('mc_t',41.2,9.8,2.4,47.2,'C-40·T'),C('mc_k1',22.8,9.8,2.4,14.4,'C-40·K1'),C('mc_k2',22.8,38.2,2.4,18.8,'C-40·K2'),
-  // --- galerias externas (ao ar livre) ligando o oeste e o leste por fora ---
-  C('mw_n',1,-0.4,125,2,'Gallery N','mg_gn',1),C('mw_nl1',70,1.6,2.4,1.8,'','mg_gn',1),C('mw_nl2',100,1.6,2.4,1.8,'','mg_gn',1),
-  C('mw_w',1,1.6,2,63.4,'Gallery W','mg_gw',1),C('mw_e',124,1.6,2,63.4,'Gallery E','mg_ge',1),
-  C('mw_s',1,65,125,2,'Gallery S','mg_gs',1),C('mw_sl1',100,59.4,2.4,5.6,'','mg_gs',1),C('mw_sl2',60,59.4,2.4,5.6,'','mg_gs',1),
-  // --- lado sujo ---
-  C('mc_dn1',47.2,7.4,22.8,2.4,'C-40·N1','mg_dn'),C('mc_dn2',70,3.4,2.4,6.4,'','mg_dn'),C('mc_dn3',72.4,3.4,51.6,2.4,'C-40·N3','mg_dn'),
-  C('mc_dn4',97.6,5.8,2.4,18.7,'C-40·N4'),C('mc_p1',67.6,9.8,2.4,17.7,'C-40·P1'),
-  C('mc_dm1',47.2,29.7,24.8,3,'C-40·M1','mg_dm'),C('mc_lk',69.6,27.5,2.4,2.2,'','mg_dm'),C('mc_dm3',67.6,24.5,56.4,3,'C-40·M3','mg_dm'),
-  C('mc_p3',69.6,32.7,2.4,24.3,'C-40·P3'),C('mc_p4',96,27.5,2.4,29.5,'C-40·P4'),
-  C('mc_ds1',47.2,57,73.8,2.4,'C-40·S1','mg_ds')],
- firewall:[[46,1.6,1.2,5.8],[46,9.8,1.2,19.9],[46,32.7,1.2,24.3],[46,59.4,1.2,5.6]],
- fireDoors:[{id:'FD-1',x:46.6,y:8.6,v:1},{id:'FD-2',x:46.6,y:31.2,v:1},{id:'FD-3',x:46.6,y:58.2,v:1}],
- voids:[[47.2,9.8,2.8,12.3],[47.2,40.3,2.8,16.7],[70,9.8,2.4,14.7],[72,27.5,24,5.2],[43.6,9.8,2.4,19.9],[43.6,32.7,2.4,24.3],[25.2,17,16,4],[4,17,18.8,7.2],[4,38.2,9,11.4],[13,38.2,9.8,2.8],[25.2,38.2,5.8,2],[121,47,3,4.8],[72.4,1.6,27.6,1.8],[102.4,1.6,21.6,1.8],[47.2,59.4,12.8,5.6],[62.4,59.4,37.6,5.6],[102.4,59.4,21.6,5.6]],
- rooms:[
-  // ---- lado limpo: ala dos oficiais ----
-  R('md_off','Officers\' cabins',4,2.8,41.4,4.6,'hab',{cab:{n:9,side:'s'},eq:'cabinrow',pub:'Nine small cabins along the north hull, two bunks each. Brass name plates on the doors. A porthole the size of a dinner plate in every one.'}),
-  R('md_ow','Officers\' washroom',4,9.8,7,7.2,'hab',{eq:'wash',pub:'Showers and basins for the officers. Tiled white and always warm.'}),
-  R('md_om','Officers\' mess',11,9.8,11.8,7.2,'hab',{eq:'dining',pub:'A table for twelve with place cards. The good crockery is locked behind glass.'}),
-  R('md_cl','Clinic',25.2,9.8,8,7.2,'hab',{eq:'clinic',pub:'Two beds and a locked drug cabinet. A scale and a height chart on the wall.'}),
-  R('md_ol','Laundry',33.2,9.8,8,7.2,'hab',{eq:'laundry',pub:'Industrial washers and dryers. A nylon line across the room.'}),
-  // ---- lounge redondo e arredores ----
-  R('md_gym','Gym',4,24.2,13,14,'hab',{eq:'gym',d:[['e',.5,'open','r']],pub:'Free weights and two rowing machines. A mirror with a crack across one corner.'}),
-  R('md0','Lounge',17,24.2,14,14,'hab',{shape:'round',eq:'roundlounge',d:[['n',.5,'open','c'],['s',.5,'open','c'],['e',.5,'open','c'],['w',.5,'open','r']],pub:'Sala redonda de sofás e quadros nas paredes, para relaxar perto dos quartos ou de manhã. Armários individuais ao longo da parede, um para cada pessoa, e duas máquinas de venda que ninguém usa de verdade. O relógio sobre a porta anda cinco minutos atrasado.'}),
-  R('md1','Boot room',31,21,10.2,8.7,'ind',{eq:'lockers',pub:'Steel lockers with names on tape. Boots paired on a grated duckboard. A yellow stripe cuts the floor in two: clean on one side, dirty on the other.'}),
-  R('md2','Control room',31,32.7,10.2,7.5,'ind',{eq:'console',lp:'t',pub:'Dim on purpose. Monitors over a mimic panel of small lamps. The chair backs are polished from use.'}),
-  R('md3','Electrical shop',25.2,40.2,10.8,8.8,'ind',{eq:'elec',lp:'t',pub:'A shadow board with the outline of every tool. Three outlines are empty.'}),
-  R('md12','Dry store',36,40.2,5.2,8.8,'ind',{eq:'store',pub:'Shelving to the ceiling. Spare parts, tagged and counted.'}),
-  // ---- ala da tripulacao ----
-  R('md11','Crew washroom',4,49.6,9,7.4,'hab',{eq:'wash',pub:'Showers and basins for the crew. A drain in the middle of the floor.'}),
-  R('md_cd','Crew day room',13,41,9.8,16,'hab',{eq:'crewday',pub:'A sofa, a table and a card game left unfinished.'}),
-  R('md_lc','Crew laundry',25.2,49,8,8,'hab',{eq:'laundry',pub:'Washers and a drying rack. Detergent hangs in the air.'}),
-  R('md_ppe','PPE locker',33.2,49,8,8,'ind',{eq:'ppe',pub:'Coveralls, helmets and harnesses on labelled shelves.'}),
-  R('md_crw','Crew cabins',4,59.4,41.4,4.6,'hab',{cab:{n:9,side:'n'},eq:'cabinrow',pub:'Nine small cabins along the south hull, two bunks each. Names on tape. A porthole the size of a dinner plate in every one.'}),
-  // ---- lado sujo ----
-  R('md_ins','Instrument shop',47.2,2.4,10,5,'ind',{eq:'instr',pub:'Calibration benches and spare gauges in labelled drawers.'}),
-  R('md_scba','SCBA store',57.2,2.4,7,5,'ind',{eq:'dive',pub:'Breathing apparatus in wall cabinets. Every gauge reads full.'}),
-  R('md_trf','Transformer room',64.2,2.4,5.8,5,'ind',{eq:'xfmr',pub:'Three oil-filled transformers. The hum is higher than the compressors.'}),
-  R('md_swu','Stair W · up',47.2,22.1,2.8,7.6,'stair',{eq:'stair',dir:'up',to:'L-07',pub:'Stairs to the weather deck.'}),
-  R('md_swd','Stair W · down',47.2,32.7,2.8,7.6,'stair',{eq:'stair',dir:'dn',to:'L-03',pub:'Stairs to the cellar deck.'}),
-  R('md4','M10 · Wellbay',50,9.8,17.6,19.9,'ind',{eq:'wellheads',pub:'Twenty-four wellheads in rows on a grated floor, open to the cellar deck below. A constant hiss of gas overhead.'}),
-  R('md5','M11 · Mud room',50,32.7,19.6,17,'ind',{eq:'mud',pub:'Shale shakers throwing grey mud. Everything is coated in it, the lab window included.'}),
-  R('md_lab','Mud lab',50,49.7,7.2,7.3,'ind',{eq:'lab',pub:'A fume hood and a bench of sample jars with grey sediment.'}),
-  R('md_chem','Chemical store',57.2,49.7,12.4,7.3,'ind',{eq:'chemstore',pub:'Sacks and drums behind a chain. Hazard diamonds on every label.'}),
-  R('md6','M20 · Separation',72.4,5.8,25.2,18.7,'ind',{eq:'separators',pub:'A forest of insulated pipe. Two horizontal vessels and the noise to keep you from talking.'}),
-  R('md8','M22 · Decommissioned',100,5.8,24,18.7,'off',{eq:'sealed',st:'sealed',d:[['s',.4,'gate','c'],['n',.5,'gate','c']],pub:'Mesh gate with chain and red lock-out seal. A lock-out tag on every valve. Laminated notice dated 2013, peeling at the corner.'}),
-  R('md7','M21 · Compression',72,32.7,13,24.3,'ind',{eq:'compressors',pub:'Three compressors the size of a bus. A low hum that climbs through the soles of your boots.'}),
-  R('md10','M31 · Workshop',85,32.7,11,24.3,'ind',{eq:'workshop',pub:'A lathe and swarf on the floor. A radio playing static. Three burn marks on the bench.'}),
-  R('md9','M30 · Utilities',98.4,27.5,25.6,19.5,'ind',{eq:'utilities',d:[['n',.3,'door','c'],['w',.5,'door','c'],['e',.5,'door','c']],pub:'Hot air and engine oil. Two large generators, one under a tarp.'}),
-  R('md_inj','M23 · Chemical injection',98.4,47,12,10,'ind',{eq:'inj',pub:'Three dosing tanks and a row of small pumps. The valve tags are in two languages.'}),
-  R('md_wc','WC and janitor',110.4,47,10.6,10,'ind',{eq:'wash',pub:'A cleaning cart, a mop bucket and two stalls.'}),
-  R('md_se','Stair E · up',121,51.8,3,7.6,'stair',{eq:'stair',dir:'up',to:'L-07',pub:'Stairs to the weather deck.'})],
- stairs:[],
- fire:[[20,0.6],[80,0.6],[2,30],[125,30],[20,66],[80,66],[8,8.6],[30,8.6],[42.4,20],[42.4,45],[8,58.2],[34,58.2],[50,8.6],[66,31.2],[80,26],[112,26],[100,58.2],[84,58.2],[71,45]],
- mcp:[[60,0.6],[2,50],[125,50],[60,66],[18,8.6],[38,8.6],[42.4,35],[18,58.2],[38,58.2],[56,31.2],[90,26],[104,26],[110,58.2],[71,38],[97.2,40],[60,4.6]],
- esc:[
-  {k:'p',pts:[[27,31.2],[48.6,31.2],[48.6,24]],need:['mc_m','mc_f2','mc_dm1']},
-  {k:'p',pts:[[8,8.6],[42.4,8.6],[42.4,31.2]],need:['mc_s1','mc_t']},
-  {k:'p',pts:[[8,58.2],[42.4,58.2],[42.4,31.2]],need:['mc_c1','mc_t']},
-  {k:'p',pts:[[80,58.2],[119,58.2],[122.5,58.2],[122.5,54]],need:['mc_ds1']},
-  {k:'s',pts:[[56,8.6],[68.8,8.6],[68.8,26]],need:['mc_dn1','mc_p1']},
-  {k:'s',pts:[[60,58.2],[70.8,58.2],[70.8,35]],need:['mc_ds1','mc_p3']},
-  {k:'s',pts:[[2,60],[2,0.6],[60,0.6]],need:['mw_w','mw_n']},
-  {k:'s',pts:[[125,10],[125,64],[100,66]],need:['mw_e','mw_s']},
-  {k:'s',pts:[[80,0.6],[125,0.6],[125,20]],need:['mw_n','mw_e']}],
- cams:[{id:'cam03',x:56,y:31.2,corr:'mc_dm1'}]
-});
-
-/* ============================== WEATHER DECK +52 ==============================
-   Convés aberto: rede de passarelas que dobram (corredor principal de 3 m em degraus), becos, pontes e blocos de tamanhos diferentes. */
-const weather_=build({
- id:'weather',lvl:'L-07',name:'Weather deck',elev:'+52 m',dwg:'ØA-GA-01',outdoor:true,
- corr:[
-  C('ow_n',2,4,55,2,'Walkway N','og_n'),C('ow_n2',57,4,3,6,'','og_n'),
-  C('ow_h',2,38,34,2,'Walkway W','og_w'),C('ow_e',34,6,2,34,'','og_w'),
-  C('ow_m1',36,22,24,3,'Main walkway','og_m'),C('ow_m2',57,10,3,15,'','og_m'),C('ow_m3',57,10,34,3,'','og_m'),C('ow_m4',88,10,3,44,'','og_m'),
-  C('ow_x',60,27,28,2,'Cross walkway'),
-  C('ow_s',2,52,100,2,'Walkway S'),
-  C('ow_fb',91,30,24,2.4,'Flare bridge'),C('ow_bb',91,42,20,2.4,'Bridge B')],
- rooms:[
-  R('wd1','Helideck',2,6,32,32,'ext',{eq:'heli',pub:'Heliponto. Área de pouso e decolagem dos helicópteros que levam e trazem a tripulação.'}),
-  R('wd2','Engine house',2,40,24,12,'ind',{eq:'engine',pub:'Casa de máquinas. Abriga o motor do elevador e os tanques do sistema de sprinklers.'}),
-  R('wd15','Utility shed',26,40,10,12,'ind',{eq:'store',pub:'Casa de utilidades. Guarda ferramentas e material de apoio ao convés.'}),
-  R('wd4','Tower top',36,6,21,16,'ext',{eq:'tower',pub:'Topo da torre. Estrutura em treliça que sustenta equipamentos no alto da plataforma.'}),
-  R('wd3','Laydown area',36,25,24,27,'ext',{eq:'containers',pub:'Área de descarga. Espaço aberto onde os guindastes deixam os contêineres e a carga recebida dos barcos.'}),
-  R('wd6','Lifeboats',60,13,28,14,'ind',{eq:'lifeboats',pub:'Baleeiras. Cápsulas salva-vidas fechadas usadas para evacuar a tripulação em emergência.'}),
-  R('wd7','PPE store',60,29,28,11,'ind',{eq:'ppe',pub:'Depósito de EPI. Guarda cintos, capacetes e o cesto usado para transferir pessoal por guindaste.'}),
-  R('wd5','Gas vent',60,40,28,12,'ext',{eq:'vent',pub:'Respiro de gás. Chaminé que libera o gás com segurança quando a pressão passa do limite.'}),
-  R('wd14','Muster station 3',91,13,18,14,'ext',{eq:'muster',pub:'Ponto de reunião 3. Local onde a tripulação se apresenta e é contada durante um alarme.'}),
-  R('wd8','Crane 1',8,-2,12,6,'ext',{eq:'crane',pub:'Guindaste 1. Iça carga entre os barcos de apoio e o convés.'}),
-  R('wd9','Crane 2',70,4,12,6,'ext',{eq:'crane',pub:'Guindaste 2. Iça carga e material entre os barcos de apoio e o convés.'}),
-  R('wd10','Crane 3',30,54,12,6,'ext',{eq:'crane',pub:'Guindaste 3. Iça carga e material entre os barcos de apoio e o convés.'}),
-  R('wd11','Flare boom',115,25,14,12,'ext',{eq:'flare',pub:'Ponta do flare. Lança que leva o queimador de gás em excesso para longe da plataforma.'}),
-  R('wd13','Old platform',111,38,24,22,'off',{eq:'old',st:'sealed',d:[],pub:'Plataforma antiga. Estrutura vizinha desativada, ligada à principal por uma passarela.'})],
- stairs:[{x:35,y:23.5,w:2,h:3.4,dir:'dn',lbl:'L-05'},{x:89.5,y:50,w:2,h:3.4,dir:'dn',lbl:'L-05'}],
- fire:[[3,5],[20,5],[45,5],[3,39],[20,39],[35,12],[35,34],[48,23.5],[75,11.5],[89.5,20],[89.5,40],[40,53],[80,53],[100,53]],
- mcp:[[10,5],[30,5],[35,20],[50,23.5],[58.5,17],[80,11.5],[89.5,30],[60,53],[95,31.2]],
- esc:[
-  {k:'p',pts:[[35,10],[35,23.5]],need:['ow_e']},{k:'p',pts:[[35,36],[35,23.5]],need:['ow_e']},
-  {k:'p',pts:[[89.5,20],[89.5,48.5]],need:['ow_m4']},{k:'s',pts:[[10,53],[88,53]],need:['ow_s']},{k:'s',pts:[[58.5,12],[58.5,23.5],[40,23.5]],need:['ow_m1','ow_m2']}],
- cams:[]
-});
-
-/* ============================== CELLAR DECK +28 ==============================
-   Anel de corredor em volta do moonpool; corredor de carga que dobra para o leste; ramais, becos e salas pequenas. */
-const cellar_=build({
- id:'cellar',lvl:'L-03',name:'Cellar deck',elev:'+28 m',dwg:'ØA-GA-03',
- corr:[
-  C('cc_w',17,31.8,28.6,2.8,'C-28·W','cg_w'),C('cc_cw',23.6,3,2.4,28.8,'C-28·N1'),C('cc_n1',56,15.6,2.4,6,''),
-  C('cc_rn',45.6,21.6,26.8,2.4,'C-28·R','cg_r'),C('cc_rs',45.6,42,26.8,2.4,'','cg_r'),C('cc_rw',45.6,24,2.4,18,'','cg_r'),C('cc_re',70,24,2.4,18,'','cg_r'),
-  C('cc_ne2',72.4,21.6,7.6,2.4,''),C('cc_ne',80,3,2.4,21,'C-28·N2'),C('cc_e',72.4,31.8,30,2.8,'C-28·E'),
-  C('cc_sw',17,34.6,2.4,19.8,'C-28·S1'),C('cc_sb',19.4,52,80.6,2.4,'C-28·B'),C('cw_ee',100,52,20.4,2.4,'C-28·B2','cg_e'),
-  C('cw_n',1,0,121.4,2,'Gallery N','cg_n',1),C('cw_nl1',23.6,2,2.4,1,'','cg_n',1),C('cw_nl2',80,2,2.4,1,'','cg_n',1),C('cw_e',120.4,2,2,62,'Gallery E','cg_e',1)],
- voids:[[26,15.6,30,6],[58.4,15.6,21.6,6],[19.4,34.6,26.2,2],[29.4,36.6,8.2,7.8],[82.4,21.6,16,2.4]],
- rooms:[
-  R('cd1','Machine room',4,3,19.6,22,'ind',{eq:'sauna',pub:'A maze of silver ductwork overhead. A plywood sauna with a diverted steam valve. The steam is too thick to see the far wall.'}),
-  R('cd4','Cargo area',26,3,54,12.6,'ind',{eq:'cargo',pub:'Eight metre ceiling, yellow lifting marks on the deck and an opening to the sky. Containers form aisles.'}),
-  R('cd7','Lower wellbay',82.4,3,36,18.6,'ind',{eq:'xmas',pub:'The largest enclosed space on the platform. Christmas trees in rows. The echo comes back half a second late.'}),
-  R('cd2','Drying room',4,27.4,13,11,'ind',{eq:'drying',pub:'Two rows of dripping coveralls over a heater. They sway slowly, all the time.'}),
-  R('cd3','Desalination',4,40,13,12,'ind',{eq:'desal',pub:'White pipework and a high whine. A permanent puddle on the floor.'}),
-  R('cd10','Switchgear',19.4,36.6,10,15.4,'ind',{eq:'switch',pub:'Electrical cabinets with hand-written labels. Smell of ozone. An emergency light that has always flickered.'}),
-  R('cd6','Dive room',37.6,36.6,8,7.8,'ind',{eq:'dive',pub:'Cylinders in racks and a suit hanging. A duty board with a marker that no longer wipes. A clipboard with the last name signed.'}),
-  R('cd12','Paint store',29.4,44.4,16.2,7.6,'ind',{eq:'paint',pub:'Paint cans and solvent drums. An open box of half-face masks. The thinner catches in your throat.'}),
-  R('cd5','Moonpool',48,24,22,18,'ind',{eq:'moonpool',pub:'A square of black water in the floor, lit from below as the sea rises and falls. A yellow submersible hangs in the gantry. A corridor runs all the way round it.'}),
-  R('cd8','Umbilical winch',45.6,44.4,14,7.6,'ind',{eq:'winch',pub:'A steel reel the size of a car. A panel with two worn joysticks. The counter has not been zeroed since 2011.'}),
-  R('cd11','Fire pumps',59.6,44.4,12.8,7.6,'ind',{eq:'pumps',pub:'Two large red pumps and a pipe the width of a body going down through the floor.'}),
-  R('cd_hpu','Hydraulic power unit',82.4,24,16,7.8,'ind',{eq:'hpu',pub:'A tank of hydraulic oil, two pumps and a pressure panel. Drip trays under every fitting.'}),
-  R('cd9','ROV bay',72.4,34.6,16,17.4,'ind',{eq:'rov',pub:'Two yellow ROVs in cradles. A manipulator arm stripped on the bench. Three dusty monitors on blue screens.'}),
-  R('cd13','Waste',88.4,34.6,11.6,17.4,'ind',{eq:'waste',pub:'Two blue drums, a funnel and a scale. The extractor is switched off. People leave quickly.'}),
-  R('cd_bal','Ballast control',102.4,26.4,14,11.8,'ind',{eq:'ballast',d:[['w',.5,'door','c']],pub:'A console with a diagram of the platform legs and the ballast tanks. Several indicators read amber.'}),
-  R('cd_swp','Seawater pumps',102.4,38.2,14,13.8,'ind',{eq:'pumps',d:[['n',.5,'door','r']],pub:'Large pumps on a raised floor and a pipe going down into the dark.'}),
-  R('cd14','Storeroom',19.4,54.4,12,7.6,'ind',{eq:'store',pub:'Deep shelving with a light every second bay. Another company\'s label under the paint.'}),
-  R('cd15','M12 · Decommissioned',31.4,54.4,16,7.6,'off',{eq:'sealed',st:'sealed',d:[['n',.5,'weld','c']],pub:'A steel plate welded across the doorway. The floor patched, the walls bare.'}),
-  R('cd_sp','Spare parts',47.4,54.4,16,7.6,'ind',{eq:'store',pub:'Valves, flanges and gaskets on racks. A paper inventory on a clipboard.'}),
-  R('cd_cab','Cable room',63.4,54.4,12,7.6,'ind',{eq:'cable',pub:'Cable reels in rows, each tagged with a date and a destination.'}),
-  R('cd_hot','Hot-work shop',75.4,54.4,14,7.6,'ind',{eq:'workshop',pub:'A welding bench and gas bottles chained to the wall. A burnt smell that never quite goes.'}),
-  R('cd_chm','Chemical store',89.4,54.4,10.6,7.6,'ind',{eq:'chemstore',pub:'Drums on spill trays, stacked two high.'}),
-  R('cd_pwt','Produced water treatment',26,22,19.6,9.8,'ind',{pub:'Cyclones and settling tanks that clean the water coming up with the oil.'}),
-  R('cd_slop','Slop tank room',4,52,13,10,'ind',{pub:'A sealed tank for oily drain water, with a level gauge on the wall.'}),
-  R('cd_clo','Chlorination unit',72.4,24,9.8,7.8,'ind',{pub:'Dosing pumps and a brine cell on a drip tray.'}),
-  R('cd_egen','Emergency generator room',100,54.4,20.4,7.6,'ind',{pub:'Two diesel sets under dust covers and a battery rack.'})],
- stairs:[{x:24.8,y:5.8,w:2.2,h:4.2,dir:'up',lbl:'L-05'},{x:81.2,y:5.8,w:2.2,h:4.2,dir:'up',lbl:'L-05'},{x:18.2,y:50.6,w:2.2,h:4.2,dir:'up',lbl:'L-05'}],
- fire:[[6,3],[24.8,14],[24.8,28],[30,33.2],[40,33.2],[46.8,30],[58,22.8],[71.2,30],[90,33.2],[100,33.2],[18.2,45],[40,53.2],[70,53.2],[90,53.2],[81.2,14]],
- mcp:[[24.8,20],[34,33.2],[46.8,38],[64,22.8],[80,33.2],[18.2,40],[50,53.2],[80,53.2],[81.2,8]],
- esc:[
-  {k:'p',pts:[[40,33.2],[24.8,33.2],[24.8,9]],need:['cc_w','cc_cw']},
-  {k:'p',pts:[[75,22.8],[81.2,22.8],[81.2,9]],need:['cc_rn','cc_ne2','cc_ne']},
-  {k:'p',pts:[[18.2,36],[18.2,50]],need:['cc_sw']},
-  {k:'s',pts:[[95,33.2],[74,33.2]],need:['cc_e']},
-  {k:'s',pts:[[25,1],[80,1],[121.4,1],[121.4,40]],need:['cw_n','cw_e']}],
- cams:[{id:'cam04',x:58,y:33,room:'cd5'},{id:'cam02',x:98,y:10,room:'cd7'}]
-});
-
-/* ============================== LIVING QUARTERS A–E (34 x 28) ============================== */
-function lqDeck(id,suffix,name,elev,rowN,rowS,extra){
-  const corr=[C(id+'_c',3.7,18,26.6,2,'Corridor '+suffix)];
-  const rooms=[];
-  let x=3.7;rowN.forEach(it=>{if(it.cw){corr.push(C(it.id,x,2,it.cw,16,'Cross '+suffix));x+=it.cw;return;}
-    rooms.push(R(it.id,it.n,x,2,it.w,it.h||16,it.t||'ind',it));x+=it.w;});
-  x=3.7;rowS.forEach(it=>{rooms.push(R(it.id,it.n,x,20,it.w,6,it.t||'ind',it));x+=it.w;});
-  rooms.push(R(id+'0','Core',.5,15.5,3.2,7,'ind',{eq:'lift',d:[['e',.5,'door','c']],pub:'Stair and lift core. A worn handrail and a lift with a folding gate.'}));
-  rooms.push(R(id+'9','Stairwell',30.3,15.5,3.2,7,'stair',{eq:'stair',d:[['w',.5,'door','c']],pub:'Fire door with a push bar. Five flights on the outside of the block.'}));
-  (extra||[]).forEach(e=>rooms.push(e));
-  return build({id,lvl:'L-06',name,elev,dwg:'ØA-LQ-'+suffix,corr,rooms,fire:[[6,19],[16,19],[28,19]],mcp:[[10,19],[22,19]],stairs:[],esc:[{k:'p',pts:[[16,19],[31.9,19]],need:[id+'_c']},{k:'p',pts:[[16,19],[2.1,19]],need:[id+'_c']}],cams:[],voids:[]});
+function autoVoids(D,opt){
+  const bb=D.foot?null:eatBox(D),G=.1;
+  const feet=D.foot||[bb];
+  const X0=Math.min(...feet.map(f=>f[0])),Y0=Math.min(...feet.map(f=>f[1])),X1=Math.max(...feet.map(f=>f[0]+f[2])),Y1=Math.max(...feet.map(f=>f[1]+f[3]));
+  const W=Math.round((X1-X0)/G),H=Math.round((Y1-Y0)/G),grid=new Uint8Array(W*H);
+  const mark=(a,v)=>{const i0=Math.max(0,Math.round((a[0]-X0)/G)),i1=Math.min(W,Math.round((a[0]+a[2]-X0)/G)),j0=Math.max(0,Math.round((a[1]-Y0)/G)),j1=Math.min(H,Math.round((a[1]+a[3]-Y0)/G));
+    for(let j=j0;j<j1;j++)for(let i=i0;i<i1;i++)grid[j*W+i]=v;};
+  feet.forEach(f=>mark(f,1)); // 1 = livre dentro da pegada
+  const occ=a=>mark(a,2);
+  D.rooms.forEach(r=>occ(r.r));D.corr.forEach(c=>occ(c.r));D.voids.forEach(occ);D.blocks.forEach(b=>occ(b.r));
+  const minT=opt.minT||1.0,holes=[];const out=[];
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){
+    if(grid[j*W+i]!==1)continue;
+    let i2=i;while(i2<W&&grid[j*W+i2]===1)i2++;
+    let j2=j+1;while(j2<H){let ok=true;for(let k=i;k<i2;k++)if(grid[j2*W+k]!==1){ok=false;break;}if(!ok)break;j2++;}
+    for(let jj=j;jj<j2;jj++)for(let ii=i;ii<i2;ii++)grid[jj*W+ii]=3;
+    out.push([r1(X0+i*G),r1(Y0+j*G),r1((i2-i)*G),r1((j2-j)*G)]);
+  }
+  // junta fatias vizinhas de mesma largura/posicao (empilhadas) pra nao deixar costura
+  let merged=true;while(merged){merged=false;for(let a=0;a<out.length&&!merged;a++)for(let b=a+1;b<out.length;b++){const p=out[a],q=out[b];
+    if(Math.abs(p[0]-q[0])<.01&&Math.abs(p[2]-q[2])<.01&&Math.abs(p[1]+p[3]-q[1])<.01){out[a]=[p[0],p[1],p[2],r1(p[3]+q[3])];out.splice(b,1);merged=true;break;}
+    if(Math.abs(p[1]-q[1])<.01&&Math.abs(p[3]-q[3])<.01&&Math.abs(p[0]+p[2]-q[0])<.01){out[a]=[p[0],p[1],r1(p[2]+q[2]),p[3]];out.splice(b,1);merged=true;break;}}}
+  out.forEach(v=>{if(Math.min(v[2],v[3])<minT)return;D.voids.push(v);if(v[2]*v[3]>(opt.holeA||26))holes.push(v);});
+  D.holes=holes;
 }
-const lqE=lqDeck('lqE','E','Living quarters · Deck E','+58 m',
- [{id:'lqE1',n:'Heliport access',w:10,t:'ext',eq:'hatch',pub:'A round hatch with a wheel lock. A chain with a sign across the ladder.'},
-  {id:'lqE2',n:'Lift motor room',w:8,eq:'engine',pub:'Lift motor behind a grille, two sprinkler tanks. Machinery cycling without a pause.'},
-  {id:'lqE4',n:'Air handling units',w:8.6,eq:'ahu',pub:'Two units the size of containers, stacked filters beside them. A duct riser down to all five decks. A constant blow that drowns everything else.'}],
- [{id:'lqE6',n:'Antenna deck',w:26.6,t:'ext',eq:'antenna',pub:'A mast in the centre and a dish turned south. Coax bundled every metre. The whole platform is below this point.'}]);
-const lqD=lqDeck('lqD','D','Living quarters · Deck D','+54 m',
- [{id:'lqD1',n:'Communications',w:6.2,eq:'comms',pub:'An L-shaped desk with two VHF radios and a satellite terminal. A paper logbook. Perforated acoustic panel on the wall.'},
-  {id:'lqD2',n:'Camera room',w:7.4,eq:'cameras',pub:'Nine monitors, four without signal. A notebook of occurrences with a pen tied to it.'},
-  {id:'lqD3',n:'OIM office',w:6,eq:'office',pub:'A locked filing cabinet and a record player with a classic vinyl. The only door in the block with a real key.'},
-  {id:'lqD4',n:'Meeting room',w:7,eq:'meeting',pub:'A table for twelve and a projector with the cable wound up. The days-without-accident counter has been overwritten.'}],
- [{id:'lqD5',n:'Offices',w:8,eq:'office',pub:'Three booths with half-height partitions. You can hear the booth next door.'},
-  {id:'lqD6',n:'Archive',w:5.6,eq:'archive',pub:'A sliding archive of six modules. Labels from 2011 to now. The earlier modules are empty, their labels scraped off.'},
-  {id:'lqD8',n:'Coffee room',w:4,eq:'pantry',pub:'A sink, a coffee machine and a flask. Where everything that does not fit in the mess hall gets said.'},
-  {id:'lqD10',n:'Training room',w:9,eq:'training',pub:'A CPR mannequin seated facing the door. A laminated muster map, Rev. 3, 2011. An induction video recorded in 2009.'}]);
-/* Decks de dormitorio (C e B): cabines pequenas (2 pessoas) na parede externa norte e sul, cada uma com janela; corredores
-   proprios das alas, lavabos e salas de uso no miolo. */
-function lqDorm(id,suffix,name,elev,rooms,extra){
-  const corr=[C(id+'_n',3.7,6.6,26.6,2.4,'Corridor '+suffix+'1'),C(id+'_s',3.7,19,26.6,2.4,'Corridor '+suffix+'2'),C(id+'_l',27.9,9,2.4,10,'Link '+suffix)];
-  const all=rooms.concat([
-    R(id+'0','Core',.5,15.5,3.2,7,'ind',{eq:'lift',d:[['e',.67,'door','c']],pub:'Stair and lift core. A worn handrail and a lift with a folding gate.'}),
-    R(id+'9','Stairwell',30.3,15.5,3.2,7,'stair',{eq:'stair',d:[['w',.67,'door','c']],pub:'Fire door with a push bar. Five flights on the outside of the block.'})]).concat(extra||[]);
-  return build({id,lvl:'L-06',name,elev,dwg:'ØA-LQ-'+suffix,corr,rooms:all,fire:[[8,7.8],[22,7.8],[8,20.2],[22,20.2],[29.1,14]],mcp:[[14,7.8],[14,20.2],[29.1,10]],stairs:[],
-    esc:[{k:'p',pts:[[6,7.8],[29.1,7.8],[29.1,20.2],[31.9,20.2]],need:[id+'_n',id+'_l',id+'_s']},{k:'p',pts:[[6,20.2],[31.5,20.2]],need:[id+'_s']}],cams:[],voids:[]});
+function safety(D){
+  D.corr.forEach(c=>{const [x,y,w,h]=c.r,hz=w>=h,L=hz?w:h;if(L<7||c.open&&L<14)return;
+    for(let t=Math.min(3.5,L/3),k=0;t<L-1.5;t+=21,k++){const p=hz?[r1(x+t),r1(y+h/2)]:[r1(x+w/2),r1(y+t)];D.fire.push(p);}
+    for(let t=Math.min(11,L/2),k=0;t<L-1.5;t+=27,k++){const p=hz?[r1(x+t),r1(y+h/2)]:[r1(x+w/2),r1(y+t)];D.mcp.push(p);}});
 }
-const lqC=lqDorm('lqC','C','Living quarters · Deck C','+50 m · crosses the weather deck',[
-  R('lqC1','Dormitories A',3.7,2,26.6,4.6,'hab',{cab:{n:6,side:'s'},eq:'cabinrow',pub:'Six small cabins along the north hull, two bunks each. Name cards, half in pen. Walls thin enough to hear the neighbour. A small round window in each.'}),
-  R('lqC3','Cabins 1–6 · vacant',3.7,21.4,26.6,4.6,'off',{cab:{n:6,side:'n'},eq:'cabinrow',pub:'Six unlocked cabins, made up. Bedspread pulled tight, pillow in place. A closed smell of light mildew.'}),
-  R('lqC2','Washrooms A',3.7,9,7,10,'hab',{eq:'bath',pub:'Shower stalls with plastic curtains and white tile. An echo returns every drip. The door has had no lock since before the refit.'}),
-  R('lqC5','Study room',10.7,9,8.4,10,'hab',{eq:'study',pub:'Two tables and a shelf of technical manuals. Three paperbacks with broken spines. One chair always pulled out, turned to the wall.'}),
-  R('lqC6','Quiet room',19.1,9,8.8,5,'hab',{eq:'quiet',pub:'A sofa and one small round window. No equipment, no board, no sound.'}),
-  R('lqC4','Linen room',19.1,14,4.4,5,'hab',{eq:'linen',pub:'Folded sheets and coveralls in plastic bags. Smell of bleach, the only good smell here.'}),
-  R('lqC7','Store',23.5,14,4.4,5,'hab',{eq:'store',pub:'A cleaning cart and a vacuum cleaner. An unlocked door that nobody has ever taken anything from.'})],
-  [R('lqC8','Weather deck exit',30.3,2,3.2,13.5,'ext',{eq:'hatch',d:[['s',.5,'open','r']],pub:'A wired-glass door. The first flight is visible; the rest goes dark.'})]);
-const lqB=lqDorm('lqB','B','Living quarters · Deck B','+46 m · mostly sealed',[
-  R('lqB4','Dormitories B',3.7,2,26.6,4.6,'hab',{cab:{n:6,side:'s'},eq:'cabinrow',pub:'Six cabins lit at the end of a dark corridor. These doors open. From the last you can see the length of the deck back to the core.'}),
-  R('lqB1','Cabins · sealed',3.7,21.4,15.3,4.6,'off',{st:'sealed',cab:{n:3,side:'n'},eq:'cabinrow',pub:'A row of closed doors. Tape across every frame, already yellowed. An emergency light every ten metres. No smell at all.'}),
-  R('lqB3','Cabins · sealed',19,21.4,11.3,4.6,'off',{st:'sealed',cab:{n:2,side:'n'},eq:'cabinrow',pub:'More closed doors. The last one ajar, the tape torn. A mattress without a sheet and an open locker.'}),
-  R('lqB2','TV room · disabled',3.7,9,6,5,'off',{eq:'tv',pub:'Stacked chairs shoulder high. A tube TV still plugged in. Even dust, no fingermarks.'}),
-  R('lqB5','Storage',3.7,14,6,5,'off',{eq:'store',pub:'A rolled mattress tied with rope. Paperwork older than 2011, soft with damp. One box stamped by another company.'}),
-  R('lqB6','Washrooms · sealed',10.7,9,6,10,'off',{st:'sealed',eq:'bath',pub:'Water cut at the main valve. A dry trap and the smell that rises from it. A mould line at knee height.'}),
-  R('lqB7','Washrooms B',16.7,9,5,10,'hab',{eq:'bath',pub:'Two showers and a basin. A mirror with the silver coming off. A bulb that blinks at irregular intervals.'}),
-  R('lqB8','Corridor end',21.7,9,6.2,10,'hab',{eq:'plaster',pub:'The corridor ends in a smooth wall covered in the same striped beige paper, peeling from the bottom edge.'})]);
-
-const lqA=(function(){
-  const d=build({id:'lqA',lvl:'L-06',name:'Living quarters · Deck A',elev:'+42 m',dwg:'ØA-LQ-A',
-   corr:[C('lqA_c',3.7,18,26.6,2,'Corridor A'),C('lqA_x',16,2,1.8,16,'Cross A')],
-   rooms:[
-    R('lqA0','Core',.5,15.5,3.2,7,'ind',{eq:'lift',d:[['e',.5,'door','c']],pub:'Worn handrail in the middle. A lift with a folding gate and five buttons.'}),
-    R('lqA9','Stairwell',30.3,15.5,3.2,7,'stair',{eq:'stair',d:[['w',.5,'door','c']],pub:'Fire door with a push bar. Five flights on the outside of the block.'}),
-    R('lqA1','Mess hall',3.7,2,12.3,10,'hab',{eq:'dining',d:[['e',.5,'door','c'],['s',.2,'open','r']],pub:'A table for forty, dinner for fourteen. Chairs turned up on the tables at the back. A TV with the news and no sound.'}),
-    R('lqA3','Galley',3.7,12,6.4,6,'hab',{eq:'galley',pub:'Stainless steel wall to wall, an eight-burner range. A serving hatch open to the mess hall. A tube TV playing an Italian comedy too loud.'}),
-    R('lqA4','Pantry',10.1,12,3,6,'hab',{eq:'store',pub:'Shelves to the ceiling. Stock for three months, every can turned label forward.'}),
-    R('lqA5','Cold room',13.1,12,2.9,6,'hab',{eq:'cold',pub:'A lever latch and a fogged window. An empty hook on the ceiling rail. The compressor knocks in cycles.'}),
-    R('lqA2','Lounge',17.8,2,12.5,10,'hab',{eq:'lounge',d:[['w',.5,'door','c']],pub:'A cracked leatherette sofa, a PlayStation on a big TV, weights used as a coat rack.'}),
-    R('lqA6','Laundry',17.8,12,12.5,6,'hab',{eq:'laundry',pub:'Four washers and two dryers. A nylon line across the room. There is always something left behind.'}),
-    R('lqA7','Infirmary',3.7,20,10,6,'hab',{eq:'infirmary',pub:'Two beds and a locked cabinet. An anatomy poster from 1998 held up with tape. Cleaner than anywhere else.'}),
-    R('lqA8','Medic\'s room',13.7,20,6,6,'hab',{eq:'office',pub:'A steel filing cabinet with a lock. A corkboard with one paper turned to the wall.'}),
-    R('lqA10','Common room',19.7,20,10.6,6,'hab',{eq:'quiet',pub:'Armchairs facing the round window. Dark nine months of the year. An ashtray that should not be here.'})],
-   fire:[[6,19],[16,19],[28,19]],mcp:[[10,19],[22,19]],stairs:[],esc:[{k:'p',pts:[[16,19],[31.9,19]],need:['lqA_c']},{k:'p',pts:[[16,19],[2.1,19]],need:['lqA_c']}],
-   cams:[{id:'cam01',x:10,y:7,room:'lqA1'}],voids:[]});
-  return d;})();
-lqA.rooms.find(r=>r.id==='lqA3').d=[['s',.5,'door','c'],['n',.3,'open','r']];
-
-const DECKS={module:module_,weather:weather_,cellar:cellar_,lqE,lqD,lqC,lqB,lqA};
-const LQ_ORDER=['lqE','lqD','lqC','lqB','lqA'];
-const LQ_NAMES={lqE:'E · +58',lqD:'D · +54',lqC:'C · +50',lqB:'B · +46',lqA:'A · +42'};
-Object.values(DECKS).forEach(d=>{d.rooms.forEach(r=>{r.deck=d.id;});d.corr.forEach(c=>{c.deck=d.id;});});
-/* ---------- textos que o jogador le: SEMPRE "[Nome em portugues]. [O que e e o que faz na petroleira]." O Guardiao pode sobrescrever ao vivo (station/map/desc/<sala>) ---------- */
-const PUB_PT={
- md_off:'Cabines dos oficiais. Nove cabines de duas camas ao longo do casco norte, onde dormem a chefia e os oficiais. Cada uma tem uma escotilha para o lado de fora.',
- md_crw:'Cabines da tripulação. Nove cabines de duas camas ao longo do casco sul, onde dorme o resto da tripulação. Cada uma tem uma escotilha para o lado de fora.',
- md_ow:'Banheiro dos oficiais. Chuveiros e pias de uso exclusivo da ala dos oficiais.',
- md_om:'Refeitório dos oficiais. Sala onde os oficiais fazem as refeições e reuniões informais.',
- md_cl:'Enfermaria. Presta os primeiros socorros e guarda os medicamentos da plataforma.',
- md_ol:'Lavanderia dos oficiais. Lava e seca roupa de cama e macacões da ala dos oficiais.',
- md_gym:'Academia. Equipamentos de exercício para a tripulação nas folgas.',
- md0:'Lounge. Sala redonda de convivência ligada às duas alas, com sofás, quadros, armários individuais e máquinas de venda, usada para relaxar perto dos quartos ou de manhã.',
- md1:'Sala de botas. Passagem de troca de botas e macacão entre o lado limpo e o lado sujo; a faixa amarela no piso marca a divisão.',
- md2:'Sala de controle. Monitora e comanda os sistemas da plataforma a partir de painéis e monitores.',
- md3:'Oficina elétrica. Faz a manutenção e o reparo de painéis, motores e cabos elétricos.',
- md12:'Depósito seco. Guarda peças de reposição e material que não pode pegar umidade.',
- md11:'Banheiro da tripulação. Chuveiros e pias de uso da ala da tripulação.',
- md_cd:'Sala de convivência da tripulação. Espaço de descanso e jogos nas folgas.',
- md_lc:'Lavanderia da tripulação. Lava e seca roupa e macacões da tripulação.',
- md_ppe:'Armário de EPI. Guarda e distribui os equipamentos de proteção individual: macacões, capacetes e cintos.',
- md_ins:'Oficina de instrumentação. Calibra e conserta os manômetros e sensores da plataforma.',
- md_scba:'Depósito de respiradores autônomos. Guarda os aparelhos de respiração usados em emergências com gás ou fumaça.',
- md_trf:'Sala de transformadores. Reduz a tensão da energia gerada para alimentar os equipamentos.',
- md_swu:'Escada de subida. Liga o module deck ao weather deck.',md_swd:'Escada de descida. Liga o module deck ao cellar deck.',md_se:'Escada de subida. Liga o module deck ao weather deck.',
- md4:'Área dos poços (wellbay). Abriga as cabeças de poço, que controlam a saída do óleo e do gás do reservatório até a plataforma.',
- md5:'Sala de lama. Prepara, bombeia e filtra a lama de perfuração, que resfria a broca e carrega os fragmentos de rocha até a superfície.',
- md_lab:'Laboratório de lama. Analisa as amostras de lama e de sedimento que sobem do poço.',
- md_chem:'Depósito de químicos. Guarda os produtos usados no tratamento do poço e do óleo.',
- md6:'Separação. Separa o óleo, o gás e a água que chegam misturados dos poços.',
- md8:'Módulo desativado. Antigo módulo de processo fora de operação, com válvulas e energia isoladas por bloqueio de segurança.',
- md7:'Compressão. Comprime o gás separado para enviá-lo por duto ou reinjetá-lo no poço.',
- md10:'Oficina. Usina e conserta peças metálicas e ferramentas da plataforma.',
- md9:'Utilidades. Gera a energia e o ar quente da plataforma com geradores e sistemas auxiliares.',
- md_inj:'Injeção de químicos. Dosa produtos químicos nas linhas para evitar corrosão e incrustação.',
- md_wc:'Sanitários e zeladoria. Banheiros de apoio ao módulo e guarda de material de limpeza.',
- wd1:'Heliponto. Área de pouso e decolagem dos helicópteros que levam e trazem a tripulação.',
- wd2:'Casa de máquinas. Abriga o motor do elevador e os tanques do sistema de sprinklers.',
- wd3:'Área de descarga. Espaço aberto onde os guindastes deixam os contêineres e a carga recebida dos barcos.',
- wd4:'Topo da torre. Estrutura em treliça que sustenta equipamentos no alto da plataforma.',
- wd5:'Respiro de gás. Chaminé que libera o gás com segurança quando a pressão passa do limite.',
- wd6:'Baleeiras. Cápsulas salva-vidas fechadas usadas para evacuar a tripulação em emergência.',
- wd7:'Depósito de EPI. Guarda cintos, capacetes e o cesto usado para transferir pessoal por guindaste.',
- wd15:'Casa de utilidades. Guarda ferramentas e material de apoio ao convés.',
- wd14:'Ponto de reunião 3. Local onde a tripulação se apresenta e é contada durante um alarme.',
- wd8:'Guindaste 1. Içacarga entre os barcos de apoio e o convés.',
- wd9:'Guindaste 2. Içacarga e material entre os barcos de apoio e o convés.',
- wd10:'Guindaste 3. Içacarga e material entre os barcos de apoio e o convés.',
- wd11:'Ponta do flare. Lança que leva o queimador de gás em excesso para longe da plataforma.',
- wd13:'Plataforma antiga. Estrutura vizinha desativada, ligada à principal por uma passarela.',
- cd1:'Sala de máquinas. Concentra a ventilação e o aquecimento do deck, além da sauna usada pela tripulação.',
- cd4:'Área de carga. Recebe, guarda e movimenta contêineres e materiais trazidos pelos guindastes.',
- cd7:'Wellbay inferior. Parte baixa da área dos poços, onde ficam as árvores de natal, conjuntos de válvulas que controlam o fluxo de cada poço.',
- cd2:'Sala de secagem. Seca macacões e roupa de trabalho molhados.',
- cd3:'Dessalinização. Transforma água do mar em água doce para uso na plataforma.',
- cd10:'Quadro de força. Distribui e protege a energia elétrica enviada aos equipamentos.',
- cd6:'Sala de mergulho. Guarda e prepara o equipamento dos mergulhadores e controla a escala de mergulho.',
- cd12:'Depósito de tinta. Guarda tintas e solventes usados na manutenção contra a corrosão.',
- cd5:'Moonpool. Abertura no piso por onde equipamentos e submersíveis descem direto ao mar; um corredor em volta dá acesso a todos os lados.',
- cd8:'Guincho do umbilical. Enrola e desenrola o cabo que liga a plataforma aos veículos submarinos.',
- cd11:'Bombas de incêndio. Bombeiam água do mar para os sistemas de combate a incêndio.',
- cd_hpu:'Unidade hidráulica. Fornece pressão de óleo para acionar válvulas e equipamentos.',
- cd9:'Baia de ROV. Guarda e prepara os veículos operados remotamente usados em inspeção submarina.',
- cd13:'Resíduos. Armazena o lixo e os resíduos oleosos até o transporte para terra.',
- cd_bal:'Controle de lastro. Controla a água dos tanques que mantêm a plataforma estável.',
- cd_swp:'Bombas de água do mar. Puxam água do mar para o resfriamento e para o sistema de incêndio.',
- cd14:'Almoxarifado. Guarda material de consumo e peças de reposição do deck.',
- cd15:'Módulo desativado. Antigo módulo de processo fora de operação, com a entrada fechada por chapa soldada.',
- cd_sp:'Peças de reposição. Guarda válvulas, flanges e juntas para a manutenção.',
- cd_cab:'Sala de cabos. Guarda os carretéis de cabo elétrico e de controle.',
- cd_hot:'Oficina de trabalho a quente. Solda e corta metal sob permissão e controle do risco de incêndio.',
- cd_chm:'Depósito de químicos. Guarda tambores de produtos químicos sobre bacias de contenção.',
- cd_pwt:'Tratamento de água produzida. Separa o óleo residual da água que sobe com o petróleo antes de devolvê-la ao mar.',
- cd_slop:'Tanque de resíduos oleosos. Recebe o óleo recolhido dos drenos e das bacias de contenção.',
- cd_clo:'Unidade de cloração. Dosa cloro na água do mar para impedir incrustação nas linhas e nas bombas.',
- cd_egen:'Gerador de emergência. Mantém luz e bombas de incêndio ligadas quando a energia principal cai.',
- lqE0:'Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento.',lqD0:'Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento.',lqC0:'Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento.',lqB0:'Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento.',lqA0:'Núcleo de circulação. Concentra a escada e o elevador que ligam os decks do alojamento.',
- lqE9:'Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento.',lqD9:'Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento.',lqC9:'Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento.',lqB9:'Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento.',lqA9:'Escada de emergência. Rota de fuga protegida por porta corta-fogo que liga os decks do alojamento.',
- lqE1:'Acesso ao heliponto. Escotilha e escada que levam à cobertura do alojamento e ao heliponto.',
- lqE2:'Casa de máquinas do elevador. Abriga o motor do elevador e o tanque do sistema de sprinklers.',
- lqE4:'Unidades de ar-condicionado. Renovam, filtram e esfriam o ar de todos os decks do alojamento.',
- lqE6:'Convés de antenas. Mastro e antenas de rádio e satélite que ligam a plataforma ao resto do mundo.',
- lqD1:'Comunicações. Central de rádio e satélite para falar com a costa, os barcos e os helicópteros.',
- lqD2:'Sala de câmeras. Monitora as câmeras de segurança da plataforma e registra ocorrências.',
- lqD3:'Escritório do OIM. Sala do gerente da instalação, responsável por toda a plataforma.',
- lqD4:'Sala de reunião. Reuniões de segurança e de planejamento.',
- lqD5:'Escritórios. Trabalho administrativo e de planejamento.',
- lqD6:'Arquivo. Guarda registros, relatórios e documentos da operação.',
- lqD8:'Sala do café. Pequena copa para a pausa da equipe administrativa.',
- lqD10:'Sala de treinamento. Aulas de segurança, primeiros socorros e indução de quem chega.',
- lqC1:'Dormitórios A. Cabines de duas camas para equipes de rotação que passam períodos curtos a bordo.',
- lqC3:'Cabines 1 a 6 (vagas). Cabines de reserva, mantidas arrumadas para quando chegar mais gente.',
- lqC2:'Banheiros A. Chuveiros e pias de uso dos dormitórios do deck.',
- lqC5:'Sala de estudo. Espaço silencioso com manuais técnicos para estudo e leitura.',
- lqC6:'Sala de silêncio. Espaço de descanso curto longe do barulho.',
- lqC4:'Rouparia. Guarda lençóis, toalhas e macacões limpos.',
- lqC7:'Depósito. Guarda o material de limpeza do deck.',
- lqC8:'Saída para o weather deck. Porta que liga o alojamento ao convés externo.',
- lqB4:'Dormitórios B. Cabines de duas camas para equipes de rotação, ainda em uso.',
- lqB1:'Cabines desativadas. Antigas cabines fechadas por falta de uso depois da redução da tripulação.',
- lqB3:'Cabines desativadas. Mais cabines fechadas por falta de uso.',
- lqB2:'Sala de TV (desativada). Antiga sala de convivência com televisão, fora de uso.',
- lqB5:'Depósito. Guarda colchões, papelada e materiais antigos do deck.',
- lqB6:'Banheiros (desativados). Antigos chuveiros e pias das cabines fechadas, com a água cortada.',
- lqB7:'Banheiros B. Chuveiros e pias de uso dos dormitórios que ainda funcionam.',
- lqB8:'Fim do corredor. Extremidade do corredor sul do deck.',
- lqA1:'Refeitório. Onde a tripulação faz as refeições, em turnos.',
- lqA3:'Cozinha. Prepara as refeições de toda a plataforma.',
- lqA4:'Despensa. Guarda os alimentos secos e enlatados.',
- lqA5:'Câmara fria. Conserva carnes, laticínios e alimentos perecíveis.',
- lqA2:'Sala de estar. Espaço de convivência com sofá, TV e videogame.',
- lqA6:'Lavanderia. Lava e seca roupa de cama e macacões de todo o alojamento.',
- lqA7:'Enfermaria. Atende doentes e feridos até uma eventual remoção.',
- lqA8:'Sala do médico. Consultas e guarda dos prontuários da tripulação.',
- lqA10:'Sala de descanso. Espaço de repouso com poltronas voltadas para a janela.'
+PL.finish=(D,opt)=>{
+  opt=opt||{};
+  D.rooms.forEach(r=>{if(r.cab){r.d=[];for(let i=0;i<r.cab.n;i++)r.d.push([r.cab.side,Math.round((i+.5)/r.cab.n*1000)/1000,'cdoor','c']);}else if(!r.d)r.d=autoDoors(r,D.corr);});
+  if(opt.autoVoid!==false)autoVoids(D,opt);
+  D.bbox=eatBox(D);
+  if(!D.fire.length&&opt.safety!==false)safety(D);
+  return D;
 };
-const DECK_INTRO={
- weather:'Convés de tempo (weather deck). O deck mais alto da plataforma, ao ar livre, com heliponto, guindastes, baleeiras e a ponte do flare.',
- module:'Deck de módulos (module deck). Reúne as cabines, a área dos poços e os módulos de processo, separados por um firewall; galerias externas dão a volta por fora.',
- cellar:'Deck do porão (cellar deck). O deck mais baixo da plataforma, com área de carga, moonpool, bombas e o wellbay inferior.',
- lqE:'Deck E do alojamento. Cobertura do prédio de alojamento, com acesso ao heliponto, casa de máquinas e antenas.',
- lqD:'Deck D do alojamento. Administração da plataforma: comunicações, sala de câmeras e escritórios.',
- lqC:'Deck C do alojamento. Dormitórios de rotação; o deck atravessa o weather deck.',
- lqB:'Deck B do alojamento. Dormitórios, em grande parte desativados.',
- lqA:'Deck A do alojamento. Refeitório, cozinha, sala de estar e enfermaria.'};
-Object.values(DECKS).forEach(d=>{d.intro=DECK_INTRO[d.id]||'';d.rooms.forEach(r=>{if(PUB_PT[r.id])r.pub=PUB_PT[r.id];});});
 
+/* ---------- STATION ---------- */
+PL.station=(decks,extra)=>{
+  extra=extra||{};
+  const LEVELS=[{id:'weather',tag:'L-07',name:'Weather deck',elev:'+52 m'},{id:'quarters',tag:'L-06',name:'Living quarters',elev:'+42 / +62 m'},{id:'module',tag:'L-05',name:'Module deck',elev:'+40 m'},{id:'cellar',tag:'L-03',name:'Cellar deck',elev:'+28 m'}];
+  const LEGACY={helipad:'weather',control:'module',mess:'quarters',drill:'cellar'};
+  const DECK_LEVEL={weather:'weather',module:'module',cellar:'cellar',lqE:'quarters',lqD:'quarters',lqC:'quarters',lqB:'quarters',lqA:'quarters'};
+  const DECKS={};decks.forEach(d=>{DECKS[d.id]=d;d.rooms.forEach(r=>{r.deck=d.id;});d.corr.forEach(c=>{c.deck=d.id;});});
+  const intro=extra.intro||{};
+  Object.values(DECKS).forEach(d=>{d.intro=intro[d.id]||d.intro||'';});
+  const CAMERAS=extra.cameras||[{id:'cam01',label:'CAM-01',loc:'Restaurant'},{id:'cam02',label:'CAM-02',loc:'Lower wellbay'},{id:'cam03',label:'CAM-03',loc:'Main corridor'},{id:'cam04',label:'CAM-04',loc:'Moonpool'}];
+  root.STATION={CAMERAS,LEVELS,LEGACY,DECK_LEVEL,DECKS,
+    LQ_ORDER:['lqE','lqD','lqC','lqB','lqA'],LQ_NAMES:{lqE:'E · +58',lqD:'D · +54',lqC:'C · +50',lqB:'B · +46',lqA:'A · +42'},
+    STACK:extra.stack||null,PITCH:extra.pitch||null,
+    levelId:id=>(LEGACY[id]||id),
+    decksOfLevel:l=>Object.keys(DECKS).filter(k=>DECK_LEVEL[k]===l),
+    roomIndex:(()=>{const m={};Object.values(DECKS).forEach(d=>d.rooms.forEach(r=>m[r.id]=r));return m;})(),
+    corrIndex:(()=>{const m={};Object.values(DECKS).forEach(d=>d.corr.forEach(c=>m[c.id]=c));return m;})()};
+  return root.STATION;
+};
+root.PL=PL;
+})(typeof window!=='undefined'?window:globalThis);
 
+/* ============================================================
+   Desenho por ASCII (1 caractere = 1 m). Cada deck e escrito como um mapa de texto; o parser vira salas, corredores, vazios,
+   contorno de bloco e firewall.
+     letra/digito/simbolo do legend  = sala (todas as celulas do mesmo simbolo formam UM retangulo cheio)
+     .  corredor        :  galeria ao ar livre (corredor aberto)      F  corredor + porta corta-fogo (numerada)
+     #  vazio (poche)   %  contorno do bloco (hachura)               |  firewall            espaco = fora / vazio automatico
+   legend: {simbolo: 'id' | ['id',{opcoes}]}
+   ============================================================ */
+(function(root){
+const PL=root.PL;
+function decomp(rows,test){
+  const H=rows.length,W=Math.max(0,...rows.map(r=>r.length)),seen=[];for(let y=0;y<H;y++)seen.push(new Uint8Array(W));
+  const is=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&test((rows[y]||'')[x]||' ');
+  const out=[];
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    if(seen[y][x]||!is(x,y))continue;
+    let x2=x;while(is(x2,y)&&!seen[y][x2])x2++;
+    let y2=y+1;while(y2<H){let ok=true;for(let k=x;k<x2;k++)if(!is(k,y2)||seen[y2][k]){ok=false;break;}if(!ok)break;y2++;}
+    for(let j=y;j<y2;j++)for(let i=x;i<x2;i++)seen[j][i]=1;
+    out.push([x,y,x2-x,y2-y]);
+  }
+  return out;
+}
+PL.ascii=(D,rows,legend,o)=>{
+  o=o||{};
+  const H=rows.length,cell=(x,y)=>(rows[y]||'')[x]||' ';
+  const g={};
+  for(let y=0;y<H;y++)for(let x=0;x<rows[y].length;x++){const ch=cell(x,y);if(legend[ch]===undefined)continue;
+    const e=g[ch]||(g[ch]={x0:x,y0:y,x1:x,y1:y,n:0});e.x0=Math.min(e.x0,x);e.y0=Math.min(e.y0,y);e.x1=Math.max(e.x1,x);e.y1=Math.max(e.y1,y);e.n++;}
+  const probs=[];
+  Object.keys(legend).forEach(ch=>{const e=g[ch];if(!e){probs.push('simbolo "'+ch+'" ('+(Array.isArray(legend[ch])?legend[ch][0]:legend[ch])+') nao aparece no mapa');return;}
+    const w=e.x1-e.x0+1,h=e.y1-e.y0+1;if(w*h!==e.n)probs.push('sala "'+ch+'" ('+(Array.isArray(legend[ch])?legend[ch][0]:legend[ch])+') nao e um retangulo cheio: caixa '+w+'x'+h+' em ('+e.x0+','+e.y0+') mas tem '+e.n+' celulas');});
+  if(probs.length)throw new Error(D.id+': '+probs.join(' | '));
+  Object.keys(legend).forEach(ch=>{const e=g[ch],L=legend[ch],id=Array.isArray(L)?L[0]:L,op=Array.isArray(L)?L[1]:null;
+    D.r(id,e.x0,e.y0,e.x1-e.x0+1,e.y1-e.y0+1,op);});
+  // corredores
+  const cs=(open,pre)=>decomp(rows,ch=>open?ch===':':(ch==='.'||ch==='F'));
+  let n=0;const cn=o.cname||{};
+  const pre=o.cpre||(D.id+'_c');
+  decomp(rows,ch=>ch==='.'||ch==='F').forEach(r=>{n++;let nm='';Object.keys(cn).forEach(k=>{const [cx,cy]=k.split(',').map(Number);if(cx>=r[0]&&cx<r[0]+r[2]&&cy>=r[1]&&cy<r[1]+r[3])nm=cn[k];});
+    const grp=o.cgrp&&Object.keys(o.cgrp).map(k=>{const [cx,cy]=k.split(',').map(Number);return (cx>=r[0]&&cx<r[0]+r[2]&&cy>=r[1]&&cy<r[1]+r[3])?o.cgrp[k]:null;}).find(Boolean);
+    D.c(pre+String(n).padStart(2,'0'),r[0],r[1],r[2],r[3],nm,grp||null,false);});
+  let gn=0;decomp(rows,ch=>ch===':').forEach(r=>{gn++;let nm='';Object.keys(cn).forEach(k=>{const [cx,cy]=k.split(',').map(Number);if(cx>=r[0]&&cx<r[0]+r[2]&&cy>=r[1]&&cy<r[1]+r[3])nm=cn[k];});
+    D.c(pre+'g'+String(gn).padStart(2,'0'),r[0],r[1],r[2],r[3],nm,D.id+'_gal',true);});
+  // vazios, bloco, firewall, portas corta-fogo
+  decomp(rows,ch=>ch==='#').forEach(r=>D.v(r[0],r[1],r[2],r[3]));
+  const bl=decomp(rows,ch=>ch==='%');bl.forEach((r,i)=>{const b=(o.blocks&&o.blocks[i])||{};D.blk(r[0],r[1],r[2],r[3],b.n,b.sub,b.d);});
+  decomp(rows,ch=>ch==='|').forEach(r=>D.firewall.push(r));
+  let fd=0;decomp(rows,ch=>ch==='F').forEach(r=>{fd++;D.fireDoors.push({id:'FD-'+fd,x:r[0]+r[2]/2,y:r[1]+r[3]/2,v:r[3]>=r[2]?1:0});});
+  return D;
+};
 
-const CAMERAS=[{id:'cam01',label:'CAM-01',loc:'Mess hall'},{id:'cam02',label:'CAM-02',loc:'Lower wellbay'},{id:'cam03',label:'CAM-03',loc:'Main corridor'},{id:'cam04',label:'CAM-04',loc:'Moonpool'}];
-window.STATION={CAMERAS,LEVELS,LEGACY,DECK_LEVEL,DECKS,LQ_ORDER,LQ_NAMES,
-  levelId:id=>(LEGACY[id]||id),
-  decksOfLevel:l=>Object.keys(DECKS).filter(k=>DECK_LEVEL[k]===l),
-  roomIndex:(()=>{const m={};Object.values(DECKS).forEach(d=>d.rooms.forEach(r=>m[r.id]=r));return m;})(),
-  corrIndex:(()=>{const m={};Object.values(DECKS).forEach(d=>d.corr.forEach(c=>m[c.id]=c));return m;})()};
+/* tela de pintura: rect() pinta (o que vem depois sobrescreve), put() cola um pedaco de ascii (espaco = transparente) */
+PL.canvas=(W,H)=>{const g=[];for(let y=0;y<H;y++)g.push(new Array(W).fill(" "));
+  const C={W,H,rect:(x,y,w,h,ch)=>{for(let j=Math.max(0,y);j<Math.min(H,y+h);j++)for(let i=Math.max(0,x);i<Math.min(W,x+w);i++)g[j][i]=ch;return C;},
+    put:(x,y,rows)=>{rows.forEach((r,j)=>{for(let i=0;i<r.length;i++){if(r[i]!==" "&&y+j>=0&&y+j<H&&x+i>=0&&x+i<W)g[y+j][x+i]=r[i];}});return C;},
+    rows:()=>g.map(r=>r.join("")),
+    dump:()=>{const ruler="    "+Array.from({length:W},(_,i)=>i%10===0?String(i/10%10):" ").join("");return [ruler].concat(g.map((r,j)=>String(j).padStart(3," ")+" "+r.join(""))).join(String.fromCharCode(10));}};
+  return C;};
+/* rotas de fuga: pts em metros; 'need' sai sozinho dos corredores que os pontos tocam */
+PL.route=(D,k,pts)=>{const need=new Set();pts.forEach(p=>D.corr.forEach(c=>{if(p[0]>=c.r[0]-.01&&p[0]<=c.r[0]+c.r[2]+.01&&p[1]>=c.r[1]-.01&&p[1]<=c.r[1]+c.r[3]+.01)need.add(c.id);}));
+  D.esc.push({k,pts,need:[...need]});};
+})(typeof window!=='undefined'?window:globalThis);
+
+/* Catalogo das salas NOVAS e das que mudaram de nome/texto (o resto vem do snapshot old_rooms.js).
+   Texto publico: "[Nome em portugues]. [Explicacao]."  Nomes de pessoas ficam fora (so no GM). */
+PL.cat({
+ /* ===== module deck ===== */
+ mb_ent:{n:'Block entrance',t:'ind',eq:'entry',pub:'Entrada do bloco. Antessala ao pé da escada e do elevador do alojamento, a ligação coberta entre o bloco e a plataforma.'},
+ mb_st:{n:'Block stair',t:'stair',dir:'up',to:'L-06',eq:'stair',pub:'Escada do bloco. Liga o module deck aos decks do alojamento.'},
+ mb_lf:{n:'Block lift',t:'ind',eq:'lift',pub:'Elevador do bloco. Sobe do module deck até o heliponto, parando em cada deck do alojamento.'},
+ mc_chg:{n:'Crew change room',t:'ind',eq:'lockers',pub:'Sala de troca da tripulação. Vestiário onde a equipe troca a roupa de bordo pelo macacão de trabalho antes de entrar nos módulos.'},
+ md_ppe:{n:'PPE lockers',pub:'Armários de EPI. Guardam e distribuem os equipamentos de proteção individual: macacões, capacetes e cintos.'},
+ ms_cal:{n:'Production suite',t:'hab',eq:'suite',pub:'Suíte do superintendente de produção. Escritório e quarto no mesmo cômodo, ao lado da sala de controle.'},
+ ms_les:{n:'Maintenance suite',t:'hab',eq:'suite',pub:'Suíte do supervisor de manutenção. Escritório e quarto no mesmo cômodo, perto da oficina elétrica.'},
+ ms_chl:{n:'Dive suite',t:'hab',eq:'suite',pub:'Suíte do supervisor de mergulho. Escritório e quarto no mesmo cômodo, perto da escada para o cellar deck.'},
+ mt_w:{n:'Stair W',t:'stair',dir:'ud',to:'L-07 · L-03',eq:'stair',pub:'Escada W. Liga o weather deck, o module deck e o cellar deck.'},
+ mt_c:{n:'Stair C',t:'stair',dir:'ud',to:'L-07 · L-03',eq:'stair',pub:'Escada C. Liga o weather deck, o module deck e o cellar deck.'},
+ mt_e:{n:'Stair E',t:'stair',dir:'ud',to:'L-07 · L-03',eq:'stair',pub:'Escada E. Liga o weather deck, o module deck e o cellar deck.'},
+ md4:{pub:'Área dos poços (wellbay). Abriga as cabeças de poço sob a torre de perfuração; a perfuração está parada no inverno e o equipamento está preservado.'},
+ md5:{pub:'Sala de lama. Prepara e filtra a lama de perfuração; parada no inverno, com o equipamento preservado.'},
+ md_lab:{pub:'Laboratório de lama. Analisa as amostras da lama de perfuração; parado no inverno, com a bancada coberta.'},
+ md8:{pub:'Módulo desativado (injeção de gás). Antigo módulo de injeção de gás, parado desde 2013, com válvulas e energia isoladas por bloqueio de segurança.'},
+ md9:{pub:'Utilidades. Produz o ar comprimido, a água quente e o vapor usados pela plataforma.'},
+ /* ===== cellar ===== */
+ cd1:{n:'Machine room',eq:'gens',pub:'Sala de máquinas. Abriga os três geradores, as tomadas de ar e a sauna improvisada que a tripulação monta no vapor.'},
+ cd10:{n:'Switchgear and batteries',eq:'switch',pub:'Quadro de força e baterias. Distribui a energia dos geradores e guarda as baterias de reserva.'},
+ cd12:{n:'Paint and chemical store',pub:'Paiol de tintas e químicos. Guarda tintas, solventes e produtos químicos, além das máscaras respiratórias.'},
+ cd7:{pub:'Wellbay inferior. Parte baixa da área dos poços, sob a torre, onde ficam as árvores de natal; a perfuração está parada no inverno.'},
+ cd_rsk:{n:'Risers shaft',t:'ind',eq:'shaft',pub:'Poço dos risers. Cabeça de um poço de concreto com o elevador que desce cerca de nove minutos até o fundo.'},
+ cd_emb:{n:'Boat embarkation',t:'ind',eq:'jetty',pub:'Ponto de embarque. Plataforma junto à água com escada até o mar, onde o barco de apoio recolhe a tripulação.'},
+ cd_stk:{n:'Battery room',t:'ind',eq:'battery',pub:'Sala de baterias. Guarda as baterias que mantêm a luz de emergência e os sistemas de controle quando a energia cai.'},
+ /* ===== weather ===== */
+ wd4:{pub:'Topo da torre. Treliça da torre de perfuração, parada no inverno, com o equipamento preservado.'},
+ wd14:{n:'Muster point',eq:'muster0',pub:'Ponto de reunião. Local onde a tripulação se apresenta e é contada num alarme, ao lado do quadro de T-cards.'},
+ wd_tc:{n:'T-card board',t:'ext',eq:'tcards',pub:'Quadro de T-cards. Painel de cartões com o nome de cada pessoa a bordo, usado para contar a tripulação no alarme.'},
+ wd6:{pub:'Baleeiras. Cápsulas salva-vidas fechadas, ao lado do alojamento, para evacuar a tripulação.'},
+ wd_raft:{n:'Life rafts',t:'ext',eq:'liferaft',pub:'Balsas salva-vidas. Balsas infláveis lançadas por um escorregador até o mar, na ponta oposta ao alojamento.'},
+ wd_hb:{n:'Heliport B',t:'ext',eq:'heliB',pub:'Heliponto B (desativado). Antigo heliponto da plataforma velha, fora de uso.'},
+ wd13:{pub:'Plataforma antiga. Estrutura vizinha desativada e lacrada, ligada à principal pela Ponte B.'},
+ /* ===== bloco: nucleo (escada + elevador) em cada deck ===== */
+ le_st:{n:'Stair',t:'stair',dir:'ud',to:'L-06',eq:'stair',pub:'Escada do bloco. Liga os decks do alojamento ao heliponto e ao module deck.'},
+ ld_st:{n:'Stair',t:'stair',dir:'ud',to:'L-06',eq:'stair',pub:'Escada do bloco. Liga os decks do alojamento ao heliponto e ao module deck.'},
+ lc_st:{n:'Stair',t:'stair',dir:'ud',to:'L-06',eq:'stair',pub:'Escada do bloco. Liga os decks do alojamento ao heliponto e ao module deck.'},
+ lb_st:{n:'Stair',t:'stair',dir:'ud',to:'L-06',eq:'stair',pub:'Escada do bloco. Liga os decks do alojamento ao heliponto e ao module deck.'},
+ la_st:{n:'Stair',t:'stair',dir:'ud',to:'L-06 · L-05',eq:'stair',pub:'Escada do bloco. Liga os decks do alojamento ao heliponto e desce até o module deck.'},
+ le_lf:{n:'Lift',t:'ind',eq:'lift',pub:'Elevador do bloco. Liga o heliponto, os decks do alojamento e o module deck.'},
+ ld_lf:{n:'Lift',t:'ind',eq:'lift',pub:'Elevador do bloco. Liga o heliponto, os decks do alojamento e o module deck.'},
+ lc_lf:{n:'Lift',t:'ind',eq:'lift',pub:'Elevador do bloco. Liga o heliponto, os decks do alojamento e o module deck.'},
+ lb_lf:{n:'Lift',t:'ind',eq:'lift',pub:'Elevador do bloco. Liga o heliponto, os decks do alojamento e o module deck.'},
+ la_lf:{n:'Lift',t:'ind',eq:'lift',pub:'Elevador do bloco. Liga o heliponto, os decks do alojamento e o module deck.'},
+ /* ===== deck E ===== */
+ lqE1:{n:'Heliport access',pub:'Acesso ao heliponto. Escotilha e escada que levam à cobertura do alojamento e ao Heliporto A.'},
+ lqE2:{n:'Machine house',pub:'Casa de máquinas. Abriga o motor do elevador e os tanques do sistema de sprinklers.'},
+ /* ===== deck D ===== */
+ ls_gun:{n:'Platform suite',t:'hab',eq:'suite',pub:'Suíte do supervisor da plataforma. Escritório e quarto no mesmo cômodo, ao lado da sala de comunicações.'},
+ ls_aru:{n:'Operator suite',t:'hab',eq:'suite',pub:'Suíte do representante da operadora. Escritório e quarto no mesmo cômodo, junto aos escritórios e ao arquivo.'},
+ lqD5:{n:'Offices'},
+ /* ===== deck C ===== */
+ lc_w:{n:'Cabins · west wing',t:'hab',eq:'cabinrow',pub:'Cabines da ala oeste. Seis cabines de duas camas, cada uma com escotilha para o lado de fora e porta própria para o corredor.'},
+ lc_e:{n:'Cabins · east wing',t:'hab',eq:'cabinrow',pub:'Cabines da ala leste. Seis cabines de duas camas, cada uma com escotilha para o lado de fora e porta própria para o corredor.'},
+ lc_com:{n:'Common room',t:'hab',shape:'round',eq:'roundlounge',pub:'Sala de convivência. Sala redonda no meio do deck, com sofás, quadros e duas máquinas de venda, usada pelas duas alas.'},
+ lc_bath:{n:'Washrooms',t:'hab',eq:'bath',pub:'Banheiros. Chuveiros e pias de uso das duas alas de cabines.'},
+ lc_lau:{n:'Laundry',t:'hab',eq:'laundry',pub:'Lavanderia. Lava e seca roupa de cama e macacões de todo o alojamento.'},
+ lqC4:{pub:'Rouparia. Guarda lençóis, toalhas e macacões limpos.'},
+ lqC7:{n:'Store',pub:'Depósito. Guarda o material de limpeza do deck.'},
+ lqC8:{pub:'Saída para o weather deck. Porta que liga o alojamento ao convés externo.'},
+ /* ===== deck B ===== */
+ lb_c1:{n:'Cabins · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabines lacradas. Fileira de cabines fechadas com fita e sem uso desde a redução da tripulação.'},
+ lb_c2:{n:'Cabins · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabines lacradas. Mais cabines fechadas com fita e sem uso.'},
+ lb_c3:{n:'Cabins · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabines lacradas. Cabines fechadas, com a última porta encostada.'},
+ lqB2:{pub:'Sala de TV (desativada). Antiga sala de convivência com televisão, fora de uso.'},
+ lqB5:{pub:'Depósito. Guarda colchões, papelada e materiais antigos do deck.'},
+ lqB6:{pub:'Banheiros (desativados). Antigos chuveiros e pias das cabines lacradas, com a água cortada.'},
+ lqB8:{pub:'Fim do corredor. Extremidade do corredor do deck.'},
+ /* ===== deck A ===== */
+ la_rest:{n:'Restaurant',t:'hab',eq:'bar',pub:'Restaurante. Único lugar de refeição do alojamento, mobiliado como um bar, com balcão, mesas e cabines.'},
+ la_kit:{n:'Kitchen',t:'hab',eq:'kitchen',pub:'Cozinha. Prepara as refeições de todos a bordo e serve o restaurante pelo balcão.'},
+ la_pan:{n:'Pantry',t:'hab',eq:'store',pub:'Despensa. Guarda os alimentos secos e enlatados da cozinha.'},
+ la_cold:{n:'Cold room',t:'hab',eq:'cold',pub:'Câmara fria. Conserva carnes, laticínios e alimentos perecíveis.'},
+ la_frz:{n:'Freezer',t:'hab',eq:'freezer',pub:'Freezer. Congela e guarda carne e peixe por meses.'},
+ la_lng:{n:'Lounge',t:'hab',eq:'loungeps',pub:'Sala de estar. Sofás, videogame e uma mini academia, aberta para o restaurante.'},
+ la_inf:{n:'Infirmary',t:'hab',eq:'infirmary',pub:'Enfermaria. Atende doentes e feridos e guarda os medicamentos até uma eventual remoção.'},
+ la_fos:{n:'Doctor\'s suite',t:'hab',eq:'suite',pub:'Suíte do médico. Quarto e consultório do médico da plataforma, ao lado da enfermaria.'},
+ la_vst:{n:'Airlock vestibule',t:'ind',eq:'vest',pub:'Antessala da entrada. Câmara de duas portas na saída do alojamento para o module deck; o bloco é o refúgio pressurizado.'},
+ la_stp:{n:'Entrance steps',t:'stair',dir:'dn',to:'L-05',eq:'stair',pub:'Degraus da entrada. Descem da antessala do Deck A até o module deck.'}
+});
+
+PL.cat({mx_sto1:{n:"Process store",t:"ind",eq:"store",pub:"Depósito de processo. Guarda peças e consumíveis dos módulos de processo."},mx_sto2:{n:"Process store",t:"ind",eq:"store",pub:"Depósito de processo. Guarda peças e consumíveis dos módulos de processo."},mx_sto3:{n:"Process store",t:"ind",eq:"store",pub:"Depósito de processo. Guarda peças e consumíveis dos módulos de processo."},mx_sto4:{n:"Process store",t:"ind",eq:"store",pub:"Depósito de processo. Guarda peças e consumíveis dos módulos de processo."},mx_foam:{n:"Foam room",t:"ind",eq:"pumps",pub:"Sala de espuma. Guarda os tanques de espuma do sistema de combate a incêndio da área dos poços."},mx_gas1:{n:"Gas detection",t:"ind",eq:"elec",pub:"Detecção de gás. Concentra os sensores e os alarmes de gás do deck."},mx_gas2:{n:"Gas detection",t:"ind",eq:"elec",pub:"Detecção de gás. Concentra os sensores e os alarmes de gás do deck."}});
+PL.cat({wd16:{n:'Pipe rack',t:'ext',eq:'store',pub:'Rack de tubulação. Área aberta onde correm os tubos e cabos que atravessam o convés.'}});
+PL.cat({wd17:{n:'Staging deck',t:'ext',eq:'containers',pub:'Convés de apoio. Área aberta onde se deixam ferramentas e material junto ao alojamento.'},wd18:{n:'Staging deck',t:'ext',eq:'containers',pub:'Convés de apoio. Área aberta onde se deixam ferramentas e material junto à torre.'}});
+
+/* Montagem de um pitch: PL.station(decks, extras). Uso: PL.assemble('A', {block:{org,size}, column:[ids], stack:{...}}) */
+PL.INTRO={
+ weather:'Convés de tempo (weather deck). O deck mais alto da plataforma, ao ar livre, com guindastes, baleeiras, balsas salva-vidas e a passagem do alojamento.',
+ module:'Deck de módulos (module deck). Reúne a entrada do bloco de alojamento, a sala de controle, a área dos poços e os módulos de processo, separados por um firewall.',
+ cellar:'Deck do porão (cellar deck). O deck mais baixo da plataforma, com área de carga, moonpool, geradores, bombas e o wellbay inferior.',
+ lqE:'Deck E do alojamento. Cobertura do bloco, com acesso ao Heliporto A, casa de máquinas e antenas.',
+ lqD:'Deck D do alojamento. Administração da plataforma: comunicações, sala de câmeras, escritórios, arquivo e as suítes de dois oficiais.',
+ lqC:'Deck C do alojamento. Cabines de duas camas em duas alas, sala de convivência redonda e a saída para o weather deck.',
+ lqB:'Deck B do alojamento. Quase todo lacrado, com cabines fechadas, sala de TV desativada e depósito.',
+ lqA:'Deck A do alojamento. Restaurante, cozinha, sala de estar, enfermaria e a antessala de entrada para o module deck.'};
+PL.assemble=(P,extra)=>{
+  const X=PL[P];const order=['module','weather','cellar','lqE','lqD','lqC','lqB','lqA'];
+  order.forEach(k=>{delete X[k].canvasDump;});const S=PL.station(order.map(k=>X[k]),{intro:PL.INTRO,pitch:P,stack:extra.stack});
+  S.BLOCK=extra.block;S.COLUMN=extra.column;S.REV=extra.rev||null;return S;};
+
+/* PITCH A "ANEIS" — module deck (+40). Placa 136 x 52. Bloco em (2,12) 34x28. */
+PL.A=PL.A||{};
+PL.A.module=(function(){
+  const D=PL.deck({id:'module',lvl:'L-05',name:'Module deck',elev:'+40 m',dwg:'ØA-GA-02'});
+  const C=PL.canvas(136,52);
+  // galerias ao ar livre
+  C.rect(0,0,136,2,':').rect(0,50,136,2,':').rect(0,2,2,48,':').rect(134,2,2,48,':');
+  // contorno do bloco e nucleo (elevador, escada, antessala de entrada)
+  C.rect(2,12,34,28,'%').rect(26,20,3,4,'L').rect(26,24,3,8,'S').rect(29,20,7,12,'e');
+  // ===== lado limpo: anel em volta do bloco =====
+  C.rect(2,9,22,3,'.').rect(22,4,3,8,'.').rect(25,4,22,3,'.').rect(36,7,3,12,'.');   // norte: jog pra cima em x=22
+  C.rect(36,19,5,16,'.').rect(41,19,6,12,'.');                                         // hub na frente da entrada
+  C.rect(2,40,34,2,'.').rect(36,35,3,7,'.').rect(36,40,11,3,'.');                     // sul: passagem estreita + praca sul
+  // salas do lado limpo
+  C.rect(2,2,9,7,'2').rect(11,2,11,7,'E').rect(25,7,11,5,'D');
+  C.rect(39,7,8,6,'K').rect(39,13,8,6,'1').rect(41,31,6,9,'B');
+  C.rect(2,42,12,8,'C').rect(14,42,10,8,'P').rect(36,43,5,7,'3').rect(41,43,6,7,'W');
+  // firewall (x=47) com tres portas corta-fogo
+  C.rect(47,2,1,48,'|').rect(47,4,1,3,'F').rect(47,24,1,3,'F').rect(47,40,1,2,'F');
+  // ===== lado sujo: anel 1 (cluster de lama), barramento compartilhado, anel 2 (processo) e anel 3 (poco) =====
+  C.rect(48,4,3,6,'.').rect(48,10,22,3,'.').rect(48,13,3,26,'.').rect(48,39,22,3,'.');   // anel 1
+  C.rect(70,10,4,32,'.');                                                                 // barramento (8 do anel 1 e do anel 2)
+  C.rect(74,10,36,3,'.').rect(74,39,36,3,'.').rect(107,13,3,26,'.');                      // anel 2
+  C.rect(110,12,24,3,'.').rect(110,37,24,3,'.');                                          // anel em volta do wellbay (fecha na galeria E)
+  // ilha 1 (lama) e ilha 2 (processo)
+  C.rect(51,13,19,10,'M').rect(51,23,8,16,'l').rect(59,23,11,16,'h');
+  C.rect(74,13,20,12,'A').rect(74,25,10,14,'O').rect(84,25,10,14,'V').rect(94,13,13,26,'U');
+  // salas ao redor
+  C.rect(51,2,10,8,'I').rect(61,2,9,8,'g').rect(74,2,20,8,'Z').rect(94,2,8,8,'x');
+  C.rect(48,42,10,8,'X').rect(58,42,4,8,'c').rect(62,42,11,8,'T').rect(74,42,14,8,'q').rect(88,42,12,8,'J').rect(100,42,10,8,'N');
+  C.rect(110,2,12,10,'f').rect(122,2,12,10,'y').rect(110,40,12,10,'z').rect(122,40,4,10,'u').rect(126,40,8,10,'w');
+  C.rect(110,15,24,22,'G');
+  const LEG={e:'mb_ent',L:['mb_lf',{d:[['e',.5,'open','r']]}],S:['mb_st',{d:[['e',.5,'open','r']]}],'2':'ms_les',E:'md3',D:'md12',K:'md2','1':'ms_cal',B:'md1',C:'mc_chg',P:'md_ppe','3':'ms_chl',W:'mt_w',
+    I:'md_ins',g:'mx_gas1',M:'md5',l:'md_lab',h:'md_chem',A:'md6',O:'md7',V:'md10',U:'md9',Z:['md8',{d:[['s',.4,'gate','c'],['s',.8,'gate','c']]}],x:'mx_sto1',
+    X:'md_scba',c:'mt_c',T:'md_trf',q:'mx_sto2',J:'md_inj',N:'md_wc',f:'mx_foam',y:'mx_gas2',z:'mx_sto3',u:'mt_e',w:'mx_sto4',G:'md4'};
+  PL.ascii(D,C.rows(),LEG,{cpre:'mc',cname:{'30,10':'C-40·N1','60,11':'C-40·R1','72,25':'C-40·BUS','90,11':'C-40·R2','40,25':'Hub','48,25':'C-40·W','120,13':'C-40·W1'},
+    blocks:[{n:'Living quarters',sub:'DECKS A-E ABOVE'},{},{}]});
+  D.stairs.push({x:34.5,y:26,w:3,h:6,dir:'up',lbl:'L-06'});
+  PL.route(D,'p',[[49.5,36],[49.5,25.5],[44,25.5],[38.5,25.5]]);
+  PL.route(D,'p',[[108.5,20],[108.5,38.5],[124,38.5],[124,42]]);
+  PL.route(D,'p',[[38.5,10],[38.5,36],[38.5,41.5],[44,41.5],[44,44]]);
+  PL.route(D,'s',[[60,11.5],[72,11.5],[72,40.5],[60,40.5],[50,40.5]]);
+  PL.route(D,'s',[[3,10.5],[23,10.5],[23,5.5],[37,5.5]]);
+  PL.finish(D,{autoVoid:true});
+  D.cams.push({id:'cam03',x:42,y:25,corr:(D.corr.find(c=>42>c.r[0]&&42<c.r[0]+c.r[2]&&25>c.r[1]&&25<c.r[1]+c.r[3])||{}).id});
+  D.canvasDump=C.dump();
+  return D;
+})();
+
+/* PITCH A "ANEIS" — weather deck (+52): anel perimetral + pista interna em volta do laydown + ramos radiais. Bloco atravessa o deck em (2,12). */
+PL.A=PL.A||{};
+PL.A.weather=(function(){
+  const D=PL.deck({id:'weather',lvl:'L-07',name:'Weather deck',elev:'+52 m',dwg:'ØA-GA-01',outdoor:true});
+  const C=PL.canvas(176,70);const oy=14; // y do canvas = y real + 14 (a ponta do flare passa de y=0)
+  const R=(x,y,w,h,ch)=>C.rect(x,y+oy,w,h,ch);
+  // anel perimetral (aberto)
+  R(2,2,132,2,':');R(2,48,132,2,':');R(0,2,2,48,':');R(134,2,2,48,':');
+  // bloco que atravessa o conves
+  R(2,12,34,28,'%');
+  // pista interna em volta do laydown + ramos
+  R(36,25,10,3,'.');R(46,9,52,3,'.');R(46,36,52,3,'.');R(46,12,3,24,'.');R(95,12,3,24,'.');
+  R(70,4,3,5,'.');R(70,39,3,9,'.');R(98,22,12,3,'.');R(120,-4,3,6,':');R(136,40,14,3,':');
+  R(38,44,8,4,'.');R(56,39,8,9,'.');R(118,42,12,6,'.');
+  // conves (areas abertas) e salas
+  R(49,12,46,24,'d');R(38,13,8,12,'m');R(38,28,8,5,'t');R(4,41,30,7,'b');R(46,39,10,9,'v');R(64,39,6,9,'p');R(100,40,18,8,'r');
+  R(100,12,10,10,'g');R(100,25,10,10,'s');R(110,15,24,22,'T');
+  R(4,4,32,8,'a');R(100,4,34,8,'c');R(30,-4,12,6,'1');R(86,-4,12,6,'2');R(76,50,12,6,'3');R(114,-14,15,10,'f');R(150,36,22,16,'o');R(150,20,22,16,'h');
+  const LEG={m:'wd14',t:'wd_tc',b:'wd6',d:'wd3',v:'wd5',p:'wd7',g:'wd16',a:'wd17',c:'wd18',s:'wd15',r:'wd_raft',T:'wd4','1':'wd8','2':'wd9','3':'wd10',f:'wd11',o:'wd13',h:'wd_hb'};
+  PL.ascii(D,C.rows(),LEG,{cpre:'ow',cname:{'40,40':'Walkway','60,24':'Inner ring','60,63':'Walkway S'},blocks:[{n:'Living quarters',sub:'DECK C EXITS HERE',d:[['e',.5,'door','c']]}]});
+  const sh=a=>{a[1]-=oy;};
+  D.rooms.forEach(r=>sh(r.r));D.corr.forEach(c=>sh(c.r));D.voids.forEach(sh);D.blocks.forEach(b=>sh(b.r));
+  D.stairs.push({x:44,y:46.5,w:2.2,h:3.6,dir:'dn',lbl:'L-05'},{x:60,y:46,w:2.2,h:3.6,dir:'dn',lbl:'L-05'},{x:124,y:45,w:2.2,h:3.6,dir:'dn',lbl:'L-05'});
+  PL.route(D,'p',[[37,26.5],[47.5,26.5],[47.5,37.5],[60,37.5],[60,44]]);
+  PL.route(D,'p',[[47.5,26.5],[47.5,10.5],[71.5,10.5],[71.5,5]]);
+  PL.route(D,'s',[[96.5,13],[96.5,37.5],[120,37.5],[124,43]]);
+  PL.route(D,'s',[[3,3],[133,3]]);
+  PL.finish(D,{autoVoid:false});
+  D.canvasDump=C.dump();
+  return D;
+})();
+
+/* PITCH A "ANEIS" — cellar deck (+28): rede irregular em volta do moonpool. */
+PL.A=PL.A||{};
+PL.A.cellar=(function(){
+  const D=PL.deck({id:'cellar',lvl:'L-03',name:'Cellar deck',elev:'+28 m',dwg:'ØA-GA-03'});
+  const C=PL.canvas(136,52);
+  C.rect(0,0,136,2,':').rect(134,2,2,48,':');
+  // rede irregular de corredores
+  C.rect(2,13,28,3,'.').rect(27,16,3,7,'.').rect(27,20,22,3,'.').rect(27,23,3,21,'.').rect(15,44,33,4,'.');       // oeste
+  C.rect(49,13,3,22,'.').rect(49,33,28,3,'.').rect(74,12,3,24,'.').rect(49,12,28,3,'.');                          // anel do moonpool
+  C.rect(58,36,4,12,'.');                                                                                        // desce pra escada C
+  C.rect(77,22,19,3,'.').rect(88,25,3,8,'.').rect(88,30,22,3,'.').rect(93,2,3,20,'.');                           // leste
+  C.rect(106,33,4,12,'.').rect(106,44,28,4,'.');                                                                 // sudeste
+  // salas
+  C.rect(2,2,46,11,'d').rect(2,16,17,18,'a').rect(19,16,8,12,'w').rect(19,28,8,6,'k');
+  C.rect(30,23,10,9,'y').rect(40,23,9,9,'v').rect(30,35,16,9,'p').rect(2,36,13,12,'s').rect(15,36,12,8,'x');
+  C.rect(52,15,22,18,'M').rect(49,36,9,8,'n').rect(62,36,12,10,'r').rect(74,36,12,10,'f');
+  C.rect(49,2,14,10,'h').rect(63,2,14,10,'b').rect(77,2,16,10,'e').rect(77,12,16,10,'q').rect(96,2,14,20,'u');
+  C.rect(110,15,24,22,'W').rect(110,2,24,13,'g').rect(96,33,10,10,'R').rect(122,38,12,6,'E').rect(110,37,12,7,'z');
+  const LEG={d:'cd4',a:'cd1',w:'cd10',k:'cd_stk',y:'cd2',v:'cd6',p:'cd12',s:'cd14',x:['cd15',{d:[['s',.5,'weld','c']]}],M:'cd5',n:'cd8',r:'cd9',f:'cd11',
+    h:'cd_hpu',b:'cd_bal',e:'cd3',q:'cd_pwt',u:'cd_swp',W:'cd7',g:'cd_egen',R:'cd_rsk',E:'cd_emb',z:'cd13'};
+  PL.ascii(D,C.rows(),LEG,{cpre:'cc',cname:{'10,14':'C-28·W','38,21':'C-28·N2','50,24':'C-28·R','80,23':'C-28·E','110,31':'C-28·E2','30,46':'C-28·B'}});
+  D.stairs.push({x:44,y:46.5,w:2.2,h:3.6,dir:'up',lbl:'L-05'},{x:60,y:46,w:2.2,h:3.6,dir:'up',lbl:'L-05'},{x:124,y:45,w:2.2,h:3.6,dir:'up',lbl:'L-05'});
+  PL.route(D,'p',[[28.5,30],[28.5,21.5],[50.5,21.5]]);
+  PL.route(D,'p',[[108,40],[108,46],[124,46]]);
+  PL.route(D,'p',[[50.5,34.5],[60,34.5],[60,44]]);
+  PL.route(D,'s',[[3,14.5],[28.5,14.5],[28.5,21.5]]);
+  PL.route(D,'s',[[135,10],[135,46]]);
+  PL.finish(D,{autoVoid:true});
+  D.cams.push({id:'cam04',x:63,y:24,room:'cd5'},{id:'cam02',x:122,y:26,room:'cd7'});
+  D.canvasDump=C.dump();
+  return D;
+})();
+
+/* PITCH A "ANEIS" — bloco de alojamento (34 x 28 m, origem global (2,12)). Nucleo fixo: elevador (24,8,3,4) e escada (24,12,3,8).
+   Cada deck usa um anel/arranjo diferente de corredores. */
+PL.A=PL.A||{};
+(function(){
+  const mk=(id,sfx,name,elev)=>{const D=PL.deck({id,lvl:'L-06',name:'Living quarters · Deck '+sfx,elev,dwg:'ØA-LQ-'+sfx,org:[2,12]});return D;};
+  const fin=(D,C,LEG,o)=>{PL.ascii(D,C.rows(),LEG,Object.assign({cpre:D.id+'c'},o||{}));return D;};
+  const core=(C,s)=>{C.rect(24,8,3,4,'L').rect(24,12,3,8,'S');return {L:s+'_lf',S:s+'_st'};};
+
+  /* ---------- Deck E (+58): corredor em L, casa de maquinas, acesso ao heliponto ---------- */
+  PL.A.lqE=(function(){
+    const D=mk('lqE','E','Living quarters · Deck E','+58 m'),C=PL.canvas(34,28);core(C,'le');
+    C.rect(8,9,16,3,'.').rect(21,9,3,11,'.');                                    // L que chega no nucleo
+    C.rect(0,0,16,9,'4').rect(16,0,18,9,'6').rect(27,9,7,11,'1').rect(8,12,13,9,'2');
+    PL.ascii(D,C.rows(),{L:'le_lf',S:'le_st','4':'lqE4','6':'lqE6','1':['lqE1',{d:[['w',.5,'door','r']]}],'2':'lqE2'},{cpre:'lqEc',cname:{'12,10':'Corridor E'}});
+    PL.route(D,'p',[[9.5,10.5],[22.5,10.5],[22.5,16],[23.5,16]]);
+    PL.finish(D,{autoVoid:true});return D;})();
+
+  /* ---------- Deck D (+54): anel em volta de um miolo de escritorios ---------- */
+  PL.A.lqD=(function(){
+    const D=mk('lqD','D','Living quarters · Deck D','+54 m'),C=PL.canvas(34,28);core(C,'ld');
+    C.rect(5,5,29,3,'.').rect(5,5,3,18,'.').rect(21,8,3,15,'.').rect(5,20,29,3,'.').rect(31,8,3,12,'.');   // anel + anel pequeno em volta do nucleo
+    C.rect(0,0,9,5,'1').rect(9,0,9,5,'g').rect(18,0,9,5,'2').rect(27,0,7,5,'4');                              // norte
+    C.rect(0,5,5,8,'8').rect(0,13,5,10,'6');                                                                  // oeste
+    C.rect(8,8,13,6,'5').rect(8,14,13,6,'a');                                                                 // miolo
+    C.rect(27,8,4,12,'c').rect(0,23,12,5,'t');
+    PL.ascii(D,C.rows(),{L:'ld_lf',S:'ld_st','1':'lqD1',g:['ls_gun',{d:[['s',.5,'door','c'],['w',.5,'door','r']]}],'2':'lqD2','4':'lqD4','8':'lqD8','6':'lqD6','5':'lqD5',a:'ls_aru',c:'lqD3',t:'lqD10'},
+      {cpre:'lqDc',cname:{'6,10':'Corridor D1','12,6':'Corridor D2'}});
+    PL.route(D,'p',[[6.5,21.5],[6.5,6.5],[22.5,6.5],[22.5,16],[23.5,16]]);
+    PL.route(D,'s',[[32.5,6.5],[32.5,21.5],[8,21.5]]);
+    PL.finish(D,{autoVoid:true});return D;})();
+
+  /* ---------- Deck C (+50): alas de cabines nas pontas, sala redonda no centro, anel em volta ---------- */
+  PL.A.lqC=(function(){
+    const D=mk('lqC','C','Living quarters · Deck C','+50 m · crosses the weather deck'),C=PL.canvas(34,28);core(C,'lc');
+    C.rect(5,2,24,3,'.').rect(5,2,3,24,'.').rect(5,23,24,3,'.').rect(27,0,2,28,'.');                              // anel em volta do miolo
+    C.rect(0,2,5,24,'w').rect(29,0,5,12,'e').rect(29,12,5,4,'x').rect(29,16,5,12,'E');
+    C.rect(8,5,12,12,'o').rect(8,17,9,6,'b').rect(17,17,7,6,'l').rect(20,5,4,6,'n').rect(20,11,4,6,'s');
+    PL.ascii(D,C.rows(),{L:'lc_lf',S:'lc_st',w:['lc_w',{cab:{n:6,side:'e'}}],e:['lc_e',{cab:{n:3,side:'w'},n:'Cabins · east wing N'}],E:['lc_e2',{cab:{n:3,side:'w'},n:'Cabins · east wing S',eq:'cabinrow',t:'hab',pub:'Cabines da ala leste. Três cabines de duas camas, cada uma com escotilha para o lado de fora e porta própria para o corredor.'}],
+      x:['lqC8',{d:[['w',.5,'door','c'],['e',.5,'door','x']]}],o:['lc_com',{d:[['n',.5,'open','c'],['w',.5,'open','c']]}],b:'lc_bath',l:'lc_lau',n:'lqC4',s:['lqC7',{d:[['w',.5,'door','r']]}]},
+      {cpre:'lqCc',cname:{'6,12':'Corridor C1','15,3':'Corridor C2'}});
+    PL.route(D,'p',[[28,14],[16,14]].map(p=>p)); // so pra existir; refeito abaixo
+    D.esc.length=0;
+    PL.route(D,'p',[[6.5,6],[6.5,24.5],[26,24.5],[28,24.5],[28,14]]);
+    PL.route(D,'s',[[28,2],[6,3.5]]);
+    PL.finish(D,{autoVoid:true});return D;})();
+
+  /* ---------- Deck B (+46): quase tudo lacrado; corredor em T com becos ---------- */
+  PL.A.lqB=(function(){
+    const D=mk('lqB','B','Living quarters · Deck B','+46 m · mostly sealed'),C=PL.canvas(34,28);core(C,'lb');
+    C.rect(2,12,22,3,'.').rect(21,8,3,4,'.').rect(5,3,3,9,'.').rect(14,15,3,10,'.');
+    C.rect(8,3,10,9,'t').rect(18,3,6,5,'g').rect(2,15,12,5,'c').rect(17,15,7,9,'w').rect(0,3,5,9,'d');
+    PL.ascii(D,C.rows(),{L:'lb_lf',S:'lb_st',t:'lqB2',g:'lqB5',c:['lb_c1',{cab:{n:3,side:'n'}}],w:'lqB6',d:['lb_c3',{cab:{n:2,side:'e'}}]},{cpre:'lqBc',cname:{'10,13':'Corridor B1'}});
+    PL.route(D,'p',[[3,13.5],[22.5,13.5],[22.5,16],[23.5,16]]);
+    PL.finish(D,{autoVoid:true});return D;})();
+
+  /* ---------- Deck A (+42): restaurante aberto pro lounge, cozinha colada, antessala da entrada ---------- */
+  PL.A.lqA=(function(){
+    const D=mk('lqA','A','Living quarters · Deck A','+42 m'),C=PL.canvas(34,28);core(C,'la');
+    C.rect(21,5,3,18,'.').rect(21,5,13,3,'.').rect(21,20,13,3,'.').rect(27,8,7,3,'.').rect(27,17,7,3,'.').rect(10,13,11,3,'.');
+    C.rect(0,0,13,13,'R').rect(13,0,8,13,'U').rect(0,13,10,8,'K').rect(0,21,5,7,'p').rect(5,21,5,7,'c').rect(10,21,5,7,'f').rect(15,21,6,7,'d').rect(10,16,11,5,'i');
+    C.rect(27,11,4,6,'v').rect(31,11,3,6,'s');
+    PL.ascii(D,C.rows(),{L:'la_lf',S:'la_st',R:['la_rest',{d:[['s',.8,'door','c'],['e',.5,'wide','r']]}],U:'la_lng',K:['la_kit',{d:[['n',.5,'open','r'],['e',.19,'door','c'],['s',.25,'door','r'],['s',.85,'door','r']]}],
+      p:['la_pan',{d:[['n',.5,'door','r']]}],c:['la_cold',{d:[['n',.5,'door','r']]}],f:['la_frz',{d:[['w',.5,'door','r']]}],d:['la_fos',{d:[['n',.3,'door','r'],['e',.14,'door','c']]}],i:'la_inf',
+      v:['la_vst',{d:[['n',.5,'door','c'],['e',.5,'door','r']]}],s:['la_stp',{d:[['w',.5,'open','r']]}]},{cpre:'lqAc',cname:{'12,14':'Corridor A1','22,12':'Corridor A2'}});
+    PL.route(D,'p',[[11,14.5],[22.5,14.5],[22.5,6.5],[32.5,6.5],[32.5,9.5]]);
+    PL.route(D,'s',[[22.5,21.5],[32.5,21.5],[32.5,18.5]]);
+    D.cams.push({id:'cam01',x:6,y:6,room:'la_rest'});
+    PL.finish(D,{autoVoid:true});return D;})();
+})();
+
+PL.assemble('A',{rev:'A1',block:{org:[2,12],size:[34,28]},column:['wd4','md4','cd7'],stack:{blk:[2,12,34,28],shafts:[[100,26]],crane:[98,0],moon:[63,24],plate:[136,52]}});
+
+delete window.PL;delete window.OLDR;
 })();

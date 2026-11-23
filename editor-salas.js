@@ -113,7 +113,7 @@ function init(sessionRef){
     if(!r){cv.innerHTML='<div class="empty">Escolha uma sala na lista à esquerda.</div>';lastP=null;return;}
     const d=pdeck(r),bb=d.bbox,vw=Math.max(300,cv.clientWidth-8),vh=Math.max(300,cv.clientHeight-8);
     const fit=Math.min((vw-66)/bb[2],(vh-90)/bb[3],80),W=Math.round((fit*zi)*bb[2]+66);
-    const st={rooms:{[r.id]:1},corr:{},ghost:!preview,props:propList(),noeq:{},noLabel:preview?null:{[r.id]:1}};
+    const st={rooms:{[r.id]:1},corr:{},ghost:!preview,props:propList(),noeq:{},showEq:!preview,noLabel:preview?null:{[r.id]:1}};
     d.corr.forEach(c=>{st.corr[c.id]=1;});
     const rec_=rec();if(rec_&&rec_.noeq)st.noeq[r.id]=1;
     const p=R.plan(d,st,{W,maxH:99999,maxPx:200,id:'ed',key:false});lastP=p;
@@ -292,7 +292,7 @@ function init(sessionRef){
   layRef.on('value',s=>{const v=s.val()||{};const keep={};dirty.forEach(k=>{if(LAY[k])keep[k]=LAY[k];});
     LAY=Object.assign({},v,keep);if(drag)return;drawRooms();if(roomId&&!dirty.has(roomId)){draw();drawIns();}});
   stRef.on('value',s=>{PUB=s.val()||{};if(drag)return;drawRooms();if(roomId)draw();});
-  if(window.StationLayout)SL.seedDefaults(sessionRef,S,ITEMS).catch(()=>{});
+  if(window.StationLayout)SL.migrate(sessionRef,S.REV).then(()=>SL.seedDefaults(sessionRef,S,ITEMS)).catch(()=>{});
   renderAll();
   return {state:()=>({roomId,LAY,sel:[...sel]}),pick,flush};
 }

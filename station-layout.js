@@ -46,7 +46,14 @@ function seedDefaults(sessionRef,S,ITEMS){
     return n?sessionRef.update(upd).then(()=>n):0;
   });
 }
+/* troca de mapa: quando a planta muda (STATION.REV), zera o que o Guardiao revelou/colocou na planta antiga (salas, corredores, itens, pino, descricoes) e os layouts que nunca foram editados */
+function migrate(sessionRef,rev){
+  if(!sessionRef||!rev)return Promise.resolve(0);
+  return sessionRef.child('station/map').once('value').then(snap=>{const m=snap.val()||{};if(m.rev===rev)return 0;
+    const upd={};['rooms','corr','props','noeq','pin','desc','focus','veilAll','veil'].forEach(k=>{upd['station/map/'+k]=null;});upd['station/map/rev']=rev;upd['gm/props']=null;
+    return sessionRef.child('gm/layout').once('value').then(l=>{const L=l.val()||{};Object.keys(L).forEach(id=>{if(L[id]&&L[id].seed)upd['gm/layout/'+id]=null;});return sessionRef.update(upd).then(()=>1);});});
+}
 const defaultOf=id=>{const d=window.STATION_LAYOUTS&&window.STATION_LAYOUTS[id];return d?{noeq:d.noeq!==false,items:JSON.parse(JSON.stringify(d.items))}:null;};
 const count=rec=>Object.keys(items(rec)).length;
-window.StationLayout={PFX,zpad,toProp,projection,publishUpd,count,catalog,seedDefaults,defaultOf};
+window.StationLayout={PFX,zpad,toProp,projection,publishUpd,count,catalog,seedDefaults,defaultOf,migrate};
 })();

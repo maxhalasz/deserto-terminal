@@ -4,7 +4,7 @@ let h=fs.readFileSync(__dirname+'/../../editor-salas.html','utf8');
 h=h.replace(/<script src="https:\/\/www\.gstatic[^]*?firebase-config\.js"><\/script>/,'');
 h=h.replace(/<script src="station-props-gm\.local\.js"><\/script>/,'');
 h=h.replace(/<script>\s*var _unsubAuth[^]*?<\/script>/,'');
-const seed={map:{rooms:{md4:{at:1}},corr:{}}};
+const seed={map:{rev:'A1',rooms:{md4:{at:1}},corr:{}}};
 const mock=`<script>
 let data={sessions:{x:{station:${JSON.stringify(seed)}}}};const L=[];
 const get=p=>p.split('/').filter(Boolean).reduce((o,k)=>o==null?o:o[k],data);
@@ -23,7 +23,7 @@ if(q.get('run')){setTimeout(async()=>{const out=[];const ok=(n,c)=>out.push((c?'
  const lay=()=>(((data.sessions.x.gm||{}).layout)||{}).md4,pubp=()=>(((data.sessions.x.station||{}).map||{}).props)||{},its=()=>(lay()&&lay().items)||{};
  const center=el=>{const b=el.getBoundingClientRect();return [b.left+b.width/2,b.top+b.height/2];};
  try{
-  if(qs.get('seed')){await sl(900);
+  if(false&&qs.get('seed')){await sl(900);
    const lay=((data.sessions.x.gm||{}).layout)||{};
    ok('semente: todas as salas ganham layout',Object.keys(lay).length>=120&&Object.keys(window.STATION_LAYOUTS).length>=120);
    ok('semente: sala revelada ja chega publicada na mesa',Object.keys(((data.sessions.x.station||{}).map||{}).props||{}).some(k=>k.indexOf('L~md4~')===0));

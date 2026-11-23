@@ -311,7 +311,7 @@ function playCamera(id){
 function fit(){const s=Math.min(innerWidth/1600,innerHeight/1000);$('scene').style.transform='scale('+s+')';}
 function setTab(t){document.querySelectorAll('.tab2').forEach(x=>x.classList.toggle('on',x.dataset.tab===t));$('view-map').style.display=t==='map'?'block':'none';$('view-cams').style.display=t==='cams'?'block':'none';}
 
-const TICKER_DEF=['COMM SYNC +7d','L-02 PRESSURE ELEVATED'];
+const TICKER_DEF=['COMM SYNC +7d','MOONPOOL LEVEL HIGH'];
 /* faixa de aviso: sem registro = padrao; 'off' ou vazio = escondida; o Guardiao edita em station/ticker */
 function tickerList(){const t=STATE.ticker;if(t==='off')return [];if(t&&typeof t==='object')return Object.values(t).filter(x=>typeof x==='string'&&x.trim());return TICKER_DEF;}
 /* ---------- tema, tela cheia, pino e navegacao por nivel ---------- */

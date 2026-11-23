@@ -60,6 +60,7 @@ function plan(deck,st,o){
   const X=v=>ox+v*px,Y=v=>oy+v*px,P=m=>m*px;
   const out=deck.outdoor,WE=out?.12:.25;
   const veiled=r=>!!st.veilAll;
+  const STRUCT={stair:1,lift:1,moonpool:1,shaft:1,jetty:1,tower:1,hatch:1,vest:1};
   const showR=r=>st.rooms&&st.rooms[r.id]?'f':(st.ghost?'g':null);
   const showC=c=>st.corr&&st.corr[c.id]?'f':(st.ghost?'g':null);
   const fullRects=[];deck.rooms.forEach(r=>{if(showR(r)==='f')fullRects.push(r.r);});deck.corr.forEach(c=>{if(showC(c)==='f')fullRects.push(c.r);});
@@ -126,7 +127,7 @@ function plan(deck,st,o){
     rooms.forEach(r=>{if(out&&r.t==='ext')return;(r.d||[]).forEach(d=>{s+=door(r,d);});});
     rooms.forEach(r=>{if(r.cab)s+=windows(r);});
     // equipamento
-    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(st.noeq&&st.noeq[r.id])||veiled(r))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
+    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(!st.showEq&&!STRUCT[r.eq])||(st.noeq&&st.noeq[r.id])||veiled(r))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
     // etiquetas (desenhadas depois de tudo, ver LAB)
     let lab='';rooms.forEach(r=>{lab+=label(r,mode);});
     (deck.blocks||[]).forEach(b=>{if(!b.n)return;const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(!vis)return;const cx=X(b.r[0]+b.r[2]/2),cy=Y(b.r[1]+b.r[3]/2),wpx=P(b.r[2]),fs=Math.max(8,Math.min(15,wpx/(b.n.length*.62)));

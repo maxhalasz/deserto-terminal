@@ -19,13 +19,14 @@ function seedFn(){return SEED;}
 })();
 </script>`;
 function seed(s){
-  const cleanR=['md_off','md_ow','md_om','md_cl','md_ol','md_gym','md0','md1','md2','md3','md12','md11','md_cd','md_lc','md_ppe','md_crw'];
-  const cleanC=['mc_s1','mc_f1','mc_m','mc_f2','mc_c1','mc_f3','mc_t','mc_k1','mc_k2'];
-  const dirtyR=['md4','md5','md6','md8','md_swu','md_swd','md_lab','md_chem'];
-  const dirtyC=['mc_dn1','mc_dn2','mc_dn3','mc_dm1','mc_lk','mc_dm3','mc_p1','mc_p3','mc_ds1','mc_dn4','mc_p4'];
+  global.window=global;eval(fs.readFileSync(__dirname+'/../../station-data.js','utf8'));const MC=window.STATION.DECKS.module.corr;
+  const cleanR=['mb_ent','mb_st','mb_lf','md1','md2','md3','md12','mc_chg','md_ppe','ms_les','ms_cal'];
+  const cleanC=MC.filter(c=>c.r[0]<47&&!c.open).map(c=>c.id);
+  const dirtyR=['md4','md5','md6','md8','mt_w','mt_c','md_lab','md_chem'];
+  const dirtyC=MC.filter(c=>c.r[0]>=47&&c.r[0]<100&&!c.open).map(c=>c.id);
   const T=Date.now()-3600e3;const R=a=>{const o={};a.forEach((k,i)=>o[k]={at:T+i*90e3});return o;},C=a=>{const o={};a.forEach(k=>o[k]=true);return o;};
   const base={online:true,unlocked:{weather:true,module:true,cellar:true,quarters:true},cams:{cam03:{on:true,pulledAt:0}},force:null,
-    map:{pin:{deck:'module',x:35.6,y:31.2},rooms:{},corr:{}},notes:{}};
+    map:{pin:{deck:'module',x:40,y:26},rooms:{},corr:{}},notes:{}};
   if(s==='start'){base.map.rooms=R(['md1','md0']);base.map.corr=C(['mc_m','mc_f2','mc_t']);base.unlocked={module:true};}
   if(s==='mid'){base.map.rooms=R([...cleanR,...dirtyR]);base.map.corr=C([...cleanC,...dirtyC]);
     base.notes={a:{t:'boot room: 3 tool outlines empty',at:T+1e6,by:'OP-1',r:'md1'},b:{t:'fire door 2 jams. kick it low',at:T+2e6,by:'OP-2'},c:{t:'who has keys to M22?',at:T+3e6,by:'OP-3',r:'md8'},d:{t:'hum under the floor, same as 3:12',at:T+4e6,by:'OP-1'}};}
