@@ -9,7 +9,7 @@ const T={paper:'#e4e1d6',wall:'#1b1d1f',corr:'#c1c2b8',room:'#efede5',deck:'#ded
   sealBg:'#d2cebd',hazard:'#d9531e',fire:'#9c2f1b',pink:'#26282a',stain:'rgba(92,34,28,.72)'};
 const THEME={dark:{paper:'#e4e1d6',room:'#efede5',corr:'#c1c2b8',deck:'#dedbcf',grid:'#bdb9aa'},light:{paper:'#eceae2',room:'#fbfaf6',corr:'#d6d3c8',deck:'#f4f3ee',grid:'#cfccbe'}};
 function setTheme(m){Object.assign(T,THEME[m]||THEME.dark);}
-const DW={door:1.3,cdoor:1.0,double:2.4,open:2.6,gate:1.8,weld:1.4,hatch:1.0};
+const DW={door:1.3,cdoor:1.0,double:2.4,open:2.6,wide:5,gate:1.8,weld:1.4,hatch:1.0};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const f1=v=>(Math.round(v*10)/10).toString();
 const inR=(r,x,y,e)=>x>r[0]-(e||0)&&x<r[0]+r[2]+(e||0)&&y>r[1]-(e||0)&&y<r[1]+r[3]+(e||0);
@@ -76,6 +76,7 @@ function plan(deck,st,o){
    <pattern id="${id}h" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="${T.wall}"/><rect width="5" height="10" fill="${T.hazard}"/></pattern>
    <pattern id="${id}q" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line x1="0" y1="0" x2="0" y2="6" stroke="${T.equip}" stroke-width=".9"/></pattern>
    <pattern id="${id}c" width="7" height="7" patternTransform="rotate(-45)" patternUnits="userSpaceOnUse"><rect width="7" height="7" fill="${T.corr}"/><line x1="0" y1="0" x2="0" y2="7" stroke="${T.wall}" stroke-width=".6" opacity=".45"/></pattern>
+   <pattern id="${id}b" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="${T.sealBg}"/><line x1="0" y1="0" x2="0" y2="9" stroke="${T.wall}" stroke-width="1" opacity=".5"/></pattern>
    <pattern id="${id}d" width="5" height="5" patternUnits="userSpaceOnUse"><path d="M0 5L5 0" stroke="${T.grate}" stroke-width=".8"/></pattern>
    <marker id="${id}m" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0 0L10 5L0 10z" fill="${T.route}"/></marker></defs>`;
   /* grade estrutural + bolhas */
@@ -104,6 +105,8 @@ function plan(deck,st,o){
     corrs.forEach(c=>s+=rect(c.r,c.open?.14:WE,T.wall));
     // vazios estruturais (poche solido)
     (deck.voids||[]).forEach((v,i)=>{const vis=mode==='f'?nearFull(v):(st.ghost&&nearAny(v)&&!nearFull(v));if(vis){s+=rect(v,WE,T.wall);if(v[2]*v[3]>40)s+=rect(v,-WE,`url(#${id}c)`);}});
+    // contorno do bloco de alojamento (estrutura do bloco que atravessa/pousa neste deck)
+    (deck.blocks||[]).forEach(b=>{const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(vis){s+=rect(b.r,WE,T.wall)+rect(b.r,-WE,`url(#${id}b)`);(b.d||[]).forEach(d=>{s+=door(b,d);});}});
     // firewall
     (deck.firewall||[]).forEach(f=>{const vis=mode==='f'?nearFull(f):(st.ghost&&nearAny(f)&&!nearFull(f));if(vis)s+=rect(f,0,`url(#${id}h)`,`stroke="${T.wall}" stroke-width="1"`);});
     // pisos dos corredores
@@ -126,6 +129,8 @@ function plan(deck,st,o){
     if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(st.noeq&&st.noeq[r.id])||veiled(r))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
     // etiquetas (desenhadas depois de tudo, ver LAB)
     let lab='';rooms.forEach(r=>{lab+=label(r,mode);});
+    (deck.blocks||[]).forEach(b=>{if(!b.n)return;const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(!vis)return;const cx=X(b.r[0]+b.r[2]/2),cy=Y(b.r[1]+b.r[3]/2),wpx=P(b.r[2]),fs=Math.max(8,Math.min(15,wpx/(b.n.length*.62)));
+      lab+=`<g pointer-events="none"><text x="${f1(cx)}" y="${f1(cy)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="${f1(fs)}" fill="${T.label}" letter-spacing=".1em" style="text-transform:uppercase" paint-order="stroke" stroke="${T.room}" stroke-width="4" stroke-linejoin="round">${esc(b.n)}</text>${b.sub?`<text x="${f1(cx)}" y="${f1(cy+fs*.95)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.6" fill="${T.sub}" letter-spacing=".1em" paint-order="stroke" stroke="${T.room}" stroke-width="3">${esc(b.sub)}</text>`:''}</g>`;});
     // codigos de corredor
     if(mode==='f')corrs.forEach(c=>{if(!c.n||c.r[2]*c.r[3]<30)return;const [x,y,w,hh]=c.r,hz=w>=hh;if((hz?w:hh)<14)return;
       const cx=X(x+w/2),cy=Y(y+hh/2);lab+=`<text x="${f1(cx)}" y="${f1(cy+2.6)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" fill="${T.sub}" letter-spacing=".22em" ${hz?'':`transform="rotate(-90 ${f1(cx)} ${f1(cy)})"`} pointer-events="none">${esc(c.n)}</text>`;});
@@ -180,7 +185,7 @@ function plan(deck,st,o){
     // batentes
     const j=(sx)=>`M${f1(X(cx+tx*sx*dw/2-nx*.31))} ${f1(Y(cy+ty*sx*dw/2-ny*.31))}L${f1(X(cx+tx*sx*dw/2+nx*.31))} ${f1(Y(cy+ty*sx*dw/2+ny*.31))}`;
     o_+=`<path d="${j(-1)}${j(1)}" stroke="${T.wall}" stroke-width="1.2" fill="none"/>`;
-    if(k==='open')return o_;
+    if(k==='open'||k==='wide')return o_;
     if(k==='gate'){const g=gap(-.1,.1);o_+=rect(g,0,'none',`stroke="${T.amber}" stroke-width="2" stroke-dasharray="4 3"`)+`<circle cx="${f1(X(cx))}" cy="${f1(Y(cy))}" r="${f1(P(.45))}" fill="${T.room}" stroke="${T.amber}" stroke-width="1.4"/>`;return o_;}
     const leaf=(hx,hy,ex,ey,len)=>{ // dobradica H, ponta da porta E, abre para dentro (-normal)
       const lx=hx-nx*len,ly=hy-ny*len;const cr=(lx-hx)*(ey-hy)-(ly-hy)*(ex-hx);
@@ -208,7 +213,7 @@ function plan(deck,st,o){
       if(nm.length*.58*fs>wpx*.9){const wd=nm.split(' ');const mid=Math.ceil(wd.length/2);lines=wd.length>1?[wd.slice(0,mid).join(' '),wd.slice(mid).join(' ')]:[nm];fs=Math.max(7,Math.min(14,wpx*.9/(Math.max(...lines.map(l=>l.length))*.6)));}
       const cx=X(x+w/2),cy=Y(y+hh/2)-(lines.length-1)*(fs+1)/2+fs*.34;
       return `<g pointer-events="none">${lines.map((l,i)=>`<text x="${f1(cx)}" y="${f1(cy+i*(fs+1.6))}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="${f1(fs)}" fill="${T.label}" letter-spacing=".08em" style="text-transform:uppercase" paint-order="stroke" stroke="${T.room}" stroke-width="3.2" stroke-linejoin="round">${esc(l)}</text>`).join('')}</g>`;}
-    if(r.t==='stair'){const txt=(r.dir==='dn'?'DN ':'UP ')+(r.to||'');const cx=X(x+w/2),cy=Y(y+hh/2);return `<text x="${f1(cx)}" y="${f1(cy+2)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.8" fill="${T.label}" letter-spacing=".14em" transform="rotate(-90 ${f1(cx)} ${f1(cy)})" paint-order="stroke" stroke="${T.room}" stroke-width="2.6" pointer-events="none">${txt}</text>`;}
+    if(r.t==='stair'){const txt=(r.dir==='ud'?'UP/DN ':r.dir==='dn'?'DN ':'UP ')+(r.to||'');const cx=X(x+w/2),cy=Y(y+hh/2);return `<text x="${f1(cx)}" y="${f1(cy+2)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.8" fill="${T.label}" letter-spacing=".14em" transform="rotate(-90 ${f1(cx)} ${f1(cy)})" paint-order="stroke" stroke="${T.room}" stroke-width="2.6" pointer-events="none">${txt}</text>`;}
     const parts=r.n.split(' · ');const code=/^M\d+$/.test(parts[0])?parts[0]:'';const name=(code?parts.slice(1).join(' · '):r.n);
     const area=Math.round(w*hh);
     const wpx=P(w);let fs=Math.max(7,Math.min(10.5,wpx/(name.length*.6)));
@@ -252,9 +257,10 @@ function plan(deck,st,o){
   (deck.fireDoors||[]).forEach(f=>{if(!(st.ghost?ptAny(f.x,f.y):ptFull(f.x,f.y)))return;
     const x=X(f.x),y=Y(f.y);h+=`<g pointer-events="none"><rect x="${f1(x-P(.2))}" y="${f1(y-P(1.2))}" width="${f1(P(.4))}" height="${f1(P(2.4))}" fill="url(#${id}h)" stroke="${T.wall}" stroke-width="1"/><text x="${f1(x+P(1.2))}" y="${f1(y-P(1.5))}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.label}" paint-order="stroke" stroke="${T.corr}" stroke-width="2.4">${f.id}</text></g>`;});
   /* escadas soltas (simbolo em cima do corredor) */
-  (deck.stairs||[]).forEach(sx=>{if(!(st.ghost?ptAny(sx.x,sx.y):ptFull(sx.x,sx.y)))return;
+  (deck.stairs||[]).forEach(sx=>{if(!(st.ghost?(ptAny(sx.x,sx.y)||deck.rooms.some(q=>showR(q)&&inR(q.r,sx.x,sx.y,.2))):(ptFull(sx.x,sx.y)||deck.rooms.some(q=>showR(q)==='f'&&inR(q.r,sx.x,sx.y,.2)))))return;
     const x0=X(sx.x-sx.w/2),y0=Y(sx.y-sx.h/2),w=P(sx.w),hh=P(sx.h);
-    h+=`<g pointer-events="none"><rect x="${f1(x0)}" y="${f1(y0)}" width="${f1(w)}" height="${f1(hh)}" fill="${T.room}" stroke="${T.wall}" stroke-width="1.3"/>${Array.from({length:8},(_,i)=>`<line x1="${f1(x0)}" y1="${f1(y0+(i+1)*hh/9)}" x2="${f1(x0+w)}" y2="${f1(y0+(i+1)*hh/9)}" stroke="${T.wall}" stroke-width=".7"/>`).join('')}<path d="M${f1(x0+w/2)} ${f1(y0+hh-3)}V${f1(y0+4)}M${f1(x0+w/2-2.6)} ${f1(y0+7.4)}L${f1(x0+w/2)} ${f1(y0+3.6)}L${f1(x0+w/2+2.6)} ${f1(y0+7.4)}" stroke="${T.route}" stroke-width="1.3" fill="none"/><text x="${f1(x0+w+4)}" y="${f1(y0+hh/2+2.4)}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.label}" paint-order="stroke" stroke="${T.corr}" stroke-width="2.4">${sx.dir==='dn'?'DN':'UP'} ${sx.lbl||''}</text></g>`;});
+    if(sx.k==='lift'){h+=`<g pointer-events="none"><rect x="${f1(x0)}" y="${f1(y0)}" width="${f1(w)}" height="${f1(hh)}" fill="${T.room}" stroke="${T.wall}" stroke-width="1.3"/><path d="M${f1(x0)} ${f1(y0)}L${f1(x0+w)} ${f1(y0+hh)}M${f1(x0+w)} ${f1(y0)}L${f1(x0)} ${f1(y0+hh)}" stroke="${T.wall}" stroke-width=".8"/><text x="${f1(x0+w+4)}" y="${f1(y0+hh/2+2.4)}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.label}" paint-order="stroke" stroke="${T.corr}" stroke-width="2.4">LIFT ${sx.lbl||''}</text></g>`;return;}
+    h+=`<g pointer-events="none"><rect x="${f1(x0)}" y="${f1(y0)}" width="${f1(w)}" height="${f1(hh)}" fill="${T.room}" stroke="${T.wall}" stroke-width="1.3"/>${Array.from({length:8},(_,i)=>`<line x1="${f1(x0)}" y1="${f1(y0+(i+1)*hh/9)}" x2="${f1(x0+w)}" y2="${f1(y0+(i+1)*hh/9)}" stroke="${T.wall}" stroke-width=".7"/>`).join('')}<path d="M${f1(x0+w/2)} ${f1(y0+hh-3)}V${f1(y0+4)}M${f1(x0+w/2-2.6)} ${f1(y0+7.4)}L${f1(x0+w/2)} ${f1(y0+3.6)}L${f1(x0+w/2+2.6)} ${f1(y0+7.4)}" stroke="${T.route}" stroke-width="1.3" fill="none"/><text x="${f1(x0+w+4)}" y="${f1(y0+hh/2+2.4)}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.label}" paint-order="stroke" stroke="${T.corr}" stroke-width="2.4">${sx.dir==='ud'?'UP/DN':sx.dir==='dn'?'DN':'UP'} ${sx.lbl||''}</text></g>`;});
   /* extintores e botoeiras */
   (deck.fire||[]).forEach(([x,y])=>{if(st.ghost?!ptAny(x,y):!ptFull(x,y))return;h+=`<rect x="${f1(X(x)-3.2)}" y="${f1(Y(y)-3.2)}" width="6.4" height="6.4" fill="${T.fire}" stroke="${T.wall}" stroke-width=".6" pointer-events="none"/>`;});
   (deck.mcp||[]).forEach(([x,y])=>{if(st.ghost?!ptAny(x,y):!ptFull(x,y))return;h+=`<g pointer-events="none"><circle cx="${f1(X(x))}" cy="${f1(Y(y))}" r="3.3" fill="${T.fire}" stroke="${T.wall}" stroke-width=".6"/><circle cx="${f1(X(x))}" cy="${f1(Y(y))}" r="1.1" fill="${T.room}"/></g>`;});

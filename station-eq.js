@@ -23,6 +23,7 @@ EQ.elec=(r,a,w,h)=>{a.rc(.8,.5,w-2.2,1.2);a.ci(2,1.1,.3);a.rc(.5,h-1.7,5.2,1,0,1
 EQ.store=(r,a,w,h)=>{const hor=w>=h;if(hor){const n=Math.max(2,Math.floor((h-.8)/2.6));for(let i=0;i<n;i++){a.rc(1,.8+i*2.6,w-2,.7,0,1);}}else{const n=Math.max(2,Math.floor((w-.8)/2.6));for(let i=0;i<n;i++)a.rc(.8+i*2.6,1,.7,h-2,0,1);}};
 EQ.stair=(r,a,w,h)=>{const vert=h>=w,n=vert?Math.floor(h/.55):Math.floor(w/.55);
   for(let i=1;i<n;i++){vert?a.ln(.2,i*h/n,w-.2,i*h/n):a.ln(i*w/n,.2,i*w/n,h-.2);}
+  if(r.dir==='ud'){a.arrow(vert?w*.3:w*.15,vert?h*.85:h*.32,vert?w*.3:w*.85,vert?h*.15:h*.32,0);a.arrow(vert?w*.7:w*.85,vert?h*.15:h*.68,vert?w*.7:w*.15,vert?h*.85:h*.68,1);return;}
   const dn=r.dir==='dn';a.arrow(vert?w/2:w*.15,vert?h*.85:h/2,vert?w/2:w*.85,vert?h*.15:h/2,dn);};
 EQ.wellheads=(r,a,w,h)=>{const cols=Math.floor((w-3)/2.9)+1,rows=Math.floor((h-8)/3.1)+1,x0=(w-(cols-1)*2.9)/2;
   for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const x=x0+i*2.9,y=3.2+j*3.1;a.ci(x,y,.58,1);a.ln(x-.55,y,x+.55,y);a.ln(x,y-.55,x,y+.55);}
@@ -122,6 +123,31 @@ EQ.inj=(r,a,w,h)=>{for(let i=0;i<3;i++){a.ci(2+i*3.6,2.6,1.2);a.ci(2+i*3.6,2.6,.
 EQ.cable=(r,a,w,h)=>{for(let j=0;j<2;j++)for(let i=0;i<Math.floor((w-1)/2.6);i++){a.ci(1.6+i*2.6,1.8+j*2.8,1.0);a.ci(1.6+i*2.6,1.8+j*2.8,.35,1);}};
 EQ.clinic=(...x)=>EQ.infirmary(...x);EQ.hpu=(...x)=>EQ.pumps(...x);EQ.ballast=(...x)=>EQ.console(...x);EQ.chemstore=(...x)=>EQ.paint(...x);
 EQ.crewday=(...x)=>EQ.lounge(...x);
+
+/* ---- salas novas (blocos integrados, restaurante, suites, cabeca de poco dos risers, balsas) ---- */
+EQ.bar=(r,a,w,h)=>{ // restaurante-bar: balcao com banquetas, mesas redondas e cabines (booths) na parede
+  const cw=Math.min(w-3,Math.max(6,w*.55));a.rc(1.2,1.2,cw,1.1);a.rc(1.2,2.3,cw,.5,0,1);
+  for(let i=0;i<Math.floor(cw/1.1);i++)a.ci(1.7+i*1.1,3.4,.3,1);
+  const rows=Math.max(1,Math.floor((h-8)/3.4));
+  for(let j=0;j<rows;j++)for(let i=0;i<Math.max(2,Math.floor((w-3)/3.6));i++){const x=2.2+i*3.6,y=6.6+j*3.4;if(y>h-3)continue;a.ci(x,y,.75);a.ci(x-1.1,y,.3,1);a.ci(x+1.1,y,.3,1);}
+  for(let k=0;k<Math.floor((h-3)/3);k++){a.rc(w-2.2,1.2+k*3,1.4,2.4,.3);a.rc(w-3.4,1.6+k*3,.9,1.6,0,1);}
+  a.ln(1.2,h-1.1,Math.min(w-1.2,6),h-1.1);};
+EQ.kitchen=(r,a,w,h)=>{a.rc(.5,.5,w-1,.9);a.rc(.5,.5,.9,h-1);for(let i=0;i<4;i++)a.ci(1.8+i*1.3,1.0,.38);a.rc(w/2-1.6,h/2-.5,3.2,1.0,0,1);a.rc(w-2.6,2.2,1.6,h-4.4);for(let i=0;i<3;i++)a.ln(w-2.6,3.2+i*1.5,w-1,3.2+i*1.5);a.ci(w-1.6,h-1.2,.5);};
+EQ.freezer=(r,a,w,h)=>{for(let j=0;j<3;j++)a.rc(.5,.8+j*1.5,w-1,.7,0,1);a.ln(w/2,.4,w/2,h-.6);for(let i=0;i<3;i++)a.ln(1.2+i*1.1,h-1.4,1.8+i*1.1,h-.7);};
+EQ.suite=(r,a,w,h)=>{a.rc(.7,.7,2.1,Math.min(2.2,h-1.4),.2);a.rc(.9,.9,.9,.9,.2,1);a.rc(w-2.6,.6,2,.9,0,1);a.rc(Math.max(3.4,w/2-1),h-2.2,Math.min(3.2,w-4.4),1.2);a.ci(Math.max(3.4,w/2-1)+1.6,h-.7,.38);a.rc(w-1.5,h/2-.6,.9,1.8);};
+EQ.gens=(r,a,w,h)=>{const cw=(w-3)/3;for(let i=0;i<3;i++){const x=1.3+i*(cw+.2);a.rc(x,2,cw-.3,Math.min(7,h*.38));a.ci(x+(cw-.3)/2,4.2,Math.min(1.5,cw/4));a.rc(x+.5,Math.min(7,h*.38)+2,cw-1.3,.7,0,1);a.ln(x+(cw-.3)/2,Math.min(7,h*.38)+2.7,x+(cw-.3)/2,h-5.4);}
+  for(let k=0;k<5;k++)a.ln(1,h-.7-k*.45,3.2,h-.7-k*.45);a.rc(w-7.4,h-5.2,6.2,4,0);a.ln(w-7.4,h-3.2,w-1.2,h-3.2);a.ci(w-5.6,h-1.8,.5,1);a.ci(w-3.2,h-1.8,.5,1);};
+EQ.battery=(r,a,w,h)=>{for(let j=0;j<Math.max(1,Math.floor((h-1)/2.2));j++)for(let i=0;i<Math.max(2,Math.floor((w-1)/1.3));i++)a.rc(.6+i*1.3,.7+j*2.2,1.1,1.5,0,(i+j)%3===0?1:0);};
+EQ.liferaft=(r,a,w,h)=>{const n=Math.max(2,Math.floor((w-1)/3.4));for(let i=0;i<n;i++){a.rc(1+i*3.4,1.2,2.8,1.6,.8);a.ln(1.4+i*3.4,2,3.4+i*3.4,2);}a.ln(1,h-1.8,w-1,h-1.8);a.ln(1,h-1.1,w-1,h-1.1);a.ln(w-3.4,2.8,w-1.6,h-1.1);a.ln(w-2.6,2.8,w-.8,h-1.1);};
+EQ.tcards=(r,a,w,h)=>{a.rc(.6,.6,w-1.2,Math.min(2.2,h-1.2));for(let i=0;i<Math.floor((w-2)/.6);i++)a.rc(.9+i*.6,.9,.4,1.5,0,i%4===0?1:0);};
+EQ.shaft=(r,a,w,h)=>{const c=Math.min(w,h)/2;a.ci(w/2,h/2,c*.82);a.ci(w/2,h/2,c*.66,1);a.ci(w/2,h/2,c*.5);a.rc(w/2-1.2,h/2-1.4,2.4,2.8);a.ln(w/2-1.2,h/2-1.4,w/2+1.2,h/2+1.4);a.ln(w/2+1.2,h/2-1.4,w/2-1.2,h/2+1.4);for(let k=0;k<8;k++){const t=k*Math.PI/4;a.ln(w/2+Math.cos(t)*c*.82,h/2+Math.sin(t)*c*.82,w/2+Math.cos(t)*(c*.82+.6),h/2+Math.sin(t)*(c*.82+.6));}};
+EQ.jetty=(r,a,w,h)=>{a.ln(1,h-1.4,w-1,h-1.4);a.ln(1,h-.8,w-1,h-.8);for(let i=0;i<5;i++)a.ln(w-4.4+i*.0,h-1.4,w-4.4,h-1.4);a.rc(w-5.2,1.4,1.6,h-2.8,0);for(let i=0;i<6;i++)a.ln(w-5.2,2+i*(h-4)/6,w-3.6,2+i*(h-4)/6);a.ci(2,h-3,.5,1);a.ci(w-8,h-3,.5,1);};
+EQ.heliB=(r,a,w,h)=>{const R=Math.min(w,h)/2;a.ci(w/2,h/2,R*.84,0,1);a.ci(w/2,h/2,R*.6);a.tx(w/2,h/2+2.6,'H',8,1,1);a.ln(w/2-R*.84,h/2-R*.84,w/2+R*.84,h/2+R*.84);};
+EQ.entry=(r,a,w,h)=>{a.rc(.8,h-2.4,Math.min(w-1.6,4.6),1.2,0,1);for(let i=0;i<4;i++)a.ln(.8,1+i*.6,w-.8,1+i*.6);a.rc(w-2.6,.8,1.8,2.6);a.ln(w-2.6,.8,w-.8,3.4);};
+EQ.loungeps=(r,a,w,h)=>{a.rc(1,1,5.6,1.7,.4);a.rc(1,1,1.7,5,.4);a.rc(w-4.8,.6,3.8,.7,0,1);a.ci(5,6,1.1);a.rc(w/2-2,h-2.4,4,.5,0,1);
+  for(let i=0;i<3;i++){a.rc(w-5.6+i*1.9,h-4.4,1.5,2.6,.2);a.ci(w-4.85+i*1.9,h-3.9,.35);}a.ln(w-5.6,h-1.3,w-.8,h-1.3);a.ci(w-3,h/2,.55);};
+EQ.muster0=(r,a,w,h)=>{a.ci(w/2,h/2,Math.min(w,h)*.34);a.ci(w/2,h/2,Math.min(w,h)*.2,1);a.ln(w/2-Math.min(w,h)*.34,h/2,w/2+Math.min(w,h)*.34,h/2);a.ln(w/2,h/2-Math.min(w,h)*.34,w/2,h/2+Math.min(w,h)*.34);};
+EQ.vest=(r,a,w,h)=>{a.rc(.6,.6,w-1.2,.5,0,1);a.ln(w/2,1.2,w/2,h-.6);for(let i=1;i<4;i++)a.ln(.6,h*i/4,w-.6,h*i/4);};
 
 window.STATION_EQ=EQ;
 })();
