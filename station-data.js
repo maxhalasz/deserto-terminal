@@ -394,11 +394,13 @@ PL.A.module=(function(){
     blocks:[]});
   D.blocks.push({r:[2,12,34,28],n:'Technical level · LQ above',open:true});
   D.stairs.push({x:34.5,y:26,w:3,h:6,dir:'up',lbl:'L-06'});
-  PL.route(D,'p',[[49.5,35.5],[44,35.5],[44,33],[40,33],[38.5,33],[38.5,25.5]]);
-  PL.route(D,'p',[[108.5,20],[108.5,38.5],[124,38.5],[124,42]]);
-  PL.route(D,'p',[[38.5,10],[38.5,36],[38.5,41.5],[44,41.5],[44,44]]);
-  PL.route(D,'s',[[60,11.5],[72,11.5],[72,40.5],[60,40.5],[50,40.5]]);
-  PL.route(D,'s',[[3,10.5],[23,10.5],[23,5.5],[37,5.5]]);
+  // rotas de fuga: pela firewall e boot room pro bloco; do wellbay e do norte/sul pras escadas que sobem ao weather deck
+  PL.route(D,'p',[[49.5,35.5],[44,35.5],[44,33],[40,33],[38.5,33],[38.5,26],[27.5,26]]);
+  PL.route(D,'p',[[108.5,20],[108.5,38.5],[124,38.5],[124,45]]);
+  PL.route(D,'p',[[38.5,10],[38.5,36],[38.5,41.5],[44,41.5],[44,45]]);
+  PL.route(D,'s',[[60,11.5],[72,11.5],[72,40.5],[60,40.5],[60,46]]);
+  PL.route(D,'s',[[3,10.5],[23,10.5],[23,5.5],[38.5,5.5],[38.5,10]]);
+  PL.route(D,'s',[[3,41.5],[38.5,41.5],[44,41.5],[44,45]]);
   PL.finish(D,{autoVoid:true});
   D.cams.push({id:'cam03',x:42,y:25,corr:(D.corr.find(c=>42>c.r[0]&&42<c.r[0]+c.r[2]&&25>c.r[1]&&25<c.r[1]+c.r[3])||{}).id});
   D.canvasDump=C.dump();
@@ -428,10 +430,12 @@ PL.A.weather=(function(){
   const sh=a=>{a[1]-=oy;};
   D.rooms.forEach(r=>sh(r.r));D.corr.forEach(c=>sh(c.r));D.voids.forEach(sh);D.blocks.forEach(b=>sh(b.r));
   D.stairs.push({x:44,y:46.5,w:2.2,h:3.6,dir:'dn',lbl:'L-05'},{x:60,y:46,w:2.2,h:3.6,dir:'dn',lbl:'L-05'},{x:124,y:45,w:2.2,h:3.6,dir:'dn',lbl:'L-05'});
-  PL.route(D,'p',[[37,26.5],[47.5,26.5],[47.5,37.5],[60,37.5],[60,44]]);
-  PL.route(D,'p',[[47.5,26.5],[47.5,10.5],[71.5,10.5],[71.5,5]]);
-  PL.route(D,'s',[[96.5,13],[96.5,37.5],[120,37.5],[124,43]]);
-  PL.route(D,'s',[[3,3],[133,3]]);
+  // rotas de fuga: saida do deck C -> ponto de encontro -> baleeiras (galeria sul); balsas na ponta leste; galerias oeste e leste como alternativa
+  PL.route(D,'p',[[34,26.5],[42,26.5],[42,20]]);
+  PL.route(D,'p',[[42,26.5],[47.5,26.5],[47.5,37.5],[59,37.5],[59,49],[19,49],[19,45]]);
+  PL.route(D,'s',[[59,49],[109,49],[109,44]]);
+  PL.route(D,'s',[[40,3],[1,3],[1,49],[19,49],[19,45]]);
+  PL.route(D,'s',[[120,3],[135,3],[135,49],[109,49],[109,44]]);
   PL.finish(D,{autoVoid:false});
   D.canvasDump=C.dump();
   return D;
@@ -460,11 +464,13 @@ PL.A.cellar=(function(){
     h:'cd_emb',b:'cd_bal',e:'cd3',q:'cd_pwt',u:'cd_swp',W:'cd7',g:'cd_egen',R:'cd_rsk',E:'cd_hpu',z:'cd13',K:'cd_wks',L:'cd_lube',A:'cd_air',S:'cd_spr',P:'cd_scs'};
   PL.ascii(D,C.rows(),LEG,{cpre:'cc',cname:{'10,14':'C-28·W','38,21':'C-28·N2','50,24':'C-28·R','80,23':'C-28·E','110,31':'C-28·E2','30,46':'C-28·B'}});
   D.stairs.push({x:44,y:46.5,w:2.2,h:3.6,dir:'up',lbl:'L-05'},{x:60,y:46,w:2.2,h:3.6,dir:'up',lbl:'L-05'},{x:124,y:45,w:2.2,h:3.6,dir:'up',lbl:'L-05'});
-  PL.route(D,'p',[[28.5,30],[28.5,21.5],[50.5,21.5]]);
-  PL.route(D,'p',[[108,40],[108,46],[124,46]]);
-  PL.route(D,'p',[[50.5,34.5],[60,34.5],[60,44]]);
-  PL.route(D,'s',[[3,14.5],[28.5,14.5],[28.5,21.5]]);
-  PL.route(D,'s',[[135,10],[135,46]]);
+  // rotas de fuga: escadas W, C e E sobem pro module deck; o embarque de barco fica ao lado da area de carga
+  PL.route(D,'p',[[28.5,30],[28.5,45],[44,45],[45,47.5]]);
+  PL.route(D,'p',[[108,40],[108,46],[125,46]]);
+  PL.route(D,'p',[[50.5,34.5],[61,34.5],[61,47]]);
+  PL.route(D,'s',[[3,14.5],[28.5,14.5],[28.5,30]]);
+  PL.route(D,'s',[[135,10],[135,46],[125,46]]);
+  PL.route(D,'s',[[50.5,34.5],[50.5,13.5],[56,13.5],[56,9]]);
   PL.finish(D,{autoVoid:true});
   D.cams.push({id:'cam04',x:63,y:24,room:'cd5'},{id:'cam02',x:122,y:26,room:'cd7'});
   D.canvasDump=C.dump();
@@ -485,7 +491,7 @@ PL.A=PL.A||{};
     C.rect(8,9,16,3,'.').rect(21,9,3,11,'.').rect(16,8,8,1,'.');                                    // L que chega no nucleo
     C.rect(0,0,16,9,'4').rect(16,0,18,8,'6').rect(27,8,7,12,'1').rect(8,12,13,9,'2').rect(0,9,8,12,'7');
     PL.ascii(D,C.rows(),{L:'le_lf',S:'le_st','4':'lqE4','6':'lqE6','1':['lqE1',{d:[['w',.5,'door','r']]}],'2':'lqE2','7':'lqE7'},{cpre:'lqEc',cname:{'12,10':'Corridor E'}});
-    PL.route(D,'p',[[9.5,10.5],[22.5,10.5],[22.5,16],[23.5,16]]);
+    PL.route(D,'p',[[9.5,10.5],[22.5,10.5],[22.5,16],[25.5,16]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
   /* ---------- Deck D (+56): anel em volta de um miolo de escritorios ---------- */
@@ -498,8 +504,8 @@ PL.A=PL.A||{};
     C.rect(27,8,4,12,'c').rect(0,23,12,5,'t').rect(12,23,11,5,'y').rect(23,23,11,5,'z');
     PL.ascii(D,C.rows(),{L:'ld_lf',S:'ld_st','1':'lqD1',g:['ls_gun',{d:[['s',.5,'door','c'],['w',.5,'door','r']]}],'2':'lqD2','4':'lqD4','8':'lqD8','6':'lqD6','5':'lqD5',a:'ls_aru',c:'ld_sto',t:'lqD10',y:'lqD11',z:'lqD12'},
       {cpre:'lqDc',cname:{'6,10':'Corridor D1','12,6':'Corridor D2'}});
-    PL.route(D,'p',[[6.5,21.5],[6.5,6.5],[22.5,6.5],[22.5,16],[23.5,16]]);
-    PL.route(D,'s',[[32.5,6.5],[32.5,21.5],[8,21.5]]);
+    PL.route(D,'p',[[6.5,21.5],[6.5,6.5],[22.5,6.5],[22.5,16],[25.5,16]]);
+    PL.route(D,'s',[[32.5,9],[32.5,21.5],[22.5,21.5],[22.5,16],[25.5,16]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
   /* ---------- Deck C (+52): alas de cabines nas pontas, sala redonda no centro, anel em volta ---------- */
@@ -511,10 +517,9 @@ PL.A=PL.A||{};
     PL.ascii(D,C.rows(),{L:'lc_lf',S:'lc_st',w:['lc_w',{cab:{n:6,side:'e'}}],e:['lc_e',{cab:{n:3,side:'w'},n:'Cabins · east wing N'}],E:['lc_e2',{cab:{n:3,side:'w'},n:'Cabins · east wing S',eq:'cabinrow',t:'hab',pub:'Cabines da ala leste. Três cabines de duas camas, cada uma com escotilha para o lado de fora e porta própria para o corredor.'}],
       x:['lqC8',{d:[['w',.5,'door','c'],['e',.5,'door','x']]}],o:['lc_com',{d:[['n',.5,'open','c'],['w',.5,'open','c']]}],b:'lc_bath',l:'lc_lau',n:'lqC4',s:['lqC7',{d:[['w',.5,'door','r']]}]},
       {cpre:'lqCc',cname:{'6,12':'Corridor C1','15,3':'Corridor C2'}});
-    PL.route(D,'p',[[28,14],[16,14]].map(p=>p)); // so pra existir; refeito abaixo
-    D.esc.length=0;
-    PL.route(D,'p',[[6.5,6],[6.5,24.5],[26,24.5],[28,24.5],[28,14]]);
-    PL.route(D,'s',[[28,2],[6,3.5]]);
+    PL.route(D,'p',[[6.5,14],[6.5,24.5],[28,24.5],[28,14],[33,14]]);
+    PL.route(D,'p',[[25.5,16],[28,16],[28,14],[33,14]]);
+    PL.route(D,'s',[[6.5,14],[6.5,3.5],[28,3.5],[28,14],[33,14]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
   /* ---------- Deck B (+48): quase tudo lacrado; corredor em T com becos ---------- */
@@ -525,7 +530,8 @@ PL.A=PL.A||{};
     C.rect(24,3,4,5,'1').rect(30,0,4,8,'2').rect(30,8,4,12,'3').rect(24,20,4,8,'4').rect(30,20,4,8,'5');   // alas lacradas das pontas
     C.rect(8,3,10,9,'t').rect(18,3,6,5,'g').rect(2,15,12,5,'c').rect(17,15,7,9,'w').rect(0,3,5,9,'d').rect(2,20,12,5,'s');
     PL.ascii(D,C.rows(),{'1':['lb_c4',{cab:{n:1,side:'e'}}],'2':['lb_c5',{cab:{n:2,side:'w'}}],'3':['lb_c6',{cab:{n:3,side:'w'}}],'4':['lb_c7',{cab:{n:2,side:'e'}}],'5':['lb_c8',{cab:{n:2,side:'w'}}],L:'lb_lf',S:'lb_st',t:'lqB2',g:'lqB5',c:['lb_c1',{cab:{n:3,side:'n'}}],w:'lqB6',d:['lb_c3',{cab:{n:2,side:'e'}}],s:'lb_sto'},{cpre:'lqBc',cname:{'10,13':'Corridor B1'}});
-    PL.route(D,'p',[[3,13.5],[22.5,13.5],[22.5,16],[23.5,16]]);
+    PL.route(D,'p',[[3,13.5],[25.5,13.5]]);
+    PL.route(D,'s',[[29,26.5],[29,16],[26,16]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
   /* ---------- Deck A (+44): restaurante aberto pro lounge, cozinha colada, antessala da entrada ---------- */
@@ -537,8 +543,8 @@ PL.A=PL.A||{};
     PL.ascii(D,C.rows(),{L:'la_lf',S:'la_st',R:['la_rest',{d:[['s',.8,'door','c'],['e',.5,'wide','r']]}],U:'la_lng',K:['la_kit',{d:[['n',.5,'open','r'],['e',.19,'door','c'],['s',.25,'door','r'],['s',.85,'door','r']]}],
       p:['la_pan',{d:[['n',.5,'door','r']]}],c:['la_cold',{d:[['n',.5,'door','r']]}],f:['la_frz',{d:[['w',.5,'door','r']]}],d:['la_fos',{d:[['n',.3,'door','r'],['e',.14,'door','c']]}],i:'la_inf',G:'la_gym',Z:'la_cln',
       v:['la_vst',{d:[['n',.5,'door','c'],['e',.5,'door','r']]}],s:['la_stp',{dir:'dn',to:'L-05',n:'Entrance stair',d:[['w',.5,'open','r']]}]},{cpre:'lqAc',cname:{'12,14':'Corridor A1','22,12':'Corridor A2'}});
-    PL.route(D,'p',[[11,14.5],[22.5,14.5],[22.5,6.5],[32.5,6.5],[32.5,9.5]]);
-    PL.route(D,'s',[[22.5,21.5],[32.5,21.5],[32.5,18.5]]);
+    PL.route(D,'p',[[11,14.5],[25.5,14.5]]);
+    PL.route(D,'s',[[32.5,16],[32.5,14],[29,14],[29,6.5],[22.5,6.5],[22.5,14.5],[25.5,14.5]]);
     D.cams.push({id:'cam01',x:6,y:6,room:'la_rest'});
     PL.finish(D,{autoVoid:true});return D;})();
 })();

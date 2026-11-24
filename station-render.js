@@ -54,7 +54,9 @@ function propThumb(it,size){
 
 function plan(deck,st,o){
   const id=o.id||'sp',PW=o.W,bb=deck.bbox;
-  const padL=36,padT=36,padR=30,keyH=o.key===false?0:50,botH=50+keyH;
+  const padL=36,padT=36,padR=30,keyH=o.key===false?0:50;
+  /* titulo do desenho: numa linha so quando cabe ao lado da escala; em planta estreita (alojamento) desce pra linha propria */
+  const ttl=`${deck.dwg} · ${String(deck.name).toUpperCase()} ${deck.elev} · SCALE 1:500 @A1`,stackT=(PW-padL-padR)<ttl.length*5.4+260,botH=50+keyH+(stackT?16:0);
   let px=Math.min((PW-padL-padR)/bb[2],((o.maxH||9999)-padT-botH)/bb[3],o.maxPx||14);px=Math.floor(px*100)/100;
   const ox=padL-bb[0]*px,oy=padT-bb[1]*px,H=Math.ceil(padT+bb[3]*px+botH);
   const X=v=>ox+v*px,Y=v=>oy+v*px,P=m=>m*px;
@@ -84,6 +86,7 @@ function plan(deck,st,o){
     return g;};
   let propIds=[];const LAB={g:'',f:''};
   let h=`<defs>
+   <filter id="${id}inv"><feColorMatrix type="matrix" values="-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/></filter>
    <pattern id="${id}g" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0L4 4M4 0L0 4" stroke="${T.grate}" stroke-width=".5"/></pattern>
    <pattern id="${id}z" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="${T.sealBg}"/><rect width="3.2" height="9" fill="${T.amber}" opacity=".5"/></pattern>
    <pattern id="${id}h" width="10" height="10" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><rect width="10" height="10" fill="${T.wall}"/><rect width="5" height="10" fill="${T.hazard}"/></pattern>
@@ -109,6 +112,66 @@ function plan(deck,st,o){
       if(sel.length>1){let d='';let prev=null;sel.forEach(p=>{if(!prev||Math.hypot(p[0]-prev[0],p[1]-prev[1])>.8)d+=`M${f1(X(p[0]))} ${f1(Y(p[1]))}`;else d+=`L${f1(X(p[0]))} ${f1(Y(p[1]))}`;prev=p;});
         h+=`<path d="${d}" fill="none" stroke="${T.stub}" stroke-width="1.5" stroke-dasharray="1.5 6" stroke-linecap="round"/>`;}});
   }
+
+
+  /* ---------- camadas de sistemas (VENT / POWER): o resto do mapa escurece e a rede aparece por cima ---------- */
+  function sysLayer(sy){
+    const CR='#ece6d3',OR='#e8602a',DK='#171614',f=f1;
+    const C={s:CR,x:OR,hv:OR,lv:CR,em:CR};
+    let g=`<rect x="0" y="0" width="${PW}" height="${H}" fill="rgba(12,12,11,.82)" pointer-events="none"/>`;
+    /* contorno fraco das salas e corredores, so pra orientar */
+    deck.corr.forEach(c=>{if(showC(c)==='f')g+=rect(c.r,0,'none','stroke="rgba(236,230,211,.16)" stroke-width="1" pointer-events="none"');});
+    deck.rooms.forEach(r=>{if(showR(r)==='f'&&!(out&&r.t==='ext'))g+=rect(r.r,0,sy.hi[r.id]?'rgba(236,230,211,.05)':'none',`stroke="rgba(236,230,211,${sy.hi[r.id]?.5:.26})" stroke-width="${sy.hi[r.id]?1.3:1}" pointer-events="none"`);});
+    g+=`<g filter="url(#${id}inv)" opacity=".92" pointer-events="none">${LAB.f}</g>`;
+    const pl=(pts,off)=>pts.map((p,i)=>(i?'L':'M')+f(X(p[0])+(off&&p.hzOff?0:0))+' '+f(Y(p[1]))).join('');
+    const seg=(a,b,o)=>`M${f(X(a[0])+(Math.abs(a[1]-b[1])<.01?0:o))} ${f(Y(a[1])+(Math.abs(a[1]-b[1])<.01?o:0))}L${f(X(b[0])+(Math.abs(a[1]-b[1])<.01?0:o))} ${f(Y(b[1])+(Math.abs(a[1]-b[1])<.01?o:0))}`;
+    const chev=(a,b,col,rev)=>{const L=dist2(a,b);if(L<3.4)return '';const m=[(a[0]+b[0])/2,(a[1]+b[1])/2],dx=(b[0]-a[0])/L*(rev?-1:1),dy=(b[1]-a[1])/L*(rev?-1:1),cx=X(m[0]),cy=Y(m[1]),k=3.6;
+      return `<path d="M${f(cx+dx*k)} ${f(cy+dy*k)}L${f(cx-dx*k-dy*k)} ${f(cy-dy*k+dx*k)}L${f(cx-dx*k+dy*k)} ${f(cy-dy*k-dx*k)}Z" fill="${col}"/>`;};
+    const dist2=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+    sy.paths.forEach(n=>{
+      const col=C[n.k],duct=n.k==='s'||n.k==='x',off=n.k==='x'?P(.55):0,mw=n.w||1;
+      let outer='',inner='',marks='';
+      n.edges.forEach(e=>{const wpx=Math.max(3,P(.3+.24*Math.sqrt(e.n)))*mw;
+        const d=seg(e.a,e.b,off);
+        if(duct){outer+=`<path d="${d}" stroke="${col}" stroke-width="${f(wpx)}" fill="none" stroke-linecap="butt"/>`;inner+=`<path d="${d}" stroke="${DK}" stroke-width="${f(Math.max(1,wpx-1.7))}" fill="none"/>`;marks+=chev(e.a,e.b,col,n.rev);}
+        else if(n.k==='hv')outer+=`<path d="${d}" stroke="${col}" stroke-width="2.8" fill="none" stroke-linecap="round"/>`;
+        else outer+=`<path d="${d}" stroke="${col}" stroke-width="${n.k==='em'?1.8:1.3}" fill="none" ${n.k==='em'?'stroke-dasharray="6 4"':''}/>`;});
+      n.branches.forEach(b=>{const d=b.pts.map((p,i)=>(i?'L':'M')+f(X(p[0])+(i===0?0:0))+' '+f(Y(p[1]))).join('');
+        if(duct){outer+=`<path d="${d}" stroke="${col}" stroke-width="${f(2.6*mw)}" fill="none"/>`;inner+=`<path d="${d}" stroke="${DK}" stroke-width="${f(1*mw)}" fill="none"/>`;
+          const c=b.c,x=X(c[0]),y=Y(c[1]);
+          marks+=n.k==='s'?`<g stroke="${col}" stroke-width="1" fill="${DK}"><rect x="${f(x-4)}" y="${f(y-4)}" width="8" height="8"/><path d="M${f(x-4)} ${f(y-4)}l8 8M${f(x+4)} ${f(y-4)}l-8 8"/></g>`:`<g stroke="${col}" stroke-width="1" fill="${DK}"><circle cx="${f(x)}" cy="${f(y)}" r="4.4"/><path d="M${f(x-2.6)} ${f(y)}h5.2M${f(x)} ${f(y-2.6)}v5.2"/></g>`;}
+        else{outer+=`<path d="${d}" stroke="${col}" stroke-width="1.1" fill="none" ${n.k==='em'?'stroke-dasharray="4 3"':''}/>`;const c=b.c;marks+=`<rect x="${f(X(c[0])-2.6)}" y="${f(Y(c[1])-2.6)}" width="5.2" height="5.2" fill="${col}" stroke="${DK}" stroke-width=".6"/>`;}});
+      g+=`<g pointer-events="none">${outer}${inner}${marks}</g>`;});
+    (sy.lines||[]).forEach(l=>{const d=l.pts.map((p,i)=>(i?'L':'M')+f(X(p[0]))+' '+f(Y(p[1]))).join('');g+=`<path d="${d}" stroke="${C[l.k]||OR}" stroke-width="2.8" fill="none" stroke-linejoin="round" pointer-events="none"/>`;});
+    /* equipamentos */
+    sy.units.forEach(u=>{const x=X(u.x),y=Y(u.y),S1=`stroke="${CR}" stroke-width="1.2" fill="${DK}"`;let s='';
+      if(u.t==='ahu'){const w=P(3.2),h=P(1.9);s=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" ${S1}/><circle cx="${f(x-w/4)}" cy="${f(y)}" r="${f(h*.32)}" ${S1}/><circle cx="${f(x+w/4)}" cy="${f(y)}" r="${f(h*.32)}" ${S1}/>`;}
+      else if(u.t==='fan'){const r=P(.9);s=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" ${S1}/><path d="M${f(x)} ${f(y)}l${f(r*.8)} ${f(-r*.3)}M${f(x)} ${f(y)}l${f(r*.3)} ${f(r*.8)}M${f(x)} ${f(y)}l${f(-r*.8)} ${f(r*.3)}M${f(x)} ${f(y)}l${f(-r*.3)} ${f(-r*.8)}" stroke="${CR}" stroke-width="1.2" fill="none"/>`;}
+      else if(u.t==='stack'){const r=P(1.6);s=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.6" fill="${DK}"/><circle cx="${f(x)}" cy="${f(y)}" r="${f(r*.5)}" stroke="${OR}" stroke-width="1.2" fill="none"/>`;}
+      else if(u.t==='gen'){const r=P(1.15);s=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.5" fill="${DK}"/><path d="M${f(x-r*.6)} ${f(y)}q${f(r*.3)} ${f(-r*.7)} ${f(r*.6)} 0t${f(r*.6)} 0" stroke="${OR}" stroke-width="1.2" fill="none"/>`;}
+      else if(u.t==='sw'){const w=P(2.6),h=P(1.3);s=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" stroke="${OR}" stroke-width="1.5" fill="${DK}"/><path d="M${f(x-w/6)} ${f(y-h/2)}v${f(h)}M${f(x+w/6)} ${f(y-h/2)}v${f(h)}" stroke="${OR}" stroke-width="1"/>`;}
+      else if(u.t==='xfmr'){const r=P(.9);s=`<circle cx="${f(x-r*.55)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.5" fill="${DK}"/><circle cx="${f(x+r*.55)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.5" fill="none"/>`;}
+      else if(u.t==='ups'||u.t==='bat'){const w=P(2.4),h=P(1.3);s=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" ${S1}/><path d="M${f(x-w/4)} ${f(y)}h${f(w*.2)}M${f(x+w/6)} ${f(y)}h${f(w*.2)}M${f(x+w/4)} ${f(y-h*.25)}v${f(h*.5)}" stroke="${CR}" stroke-width="1"/>`;}
+      else{const w=P(1.2);s=`<rect x="${f(x-w/2)}" y="${f(y-w/2)}" width="${f(w)}" height="${f(w)}" ${S1}/><path d="M${f(x-w/2)} ${f(y-w/2)}l${f(w)} ${f(w)}" stroke="${CR}" stroke-width="1"/>`;}
+      if(u.lbl)s+=`<text x="${f(x)}" y="${f(y+P(1.6)+8)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" letter-spacing=".1em" fill="${CR}">${esc(u.lbl)}</text>`;
+      g+=`<g pointer-events="none">${s}</g>`;});
+    /* prumadas: onde a rede sobe e onde desce */
+    sy.risers.forEach(r=>{const x=X(r.x),y=Y(r.y),col=C[r.k]||CR,left=x>PW*.55;
+      const up=`M${f(x)} ${f(y-5.6)}l4.4 5.6h-8.8z`,dn=`M${f(x)} ${f(y+5.6)}l4.4 -5.6h-8.8z`;
+      let s=`<circle cx="${f(x)}" cy="${f(y)}" r="9.5" fill="${DK}" stroke="${col}" stroke-width="2"/>`;
+      if(r.dir==='up')s+=`<path d="${up}" fill="${col}" transform="translate(0 0)"/>`;
+      else if(r.dir==='dn')s+=`<path d="${dn}" fill="${col}"/>`;
+      else s+=`<path d="M${f(x)} ${f(y-7)}l3.8 4.4h-7.6zM${f(x)} ${f(y+7)}l3.8 -4.4h-7.6z" fill="${col}"/>`;
+      const tw=r.to.length*5.2+10,tx=left?x-14-tw:x+14;
+      s+=`<rect x="${f(tx)}" y="${f(y-7)}" width="${f(tw)}" height="14" fill="${DK}" stroke="${col}" stroke-width="1"/><text x="${f(tx+5)}" y="${f(y+3.2)}" font-family="IBM Plex Mono" font-size="7.4" letter-spacing=".08em" fill="${col}">${esc(r.to)}</text>`;
+      g+=`<g pointer-events="none">${s}</g>`;});
+    /* titulo e legenda da camada */
+    const items=sy.kind==='vent'?[[CR,'SUPPLY'],[OR,'EXHAUST']]:[[OR,'HV FEEDER'],[CR,'LV DISTRIBUTION']];
+    let lx=padL;g+=`<text x="${lx}" y="16" font-family="Barlow Condensed" font-weight="700" font-size="13" letter-spacing=".24em" fill="${CR}">${esc(sy.title)}</text>`;lx+=sy.title.length*9+16;
+    items.forEach(([c,t])=>{g+=`<path d="M${lx} 12H${lx+22}" stroke="${c}" stroke-width="${sy.kind==='vent'?4:2.6}"/><text x="${lx+28}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${CR}">${t}</text>`;lx+=t.length*6.4+44;});
+    g+=`<path d="M${lx} 11l4.4 6h-8.8z" fill="${CR}"/><text x="${lx+9}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${CR}">UP</text>`;lx+=34;
+    g+=`<path d="M${lx} 17l4.4 -6h-8.8z" fill="${CR}"/><text x="${lx+9}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${CR}">DOWN</text>`;
+    return g;}
 
   /* camadas: ghost (so GM) e full */
   const layer=mode=>{
@@ -261,7 +324,8 @@ function plan(deck,st,o){
     lines.forEach((l,i)=>{s+=`<text x="${f1(ax)}" y="${f1(ay+i*(fs+1.6))}" text-anchor="${an}" font-family="Barlow Condensed" font-weight="700" font-size="${f1(fs)}" fill="${T.label}" letter-spacing=".06em" style="text-transform:uppercase" paint-order="stroke" stroke="${halo}" stroke-width="3.2" stroke-linejoin="round">${esc(l)}</text>`;});
     /* a area so aparece pro Guardiao (st.showArea); o jogador pergunta e o mestre responde */
     const sub=(code||'')+(st.showArea?(code?' · ':'')+area+' m²':'');
-    if(sub)s+=`<text x="${f1(ax)}" y="${f1(ay+lines.length*(fs+1.6)-1.2)}" text-anchor="${an}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.sub}" letter-spacing=".08em" paint-order="stroke" stroke="${halo}" stroke-width="2.6">${sub}</text></g>`;
+    if(sub)s+=`<text x="${f1(ax)}" y="${f1(ay+lines.length*(fs+1.6)-1.2)}" text-anchor="${an}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.sub}" letter-spacing=".08em" paint-order="stroke" stroke="${halo}" stroke-width="2.6">${sub}</text>`;
+    s+='</g>';
     return s;
   }
 
@@ -293,6 +357,7 @@ function plan(deck,st,o){
   /* nomes das salas: sempre por cima do conteudo */
   if(st.ghost&&LAB.g)h+=`<g opacity=".32">${LAB.g}</g>`;
   h+=LAB.f;
+  if(st.layer&&st.sys)h+=sysLayer(st.sys);
   /* selecao */
   if(st.sel){const r=deck.rooms.find(q=>q.id===st.sel);if(r&&(showR(r))){const x=X(r.r[0]),y=Y(r.r[1]),w=P(r.r[2]),hh=P(r.r[3]),k=Math.min(13,w/3,hh/3);
     h+=`<g stroke="${T.sel}" fill="none" stroke-width="2.4" pointer-events="none"><path d="M${f1(x-6)} ${f1(y+k)}V${f1(y-6)}H${f1(x+k)}M${f1(x+w+6)} ${f1(y+k)}V${f1(y-6)}H${f1(x+w-k)}M${f1(x-6)} ${f1(y+hh-k)}V${f1(y+hh+6)}H${f1(x+k)}M${f1(x+w+6)} ${f1(y+hh-k)}V${f1(y+hh+6)}H${f1(x+w-k)}"/></g>`;}}
@@ -300,14 +365,15 @@ function plan(deck,st,o){
   if(st.pin&&st.pin.deck===deck.id){const x=X(st.pin.x),y=Y(st.pin.y),left=x>PW*.38;
     const tx=left?x-106:x+30,ty=y-46;
     h+=`<g pointer-events="none"><circle class="ping" cx="${f1(x)}" cy="${f1(y)}" r="9" fill="none" stroke="${T.you}" stroke-width="1.6"/><circle cx="${f1(x)}" cy="${f1(y)}" r="9" fill="none" stroke="${T.you}" stroke-width="1.6"/><circle cx="${f1(x)}" cy="${f1(y)}" r="3.8" fill="${T.you}"/><path d="M${f1(x+(left?-6:6))} ${f1(y-6)}L${f1(left?x-30:x+30)} ${f1(y-32)}" stroke="${T.you}" stroke-width="1"/><rect x="${f1(tx)}" y="${f1(ty)}" width="76" height="14" fill="${T.you}"/><text x="${f1(tx+38)}" y="${f1(ty+10.5)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="10.5" letter-spacing=".1em" fill="${T.youText}">YOU ARE HERE</text></g>`;}
+  if(st.layer&&st.sys)h+=`<g filter="url(#${id}inv)" pointer-events="none">`;
   /* cotas, escala, figura, norte */
   const bx=X(bb[0]),by=Y(bb[1]+bb[3])+16;
   const dim=(x1,x2,t)=>`<g stroke="${T.sub}" stroke-width=".8" fill="none"><path d="M${f1(X(x1))} ${f1(by)}H${f1(X(x2))}M${f1(X(x1))} ${f1(by-4)}V${f1(by+4)}M${f1(X(x2))} ${f1(by-4)}V${f1(by+4)}M${f1(X(x1)-3)} ${f1(by+3)}l6 -6M${f1(X(x2)-3)} ${f1(by+3)}l6 -6"/></g><rect x="${f1((X(x1)+X(x2))/2-18)}" y="${f1(by-5)}" width="36" height="10" fill="${T.paper}"/><text x="${f1((X(x1)+X(x2))/2)}" y="${f1(by+3)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7.6" fill="${T.sub}">${t}</text>`;
   h+=dim(bb[0],bb[0]+bb[2],f1(bb[2])+' m');
   h+=`<g transform="translate(${f1(X(bb[0])-26)} ${f1(Y(bb[1]+bb[3]/2))}) rotate(-90)"><path d="M${f1(-P(bb[3])/2)} 0H${f1(P(bb[3])/2)}M${f1(-P(bb[3])/2)} -4V4M${f1(P(bb[3])/2)} -4V4" stroke="${T.sub}" stroke-width=".8"/><rect x="-18" y="-5" width="36" height="10" fill="${T.paper}"/><text y="3" text-anchor="middle" font-family="IBM Plex Mono" font-size="7.6" fill="${T.sub}">${f1(bb[3])} m</text></g>`;
-  const sy=by+26;
-  h+=`<g stroke="${T.ink}" stroke-width="1.2"><path d="M${f1(bx)} ${sy}H${f1(bx+P(20))}M${f1(bx)} ${sy-4}V${sy+4}M${f1(bx+P(10))} ${sy-3}V${sy+3}M${f1(bx+P(20))} ${sy-4}V${sy+4}"/></g><rect x="${f1(bx)}" y="${sy-2}" width="${f1(P(10))}" height="4" fill="${T.ink}"/><text x="${f1(bx+P(20)+8)}" y="${sy+3}" font-family="IBM Plex Mono" font-size="8" fill="${T.sub}">20 m</text>`;
-  h+=`<g transform="translate(${f1(bx+P(20)+66)} ${sy})"><ellipse rx="${f1(.3*px+1.2)}" ry="${f1(.2*px+.8)}" fill="${T.ink}"/><circle r="${f1(.12*px+.8)}" fill="${T.paper}"/><text x="14" y="3" font-family="IBM Plex Mono" font-size="8" fill="${T.sub}">1.8 m</text></g>`;
+  const sy=by+26,sl=(PW-padL-padR)>=420?20:10; /* barra de escala: 10 m em planta estreita pra nao encostar na figura e na bussola */
+  h+=`<g stroke="${T.ink}" stroke-width="1.2"><path d="M${f1(bx)} ${sy}H${f1(bx+P(sl))}M${f1(bx)} ${sy-4}V${sy+4}M${f1(bx+P(sl/2))} ${sy-3}V${sy+3}M${f1(bx+P(sl))} ${sy-4}V${sy+4}"/></g><rect x="${f1(bx)}" y="${sy-2}" width="${f1(P(sl/2))}" height="4" fill="${T.ink}"/><text x="${f1(bx+P(sl)+8)}" y="${sy+3}" font-family="IBM Plex Mono" font-size="8" fill="${T.sub}">${sl} m</text>`;
+  h+=`<g transform="translate(${f1(bx+P(sl)+(sl===20?66:48))} ${sy})"><ellipse rx="${f1(.3*px+1.2)}" ry="${f1(.2*px+.8)}" fill="${T.ink}"/><circle r="${f1(.12*px+.8)}" fill="${T.paper}"/><text x="14" y="3" font-family="IBM Plex Mono" font-size="8" fill="${T.sub}">1.8 m</text></g>`;
   h+=`<g transform="translate(${f1(PW-padR-8)} ${sy-4})"><circle r="9" fill="none" stroke="${T.sub}"/><path d="M0 -8L3 3L0 1L-3 3Z" fill="${T.ink}"/><text y="-12" text-anchor="middle" font-family="IBM Plex Mono" font-size="7.5" fill="${T.sub}">N</text></g>`;
   /* legenda */
   if(o.key!==false){const ky=H-34;
@@ -319,8 +385,9 @@ function plan(deck,st,o){
     h+=`<line x1="${padL-2}" y1="${ky-18}" x2="${PW-padR+2}" y2="${ky-18}" stroke="${T.grid}"/><text x="${padL}" y="${ky+3}" font-family="Barlow Condensed" font-weight="700" font-size="10" letter-spacing=".22em" fill="${T.sub}">KEY</text>`;
     it.forEach((q,i)=>{h+=`<g transform="translate(${f1(cx)} ${ky})">${q[0]}<text x="${q[2]}" y="3" font-family="Barlow Condensed" font-weight="600" font-size="11" fill="${T.label}" letter-spacing=".05em">${q[1]}</text></g>`;cx+=widths[i]*sc;});
   }
-  h+=`<text x="${PW-padR}" y="${H-6}" text-anchor="end" font-family="IBM Plex Mono" font-size="7.5" fill="${T.sub}" letter-spacing=".1em">${esc(deck.dwg)} · ${esc(deck.name.toUpperCase())} ${esc(deck.elev)} · SCALE 1:500 @A1</text>`;
-  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${PW}" height="${H}" viewBox="0 0 ${PW} ${H}" style="display:block;background:${T.paper}">${h}</svg>`,w:PW,h:H,px,ox,oy,toDeck:(sx,sy)=>[(sx-ox)/px,(sy-oy)/px],props:propIds};
+  h+=`<text x="${stackT?padL:PW-padR-26}" y="${H-6}" text-anchor="${stackT?'start':'end'}" font-family="IBM Plex Mono" font-size="7.5" fill="${T.sub}" letter-spacing=".1em">${esc(ttl)}</text>`;
+  if(st.layer&&st.sys)h+='</g>';
+  return {svg:`<svg xmlns="http://www.w3.org/2000/svg" width="${PW}" height="${H}" viewBox="0 0 ${PW} ${H}" style="display:block;background:${st.layer&&st.sys?'#0c0c0b':T.paper}">${h}</svg>`,w:PW,h:H,stackT,px,ox,oy,toDeck:(sx,sy)=>[(sx-ox)/px,(sy-oy)/px],props:propIds};
 }
 window.StationRender={plan,T,propThumb,propG,setTheme};
 })();

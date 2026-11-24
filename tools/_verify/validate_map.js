@@ -84,6 +84,13 @@ if(S.COLUMN){const rs=S.COLUMN.map(id=>S.roomIndex[id]);
   else{const c=rs.map(r=>[r.r[0]+r.r[2]/2,r.r[1]+r.r[3]/2]);c.forEach((p,i)=>{if(Math.hypot(p[0]-c[0][0],p[1]-c[0][1])>1.2)E('coluna do poco: '+S.COLUMN[i]+' fora do eixo da torre');});}}
 /* nada da DRE em nenhum arquivo publico */
 {const j=JSON.stringify(S);if(/\bDRE\b|caisson|ala da DRE/i.test(j))E('o mapa cita a DRE ou o caisson (proibido nos arquivos publicos)');}
+/* rotas de fuga: terminam dentro de uma sala (escada, saida, ponto de encontro, baleeira, balsa, embarque) e nao atravessam vazio nem area sem nada */
+Object.values(S.DECKS).forEach(d=>(d.esc||[]).forEach((e,k)=>{const P=e.pts;const inR=(r,x,y,t)=>x>=r[0]-t&&x<=r[0]+r[2]+t&&y>=r[1]-t&&y<=r[1]+r[3]+t;
+  const L=P[P.length-1];const onSeg=(p,q,r)=>{const dx=q[0]-p[0],dy=q[1]-p[1],l2=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((r[0]-p[0])*dx+(r[1]-p[1])*dy)/l2));return Math.hypot(p[0]+dx*t-r[0],p[1]+dy*t-r[1])<.3;};
+  const merge=d.esc.some((o,m)=>m!==k&&o.pts.some((p,j)=>j<o.pts.length-1&&onSeg(p,o.pts[j+1],L)));
+  if(!merge&&!(d.stairs||[]).some(st=>inR([st.x,st.y,st.w,st.h],L[0],L[1],0))&&!d.rooms.some(r=>inR(r.r,L[0],L[1],-.05)))E(d.id+': rota de fuga '+k+' termina fora de qualquer sala em '+L.join(','));
+  for(let j=0;j<P.length-1;j++){const a=P[j],b=P[j+1],n=Math.max(2,Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/.5));for(let t=0;t<=n;t++){const x=a[0]+(b[0]-a[0])*t/n,y=a[1]+(b[1]-a[1])*t/n;
+    const ok=d.corr.some(c=>inR(c.r,x,y,.05))||d.rooms.some(r=>inR(r.r,x,y,.05))||(d.blocks||[]).some(bl=>inR(bl.r,x,y,0));if(!ok){E(d.id+': rota de fuga '+k+' passa por vazio em '+x.toFixed(1)+','+y.toFixed(1));j=P.length;break;}}}}));
 /* deck B ocupa o contorno inteiro do bloco */
 {const b=S.DECKS.lqB&&S.DECKS.lqB.bbox,sz=S.BLOCK&&S.BLOCK.size;if(b&&sz&&(Math.abs(b[2]-sz[0])>.01||Math.abs(b[3]-sz[1])>.01))E('lqB: bbox '+b[2]+'x'+b[3]+' difere do bloco '+sz.join('x'));}
 console.log('\n'+err+' erros, '+warn+' avisos');process.exit(err?1:0);

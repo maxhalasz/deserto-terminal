@@ -22,6 +22,8 @@ const ME=(()=>{let v=LS.get('deserto:op');if(!v){v='OP-'+Math.random().toString(
 /* ---------- niveis / decks ---------- */
 const unlockedMap=()=>STATE.unlocked||{};
 function isUnlocked(level){const u=unlockedMap();return !!(u[level]||Object.keys(S.LEGACY).some(k=>S.LEGACY[k]===level&&u[k]));}
+/* camada de sistemas (VENT/POWER): prototipo, so liga com ?layer=vent ou ?layer=power; as abas continuam desligadas */
+const LAYER=(function(){try{const v=new URLSearchParams(location.search).get('layer');return v==='vent'||v==='power'?v:null;}catch(e){return null;}})();
 const forcedLevel=()=>{const f=STATE.force?S.levelId(STATE.force):null;return f&&S.LEVELS.some(l=>l.id===f)?f:null;};
 const mapState=()=>STATE.map||{};
 const revRooms=()=>mapState().rooms||{};
@@ -51,6 +53,8 @@ function stackSVG(active){
   const P=(x,y,cy,cx)=>[cx+(x-y)*s*.866,cy+(x+y)*s*.5];
   const ps=pts=>pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
   const yOf=e=>Y0+(52-e)*PM;
+  /* os 3 decks da plataforma ficam mais juntos na pilha (80% do espaco real); o weather segue alinhado com o deck C do bloco */
+  const ypl=e=>yOf(52)+(52-e)*PM*.8;
   const lvlActive=active?levelOfDeck(active):null,qu=isUnlocked('quarters'),pin=mapState().pin;
   const rr=revRooms(),rc=revCorr();
   const nrm=(d,x,y,W,H)=>[(x-d.bbox[0])/d.bbox[2]*W,(y-d.bbox[1])/d.bbox[3]*H];
@@ -63,14 +67,14 @@ function stackSVG(active){
     return g;};
   let h='';
   /* plano do mar */
-  const wy=yOf(WL),wc=[[0,0],[PWd,0],[PWd,PHd],[0,PHd]].map(q=>P(q[0],q[1],wy,PCX));
+  const wy=ypl(WL),wc=[[0,0],[PWd,0],[PWd,PHd],[0,PHd]].map(q=>P(q[0],q[1],wy,PCX));
   h+=`<polygon points="${ps(wc)}" class="sk-sea"/><text x="${wc[2][0]-4}" y="${wc[2][1]+12}" text-anchor="end" class="sk-d" font-size="7.5" letter-spacing=".14em">SEA LEVEL</text>`;
   /* pernas */
   [[0,0],[PWd,0],[PWd,PHd],[0,PHd]].forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,wy,PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
-  SHAFTS.forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,yOf(28),PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-shaft"/>`;[52,40,28].forEach(e=>{const q=P(x,y,yOf(e),PCX);h+=`<rect x="${q[0]-2.4}" y="${q[1]-2.4}" width="4.8" height="4.8" class="sk-shaftd"/>`;});});
+  SHAFTS.forEach(([x,y])=>{const a=P(x,y,yOf(52),PCX),b=P(x,y,ypl(28),PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-shaft"/>`;[52,40,28].forEach(e=>{const q=P(x,y,ypl(e),PCX);h+=`<rect x="${q[0]-2.4}" y="${q[1]-2.4}" width="4.8" height="4.8" class="sk-shaftd"/>`;});});
   /* decks da plataforma */
   [['weather','L-07','WEATHER','+52 m'],['module','L-05','MODULE','+40 m'],['cellar','L-03','CELLAR','+28 m']].forEach(([lvl,tag,nm,el])=>{
-    const sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=yOf(PL_ELEV[lvl]),d=S.DECKS[lvl];
+    const sel=lvlActive===lvl,unl=isUnlocked(lvl),cy=ypl(PL_ELEV[lvl]),d=S.DECKS[lvl];
     const rev=Object.keys(rr).some(k=>S.roomIndex[k]&&S.roomIndex[k].deck===lvl);
     let g=`<g data-lvl="${lvl}" class="sk-dk ${unl?'on':'lock'}${sel?' sel':''}">`+slab(d,cy,PCX,PWd,PHd,sel,unl,rev);
     const cx=232,y=cy-34;
@@ -79,7 +83,7 @@ function stackSVG(active){
     h+=g+'</g>';
   });
   /* o alojamento e um bloco da plataforma: contorno no module deck (+40), na ponta oeste, longe dos poços e do flare */
-  const LQN=ST?[ST.blk[0]*kk,ST.blk[1]*kk]:[1.5,14],lqc=[[0,0],[LW,0],[LW,LH],[0,LH]],mdy=yOf(40);
+  const LQN=ST?[ST.blk[0]*kk,ST.blk[1]*kk]:[1.5,14],lqc=[[0,0],[LW,0],[LW,LH],[0,LH]],mdy=ypl(40);
   h+=`<polygon points="${ps(lqc.map(q=>P(LQN[0]+q[0],LQN[1]+q[1],mdy,PCX)))}" class="sk-blk"/>`;
   lqc.forEach(([x,y])=>{const a=P(x,y,yOf(ROOF_ELEV),LCX),b=P(x,y,yOf(LQ_ELEV.lqA),LCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
   lqc.forEach(([x,y])=>{const a=P(x,y,yOf(LQ_ELEV.lqA),LCX),b=P(LQN[0]+x,LQN[1]+y,mdy,PCX);h+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sk-dash"/>`;});
@@ -107,7 +111,7 @@ function stackSVG(active){
   h+=`<path d="M${hp[0]+30} ${rc0-14}L${hp[0]+7} ${hp[1]-4}" class="sk-arr"/><path d="M${hp[0]+10} ${hp[1]-10}l-5.5 5.5l7.5 1.5z" class="sk-arrf"/><text x="${hp[0]+33}" y="${rc0-10}" class="sk-l" font-size="9" font-weight="700">1</text>`;
   const cr=P(CRN[0],CRN[1],yOf(52),PCX),bt=P(CRN[0]+8,CRN[1]+6,wy,PCX);
   h+=`<path d="M${cr[0]} ${cr[1]}V${bt[1]-8}" class="sk-arr"/><rect x="${cr[0]-2.5}" y="${cr[1]-2.5}" width="5" height="5" class="sk-arrf"/><path d="M${bt[0]-13} ${bt[1]-3}h26l-4 7h-18z" class="sk-fill"/><text x="${cr[0]+8}" y="${cr[1]+4}" class="sk-l" font-size="9" font-weight="700">2</text>`;
-  const mp=P(MPL[0],MPL[1],yOf(28),PCX),mw=P(MPL[0],MPL[1],wy,PCX);
+  const mp=P(MPL[0],MPL[1],ypl(28),PCX),mw=P(MPL[0],MPL[1],wy,PCX);
   h+=`<circle cx="${mp[0]}" cy="${mp[1]}" r="4.5" class="sk-ln"/><path d="M${mp[0]} ${mp[1]+4}V${mw[1]-8}" class="sk-arr"/><path d="M${mw[0]-4.5} ${mw[1]-10}l4.5 7l4.5 -7z" class="sk-arrf"/><text x="${mp[0]+9}" y="${mp[1]+16}" class="sk-l" font-size="9" font-weight="700">3</text>`;
   const ly=wc[2][1]+34;
   h+=`<text x="10" y="${ly}" class="sk-l" font-size="7.5">1</text><text x="20" y="${ly}" class="sk-t" font-size="7.5" letter-spacing=".06em">HELICOPTER · HELIPORT A</text>`;
@@ -128,7 +132,8 @@ function revealedBox(d){
 function measure(){const w=$('planwrap');if(w&&w.clientWidth>50&&w.clientHeight>50){PW=w.clientWidth;PH=w.clientHeight;}}
 function viewFor(r,m){m=m||5;let w=Math.max(r[2]+2*m,28),h=r[3]+2*m;if(w/h<PW/PH)w=h*PW/PH;else h=w*PH/PW;const cx=r[0]+r[2]/2,cy=r[1]+r[3]/2;return {x:plan.ox+(cx-w/2)*plan.px,y:plan.oy+(cy-h/2)*plan.px,w:w*plan.px,h:h*plan.px};}
 function fitView(d,p){
-  const rb=revealedBox(d),b=rb.box;
+  const rb=revealedBox(d),b=rb.box.slice();
+  if(p.stackT)b[3]+=18/p.px; /* planta estreita: o titulo do desenho desce pra linha propria e tem que caber no quadro */
   let w=Math.max(b[2],62),h=Math.max(b[3],w*PH/PW*.55);
   const cxm=b[0]+b[2]/2,cym=b[1]+b[3]/2;
   if(w/h<PW/PH)w=h*PW/PH;else h=w*PH/PW;
@@ -149,13 +154,14 @@ function zoomAt(f,sx,sy){
   const fx=sx/PW,fy=sy/PH;view={x:view.x+(view.w-nw)*fx,y:view.y+(view.h-nh)*fy,w:nw,h:nh};applyView();}
 function renderPlan(deckId){
   const wrap=$('planwrap'),d=S.DECKS[deckId];measure();
+  wrap.style.background=LAYER?'#0c0c0b':'';
   if(!d){plan=null;view=null;wrap.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:#6b6d68;line-height:1.7;text-align:center">NO LEVEL SELECTED<br><span style="font-size:10px;letter-spacing:.12em;opacity:.7">select an unlocked level</span></div>`;lastPlanDeck='';return;}
   const pin=mapState().pin;
   const PRP=mapState().props||{},prSig=Object.keys(PRP).sort().map(k=>k+':'+PRP[k].x+','+PRP[k].y+','+PRP[k].rot+','+PRP[k].sc+','+PRP[k].sx+','+PRP[k].sy+','+(PRP[k].lbl||'')).join(';')+'|'+Object.keys(mapState().noeq||{}).sort().join()+'|v'+(mapState().veilAll?1:0)+'|'+theme+'|'+PW+'x'+PH;
-  const sig=[deckId,Object.keys(revRooms()).sort().join(),Object.keys(revCorr()).sort().join(),pin&&pin.deck===deckId?pin.x+','+pin.y:'',selRoom,showCams,Object.keys(camsOn()).join(),focusToken,prSig].join('|');
+  const sig=[LAYER||'',deckId,Object.keys(revRooms()).sort().join(),Object.keys(revCorr()).sort().join(),pin&&pin.deck===deckId?pin.x+','+pin.y:'',selRoom,showCams,Object.keys(camsOn()).join(),focusToken,prSig].join('|');
   if(sig===lastSig.plan&&wrap.querySelector('svg.cur')&&!forceFit)return;
   lastSig.plan=sig;
-  const st={rooms:revRooms(),corr:revCorr(),pin:pin&&pin.deck===deckId?pin:null,sel:selRoom,showCams,camsOn:camsOn(),props:Object.keys(PRP).map(k=>Object.assign({id:k},PRP[k])),noeq:mapState().noeq||{},veilAll:!!mapState().veilAll};
+  const st={layer:LAYER,sys:LAYER&&window.StationSystems?window.StationSystems.forDeck(S,deckId,LAYER):null,rooms:revRooms(),corr:revCorr(),pin:pin&&pin.deck===deckId?pin:null,sel:selRoom,showCams,camsOn:camsOn(),props:Object.keys(PRP).map(k=>Object.assign({id:k},PRP[k])),noeq:mapState().noeq||{},veilAll:!!mapState().veilAll};
   plan=R.plan(d,st,{W:Math.round(d.bbox[2]*7+84),maxH:99999,id:'pl',key:false});
   // o que acabou de ser revelado neste deck
   const cur={rooms:new Set(Object.keys(revRooms()).filter(k=>S.roomIndex[k]&&S.roomIndex[k].deck===deckId)),corr:new Set(Object.keys(revCorr()).filter(k=>S.corrIndex[k]&&S.corrIndex[k].deck===deckId))};
