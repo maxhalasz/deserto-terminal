@@ -328,3 +328,26 @@ html[data-theme="light"]{--alarm:#cf111b;--alarmtx:#8f0a12}
 @media (prefers-reduced-motion:reduce){.tick b{animation:none}}
 body.full .pen{display:none}
 .sk-blk{fill:var(--live);fill-opacity:.14;stroke:var(--live);stroke-width:1.3;stroke-dasharray:4 3}
+
+/* =====================================================================
+   TEMA NEUROSTAT — o monitor e da NeuroStat: cinza azulado, azul como unica cor viva.
+   Alarme (faixa WARNING), selado e fogo continuam em vermelho/ambar.
+   ===================================================================== */
+:root{--bg:#0d1013;--panel:#14181c;--panel2:#1a1f24;--line:#343c44;--line2:#222830;--ink:#cdd3d9;--ink-dim:#7b858f;--live:#5b95cf;--warn:#d9b155;--danger:#d9534a;--livetext:#0a0d10;--rl:#343c44;--mapbg:#dfe3e5;--hdrbg:#101417;--hdrink:#e9eef2;--hdrdim:#7b858f;--hdrcell:#a5c6e8}
+html[data-theme="light"]{--bg:#eef0f2;--panel:#f8f9fa;--panel2:#e4e7ea;--line:#1b2025;--line2:#c4cacf;--ink:#1b2025;--ink-dim:#5f6a73;--live:#2f6fb0;--warn:#a8650d;--danger:#b8321f;--livetext:#ffffff;--rl:#c9cfd4;--mapbg:#e6e9eb;--hdrbg:#1b2025;--hdrink:#f2f5f7;--hdrdim:#98a3ad;--hdrcell:#a5c6e8}
+html,body{background:#0c0f11}
+.desk{background:radial-gradient(ellipse at 78% 20%,rgba(220,232,245,.06),transparent 55%),linear-gradient(100deg,#1b1d1f,#131517)}
+.bezel{background:linear-gradient(#2c3238,#1a1e22);box-shadow:0 22px 40px rgba(0,0,0,.7),inset 0 1px 0 rgba(220,235,255,.08),inset 0 0 0 1px #0b0d0f}
+.bezel:before,.bezel:after{background:radial-gradient(circle at 35% 30%,#5d666f,#22272c)}
+html[data-theme="light"] .bezel{background:linear-gradient(#dfe3e7,#c3c9ce);box-shadow:0 22px 40px rgba(0,0,0,.7),inset 0 1px 0 #fff}
+.scr{box-shadow:inset 0 0 0 2px #06080a}
+.plateB{color:#848e98}
+.plateB .led,.hdr .logo{background:var(--live)}
+.plateB .led{box-shadow:0 0 6px var(--live)}
+.plateB .vent i{background:#0d1013}
+.ftr .seg i.o,.seg2 i.o{background:#2b323a}
+.camglitch{background:rgba(91,149,207,.28)}
+.roll{background:linear-gradient(180deg,transparent,rgba(91,149,207,.04) 50%,transparent)}
+#terminal.boot:before{background:linear-gradient(180deg,transparent,rgba(91,149,207,.22),transparent)}
+.pen rect:first-child{fill:#262b30}
+.sk-blk{fill:var(--live);stroke:var(--live)}

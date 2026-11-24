@@ -4,10 +4,10 @@
    corredores com grade, cotas, bolhas de grade estrutural, escala, figura humana, legenda.
    ============================================================ */
 (function(){
-const T={paper:'#e4e1d6',wall:'#1b1d1f',corr:'#c1c2b8',room:'#efede5',deck:'#dedbcf',grate:'rgba(0,0,0,.11)',grid:'#bdb9aa',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
-  equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#d9531e',you:'#1b1d1f',youText:'#eceae2',sel:'#d9531e',amber:'#b8480f',
+const T={paper:'#dfe3e5',wall:'#1a1e22',corr:'#bec4c8',room:'#eceeef',deck:'#d7dcde',grate:'rgba(0,0,0,.11)',grid:'#b5bcc1',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
+  equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#2f6fb0',you:'#1b1d1f',youText:'#eceae2',sel:'#2f6fb0',amber:'#b8480f',
   sealBg:'#d2cebd',hazard:'#d9531e',fire:'#9c2f1b',pink:'#26282a',stain:'rgba(92,34,28,.72)'};
-const THEME={dark:{paper:'#e4e1d6',room:'#efede5',corr:'#c1c2b8',deck:'#dedbcf',grid:'#bdb9aa'},light:{paper:'#eceae2',room:'#fbfaf6',corr:'#d6d3c8',deck:'#f4f3ee',grid:'#cfccbe'}};
+const THEME={dark:{paper:'#dfe3e5',room:'#eceeef',corr:'#bec4c8',deck:'#d7dcde',grid:'#b5bcc1'},light:{paper:'#e6e9eb',room:'#f8f9fa',corr:'#d0d5d8',deck:'#eef0f1',grid:'#c6ccd0'}};
 function setTheme(m){Object.assign(T,THEME[m]||THEME.dark);}
 const DW={door:1.3,cdoor:1.0,double:2.4,open:2.6,wide:5,gate:1.8,weld:1.4,hatch:1.0};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));

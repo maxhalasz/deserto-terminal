@@ -1,12 +1,76 @@
 /* GM-ONLY: carregado so por guardiao.html. Texto do Guardiao por sala (p:1 = parada do tour). */
 window.STATION_GM={text:{
- "md0": {
+ "ms_cal": {
+  "p": 0,
+  "b": [
+   "Escritório e cama no mesmo cômodo, mesa virada pra porta",
+   "Quadro de produção em giz, a última coluna apagada com a mão",
+   "Cheiro de café de dois dias"
+  ]
+ },
+ "ms_les": {
+  "p": 0,
+  "b": [
+   "Ferramenta de bolso espalhada sobre a mesa",
+   "Macacão pendurado, graxa na manga",
+   "Cama feita no esquadro, sem uma dobra"
+  ]
+ },
+ "ms_chl": {
+  "p": 0,
+  "b": [
+   "Tabela de descompressão colada acima da cama",
+   "Relógio de profundidade parado sobre a mesa",
+   "Fotos presas com tachinha, todas de capacete"
+  ]
+ },
+ "mb_ent": {
   "p": 1,
   "b": [
-   "Sala redonda, poltronas em anel e mesa baixa no centro",
-   "As duas alas abrem pra ela: oficiais ao norte, tripulação ao sul",
-   "Relógio sobre a porta atrasado cinco minutos há anos",
-   "É onde todo mundo passa, então é onde todo mundo se vê"
+   "Capacho de aço e porta dupla de vidro",
+   "Elevador e escada lado a lado",
+   "Aviso na parede: quem vem do lado sujo passa pela boot room",
+   "Ar do bloco, quente e seco, empurrando pra fora"
+  ]
+ },
+ "mb_lf": {
+  "p": 0,
+  "b": [
+   "Porta sanfonada de aço",
+   "Cinco botões, e o E tem etiqueta nova",
+   "Cabine com cheiro de pó queimado"
+  ]
+ },
+ "mb_st": {
+  "p": 0,
+  "b": [
+   "Corrimão gasto no meio dos degraus",
+   "Cinco lances subindo pela parte de dentro do bloco",
+   "Luz fria em cada patamar"
+  ]
+ },
+ "md3": {
+  "p": 0,
+  "b": [
+   "Painel de sombra com contorno de cada ferramenta",
+   "Três contornos vazios",
+   "Cheiro de verniz e cobre queimado"
+  ]
+ },
+ "md12": {
+  "p": 0,
+  "b": [
+   "Prateleiras ate o teto, peca etiquetada e contada",
+   "Dois espacos vazios na prateleira de valvulas, com marca de poeira do tamanho da peca",
+   "Inventario na parede com data de 2013"
+  ]
+ },
+ "md2": {
+  "p": 1,
+  "b": [
+   "Fresca e escura de propósito",
+   "Seis monitores e painel sinóptico de lampadinhas",
+   "Encosto lustroso, marca de xícara na bancada"
   ]
  },
  "md1": {
@@ -18,28 +82,42 @@ window.STATION_GM={text:{
    "Cheiro de neoprene e diesel"
   ]
  },
- "md2": {
-  "p": 1,
-  "b": [
-   "Fresca e escura de propósito",
-   "Seis monitores e painel sinóptico de lampadinhas",
-   "Encosto lustroso, marca de xícara na bancada"
-  ]
- },
- "md3": {
+ "mc_chg": {
   "p": 0,
   "b": [
-   "Painel de sombra com contorno de cada ferramenta",
-   "Três contornos vazios",
-   "Cheiro de verniz e cobre queimado"
+   "Banco comprido e ganchos numerados",
+   "Macacão limpo dobrado na prateleira, sujo no cesto",
+   "Chão molhado até a porta do lado sujo"
   ]
  },
- "md4": {
-  "p": 1,
+ "md_ppe": {
+  "p": 0,
   "b": [
-   "24 cabeças de poço amarelas em fileira",
-   "Piso gradeado com vista pro cellar deck",
-   "Chiado de gás constante lá em cima"
+   "Macacão, capacete e cinto por tamanho",
+   "Duas prateleiras de tamanho 44 vazias"
+  ]
+ },
+ "mt_w": {
+  "p": 0,
+  "b": [
+   "Escada de gaiola subindo pro weather deck e descendo pro cellar",
+   "Barulho do vento desce pelo vão",
+   "Cheiro de água salgada vindo de baixo"
+  ]
+ },
+ "md_ins": {
+  "p": 0,
+  "b": [
+   "Bancadas de calibração e gavetas etiquetadas",
+   "Manômetros reserva, um com o vidro trincado"
+  ]
+ },
+ "mx_gas1": {
+  "p": 0,
+  "b": [
+   "Painel de sensores com lâmpadas verdes",
+   "Um canal marcado em amarelo, sem anotação",
+   "Relé estalando em intervalo regular"
   ]
  },
  "md5": {
@@ -48,6 +126,21 @@ window.STATION_GM={text:{
    "Peneiras cuspindo lama cinza",
    "Tudo coberto, inclusive o vidro do laboratório",
    "Cheiro de argila molhada e químico doce"
+  ]
+ },
+ "md_lab": {
+  "p": 0,
+  "b": [
+   "Capela de exaustão e bancada de frascos com sedimento cinza",
+   "Etiquetas com datas que param em 2013"
+  ]
+ },
+ "md_chem": {
+  "p": 0,
+  "b": [
+   "Sacos e tambores atrás de uma corrente",
+   "Losangos de risco em todos os rótulos",
+   "Cheiro de ácido fraco"
   ]
  },
  "md6": {
@@ -66,12 +159,12 @@ window.STATION_GM={text:{
    "O silêncio quando desligam dá vertigem"
   ]
  },
- "md8": {
+ "md10": {
   "p": 0,
   "b": [
-   "Portão de tela com corrente e lacre vermelho",
-   "Etiqueta de bloqueio em cada válvula",
-   "Aviso plastificado de 2013 descolando"
+   "Torno e cavaco no chão",
+   "Rádio tocando estática",
+   "Três marcas de queimadura na bancada"
   ]
  },
  "md9": {
@@ -81,67 +174,111 @@ window.STATION_GM={text:{
    "Dois geradores enormes, um com lona por cima"
   ]
  },
- "md10": {
+ "md8": {
   "p": 0,
   "b": [
-   "Torno e cavaco no chão",
-   "Rádio tocando estática",
-   "Três marcas de queimadura na bancada"
+   "Portão de tela com corrente e lacre vermelho",
+   "Etiqueta de bloqueio em cada válvula",
+   "Aviso plastificado de 2013 descolando"
   ]
  },
- "wd1": {
-  "p": 1,
-  "b": [
-   "Círculo de 22 m com H apagado",
-   "Rede de segurança inclinada pra fora",
-   "Corda amarela com placa atravessando"
-  ]
- },
- "wd2": {
+ "mx_sto1": {
   "p": 0,
   "b": [
-   "Motor do elevador atrás de grade",
-   "Dois tanques cinza de sprinkler",
-   "Cheiro de graxa quente"
+   "Juntas e vedações em caixa etiquetada",
+   "Inventário na prancheta, data de 2013"
   ]
  },
- "wd3": {
-  "p": 1,
-  "b": [
-   "Contêiner empilhado em dois níveis",
-   "Gancho de guindaste balançando sozinho",
-   "O ponto mais ventoso da plataforma"
-  ]
- },
- "wd4": {
+ "md_scba": {
   "p": 0,
   "b": [
-   "Treliça branca subindo 50 m",
-   "Escada de gaiola sem fim"
+   "Aparelhos de respiração em armários de parede",
+   "Todos os manômetros no cheio",
+   "Um armário sem lacre"
   ]
  },
- "wd5": {
+ "mt_c": {
   "p": 0,
   "b": [
-   "Chaminé cinza isolada",
-   "Tinta descascando em faixa",
-   "Quando abre, a plataforma inteira escuta"
+   "Escada de gaiola no meio da plataforma",
+   "Degrau com tinta nova numa faixa, o resto gasto",
+   "Vento em cima, água embaixo"
   ]
  },
- "wd6": {
-  "p": 1,
+ "md_trf": {
+  "p": 0,
   "b": [
-   "Quatro cápsulas laranja em berço inclinado",
-   "70 lugares cada uma",
-   "Quadro de nomes com a maioria das linhas em branco"
+   "Três transformadores em óleo",
+   "Zumbido mais agudo que o dos compressores",
+   "Poça de óleo seca no canto"
   ]
  },
- "wd7": {
+ "mx_sto2": {
+  "p": 0,
+  "b": [
+   "Flanges e parafusos por bitola",
+   "Uma prateleira inteira de chave inglesa, nenhuma faltando"
+  ]
+ },
+ "md_inj": {
+  "p": 0,
+  "b": [
+   "Três tanques de dosagem e uma fileira de bombas pequenas",
+   "Etiquetas das válvulas em dois idiomas",
+   "Uma bomba gira em vazio"
+  ]
+ },
+ "md_wc": {
+  "p": 0,
+  "b": [
+   "Carrinho de limpeza, balde e dois sanitários",
+   "Cheiro de pinho barato"
+  ]
+ },
+ "mx_foam": {
+  "p": 0,
+  "b": [
+   "Dois tanques vermelhos de espuma, lacre inteiro",
+   "Cheiro de detergente doce",
+   "Placa de teste anual, última assinatura de 2012"
+  ]
+ },
+ "mx_gas2": {
+  "p": 0,
+  "b": [
+   "Painel de sensores com lâmpadas verdes",
+   "Etiqueta de calibração com a data de 2013",
+   "Cheiro fraco de ovo, quase nada"
+  ]
+ },
+ "mx_sto3": {
+  "p": 0,
+  "b": [
+   "Mangueiras enroladas e penduradas",
+   "Cheiro de borracha velha"
+  ]
+ },
+ "mt_e": {
+  "p": 0,
+  "b": [
+   "Escada leste, a mais perto do wellbay",
+   "Piso gradeado, dá pra ver o cellar por baixo dos pés",
+   "Vento no vão"
+  ]
+ },
+ "mx_sto4": {
+  "p": 0,
+  "b": [
+   "Caixas de filtro empilhadas até o teto",
+   "Etiqueta de outra empresa sob a tinta"
+  ]
+ },
+ "md4": {
   "p": 1,
   "b": [
-   "Cinto e capacete em fileira",
-   "Cesto de pessoal encostado no canto",
-   "Alga seca presa na malha"
+   "24 cabeças de poço amarelas em fileira",
+   "Piso gradeado com vista pro cellar deck",
+   "Chiado de gás constante lá em cima"
   ]
  },
  "wd8": {
@@ -165,20 +302,106 @@ window.STATION_GM={text:{
    "Remendo de fita já amarelada"
   ]
  },
+ "wd14": {
+  "p": 0,
+  "b": [
+   "Ponto de reuniao 3, numero pintado no piso",
+   "Quadro de chamada em branco, so a ultima linha preenchida a caneta"
+  ]
+ },
+ "wd_tc": {
+  "p": 0,
+  "b": [
+   "Cartões brancos pendurados, nome a caneta",
+   "Um cartão virado pro avesso",
+   "Contagem de hoje em giz no canto, riscada duas vezes"
+  ]
+ },
+ "wd6": {
+  "p": 1,
+  "b": [
+   "Quatro cápsulas laranja em berço inclinado",
+   "70 lugares cada uma",
+   "Quadro de nomes com a maioria das linhas em branco"
+  ]
+ },
+ "wd3": {
+  "p": 1,
+  "b": [
+   "Contêiner empilhado em dois níveis",
+   "Gancho de guindaste balançando sozinho",
+   "O ponto mais ventoso da plataforma"
+  ]
+ },
+ "wd5": {
+  "p": 0,
+  "b": [
+   "Chaminé cinza isolada",
+   "Tinta descascando em faixa",
+   "Quando abre, a plataforma inteira escuta"
+  ]
+ },
+ "wd7": {
+  "p": 1,
+  "b": [
+   "Cinto e capacete em fileira",
+   "Cesto de pessoal encostado no canto",
+   "Alga seca presa na malha"
+  ]
+ },
+ "wd16": {
+  "p": 0,
+  "b": [
+   "Tubo e bandeja de cabo correndo em feixe",
+   "Passarela molhada sob o rack",
+   "Vibração subindo pelo guarda-corpo"
+  ]
+ },
+ "wd17": {
+  "p": 0,
+  "b": [
+   "Paletes de ferramenta cobertos com lona",
+   "Cabo de amarração enrolado em oito",
+   "Lona batendo no vento"
+  ]
+ },
+ "wd18": {
+  "p": 0,
+  "b": [
+   "Cesto de pessoal amarrado",
+   "Tambor vazio rolando de leve com o balanço",
+   "Corda com nó de marinheiro que ninguém aqui sabe fazer"
+  ]
+ },
+ "wd15": {
+  "p": 0,
+  "b": [
+   "Prateleira de ferramenta e cabo de amarração",
+   "Um galão de óleo sem etiqueta",
+   "Chave de roda de contêiner pendurada num prego"
+  ]
+ },
+ "wd_raft": {
+  "p": 0,
+  "b": [
+   "Balsas em cestos cinza presos por cinta",
+   "Escorregador dobrado no trilho",
+   "Lacre de lançamento inteiro em todas"
+  ]
+ },
+ "wd4": {
+  "p": 0,
+  "b": [
+   "Treliça branca subindo 50 m",
+   "Escada de gaiola sem fim"
+  ]
+ },
  "wd11": {
   "p": 0,
   "b": [
    "80 m de passarela reta até o flare",
    "Sem abrigo e sem parada",
    "Guarda-corpo vibra quando venta"
-  ]
- },
- "wd12": {
-  "p": 0,
-  "b": [
-   "Passarela curta e velha",
-   "Piso remendado com chapa aparafusada",
-   "Gunnar aponta e não atravessa"
   ]
  },
  "wd13": {
@@ -189,28 +412,12 @@ window.STATION_GM={text:{
    "Nenhuma luz, nenhuma antena"
   ]
  },
- "cd1": {
-  "p": 1,
-  "b": [
-   "Labirinto de duto prateado no teto",
-   "Ventiladores em três tons",
-   "Sauna de compensado com válvula de vapor desviada",
-   "Vapor denso demais pra ver a parede oposta"
-  ]
- },
- "cd2": {
-  "p": 1,
-  "b": [
-   "Duas fileiras de macacão pingando",
-   "Aquecedor soprando por baixo",
-   "As roupas balançam devagar o tempo todo"
-  ]
- },
- "cd3": {
+ "wd_hb": {
   "p": 0,
   "b": [
-   "Tubulação branca e zumbido agudo",
-   "Poça permanente no chão"
+   "Círculo com H apagado",
+   "Biruta rasgada, ainda apontando pro vento",
+   "Rede de segurança comida de ferrugem"
   ]
  },
  "cd4": {
@@ -222,45 +429,13 @@ window.STATION_GM={text:{
    "Contêiner formando corredores"
   ]
  },
- "cd5": {
+ "cd1": {
   "p": 1,
   "b": [
-   "Quadrado de água preta de 6 m no piso",
-   "Iluminado por baixo, o mar subindo e descendo",
-   "Submersível amarelo no pórtico",
-   "O som da água volta pelo teto"
-  ]
- },
- "cd6": {
-  "p": 1,
-  "b": [
-   "Cilindros em rack e traje pendurado",
-   "Quadro de escala com marcador que não sai mais",
-   "Prancheta com o último nome assinado"
-  ]
- },
- "cd7": {
-  "p": 0,
-  "b": [
-   "O maior espaço fechado da plataforma",
-   "Árvores de natal enfileiradas",
-   "Eco com meio segundo de atraso"
-  ]
- },
- "cd8": {
-  "p": 1,
-  "b": [
-   "Carretel de aço do tamanho de um carro",
-   "Painel com dois joysticks gastos",
-   "Contador não zerado desde 2011"
-  ]
- },
- "cd9": {
-  "p": 1,
-  "b": [
-   "Dois ROVs amarelos em berço",
-   "Braço manipulador desmontado na bancada",
-   "Três monitores empoeirados em tela azul"
+   "Labirinto de duto prateado no teto",
+   "Ventiladores em três tons",
+   "Sauna de compensado com válvula de vapor desviada",
+   "Vapor denso demais pra ver a parede oposta"
   ]
  },
  "cd10": {
@@ -271,11 +446,28 @@ window.STATION_GM={text:{
    "Luz de emergência piscando desde sempre"
   ]
  },
- "cd11": {
+ "cd_stk": {
   "p": 0,
   "b": [
-   "Duas bombas vermelhas grandes",
-   "Tubo do diâmetro de um corpo descendo pelo piso"
+   "Baterias em estante, terminal engraxado",
+   "Luz de emergência acesa, ninguém sabe desde quando",
+   "Cheiro adocicado de ácido"
+  ]
+ },
+ "cd2": {
+  "p": 1,
+  "b": [
+   "Duas fileiras de macacão pingando",
+   "Aquecedor soprando por baixo",
+   "As roupas balançam devagar o tempo todo"
+  ]
+ },
+ "cd6": {
+  "p": 1,
+  "b": [
+   "Cilindros em rack e traje pendurado",
+   "Quadro de escala com marcador que não sai mais",
+   "Prancheta com o último nome assinado"
   ]
  },
  "cd12": {
@@ -284,14 +476,6 @@ window.STATION_GM={text:{
    "Lata de tinta e galão de solvente",
    "Caixa aberta de máscara meia-face, filtro lacrado",
    "Cheiro de thinner que pega na garganta"
-  ]
- },
- "cd13": {
-  "p": 0,
-  "b": [
-   "Dois tambores azuis, funil e balança",
-   "Exaustor desligado",
-   "Quem entra sai rápido"
   ]
  },
  "cd14": {
@@ -310,334 +494,157 @@ window.STATION_GM={text:{
    "Eco de sala grande e vazia"
   ]
  },
- "lqA0": {
-  "p": 0,
-  "b": [
-   "Corrimão gasto no meio",
-   "Elevador de porta sanfonada",
-   "Cinco botões, e o E tem etiqueta nova"
-  ]
- },
- "lqA9": {
-  "p": 0,
-  "b": [
-   "Porta corta-fogo com barra antipânico",
-   "Cinco lances por fora do bloco",
-   "Vento assobiando por uma fresta"
-  ]
- },
- "lqA1": {
+ "cd5": {
   "p": 1,
   "b": [
-   "Mesa pra quarenta, jantar de quatorze",
-   "Cadeiras viradas nas mesas do fundo",
-   "Papel bege listrado descascando no teto",
-   "TV passando notícia sem som"
+   "Quadrado de água preta de 6 m no piso",
+   "Iluminado por baixo, o mar subindo e descendo",
+   "Submersível amarelo no pórtico",
+   "O som da água volta pelo teto"
   ]
  },
- "lqA2": {
+ "cd8": {
   "p": 1,
   "b": [
-   "Sofá de courino rachado",
-   "PS4 numa TV grande",
-   "Musculação virada cabideiro",
-   "Vão largo sem porta pro refeitório"
+   "Carretel de aço do tamanho de um carro",
+   "Painel com dois joysticks gastos",
+   "Contador não zerado desde 2011"
   ]
  },
- "lqA3": {
+ "cd9": {
   "p": 1,
   "b": [
-   "Inox de parede a parede, fogão de oito bocas",
-   "Passa-pratos aberto pro refeitório",
-   "TV de tubo com comédia italiana alta demais"
+   "Dois ROVs amarelos em berço",
+   "Braço manipulador desmontado na bancada",
+   "Três monitores empoeirados em tela azul"
   ]
  },
- "lqA4": {
+ "cd11": {
   "p": 0,
   "b": [
-   "Prateleiras até o teto",
-   "Estoque pra três meses",
-   "Lata alinhada com o rótulo pra frente"
+   "Duas bombas vermelhas grandes",
+   "Tubo do diâmetro de um corpo descendo pelo piso"
   ]
  },
- "lqA5": {
+ "cd_hpu": {
   "p": 0,
   "b": [
-   "Trinco de alavanca e visor embaçado",
-   "Gancho vazio no trilho do teto",
-   "Compressor batendo em ciclo"
+   "Tanque de óleo hidráulico e duas bombas",
+   "Bandeja de gotejamento sob cada conexão",
+   "Painel de pressão com ponteiro parado no vermelho"
   ]
  },
- "lqA6": {
-  "p": 0,
-  "b": [
-   "Quatro máquinas e duas secadoras",
-   "Varal de nylon atravessando a sala",
-   "Sempre tem roupa esquecida"
-  ]
- },
- "lqA7": {
+ "cd_bal": {
   "p": 1,
   "b": [
-   "Duas macas e armário com cadeado",
-   "Pôster de anatomia de 1998 preso com fita",
-   "Limpo demais em comparação com o resto"
+   "Console com o diagrama das pernas e dos tanques de lastro",
+   "Vários indicadores em âmbar",
+   "Livro de registro com a última entrada às 03:12 sem assinatura"
   ]
  },
- "lqA8": {
+ "cd3": {
   "p": 0,
   "b": [
-   "Arquivo de aço com fechadura",
-   "Quadro de cortiça com um papel virado pra parede"
+   "Tubulação branca e zumbido agudo",
+   "Poça permanente no chão"
   ]
  },
- "lqA10": {
+ "cd_pwt": {
   "p": 0,
   "b": [
-   "Poltronas viradas pra janela redonda",
-   "Escuro nove meses por ano",
-   "Cinzeiro que não devia estar ali"
+   "Tanques cilíndricos em fila, nível pintado na lateral",
+   "Visor com água cor de chá",
+   "Cheiro de óleo e sal"
   ]
  },
- "lqB0": {
+ "cd_swp": {
   "p": 0,
   "b": [
-   "Luz do núcleo acesa, luz do corredor apagada",
-   "A linha entre as duas é visível no piso"
+   "Bombas grandes em piso elevado",
+   "Tubo descendo pro escuro",
+   "O som da água dentro do tubo não bate com o nível"
   ]
  },
- "lqB9": {
+ "cd7": {
   "p": 0,
   "b": [
-   "Fita adesiva na fechadura pra não trancar",
-   "Alguém do bloco B fez isso e ninguém tirou"
+   "O maior espaço fechado da plataforma",
+   "Árvores de natal enfileiradas",
+   "Eco com meio segundo de atraso"
   ]
  },
- "lqB1": {
+ "cd_egen": {
   "p": 0,
   "b": [
-   "23 portas fechadas em 23 m de corredor",
-   "Fita cruzando cada batente, já amarelada",
-   "Luz de emergência a cada dez metros",
-   "Nenhum cheiro, e isso é o que estranha"
+   "Gerador de emergência sob lona",
+   "Tanque de diesel marcado em 100%",
+   "Livro de teste mensal, último teste sem assinatura"
   ]
  },
- "lqB2": {
-  "p": 0,
-  "b": [
-   "Cadeiras empilhadas até o ombro",
-   "TV de tubo ainda plugada",
-   "Poeira uniforme, sem marca de dedo"
-  ]
- },
- "lqB3": {
-  "p": 0,
-  "b": [
-   "Mais doze portas",
-   "A da ponta entreaberta, fita rompida",
-   "Colchão sem lençol e armário aberto"
-  ]
- },
- "lqB4": {
+ "cd_rsk": {
   "p": 1,
   "b": [
-   "Seis camarotes acesos no fim de um corredor apagado",
-   "As portas destas abrem",
-   "Da última dá pra ver os 30 m até o núcleo"
+   "Cabine industrial com grade nos dois lados",
+   "Uma lâmpada só",
+   "Nove minutos, patamar a cada vinte metros",
+   "Depois do quarto patamar não tem rádio"
   ]
  },
- "lqB5": {
-  "p": 0,
-  "b": [
-   "Colchão enrolado com corda",
-   "Papelada anterior a 2011, mole de umidade",
-   "Uma caixa com carimbo de outra empresa"
-  ]
- },
- "lqB6": {
-  "p": 0,
-  "b": [
-   "Água cortada no registro geral",
-   "Sifão seco e o cheiro que sobe",
-   "Linha de mofo na altura do joelho"
-  ]
- },
- "lqB7": {
-  "p": 0,
-  "b": [
-   "Dois chuveiros e uma pia",
-   "Espelho com a prata descolando",
-   "Lâmpada piscando em intervalo irregular"
-  ]
- },
- "lqB8": {
-  "p": 0,
-  "b": [
-   "Corredor sul termina em parede lisa",
-   "Mesmo papel bege listrado do bloco",
-   "Descolado 20 cm de baixo pra cima",
-   "Atrás não é chapa de aço, é gesso"
-  ]
- },
- "lqB10": {
-  "p": 0,
-  "b": [
-   "Cubículo de 2 × 3 m, vinil verde intocado",
-   "Porta de elevador de aço escovado",
-   "Três botões: +46, −40, −260",
-   "Placa parafusada acima: DSRT"
-  ]
- },
- "lqC0": {
-  "p": 0,
-  "b": [
-   "Único patamar com as duas luzes funcionando",
-   "Tem um capacho"
-  ]
- },
- "lqC9": {
-  "p": 0,
-  "b": [
-   "Vidro reforçado por arame",
-   "Primeiro lance visível, o resto some no escuro"
-  ]
- },
- "lqC1": {
+ "cd_emb": {
   "p": 1,
   "b": [
-   "23 m de corredor, porta a cada 3,5 m",
-   "Cartão de nome, metade a caneta",
-   "Beliche, escrivaninha dobrável, armário estreito",
-   "Parede fina o bastante pra ouvir o vizinho"
+   "Plataforma gradeada rente à água",
+   "Escada de aço descendo pro mar, degraus verdes de alga",
+   "Boia com o nome da plataforma",
+   "Casco do barco de apoio batendo no defensa"
   ]
  },
- "lqC2": {
+ "cd13": {
   "p": 0,
   "b": [
-   "Box com cortina plástica, azulejo branco",
-   "Eco que devolve qualquer gota",
-   "Porta sem tranca desde antes do refit"
+   "Dois tambores azuis, funil e balança",
+   "Exaustor desligado",
+   "Quem entra sai rápido"
   ]
  },
- "lqC3": {
+ "cd_wks": {
   "p": 0,
   "b": [
-   "Seis portas destrancadas, camarotes arrumados",
-   "Colcha esticada, travesseiro no lugar",
-   "Cheiro fechado de mofo leve"
+   "Bancada de solda e cilindros acorrentados",
+   "Cheiro de queimado que não sai",
+   "Torno coberto de cavaco fino"
   ]
  },
- "lqC4": {
+ "cd_lube": {
   "p": 0,
   "b": [
-   "Lençol dobrado e macacão em saco plástico",
-   "Cheiro de alvejante, o único cheiro bom daqui"
+   "Tambores de óleo sobre bacias de contenção, em dois níveis",
+   "Uma bacia com óleo novo e limpo, sem tambor em cima",
+   "Cheiro de graxa quente"
   ]
  },
- "lqC5": {
+ "cd_air": {
   "p": 0,
   "b": [
-   "Duas mesas e estante com manual técnico",
-   "Três romances com a lombada quebrada",
-   "Uma cadeira sempre puxada, virada pra parede"
+   "Dois compressores azuis em série",
+   "Dreno pingando num balde",
+   "Pressão estável e ninguém no painel"
   ]
  },
- "lqC6": {
+ "cd_spr": {
   "p": 0,
   "b": [
-   "Um sofá e uma janelinha redonda",
-   "Sem equipamento, sem quadro, sem som",
-   "Usada três vezes em quinze anos"
+   "Válvulas, flanges e juntas em prateleira",
+   "Inventário em papel preso numa prancheta",
+   "Carretéis de cabo etiquetados com data e destino, um com destino \"M22\""
   ]
  },
- "lqC7": {
+ "cd_scs": {
   "p": 0,
   "b": [
-   "Carrinho de limpeza e aspirador",
-   "Porta destrancada e ninguém nunca levou nada"
-  ]
- },
- "lqD0": {
-  "p": 0,
-  "b": [
-   "Patamar mais alto da escada",
-   "Janela estreita dando pro mastro"
-  ]
- },
- "lqD9": {
-  "p": 0,
-  "b": [
-   "Porta corta-fogo pintada de vermelho",
-   "Só neste deck, sem motivo aparente"
-  ]
- },
- "lqD1": {
-  "p": 1,
-  "b": [
-   "Bancada em L com dois rádios VHF",
-   "Terminal de satélite e livro de registro a caneta",
-   "Parede de painel acústico furado",
-   "Quem está de plantão baixa o volume antes de virar"
-  ]
- },
- "lqD2": {
-  "p": 1,
-  "b": [
-   "Nove monitores, quatro sem sinal",
-   "Convés vazio, corredor vazio, área de carga",
-   "Caderno de ocorrências com caneta amarrada"
-  ]
- },
- "lqD3": {
-  "p": 0,
-  "b": [
-   "Arquivo trancado e toca-discos com vinil clássico",
-   "Única porta do bloco com chave de verdade"
-  ]
- },
- "lqD4": {
-  "p": 0,
-  "b": [
-   "Mesa pra doze e projetor com cabo enrolado",
-   "Contador de dias sem acidente alterado por cima"
-  ]
- },
- "lqD5": {
-  "p": 0,
-  "b": [
-   "Três baias com divisória de meia altura",
-   "Dá pra ouvir a baia ao lado",
-   "Ninguém fala nada importante aqui"
-  ]
- },
- "lqD6": {
-  "p": 0,
-  "b": [
-   "Arquivo deslizante de seis módulos",
-   "Etiquetas de 2011 até agora",
-   "Módulos anteriores vazios, etiquetas raspadas"
-  ]
- },
- "lqD8": {
-  "p": 0,
-  "b": [
-   "Pia, cafeteira e garrafa térmica",
-   "É onde acontece o que não cabe no refeitório"
-  ]
- },
- "lqD10": {
-  "p": 1,
-  "b": [
-   "Manequim de RCP sentado, de frente pra porta",
-   "Mapa de estações laminado, Rev. 3, 2011",
-   "Vídeo de indução gravado em 2009"
-  ]
- },
- "lqE0": {
-  "p": 0,
-  "b": [
-   "Topo da escada",
-   "Escotilha no teto e escada de gato"
+   "Trajes de imersão laranja pendurados pelo capuz",
+   "Coletes empilhados com apito amarrado",
+   "Um traje no chão, de boca aberta"
   ]
  },
  "lqE1": {
@@ -672,132 +679,377 @@ window.STATION_GM={text:{
    "A plataforma inteira fica abaixo daqui"
   ]
  },
- "cariser": {
+ "lqE7": {
   "p": 0,
   "b": [
-   "Cabine industrial com grade nos dois lados",
-   "Uma lâmpada só",
-   "Nove minutos, patamar a cada vinte metros",
-   "Depois do quarto patamar não tem rádio"
+   "Calços de helicóptero empilhados",
+   "Rede de carga dobrada, aviso de peso na etiqueta",
+   "Extintor de espuma com lacre intacto",
+   "Vento passando por baixo da porta"
   ]
  },
- "casat": {
+ "le_lf": {
   "p": 0,
   "b": [
-   "Casco branco encardido e câmaras hiperbáricas",
-   "Poço do sino aberto, água preta e imóvel",
-   "Submersível da DRE com crosta e uma vinha saindo",
-   "Massa de carne esponjosa do tamanho de um carro"
+   "Porta sanfonada de aço",
+   "Cinco botões, e o E tem etiqueta nova",
+   "Cabine com cheiro de pó queimado"
   ]
  },
- "ca7": {
+ "le_st": {
   "p": 0,
   "b": [
-   "Piso vinílico verde e fluorescente inteira acesa",
-   "Consultório com poltrona e caixa de lenço",
-   "Sala de observação com espelho unidirecional",
-   "Calendário de 1991 na secretaria",
-   "Corredor de 60 m numa célula de 19"
+   "Corrimão gasto no meio dos degraus",
+   "Luz fria em cada patamar",
+   "Eco curto, de concreto"
   ]
  },
- "md11": {
-  "p": 0,
-  "b": [
-   "Box com cortina, azulejo branco, ralo no meio",
-   "Ainda lado limpo: ninguem chega aqui sujo sem passar pela boot room",
-   "Vestigio de lama em um dos boxes: alguem passou sem trocar de bota"
-  ]
- },
- "md12": {
-  "p": 0,
-  "b": [
-   "Prateleiras ate o teto, peca etiquetada e contada",
-   "Dois espacos vazios na prateleira de valvulas, com marca de poeira do tamanho da peca",
-   "Inventario na parede com data de 2013"
-  ]
- },
- "md_swu": {
-  "p": 0,
-  "b": [
-   "Escada de gaiola subindo pro weather deck",
-   "Barulho do vento desce pelo vao"
-  ]
- },
- "md_swd": {
-  "p": 0,
-  "b": [
-   "Escada descendo pro cellar deck",
-   "Cheiro de agua salgada vindo de baixo"
-  ]
- },
- "md_seu": {
-  "p": 0,
-  "b": [
-   "Escada leste, subindo pro weather deck"
-  ]
- },
- "md_sed": {
-  "p": 0,
-  "b": [
-   "Escada leste, descendo pro cellar deck"
-  ]
- },
- "wd14": {
-  "p": 0,
-  "b": [
-   "Ponto de reuniao 3, numero pintado no piso",
-   "Quadro de chamada em branco, so a ultima linha preenchida a caneta"
-  ]
- },
- "md_off": {
+ "lqD1": {
   "p": 1,
   "b": [
-   "Nove cabines pequenas, duas pessoas em cada",
-   "Placa de latão com o nome na porta",
-   "Escotilha redonda do tamanho de um prato de jantar",
-   "A última cabine tem a cama feita e o nome raspado da placa"
+   "Bancada em L com dois rádios VHF",
+   "Terminal de satélite e livro de registro a caneta",
+   "Parede de painel acústico furado",
+   "Quem está de plantão baixa o volume antes de virar"
   ]
  },
- "md_crw": {
+ "lqD2": {
   "p": 1,
   "b": [
-   "Nove cabines pequenas, duas pessoas em cada",
-   "Nome em fita crepe, a maioria a caneta",
-   "Escotilha redonda em cada uma, vista pro mar",
-   "Duas camas desfeitas que ninguém reclama"
+   "Nove monitores, quatro sem sinal",
+   "Convés vazio, corredor vazio, área de carga",
+   "Caderno de ocorrências com caneta amarrada"
   ]
  },
- "md_ow": {
+ "lqD4": {
   "p": 0,
   "b": [
-   "Azulejo branco, sempre morno",
-   "Um box com a cortina fechada e a luz acesa"
+   "Mesa pra doze e projetor com cabo enrolado",
+   "Contador de dias sem acidente alterado por cima"
   ]
  },
- "md_om": {
+ "lqD5": {
   "p": 0,
   "b": [
-   "Mesa pra doze, cartão de lugar à mão",
-   "Louça boa trancada em vitrine",
-   "Doze lugares, onze cartões legíveis"
+   "Três baias com divisória de meia altura",
+   "Dá pra ouvir a baia ao lado",
+   "Ninguém fala nada importante aqui"
   ]
  },
- "md_cl": {
+ "lqD6": {
   "p": 0,
   "b": [
-   "Duas camas e armário de medicamentos trancado",
-   "Balança e régua de altura na parede",
-   "Registro de atendimentos com a última linha em branco"
+   "Arquivo deslizante de seis módulos",
+   "Etiquetas de 2011 até agora",
+   "Módulos anteriores vazios, etiquetas raspadas"
   ]
  },
- "md_ol": {
+ "lqD8": {
   "p": 0,
   "b": [
-   "Máquinas industriais e varal de nylon",
-   "Roupa esquecida que ninguém reclama"
+   "Pia, cafeteira e garrafa térmica",
+   "É onde acontece o que não cabe no refeitório"
   ]
  },
- "md_gym": {
+ "ld_lf": {
+  "p": 0,
+  "b": [
+   "Porta sanfonada de aço",
+   "Cinco botões, e o E tem etiqueta nova",
+   "Cabine com cheiro de pó queimado"
+  ]
+ },
+ "ld_st": {
+  "p": 0,
+  "b": [
+   "Corrimão gasto no meio dos degraus",
+   "Luz fria em cada patamar",
+   "Eco curto, de concreto"
+  ]
+ },
+ "ls_gun": {
+  "p": 0,
+  "b": [
+   "Escritório e cama no mesmo cômodo, mesa virada pra janela",
+   "Rádio portátil na base de carga, luz verde",
+   "Cartão de natal de dois anos atrás ainda na parede"
+  ]
+ },
+ "ls_aru": {
+  "p": 0,
+  "b": [
+   "Maleta com cadeado de combinação",
+   "Cama feita, sem uso aparente",
+   "Cortina da janela fechada"
+  ]
+ },
+ "lqD3": {
+  "p": 0,
+  "b": [
+   "Arquivo trancado e toca-discos com vinil clássico",
+   "Única porta do bloco com chave de verdade"
+  ]
+ },
+ "lqD10": {
+  "p": 1,
+  "b": [
+   "Manequim de RCP sentado, de frente pra porta",
+   "Mapa de estações laminado, Rev. 3, 2011",
+   "Vídeo de indução gravado em 2009"
+  ]
+ },
+ "lqD11": {
+  "p": 0,
+  "b": [
+   "Planos de emergência em pasta, todos Rev. 3, 2011",
+   "Pasta de treinamento com as assinaturas",
+   "Contador de dias sem acidente igual ao da sala de reunião"
+  ]
+ },
+ "lqD12": {
+  "p": 0,
+  "b": [
+   "Pedidos de compra em bandeja, o último de novembro",
+   "Planilha impressa do barco de apoio",
+   "Telefone sem fio fora do gancho"
+  ]
+ },
+ "lc_lf": {
+  "p": 0,
+  "b": [
+   "Porta sanfonada de aço",
+   "Cinco botões, e o E tem etiqueta nova",
+   "Cabine com cheiro de pó queimado"
+  ]
+ },
+ "lc_st": {
+  "p": 0,
+  "b": [
+   "Corrimão gasto no meio dos degraus",
+   "Luz fria em cada patamar",
+   "Eco curto, de concreto"
+  ]
+ },
+ "lc_w": {
+  "p": 1,
+  "b": [
+   "23 m de corredor, uma porta a cada 3,5 m",
+   "Cartão de nome, metade a caneta",
+   "Beliche, escrivaninha dobrável, armário estreito",
+   "Parede fina o bastante pra ouvir o vizinho"
+  ]
+ },
+ "lc_e": {
+  "p": 0,
+  "b": [
+   "Três cabines, uma porta a cada 3,5 m",
+   "Cartão de nome, metade a caneta",
+   "Beliche, escrivaninha dobrável, armário estreito",
+   "Parede fina o bastante pra ouvir o vizinho"
+  ]
+ },
+ "lc_e2": {
+  "p": 0,
+  "b": [
+   "Três cabines iguais às do norte",
+   "Uma porta aberta, colchão enrolado sobre a cama de baixo",
+   "Cheiro de roupa guardada úmida"
+  ]
+ },
+ "lqC8": {
+  "p": 1,
+  "b": [
+   "Porta corta-fogo com vidro de arame",
+   "Capacho e botas alinhadas",
+   "Luz amarela do weather deck pela fresta"
+  ]
+ },
+ "lc_com": {
+  "p": 1,
+  "b": [
+   "Sala redonda, poltronas em anel e mesa baixa no centro",
+   "As duas alas abrem pra ela",
+   "Relógio sobre a porta atrasado cinco minutos há anos",
+   "É onde todo mundo passa, então é onde todo mundo se vê"
+  ]
+ },
+ "lc_bath": {
+  "p": 0,
+  "b": [
+   "Box com cortina plástica, azulejo branco",
+   "Eco que devolve qualquer gota",
+   "Porta sem tranca desde antes do refit"
+  ]
+ },
+ "lc_lau": {
+  "p": 0,
+  "b": [
+   "Quatro máquinas e duas secadoras",
+   "Varal de nylon atravessando a sala",
+   "Sempre tem roupa esquecida"
+  ]
+ },
+ "lqC4": {
+  "p": 0,
+  "b": [
+   "Lençol dobrado e macacão em saco plástico",
+   "Cheiro de alvejante, o único cheiro bom daqui"
+  ]
+ },
+ "lqC7": {
+  "p": 0,
+  "b": [
+   "Carrinho de limpeza e aspirador",
+   "Porta destrancada e ninguém nunca levou nada"
+  ]
+ },
+ "lb_lf": {
+  "p": 0,
+  "b": [
+   "Porta sanfonada de aço",
+   "Cinco botões, e o E tem etiqueta nova",
+   "Cabine com cheiro de pó queimado"
+  ]
+ },
+ "lb_st": {
+  "p": 0,
+  "b": [
+   "Corrimão gasto no meio dos degraus",
+   "Luz fria em cada patamar",
+   "Eco curto, de concreto"
+  ]
+ },
+ "lqB2": {
+  "p": 0,
+  "b": [
+   "Cadeiras empilhadas até o ombro",
+   "TV de tubo ainda plugada",
+   "Poeira uniforme, sem marca de dedo"
+  ]
+ },
+ "lqB5": {
+  "p": 0,
+  "b": [
+   "Colchão enrolado com corda",
+   "Papelada anterior a 2011, mole de umidade",
+   "Uma caixa com carimbo de outra empresa"
+  ]
+ },
+ "lb_c1": {
+  "p": 0,
+  "b": [
+   "Três portas fechadas",
+   "Fita cruzando cada batente, já amarelada",
+   "Luz de emergência a cada dez metros",
+   "Nenhum cheiro, e isso é o que estranha"
+  ]
+ },
+ "lqB6": {
+  "p": 0,
+  "b": [
+   "Água cortada no registro geral",
+   "Sifão seco e o cheiro que sobe",
+   "Linha de mofo na altura do joelho"
+  ]
+ },
+ "lb_c3": {
+  "p": 0,
+  "b": [
+   "Duas portas",
+   "A da ponta entreaberta, fita rompida",
+   "Colchão sem lençol e armário aberto"
+  ]
+ },
+ "lb_sto": {
+  "p": 0,
+  "b": [
+   "Móveis encapados com lona",
+   "Cabeceiras empilhadas contra a parede",
+   "Poeira uniforme, sem marca de dedo"
+  ]
+ },
+ "la_lf": {
+  "p": 0,
+  "b": [
+   "Porta sanfonada de aço",
+   "Cinco botões, e o E tem etiqueta nova",
+   "Cabine com cheiro de pó queimado"
+  ]
+ },
+ "la_st": {
+  "p": 0,
+  "b": [
+   "Corrimão gasto no meio dos degraus",
+   "Luz fria em cada patamar",
+   "Eco curto, de concreto"
+  ]
+ },
+ "la_rest": {
+  "p": 1,
+  "b": [
+   "Mesa pra quarenta, jantar de quatorze",
+   "Cadeiras viradas nas mesas do fundo",
+   "Papel bege listrado descascando no teto",
+   "TV passando notícia sem som"
+  ]
+ },
+ "la_lng": {
+  "p": 1,
+  "b": [
+   "Sofá de courino rachado",
+   "PS4 numa TV grande",
+   "Vão largo sem porta pro refeitório"
+  ]
+ },
+ "la_kit": {
+  "p": 1,
+  "b": [
+   "Inox de parede a parede, fogão de oito bocas",
+   "Passa-pratos aberto pro refeitório",
+   "TV de tubo com comédia italiana alta demais"
+  ]
+ },
+ "la_pan": {
+  "p": 0,
+  "b": [
+   "Prateleiras até o teto",
+   "Estoque pra três meses",
+   "Lata alinhada com o rótulo pra frente"
+  ]
+ },
+ "la_cold": {
+  "p": 0,
+  "b": [
+   "Trinco de alavanca e visor embaçado",
+   "Gancho vazio no trilho do teto",
+   "Compressor batendo em ciclo"
+  ]
+ },
+ "la_frz": {
+  "p": 0,
+  "b": [
+   "Porta pesada com puxador de alavanca",
+   "Gelo grosso no teto",
+   "Compressor batendo em ciclo"
+  ]
+ },
+ "la_fos": {
+  "p": 0,
+  "b": [
+   "Mesa, maca e estante de livro de medicina",
+   "Cama dobrável sem lençol",
+   "Maleta de primeiros socorros aberta sobre a mesa"
+  ]
+ },
+ "la_inf": {
+  "p": 1,
+  "b": [
+   "Duas macas e armário com cadeado",
+   "Pôster de anatomia de 1998 preso com fita",
+   "Limpo demais em comparação com o resto"
+  ]
+ },
+ "la_gym": {
   "p": 0,
   "b": [
    "Halteres e dois remos ergométricos",
@@ -805,144 +1057,28 @@ window.STATION_GM={text:{
    "O remo da esquerda ainda está morno"
   ]
  },
- "md_cd": {
+ "la_cln": {
   "p": 0,
   "b": [
-   "Sofá, mesa e baralho jogado a meio",
-   "Cheiro de café requentado"
+   "Balde, rodo e luva em ordem",
+   "Prateleira de lençol por tamanho",
+   "Cheiro de alvejante"
   ]
  },
- "md_lc": {
+ "la_vst": {
   "p": 0,
   "b": [
-   "Máquinas e varal",
-   "Cheiro forte de detergente"
+   "Porta dupla de vidro e capacho de aço",
+   "Banco curto e cabides",
+   "Vento do outro lado, dá pra ouvir"
   ]
  },
- "md_ppe": {
+ "la_stp": {
   "p": 0,
   "b": [
-   "Macacão, capacete e cinto por tamanho",
-   "Duas prateleiras de tamanho 44 vazias"
-  ]
- },
- "md_ins": {
-  "p": 0,
-  "b": [
-   "Bancadas de calibração e gavetas etiquetadas",
-   "Manômetros reserva, um com o vidro trincado"
-  ]
- },
- "md_scba": {
-  "p": 0,
-  "b": [
-   "Aparelhos de respiração em armários de parede",
-   "Todos os manômetros no cheio",
-   "Um armário sem lacre"
-  ]
- },
- "md_trf": {
-  "p": 0,
-  "b": [
-   "Três transformadores em óleo",
-   "Zumbido mais agudo que o dos compressores",
-   "Poça de óleo seca no canto"
-  ]
- },
- "md_lab": {
-  "p": 0,
-  "b": [
-   "Capela de exaustão e bancada de frascos com sedimento cinza",
-   "Etiquetas com datas que param em 2013"
-  ]
- },
- "md_chem": {
-  "p": 0,
-  "b": [
-   "Sacos e tambores atrás de uma corrente",
-   "Losangos de risco em todos os rótulos",
-   "Cheiro de ácido fraco"
-  ]
- },
- "md_inj": {
-  "p": 0,
-  "b": [
-   "Três tanques de dosagem e uma fileira de bombas pequenas",
-   "Etiquetas das válvulas em dois idiomas",
-   "Uma bomba gira em vazio"
-  ]
- },
- "md_wc": {
-  "p": 0,
-  "b": [
-   "Carrinho de limpeza, balde e dois sanitários",
-   "Cheiro de pinho barato"
-  ]
- },
- "md_se": {
-  "p": 0,
-  "b": [
-   "Escada leste subindo pro weather deck",
-   "Vento no vão"
-  ]
- },
- "cd_hpu": {
-  "p": 0,
-  "b": [
-   "Tanque de óleo hidráulico e duas bombas",
-   "Bandeja de gotejamento sob cada conexão",
-   "Painel de pressão com ponteiro parado no vermelho"
-  ]
- },
- "cd_bal": {
-  "p": 1,
-  "b": [
-   "Console com o diagrama das pernas e dos tanques de lastro",
-   "Vários indicadores em âmbar",
-   "Livro de registro com a última entrada às 03:12 sem assinatura"
-  ]
- },
- "cd_swp": {
-  "p": 0,
-  "b": [
-   "Bombas grandes em piso elevado",
-   "Tubo descendo pro escuro",
-   "O som da água dentro do tubo não bate com o nível"
-  ]
- },
- "cd_sp": {
-  "p": 0,
-  "b": [
-   "Válvulas, flanges e juntas em prateleira",
-   "Inventário em papel preso numa prancheta"
-  ]
- },
- "cd_cab": {
-  "p": 0,
-  "b": [
-   "Carretéis de cabo em fileiras etiquetados com data e destino",
-   "Um carretel destino \"M22\""
-  ]
- },
- "cd_hot": {
-  "p": 0,
-  "b": [
-   "Bancada de solda e cilindros acorrentados",
-   "Cheiro de queimado que não sai"
-  ]
- },
- "cd_chm": {
-  "p": 0,
-  "b": [
-   "Tambores sobre bacias de contenção, empilhados em dois níveis"
-  ]
- },
- "wd15": {
-  "p": 0,
-  "b": [
-   "Prateleira de ferramenta e cabo de amarração",
-   "Um galão de óleo sem etiqueta",
-   "Chave de roda de contêiner pendurada num prego"
+   "Degraus largos descendo pro module deck",
+   "Corrimão frio",
+   "Luz do deck de baixo no fim"
   ]
  }
 }};
