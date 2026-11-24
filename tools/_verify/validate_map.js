@@ -13,7 +13,7 @@ const ids=new Set();
 const ENGLISH=new RegExp('\\b(the|and|with)\\b','i');
 Object.values(S.DECKS).forEach(d=>{
   console.log('\n== '+d.id+' '+d.name+'  bbox '+d.bbox.map(v=>v.toFixed(1)).join(' x ')+'  rooms '+d.rooms.length+' corr '+d.corr.length);
-  const items=[...d.rooms.map(r=>({k:'sala',id:r.id,r:r.r})),...d.corr.map(c=>({k:'corredor',id:c.id,r:c.r})),...(d.voids||[]).map((v,i)=>({k:'vazio',id:d.id+':void'+i,r:v})),...(d.blocks||[]).map((b,i)=>({k:'bloco',id:d.id+':bloco'+i,r:b.r}))];
+  const items=[...d.rooms.map(r=>({k:'sala',id:r.id,r:r.r})),...d.corr.map(c=>({k:'corredor',id:c.id,r:c.r})),...(d.voids||[]).map((v,i)=>({k:'vazio',id:d.id+':void'+i,r:v})),...(d.blocks||[]).filter(b=>!b.open).map((b,i)=>({k:'bloco',id:d.id+':bloco'+i,r:b.r}))];
   items.forEach(i=>{if(ids.has(i.id))E('id duplicado '+i.id);ids.add(i.id);});
   for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++){
     if(items[i].k==='corredor'&&items[j].k==='corredor')continue; // corredores podem se cruzar (uniao)

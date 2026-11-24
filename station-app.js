@@ -215,7 +215,7 @@ function renderCard(deckId){
   const tapes=`<div class="tape" style="left:-24px;top:6px;transform:rotate(-40deg)"></div><div class="tape" style="right:-22px;top:4px;transform:rotate(38deg)"></div>`;
   const r=d&&selRoom&&S.roomIndex[selRoom]&&S.roomIndex[selRoom].deck===deckId&&revRooms()[selRoom]?S.roomIndex[selRoom]:null;
   let head,title,text;
-  if(r){const pr=r.n.split(' · '),code=/^M\d+$/.test(pr[0])?pr[0]:'';const area=Math.round(r.r[2]*r.r[3]);head=`<span>${esc(code?code+' · ':'')}${area} m²</span><span>${esc(d.lvl)}</span>`;title=r.n.toUpperCase();text=descOf(r);}
+  if(r){const pr=r.n.split(' · '),code=/^M\d+$/.test(pr[0])?pr[0]:'';const area=Math.round(r.r[2]*r.r[3]);head=`<span>${esc(code)}</span><span>${esc(d.lvl)}</span>`;title=r.n.toUpperCase();text=descOf(r);}
   else if(d){head=`<span>${esc(d.lvl)} · ${esc(d.elev)}</span><span></span>`;title=d.name.toUpperCase();text=d.intro||'';}
   else{head='<span>—</span><span></span>';title='NO DATA';text='Sem dados. Nenhuma informação disponível neste nível.';}
   const rd=$('recdesc');if(rd)rd.textContent=text||'';

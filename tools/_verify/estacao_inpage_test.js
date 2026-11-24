@@ -76,7 +76,7 @@ setTimeout(async()=>{
      ok('prop aparece quando a sala e revelada',!!document.querySelector('#planwrap [data-prop="pb"]'));
      ok('prop nao e clicavel no terminal',!!document.querySelector('#planwrap g.props[pointer-events="none"]'));
      {const n0=document.querySelectorAll('#planwrap svg.cur g[clip-path]').length;sessionRef.child('station/map/noeq/md4').set(true);await sleep(300);
-      {const est=Object.keys(STATION.roomIndex).filter(k=>/stair|lift|moonpool|shaft|jetty|tower|hatch|vest/.test(STATION.roomIndex[k].eq||'')&&STATION.roomIndex[k].deck==='module').length;ok('equipamento padrao fica fora do mapa (so estrutura)',n0<=est);}
+      {const est=Object.keys(STATION.roomIndex).filter(k=>/stair|lift|moonpool|shaft|jetty|tower|hatch|vest/.test(STATION.roomIndex[k].eq||'')&&STATION.roomIndex[k].deck==='module').length;ok('equipamento principal aparece nas salas reveladas',n0>est);}
       sessionRef.child('station/map/noeq/md4').set(null);
       sessionRef.child('station/map/props/L~md4~500~i1').set(Object.assign(mkp(q4),{sx:3,sy:1}));await sleep(300);
       ok('prop de layout esticado (sx) aparece',/scale\([\d.]+ [\d.]+\)/.test(document.querySelector('#planwrap [data-prop="L~md4~500~i1"]').getAttribute('transform')));}
@@ -117,7 +117,8 @@ setTimeout(async()=>{
      ok('sala coberta some com o prop',!document.querySelector('#planwrap [data-prop="pv"]'));
      ok('sala coberta mostra so o nome',/WELLBAY/i.test(sv.textContent)&&!/528 m²/.test(sv.textContent));
      sessionRef.child('station/map/veilAll').set(null);sessionRef.child('station/map/props/pv').set(null);await sleep(250);
-     ok('descobrir volta o conteudo',/528 m²/.test(document.querySelector('#planwrap svg.cur').textContent));}
+     ok('descobrir volta o conteudo',document.querySelectorAll('#planwrap svg.cur g[clip-path]').length>0);
+     ok('tamanho da sala nao aparece pro jogador',!/d m²/.test(document.querySelector('#planwrap svg.cur').textContent));}
     // tela cheia, setas trocam de nivel, pino
     ok('botao YOU ARE HERE aparece com pino',!$('btnPin').classList.contains('hid'));
     click($('btnFull'));await sleep(400);

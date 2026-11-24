@@ -281,6 +281,58 @@ window.STATION_GM={text:{
    "Chiado de gás constante lá em cima"
   ]
  },
+ "mb_hvac": {
+  "p": 0,
+  "b": [
+   "Duas unidades de tratamento de ar do tamanho de um ônibus",
+   "Prumada de duto subindo pelo teto, uma por deck",
+   "Zumbido que sobe pela sola",
+   "Filtros trocados, etiqueta de 2013"
+  ]
+ },
+ "mb_wtr": {
+  "p": 0,
+  "b": [
+   "Tanques de aço escovado em fila",
+   "Bomba dosadora de cloro com o nível no mínimo",
+   "Cheiro de piscina",
+   "Torneira de teste pingando num ralo"
+  ]
+ },
+ "mb_ups": {
+  "p": 0,
+  "b": [
+   "Quadros cinza com lâmpada piloto",
+   "Banco de baterias em estante, terminal engraxado",
+   "Estalo baixo e regular",
+   "Folha de manutenção, última linha em branco"
+  ]
+ },
+ "mb_prov": {
+  "p": 0,
+  "b": [
+   "Câmara de resfriados e prateleira de secos separadas por cortina de tira",
+   "Paletes com a data de embarque na caixa",
+   "Lata alinhada com o rótulo pra frente",
+   "Carrinho de carga parado na porta do elevador"
+  ]
+ },
+ "mb_stp": {
+  "p": 0,
+  "b": [
+   "Tanque com tampa e respiro",
+   "Cheiro doce, forte só quando a bomba liga",
+   "Painel com um alarme silenciado por fita"
+  ]
+ },
+ "mb_inc": {
+  "p": 0,
+  "b": [
+   "Forno de aço com chaminé que sobe pelo teto",
+   "Cinza fina no chão em volta da porta",
+   "Cheiro de plástico queimado, antigo"
+  ]
+ },
  "wd8": {
   "p": 0,
   "b": [

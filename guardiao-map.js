@@ -101,7 +101,7 @@ function init(sessionRef){
     const d=S.DECKS[deck],pin=ST.map&&ST.map.pin;
     if(PR&&PR.dragging())return;
     drawVeilBtn();
-    const st={rooms:revRooms(),corr:revCorr(),ghost:true,pin:pin&&pin.deck===deck?pin:null,sel,showCams:true,camsOn:camsOn(),props:PR?PR.list(deck):null,veilAll:veilAllOn()};
+    const st={rooms:revRooms(),corr:revCorr(),ghost:true,showArea:true,pin:pin&&pin.deck===deck?pin:null,sel,showCams:true,camsOn:camsOn(),props:PR?PR.list(deck):null,veilAll:veilAllOn()};
     const p=R.plan(d,st,{W:PR&&PR.active()?PR.width():800,maxH:PR&&PR.active()?99999:560,id:'gm'});lastP=p;$('mpPlan').innerHTML=p.svg;
     $('mpPlan').querySelectorAll('[data-room],[data-corr]').forEach(e=>{e.style.cursor=pinMode?'crosshair':(PR&&PR.active()?(PR.armed()?'copy':'default'):'pointer');});
   }

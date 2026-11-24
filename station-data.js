@@ -305,6 +305,16 @@ PL.cat({
  la_cln:{n:'Cleaning store',t:'hab',eq:'linen',pub:'Depósito de limpeza. Carrinhos, produtos e roupa de cama da equipe de hotelaria.'}
 });
 
+/* ===== casas de maquinas sob o bloco de alojamento (module deck) ===== */
+PL.cat({
+ mb_hvac:{n:'Accommodation HVAC plant',t:'ind',eq:'ahu',pub:'Casa de ar-condicionado do alojamento. Climatiza e ventila os cinco decks do bloco, de onde sobem os dutos pela prumada.'},
+ mb_wtr:{n:'Potable water plant',t:'ind',eq:'desal',pub:'Tratamento de água potável. Filtra, trata e guarda a água doce que abastece cozinha, banheiros e chuveiros do bloco.'},
+ mb_ups:{n:'LQ electrical room',t:'ind',eq:'elec',pub:'Sala elétrica do alojamento. Quadros de distribuição e baterias de reserva que alimentam os decks do bloco.'},
+ mb_prov:{n:'Provisions store',t:'ind',eq:'store',pub:'Depósito de provisões. Recebe e guarda a comida seca e refrigerada trazida pelo barco de apoio, perto do elevador do bloco.'},
+ mb_stp:{n:'Sewage treatment',t:'ind',eq:'waste',pub:'Tratamento de esgoto. Trata os dejetos do alojamento antes de devolvê-los ao mar.'},
+ mb_inc:{n:'Incinerator room',t:'ind',eq:'utilities',pub:'Incinerador. Queima o lixo seco e os resíduos da cozinha antes de embarcar o que sobra.'}
+});
+
 /* Montagem de um pitch: PL.station(decks, extras). Uso: PL.assemble('A', {block:{org,size}, column:[ids], stack:{...}}) */
 PL.INTRO={
  weather:'Convés de tempo (weather deck). O deck mais alto da plataforma, ao ar livre, com guindastes, baleeiras, balsas salva-vidas e a passagem do alojamento.',
@@ -328,7 +338,9 @@ PL.A.module=(function(){
   // galerias ao ar livre
   C.rect(0,0,136,2,':').rect(0,50,136,2,':').rect(0,2,2,48,':').rect(134,2,2,48,':');
   // contorno do bloco e nucleo (elevador, escada, antessala de entrada)
-  C.rect(2,12,34,28,'%').rect(26,20,3,4,'L').rect(26,24,3,8,'S').rect(29,20,7,12,'e');
+  C.rect(26,20,3,4,'L').rect(26,24,3,8,'S').rect(29,20,7,12,'e');
+  // sob o bloco: casas de maquinas do alojamento (espinha de servico em x=22..26)
+  C.rect(22,12,4,28,'.').rect(2,12,20,8,'H').rect(2,20,20,7,'Q').rect(2,27,20,6,'R').rect(2,33,20,7,'Y').rect(26,12,10,8,'a').rect(26,32,10,8,'b');
   // ===== lado limpo: anel em volta do bloco =====
   C.rect(2,9,22,3,'.').rect(22,4,3,8,'.').rect(25,4,22,3,'.').rect(36,7,3,12,'.');   // norte: jog pra cima em x=22
   C.rect(36,19,5,16,'.').rect(41,19,6,12,'.');                                         // hub na frente da entrada
@@ -354,9 +366,10 @@ PL.A.module=(function(){
   C.rect(110,15,24,22,'G');
   const LEG={e:'mb_ent',L:['mb_lf',{d:[['e',.5,'open','r']]}],S:['mb_st',{d:[['e',.5,'open','r']]}],'2':'ms_les',E:'md3',D:'md12',K:'md2','1':'ms_cal',B:'md1',C:'mc_chg',P:'md_ppe','3':'ms_chl',W:'mt_w',
     I:'md_ins',g:'mx_gas1',M:'md5',l:'md_lab',h:'md_chem',A:'md6',O:'md7',V:'md10',U:'md9',Z:['md8',{d:[['s',.4,'gate','c'],['s',.8,'gate','c']]}],x:'mx_sto1',
-    X:'md_scba',c:'mt_c',T:'md_trf',q:'mx_sto2',J:'md_inj',N:'md_wc',f:'mx_foam',y:'mx_gas2',z:'mx_sto3',u:'mt_e',w:'mx_sto4',G:'md4'};
+    X:'md_scba',c:'mt_c',T:'md_trf',q:'mx_sto2',J:'md_inj',N:'md_wc',f:'mx_foam',y:'mx_gas2',z:'mx_sto3',u:'mt_e',w:'mx_sto4',G:'md4',H:'mb_hvac',Q:'mb_wtr',R:'mb_ups',Y:'mb_prov',a:'mb_stp',b:'mb_inc'};
   PL.ascii(D,C.rows(),LEG,{cpre:'mc',cname:{'30,10':'C-40·N1','60,11':'C-40·R1','72,25':'C-40·BUS','90,11':'C-40·R2','40,25':'Hub','48,25':'C-40·W','120,13':'C-40·W1'},
-    blocks:[{n:'Living quarters',sub:'DECKS A-E ABOVE'},{},{}]});
+    blocks:[]});
+  D.blocks.push({r:[2,12,34,28],n:'Living quarters above',open:true});
   D.stairs.push({x:34.5,y:26,w:3,h:6,dir:'up',lbl:'L-06'});
   PL.route(D,'p',[[49.5,36],[49.5,25.5],[44,25.5],[38.5,25.5]]);
   PL.route(D,'p',[[108.5,20],[108.5,38.5],[124,38.5],[124,42]]);

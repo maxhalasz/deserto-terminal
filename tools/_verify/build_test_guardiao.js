@@ -5,7 +5,7 @@ const seed={online:true,map:{rev:'A1',pin:{deck:'module',x:35,y:26.8},rooms:{md0
 const h=`<!doctype html><html><head><meta charset="utf-8">${css}</head><body><div class="top"><h1>PAINEL DO <span>GUARDIÃO</span></h1></div>
 <div class="tabs"><button class="tab">ESTAÇÃO</button><button class="tab active">MAPA</button><button class="tab">SUBMARINO</button></div>
 <div id="tab-mapa" class="tabpanel active"></div>
-<script src="station-data.js"></script><script src="station-eq.js"></script><script src="station-render.js"></script><script src="station-gm-data.js"></script><script src="station-props.js"></script><script src="station-props-more.js"></script><script src="station-layout.js"></script><script src="guardiao-props.js"></script><script src="guardiao-map.js"></script>
+<script src="station-data.js"></script><script src="station-eq.js"></script><script src="station-eq-rooms.js"></script><script src="station-render.js"></script><script src="station-gm-data.js"></script><script src="station-props.js"></script><script src="station-props-more.js"></script><script src="station-layout.js"></script><script src="guardiao-props.js"></script><script src="guardiao-map.js"></script>
 <script>
 let data={sessions:{x:{station:${JSON.stringify(seed)},gm:{layout:{md2:{noeq:true,items:{a:{k:"mesa",x:2,y:2,rot:0,sc:1,sx:1,sy:1,z:0},b:{k:"cadeira",x:3,y:2,rot:0,sc:1,sx:1,sy:1,z:0,sec:1}}}}}}}};const L=[];
 const get=p=>p.split('/').filter(Boolean).reduce((o,k)=>o==null?o:o[k],data);

@@ -4,10 +4,10 @@
    corredores com grade, cotas, bolhas de grade estrutural, escala, figura humana, legenda.
    ============================================================ */
 (function(){
-const T={paper:'#dfe3e5',wall:'#1a1e22',corr:'#bec4c8',room:'#eceeef',deck:'#d7dcde',grate:'rgba(0,0,0,.11)',grid:'#b5bcc1',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
-  equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#2f6fb0',you:'#1b1d1f',youText:'#eceae2',sel:'#2f6fb0',amber:'#b8480f',
+const T={paper:'#e4e1d6',wall:'#1b1d1f',corr:'#c1c2b8',room:'#efede5',deck:'#dedbcf',grate:'rgba(0,0,0,.11)',grid:'#bdb9aa',sub:'#6b6d68',ink:'#1b1d1f',label:'#1b1d1f',
+  equip:'#6a6c67',eqFill:'#dbd9ce',stub:'#8d8d82',cable:'#a6a79d',door:'#3a3c3d',route:'#d9531e',you:'#1b1d1f',youText:'#eceae2',sel:'#d9531e',amber:'#b8480f',
   sealBg:'#d2cebd',hazard:'#d9531e',fire:'#9c2f1b',pink:'#26282a',stain:'rgba(92,34,28,.72)'};
-const THEME={dark:{paper:'#dfe3e5',room:'#eceeef',corr:'#bec4c8',deck:'#d7dcde',grid:'#b5bcc1'},light:{paper:'#e6e9eb',room:'#f8f9fa',corr:'#d0d5d8',deck:'#eef0f1',grid:'#c6ccd0'}};
+const THEME={dark:{paper:'#e4e1d6',room:'#efede5',corr:'#c1c2b8',deck:'#dedbcf',grid:'#bdb9aa'},light:{paper:'#eceae2',room:'#fbfaf6',corr:'#d6d3c8',deck:'#f4f3ee',grid:'#cfccbe'}};
 function setTheme(m){Object.assign(T,THEME[m]||THEME.dark);}
 const DW={door:1.3,cdoor:1.0,double:2.4,open:2.6,wide:5,gate:1.8,weld:1.4,hatch:1.0};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -70,6 +70,18 @@ function plan(deck,st,o){
   const ptFull=(x,y)=>deck.corr.some(c=>showC(c)==='f'&&inR(c.r,x,y,.2));
   const ptAny=(x,y)=>deck.corr.some(c=>showC(c)&&inR(c.r,x,y,.2));
   const rect=(r,e,fill,extra)=>`<rect x="${f1(X(r[0]-e))}" y="${f1(Y(r[1]-e))}" width="${f1(P(r[2]+2*e))}" height="${f1(P(r[3]+2*e))}" fill="${fill}" ${extra||''}/>`;
+  /* estrutura: vao com pilares em malha (~6 m) e contraventamento em X; nunca uma massa chapada */
+  const frame=(r,cell)=>{const [x,y,w,hh]=r;const nx=Math.max(1,Math.round(w/(cell||6))),ny=Math.max(1,Math.round(hh/(cell||6)));const cw=w/nx,ch=hh/ny;let g='';
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){const a=x+i*cw,b=y+j*ch;g+=`<path d="M${f1(X(a))} ${f1(Y(b))}L${f1(X(a+cw))} ${f1(Y(b+ch))}M${f1(X(a+cw))} ${f1(Y(b))}L${f1(X(a))} ${f1(Y(b+ch))}" stroke="${T.wall}" stroke-width=".7" opacity=".55" fill="none"/>`;}
+    const cs=Math.max(.7,Math.min(1,cw*.2));
+    for(let i=0;i<=nx;i++)for(let j=0;j<=ny;j++){const a=x+i*cw,b=y+j*ch;g+=`<rect x="${f1(X(a-cs/2))}" y="${f1(Y(b-cs/2))}" width="${f1(P(cs))}" height="${f1(P(cs))}" fill="${T.wall}"/>`;}
+    return g;};
+  /* pilares dentro de salas grandes (vao livre acima de ~12 m): malha de ~9 m, longe das paredes e portas */
+  const NOCOL={moonpool:1,xmas:1,wellheads:1,tower:1,shaft:1,heli:1,heliB:1,hatch:1,jetty:1};
+  const columns=r=>{if(r.t==='ext'||r.shape==='round'||NOCOL[r.eq]||r.t==='stair')return '';const [x,y,w,hh]=r.r;if(w<14||hh<10)return '';
+    const nx=Math.max(1,Math.round(w/9)),ny=Math.max(1,Math.round(hh/9));let g='';
+    for(let i=0;i<nx;i++)for(let j=0;j<ny;j++){const a=x+(i+.5)*w/nx,b=y+(j+.5)*hh/ny;g+=`<rect x="${f1(X(a-.35))}" y="${f1(Y(b-.35))}" width="${f1(P(.7))}" height="${f1(P(.7))}" fill="${T.wall}" stroke="${T.room}" stroke-width=".6" pointer-events="none"/>`;}
+    return g;};
   let propIds=[];const LAB={g:'',f:''};
   let h=`<defs>
    <pattern id="${id}g" width="4" height="4" patternUnits="userSpaceOnUse"><path d="M0 0L4 4M4 0L0 4" stroke="${T.grate}" stroke-width=".5"/></pattern>
@@ -105,9 +117,9 @@ function plan(deck,st,o){
     // paredes dos corredores
     corrs.forEach(c=>s+=rect(c.r,c.open?.14:WE,T.wall));
     // vazios estruturais (poche solido)
-    (deck.voids||[]).forEach((v,i)=>{const vis=mode==='f'?nearFull(v):(st.ghost&&nearAny(v)&&!nearFull(v));if(vis){s+=rect(v,WE,T.wall);if(v[2]*v[3]>40)s+=rect(v,-WE,`url(#${id}c)`);}});
+    (deck.voids||[]).forEach((v,i)=>{const vis=mode==='f'?nearFull(v):(st.ghost&&nearAny(v)&&!nearFull(v));if(vis){s+=rect(v,WE,T.wall)+rect(v,-WE,T.deck)+frame(v,6);}});
     // contorno do bloco de alojamento (estrutura do bloco que atravessa/pousa neste deck)
-    (deck.blocks||[]).forEach(b=>{const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(vis){s+=rect(b.r,WE,T.wall)+rect(b.r,-WE,`url(#${id}b)`);(b.d||[]).forEach(d=>{s+=door(b,d);});}});
+    (deck.blocks||[]).forEach(b=>{const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(vis){if(b.open){s+=rect(b.r,0,'none',`stroke="${T.wall}" stroke-width="1.8" stroke-dasharray="10 5" pointer-events="none"`);}else{s+=rect(b.r,WE,T.wall)+rect(b.r,-WE,T.deck)+frame(b.r,5.7);(b.d||[]).forEach(d=>{s+=door(b,d);});}}});
     // firewall
     (deck.firewall||[]).forEach(f=>{const vis=mode==='f'?nearFull(f):(st.ghost&&nearAny(f)&&!nearFull(f));if(vis)s+=rect(f,0,`url(#${id}h)`,`stroke="${T.wall}" stroke-width="1"`);});
     // pisos dos corredores
@@ -127,10 +139,12 @@ function plan(deck,st,o){
     rooms.forEach(r=>{if(out&&r.t==='ext')return;(r.d||[]).forEach(d=>{s+=door(r,d);});});
     rooms.forEach(r=>{if(r.cab)s+=windows(r);});
     // equipamento
-    if(mode==='f')rooms.forEach(r=>{const eq=window.STATION_EQ[r.eq];if(!eq||(!st.showEq&&!STRUCT[r.eq])||(st.noeq&&st.noeq[r.id])||veiled(r))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
+    if(mode==='f')rooms.forEach(r=>{const eq=(window.STATION_EQ_ROOM&&window.STATION_EQ_ROOM[r.id])||window.STATION_EQ[r.eq];if(!eq||(st.showEq===false&&!STRUCT[r.eq])||(st.noeq&&st.noeq[r.id])||veiled(r))return;const a=api(r);try{eq(r,a.api,r.r[2],r.r[3]);}catch(e){}const kid=`${id}k${r.id}`;s+=`<clipPath id="${kid}"><path clip-rule="evenodd" d="${clipPath(r)}"/></clipPath><g pointer-events="none" clip-path="url(#${kid})">${a.get()}</g>`;});
+    rooms.forEach(r=>{s+=columns(r);});
     // etiquetas (desenhadas depois de tudo, ver LAB)
     let lab='';rooms.forEach(r=>{lab+=label(r,mode);});
-    (deck.blocks||[]).forEach(b=>{if(!b.n)return;const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(!vis)return;const cx=X(b.r[0]+b.r[2]/2),cy=Y(b.r[1]+b.r[3]/2),wpx=P(b.r[2]),fs=Math.max(8,Math.min(15,wpx/(b.n.length*.62)));
+    (deck.blocks||[]).forEach(b=>{if(!b.n)return;const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(!vis)return;if(b.open){lab+=`<g pointer-events="none"><rect x="${f1(X(b.r[0])+6)}" y="${f1(Y(b.r[1])-6)}" width="${f1(b.n.length*5.6+8)}" height="11" fill="${T.paper}"/><text x="${f1(X(b.r[0])+10)}" y="${f1(Y(b.r[1])+2.6)}" font-family="Barlow Condensed" font-weight="700" font-size="9" fill="${T.label}" letter-spacing=".1em" style="text-transform:uppercase">${esc(b.n)}</text></g>`;return;}
+      const cx=X(b.r[0]+b.r[2]/2),cy=Y(b.r[1]+b.r[3]/2),wpx=P(b.r[2]),fs=Math.max(8,Math.min(15,wpx/(b.n.length*.62)));
       lab+=`<g pointer-events="none"><text x="${f1(cx)}" y="${f1(cy)}" text-anchor="middle" font-family="Barlow Condensed" font-weight="700" font-size="${f1(fs)}" fill="${T.label}" letter-spacing=".1em" style="text-transform:uppercase" paint-order="stroke" stroke="${T.room}" stroke-width="4" stroke-linejoin="round">${esc(b.n)}</text>${b.sub?`<text x="${f1(cx)}" y="${f1(cy+fs*.95)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="6.6" fill="${T.sub}" letter-spacing=".1em" paint-order="stroke" stroke="${T.room}" stroke-width="3">${esc(b.sub)}</text>`:''}</g>`;});
     // codigos de corredor
     if(mode==='f')corrs.forEach(c=>{if(!c.n||c.r[2]*c.r[3]<30)return;const [x,y,w,hh]=c.r,hz=w>=hh;if((hz?w:hh)<14)return;
@@ -242,8 +256,9 @@ function plan(deck,st,o){
     const halo=out&&r.t==='ext'?T.deck:T.room;
     let s=`<g pointer-events="none">`;
     lines.forEach((l,i)=>{s+=`<text x="${f1(ax)}" y="${f1(ay+i*(fs+1.6))}" text-anchor="${an}" font-family="Barlow Condensed" font-weight="700" font-size="${f1(fs)}" fill="${T.label}" letter-spacing=".06em" style="text-transform:uppercase" paint-order="stroke" stroke="${halo}" stroke-width="3.2" stroke-linejoin="round">${esc(l)}</text>`;});
-    const sub=(code?code+' · ':'')+area+' m²';
-    s+=`<text x="${f1(ax)}" y="${f1(ay+lines.length*(fs+1.6)-1.2)}" text-anchor="${an}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.sub}" letter-spacing=".08em" paint-order="stroke" stroke="${halo}" stroke-width="2.6">${sub}</text></g>`;
+    /* a area so aparece pro Guardiao (st.showArea); o jogador pergunta e o mestre responde */
+    const sub=(code||'')+(st.showArea?(code?' · ':'')+area+' m²':'');
+    if(sub)s+=`<text x="${f1(ax)}" y="${f1(ay+lines.length*(fs+1.6)-1.2)}" text-anchor="${an}" font-family="IBM Plex Mono" font-size="6.6" fill="${T.sub}" letter-spacing=".08em" paint-order="stroke" stroke="${halo}" stroke-width="2.6">${sub}</text></g>`;
     return s;
   }
 

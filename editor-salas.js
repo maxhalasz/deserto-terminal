@@ -113,7 +113,7 @@ function init(sessionRef){
     if(!r){cv.innerHTML='<div class="empty">Escolha uma sala na lista à esquerda.</div>';lastP=null;return;}
     const d=pdeck(r),bb=d.bbox,vw=Math.max(300,cv.clientWidth-8),vh=Math.max(300,cv.clientHeight-8);
     const fit=Math.min((vw-66)/bb[2],(vh-90)/bb[3],80),W=Math.round((fit*zi)*bb[2]+66);
-    const st={rooms:{[r.id]:1},corr:{},ghost:!preview,props:propList(),noeq:{},showEq:!preview,noLabel:preview?null:{[r.id]:1}};
+    const st={rooms:{[r.id]:1},corr:{},ghost:!preview,showArea:!preview,props:propList(),noeq:{},showEq:true,noLabel:preview?null:{[r.id]:1}};
     d.corr.forEach(c=>{st.corr[c.id]=1;});
     const rec_=rec();if(rec_&&rec_.noeq)st.noeq[r.id]=1;
     const p=R.plan(d,st,{W,maxH:99999,maxPx:200,id:'ed',key:false});lastP=p;
