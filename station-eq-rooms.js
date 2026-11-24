@@ -42,7 +42,7 @@ Q.la_pan=(r,a,w,h)=>{shelf(a,.5,.6,h-1.2,true);shelf(a,w-1.1,.6,h-1.2,true);a.rc
 Q.ms_cal=(r,a,w,h)=>{bed(a,.6,h-2.6,2,2,0);cabinet(a,w-1.8,.5,1.2,2.4);desk(a,w/2-1.6,.8,3.2,1.2);a.rc(.6,.5,w*.35,.4,0,1);a.tx(1,1.5,'PROD',4.2);sofa(a,w-4.2,h-2,3,1.3);a.rc(w/2-.8,h/2,1.6,.8);};
 Q.ms_les=(r,a,w,h)=>{bed(a,w-2.8,h-2.2,2.2,1.7,0);bench(a,.6,.6,w*.5);cabinet(a,w-1.8,.5,1.2,2);desk(a,.8,h-2.2,2.6,1);a.rc(w/2,h/2,.9,.9,.1,1);};
 Q.ms_chl=(r,a,w,h)=>{bed(a,.6,.6,2.1,2.5,1);rack(a,w-3.6,.6,3,.8,3);a.ci(w-3.1,1.5,.28);a.ci(w-2.1,1.5,.28);a.ci(w-1.1,1.5,.28);desk(a,w/2-1.4,h-2.2,2.8,1.1);a.tx(w/2,h-2.9,'DECO TABLE',3.8,0,1);cabinet(a,.6,h-2.6,1.2,2);};
-Q.ls_gun=(r,a,w,h)=>{desk(a,w/2-1.8,1,3.6,1.5);bed(a,.6,h-2.4,2.2,1.9,0);sofa(a,w-3.4,h-1.9,2.8,1.3);a.rc(w-1.9,.5,1.3,.6,0,1);a.tx(w-1.3,1.3,'VHF',3.8,0,1);cabinet(a,.6,.5,1.2,2);};
+Q.ls_gun=(r,a,w,h)=>{desk(a,w/2-1.8,1,3.6,1.5);bed(a,.6,h-2.4,2.2,1.9,0);sofa(a,w-3.4,h-1.9,2.8,1.3);a.rc(w-1.9,.5,1.3,.6,0,1);a.tx(w-1.3,1.3,'VHF',3.8,0,1);cabinet(a,.6,.5,1.2,2);a.ci(1.2,2.7,.13,1);a.rc(3.8,h-1.6,1.8,.9);a.ci(4.5,h-1.15,.3);a.ci(4.5,h-1.15,.08,1);};
 Q.ls_aru=(r,a,w,h)=>{a.rc(w/2-2.3,h/2-1.1,4.6,2.2,.3);for(let i=0;i<4;i++){a.ci(w/2-1.7+i*1.15,h/2-1.7,.3);a.ci(w/2-1.7+i*1.15,h/2+1.7,.3);}bed(a,.6,.6,2.3,2,0);a.rc(w-2.4,.6,1.7,1.1,0,1);cabinet(a,w-1.8,h-2.6,1.2,2);};
 Q.la_fos=(r,a,w,h)=>{desk(a,.6,.6,2.8,1.1);a.rc(w-2.6,.6,2,2.6,.15);a.rc(w-2.4,.8,.8,.8,.2,1);shelf(a,.6,h-1.2,w-1.2);cabinet(a,w-1.8,h-3,1.2,1.7);a.rc(.6,h-3.1,2.1,1.5,.1);};
 Q.md3=(r,a,w,h)=>{bench(a,.6,.6,w-1.4);bench(a,.6,h-1.6,w*.55);for(let i=0;i<3;i++)a.rc(w-2.6,2+i*1.4,1.9,1.1,0,0);a.rc(.8,h/2-.6,2.6,1.2,0,1);for(let i=0;i<5;i++)a.rc(w*.2+i*1.2,2.2,.9,.5);};
@@ -50,7 +50,6 @@ Q.mx_gas1=(r,a,w,h)=>{a.rc(.7,.6,w-1.4,1.2,0,1);for(let i=0;i<Math.floor((w-2)/1
 Q.mx_gas2=(r,a,w,h)=>{a.rc(.7,.6,2,h-1.2,0,1);for(let i=0;i<Math.floor((h-2)/1.2);i++)lamp(a,1.7,1.2+i*1.2);a.rc(w-3,.8,2.2,1.4,0,1);rack(a,w/2-1.6,h/2-.5,3.2,1,4);for(let i=0;i<3;i++)tank(a,w-2.4+i*0,3+i*1.5,.5);};
 Q.mb_ups=(r,a,w,h)=>{for(let i=0;i<Math.floor((w-2)/1.3);i++){a.rc(.7+i*1.3,.5,1.15,1.1,0,1);lamp(a,1.27+i*1.3,1.05);}for(let j=0;j<3;j++)rack(a,1,h-5+j*1.6,w*.5,1.1,Math.floor(w*.5/1.1));a.rc(w-2.8,h-3.6,2.1,2.8,0,1);};
 Q.lqD5=(r,a,w,h)=>{const n=3,cw=(w-1.2)/n;for(let i=0;i<n;i++){const x=.6+i*cw;a.ln(x,.6,x,h-.6);a.rc(x+.4,.9,cw-1.4,1,0,0);a.ci(x+cw/2-.3,2.7,.3);a.rc(x+.4,h-2.2,cw-1.4,1,0,0);a.ci(x+cw/2-.3,h-3.1,.3);}a.ln(.6,h/2,w-.6,h/2);};
-Q.lqD3=(r,a,w,h)=>{desk(a,w/2-1.2,h*.3,2.4,1.4);cabinet(a,.5,.6,1.1,2.4);a.rc(w-1.9,h-2.6,1.4,1.6,0,1);a.ci(w-1.2,h-1.8,.45);a.rc(.6,h-1.6,2.4,.9,0,1);};
 Q.lqD11=(r,a,w,h)=>{a.rc(.6,.5,w-1.2,.35,0,1);a.rc(w/2-1.6,h/2-.7,3.2,1.4);for(let i=0;i<4;i++)a.ci(w/2-1.2+i*.8,h/2-1.3,.22);cabinet(a,w-1.8,h-2.3,1.2,1.8);cabinet(a,w-3.2,h-2.3,1.2,1.8);};
 Q.lqD12=(r,a,w,h)=>{desk(a,.6,.8,2.4,1.1);desk(a,w-3,.8,2.4,1.1);shelf(a,.6,h-1.2,w-1.2);a.rc(w/2-.4,h/2,.8,.6,0,1);a.ci(w/2,h/2+1.3,.3);};
 
@@ -82,5 +81,9 @@ Q.la_cln=(r,a,w,h)=>{shelf(a,.5,.5,w-1,false);shelf(a,.5,h-1.1,w*.5);a.rc(w-3.6,
 Q.cd_pwt=(r,a,w,h)=>{for(let i=0;i<3;i++){tank(a,3+i*(w-6)/2,3.5,Math.min(2.3,h*.2));}a.ln(1.5,7.4,w-1.5,7.4);for(let i=0;i<3;i++)a.ln(3+i*(w-6)/2,3.5+2.3,3+i*(w-6)/2,7.4);pump(a,2,h-3.4);pump(a,w/2-1,h-3.4);a.rc(w-4,h-3.4,2.8,2.4,0,1);a.tx(2,h-.5,'PWT',4.6,1);};
 Q.cd_egen=(r,a,w,h)=>{a.rc(2,2,w*.45,h*.4,.3);for(let k=1;k<5;k++)a.ln(2+k*w*.09,2,2+k*w*.09,2+h*.4);a.ci(2+w*.5,2+h*.2,1.3);a.ci(2+w*.5,2+h*.2,.5,1);a.rc(w-7,2,5,3,.2);a.ci(w-4.5,3.5,.8);a.rc(2,h-4,5.5,2.4,.4);a.ci(4,h-2.8,.6,1);a.rc(w-5,h-4.5,3.2,3,0,1);a.line2(1,h*.6,w-1,h*.6);a.tx(w-5,h-.8,'ESD',4.4,1);};
 
+/* sala de maquinas: os tres geradores do tipo mais a caldeira (vapor da sauna) */
+Q.cd1=(r,a,w,h)=>{window.STATION_EQ.gens(r,a,w,h);const bx=4.2,by=h-4.8;a.rc(bx,by,4.8,2.6,1.2);a.ci(bx+4.8,by+1.3,.3,1);a.rc(bx-.9,by+.8,.9,1,0,1);a.ci(bx+3.3,by-.45,.4);a.ln(bx+3.3,by-.05,bx+3.3,by);a.ln(bx+2.4,by+2.6,bx+2.4,by+3.4);a.ln(bx+2.4,by+3.4,w-7.4,by+3.4);a.tx(bx+.4,by-.9,'BOILER',4,1);};
+/* embarque na borda norte, ao lado da area de carga */
+Q.cd_emb=(r,a,w,h)=>{a.ln(1,1.4,w-1,1.4);a.ln(1,.8,w-1,.8);a.rc(w-5.2,.2,1.6,3.6,0);for(let i=0;i<5;i++)a.ln(w-5.2,.6+i*.7,w-3.6,.6+i*.7);a.ci(2,2.6,.5,1);a.ci(w-8,2.6,.5,1);a.hatch(1.2,4.4,3.2,2.4);a.hatch(4.8,4.4,2.4,2.4);a.rc(1.2,h-2.8,5,.9,0,1);a.rc(7.4,h-2.8,5,.9,0,1);a.ci(w-2.4,h-2.6,.6);a.ci(w-2.4,h-2.6,.22,1);a.tx(w/2,h-.5,'BOARDING',4.2,0,1);};
 window.STATION_EQ_ROOM=Q;
 })();

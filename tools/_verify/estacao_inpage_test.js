@@ -101,7 +101,8 @@ setTimeout(async()=>{
     ok('sem registro volta o padrao',/COMM SYNC/.test($('ticker').textContent));
     // pilha: bloco do alojamento integrado
     ok('contorno do bloco no module deck',!!document.querySelector('#stack .sk-blk'));
-    ok('heliponto A no teto +62 e sem H no weather',/HELIPORT A/.test($('stack').textContent)&&/\+62/.test($('stack').textContent)&&(($('stack').textContent.match(/>H</g)||[]).length===0)&&($('stack').innerHTML.match(/>H<\/text>/g)||[]).length===1);
+    ok('heliponto A no teto +64 e sem H no weather',/HELIPORT A/.test($('stack').textContent)&&/\+64/.test($('stack').textContent)&&(($('stack').textContent.match(/>H</g)||[]).length===0)&&($('stack').innerHTML.match(/>H<\/text>/g)||[]).length===1);
+    ok('cotas do bloco: A +44, B +48, C +52, D +56, E +60 e weather = deck C',['+44','+48','+52','+56','+60'].every(c=>$('stack').textContent.indexOf(c)>=0)&&!/[+]58|[+]46/.test($('stack').textContent)&&/WEATHER = DECK C/.test($('stack').textContent));
     // tema claro/escuro
     click($('btnTheme'));ok('tema claro liga',document.documentElement.getAttribute('data-theme')==='light'&&/DARK/.test($('themeLbl').textContent));
     click($('btnTheme'));ok('tema escuro volta',document.documentElement.getAttribute('data-theme')==='dark');

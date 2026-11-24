@@ -119,7 +119,7 @@ PL.finish=(D,opt)=>{
 /* ---------- STATION ---------- */
 PL.station=(decks,extra)=>{
   extra=extra||{};
-  const LEVELS=[{id:'weather',tag:'L-07',name:'Weather deck',elev:'+52 m'},{id:'quarters',tag:'L-06',name:'Living quarters',elev:'+42 / +62 m'},{id:'module',tag:'L-05',name:'Module deck',elev:'+40 m'},{id:'cellar',tag:'L-03',name:'Cellar deck',elev:'+28 m'}];
+  const LEVELS=[{id:'weather',tag:'L-07',name:'Weather deck',elev:'+52 m'},{id:'quarters',tag:'L-06',name:'Living quarters',elev:'+44 / +64 m'},{id:'module',tag:'L-05',name:'Module deck',elev:'+40 m'},{id:'cellar',tag:'L-03',name:'Cellar deck',elev:'+28 m'}];
   const LEGACY={helipad:'weather',control:'module',mess:'quarters',drill:'cellar'};
   const DECK_LEVEL={weather:'weather',module:'module',cellar:'cellar',lqE:'quarters',lqD:'quarters',lqC:'quarters',lqB:'quarters',lqA:'quarters'};
   const DECKS={};decks.forEach(d=>{DECKS[d.id]=d;d.rooms.forEach(r=>{r.deck=d.id;});d.corr.forEach(c=>{c.deck=d.id;});});
@@ -127,7 +127,7 @@ PL.station=(decks,extra)=>{
   Object.values(DECKS).forEach(d=>{d.intro=intro[d.id]||d.intro||'';});
   const CAMERAS=extra.cameras||[{id:'cam01',label:'CAM-01',loc:'Restaurant'},{id:'cam02',label:'CAM-02',loc:'Lower wellbay'},{id:'cam03',label:'CAM-03',loc:'Main corridor'},{id:'cam04',label:'CAM-04',loc:'Moonpool'}];
   root.STATION={CAMERAS,LEVELS,LEGACY,DECK_LEVEL,DECKS,
-    LQ_ORDER:['lqE','lqD','lqC','lqB','lqA'],LQ_NAMES:{lqE:'E · +58',lqD:'D · +54',lqC:'C · +50',lqB:'B · +46',lqA:'A · +42'},
+    LQ_ORDER:['lqE','lqD','lqC','lqB','lqA'],LQ_NAMES:{lqE:'E · +60',lqD:'D · +56',lqC:'C · +52',lqB:'B · +48',lqA:'A · +44'},
     STACK:extra.stack||null,PITCH:extra.pitch||null,
     levelId:id=>(LEGACY[id]||id),
     decksOfLevel:l=>Object.keys(DECKS).filter(k=>DECK_LEVEL[k]===l),
@@ -315,15 +315,38 @@ PL.cat({
  mb_inc:{n:'Incinerator room',t:'ind',eq:'utilities',pub:'Incinerador. Queima o lixo seco e os resíduos da cozinha antes de embarcar o que sobra.'}
 });
 
+/* ===== rodada 8: bloco +4 m, deck B cheio, cellar, textos ===== */
+PL.patch=o=>{for(const k in o)PL.CAT[k]=Object.assign({},PL.CAT[k]||{},o[k]);};
+PL.patch({
+ cd4:{pub:'Área de carga. Guarda o estoque de contêineres e materiais e recebe o que sobe do embarque de barco, ao lado.'},
+ cd_emb:{pub:'Ponto de embarque. Plataforma junto à água, com escada até o mar, onde o barco de apoio embarca e desembarca gente e carga leve; fica ao lado da área de carga.'},
+ cd1:{pub:'Sala de máquinas e caldeira. Abriga os três geradores, a caldeira, as tomadas de ar e a sauna improvisada que a tripulação monta no vapor.'},
+ mb_inc:{n:'Incinerator · disabled',t:'off',pub:'Incinerador (desativado). Queimava o lixo seco e os resíduos da cozinha; parado desde o refit, o lixo agora vai para a sala de resíduos e segue para terra.'},
+ la_stp:{n:'Entrance stair',dir:'dn',to:'L-05',pub:'Escada da entrada. Desce 4 m da antessala do Deck A até a entrada do bloco no module deck.'},
+ mb_lf:{pub:'Elevador do bloco. Sobe do module deck até o Deck E, com seis paradas: module deck e decks A a E.'},
+ le_lf:{pub:'Elevador do bloco. Seis paradas: module deck e decks A a E; o heliponto fica um lance de escada acima do Deck E.'},
+ ld_lf:{pub:'Elevador do bloco. Seis paradas: module deck e decks A a E; o heliponto fica um lance de escada acima do Deck E.'},
+ lc_lf:{pub:'Elevador do bloco. Seis paradas: module deck e decks A a E; o heliponto fica um lance de escada acima do Deck E.'},
+ lb_lf:{pub:'Elevador do bloco. Seis paradas: module deck e decks A a E; o heliponto fica um lance de escada acima do Deck E.'},
+ la_lf:{pub:'Elevador do bloco. Seis paradas: module deck e decks A a E; o heliponto fica um lance de escada acima do Deck E.'},
+ ls_gun:{pub:'Suíte do gerente da plataforma. Escritório e quarto no mesmo cômodo, ao lado da sala de comunicações; o gerente responde por toda a instalação.'},
+ ld_sto:{n:'Storeroom',t:'ind',eq:'store',pub:'Depósito. Guarda papel, material de escritório e arquivo morto da administração.'},
+ lb_c4:{n:'Cabin · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabine lacrada. Uma cabine fechada com fita, na ponta norte do deck.'},
+ lb_c5:{n:'Cabins · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabines lacradas. Duas cabines da ala leste, com as portas cobertas por fita.'},
+ lb_c6:{n:'Cabins · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabines lacradas. Três cabines da ala leste, fechadas e sem uso.'},
+ lb_c7:{n:'Cabins · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabines lacradas. Duas cabines fechadas, na ponta sul do deck.'},
+ lb_c8:{n:'Cabins · sealed',t:'off',st:'sealed',eq:'cabinrow',pub:'Cabines lacradas. Duas cabines da ala leste, com a fita já amarelada.'}
+});
+
 /* Montagem de um pitch: PL.station(decks, extras). Uso: PL.assemble('A', {block:{org,size}, column:[ids], stack:{...}}) */
 PL.INTRO={
  weather:'Convés de tempo (weather deck). O deck mais alto da plataforma, ao ar livre, com guindastes, baleeiras, balsas salva-vidas e a passagem do alojamento.',
- module:'Deck de módulos (module deck). Reúne a entrada do bloco de alojamento, a sala de controle, a área dos poços e os módulos de processo, separados por um firewall.',
+ module:'Deck de módulos (module deck). Reúne a entrada do bloco de alojamento e o nível técnico sob ele, a sala de controle, a área dos poços e os módulos de processo, separados por um firewall.',
  cellar:'Deck do porão (cellar deck). O deck mais baixo da plataforma, com área de carga, moonpool, geradores, bombas e o wellbay inferior.',
  lqE:'Deck E do alojamento. Cobertura do bloco, com acesso ao Heliporto A, casa de máquinas e antenas.',
  lqD:'Deck D do alojamento. Administração da plataforma: comunicações, sala de câmeras, escritórios, arquivo e as suítes de dois oficiais.',
- lqC:'Deck C do alojamento. Cabines de duas camas em duas alas, sala de convivência redonda e a saída para o weather deck.',
- lqB:'Deck B do alojamento. Quase todo lacrado, com cabines fechadas, sala de TV desativada e depósito.',
+ lqC:'Deck C do alojamento. No mesmo nível do weather deck, com cabines de duas camas em duas alas, sala de convivência redonda e a saída reta para o convés.',
+ lqB:'Deck B do alojamento. Quase todo lacrado, com 15 cabines fechadas, sala de TV desativada e depósitos.',
  lqA:'Deck A do alojamento. Restaurante, cozinha, sala de estar, enfermaria e a antessala de entrada para o module deck.'};
 PL.assemble=(P,extra)=>{
   const X=PL[P];const order=['module','weather','cellar','lqE','lqD','lqC','lqB','lqA'];
@@ -350,7 +373,7 @@ PL.A.module=(function(){
   C.rect(39,7,8,6,'K').rect(39,13,8,6,'1').rect(41,31,6,9,'B');
   C.rect(2,43,12,7,'C').rect(14,43,12,7,'P').rect(26,43,15,7,'3').rect(41,43,6,7,'W');
   // firewall (x=47) com tres portas corta-fogo
-  C.rect(47,2,1,48,'|').rect(47,4,1,3,'F').rect(47,24,1,3,'F').rect(47,40,1,2,'F');
+  C.rect(47,2,1,48,'|').rect(47,4,1,3,'F').rect(47,34,1,3,'F').rect(47,40,1,2,'F');
   // ===== lado sujo: anel 1 (cluster de lama), barramento compartilhado, anel 2 (processo) e anel 3 (poco) =====
   C.rect(48,4,3,6,'.').rect(48,10,22,3,'.').rect(48,13,3,26,'.').rect(48,39,22,3,'.');   // anel 1
   C.rect(70,10,4,32,'.');                                                                 // barramento (8 do anel 1 e do anel 2)
@@ -369,9 +392,9 @@ PL.A.module=(function(){
     X:'md_scba',c:'mt_c',T:'md_trf',q:'mx_sto2',J:'md_inj',N:'md_wc',f:'mx_foam',y:'mx_gas2',z:'mx_sto3',u:'mt_e',w:'mx_sto4',G:'md4',H:'mb_hvac',Q:'mb_wtr',R:'mb_ups',Y:'mb_prov',a:'mb_stp',b:'mb_inc'};
   PL.ascii(D,C.rows(),LEG,{cpre:'mc',cname:{'30,10':'C-40·N1','60,11':'C-40·R1','72,25':'C-40·BUS','90,11':'C-40·R2','40,25':'Hub','48,25':'C-40·W','120,13':'C-40·W1'},
     blocks:[]});
-  D.blocks.push({r:[2,12,34,28],n:'Living quarters above',open:true});
+  D.blocks.push({r:[2,12,34,28],n:'Technical level · LQ above',open:true});
   D.stairs.push({x:34.5,y:26,w:3,h:6,dir:'up',lbl:'L-06'});
-  PL.route(D,'p',[[49.5,36],[49.5,25.5],[44,25.5],[38.5,25.5]]);
+  PL.route(D,'p',[[49.5,35.5],[44,35.5],[44,33],[40,33],[38.5,33],[38.5,25.5]]);
   PL.route(D,'p',[[108.5,20],[108.5,38.5],[124,38.5],[124,42]]);
   PL.route(D,'p',[[38.5,10],[38.5,36],[38.5,41.5],[44,41.5],[44,44]]);
   PL.route(D,'s',[[60,11.5],[72,11.5],[72,40.5],[60,40.5],[50,40.5]]);
@@ -434,7 +457,7 @@ PL.A.cellar=(function(){
   C.rect(30,13,18,7,'K').rect(96,22,14,8,'L').rect(77,25,11,11,'A').rect(88,33,8,17,'S').rect(96,43,10,7,'P');
   C.rect(110,15,24,22,'W').rect(110,2,24,13,'g').rect(96,33,10,10,'R').rect(122,38,12,6,'E').rect(110,37,12,7,'z');
   const LEG={d:'cd4',a:'cd1',w:'cd10',k:'cd_stk',y:'cd2',v:'cd6',p:'cd12',s:'cd14',x:['cd15',{d:[['s',.5,'weld','c']]}],M:'cd5',n:'cd8',r:'cd9',f:'cd11',
-    h:'cd_hpu',b:'cd_bal',e:'cd3',q:'cd_pwt',u:'cd_swp',W:'cd7',g:'cd_egen',R:'cd_rsk',E:'cd_emb',z:'cd13',K:'cd_wks',L:'cd_lube',A:'cd_air',S:'cd_spr',P:'cd_scs'};
+    h:'cd_emb',b:'cd_bal',e:'cd3',q:'cd_pwt',u:'cd_swp',W:'cd7',g:'cd_egen',R:'cd_rsk',E:'cd_hpu',z:'cd13',K:'cd_wks',L:'cd_lube',A:'cd_air',S:'cd_spr',P:'cd_scs'};
   PL.ascii(D,C.rows(),LEG,{cpre:'cc',cname:{'10,14':'C-28·W','38,21':'C-28·N2','50,24':'C-28·R','80,23':'C-28·E','110,31':'C-28·E2','30,46':'C-28·B'}});
   D.stairs.push({x:44,y:46.5,w:2.2,h:3.6,dir:'up',lbl:'L-05'},{x:60,y:46,w:2.2,h:3.6,dir:'up',lbl:'L-05'},{x:124,y:45,w:2.2,h:3.6,dir:'up',lbl:'L-05'});
   PL.route(D,'p',[[28.5,30],[28.5,21.5],[50.5,21.5]]);
@@ -456,32 +479,32 @@ PL.A=PL.A||{};
   const fin=(D,C,LEG,o)=>{PL.ascii(D,C.rows(),LEG,Object.assign({cpre:D.id+'c'},o||{}));return D;};
   const core=(C,s)=>{C.rect(24,8,3,4,'L').rect(24,12,3,8,'S');return {L:s+'_lf',S:s+'_st'};};
 
-  /* ---------- Deck E (+58): corredor em L, casa de maquinas, acesso ao heliponto ---------- */
+  /* ---------- Deck E (+60): corredor em L, casa de maquinas, acesso ao heliponto ---------- */
   PL.A.lqE=(function(){
-    const D=mk('lqE','E','Living quarters · Deck E','+58 m'),C=PL.canvas(34,28);core(C,'le');
-    C.rect(8,9,16,3,'.').rect(21,9,3,11,'.');                                    // L que chega no nucleo
-    C.rect(0,0,16,9,'4').rect(16,0,18,9,'6').rect(27,9,7,11,'1').rect(8,12,13,9,'2').rect(0,9,8,12,'7');
+    const D=mk('lqE','E','Living quarters · Deck E','+60 m'),C=PL.canvas(34,28);core(C,'le');
+    C.rect(8,9,16,3,'.').rect(21,9,3,11,'.').rect(16,8,8,1,'.');                                    // L que chega no nucleo
+    C.rect(0,0,16,9,'4').rect(16,0,18,8,'6').rect(27,8,7,12,'1').rect(8,12,13,9,'2').rect(0,9,8,12,'7');
     PL.ascii(D,C.rows(),{L:'le_lf',S:'le_st','4':'lqE4','6':'lqE6','1':['lqE1',{d:[['w',.5,'door','r']]}],'2':'lqE2','7':'lqE7'},{cpre:'lqEc',cname:{'12,10':'Corridor E'}});
     PL.route(D,'p',[[9.5,10.5],[22.5,10.5],[22.5,16],[23.5,16]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
-  /* ---------- Deck D (+54): anel em volta de um miolo de escritorios ---------- */
+  /* ---------- Deck D (+56): anel em volta de um miolo de escritorios ---------- */
   PL.A.lqD=(function(){
-    const D=mk('lqD','D','Living quarters · Deck D','+54 m'),C=PL.canvas(34,28);core(C,'ld');
+    const D=mk('lqD','D','Living quarters · Deck D','+56 m'),C=PL.canvas(34,28);core(C,'ld');
     C.rect(5,5,29,3,'.').rect(5,5,3,18,'.').rect(21,8,3,15,'.').rect(5,20,29,3,'.').rect(31,8,3,12,'.');   // anel + anel pequeno em volta do nucleo
     C.rect(0,0,9,5,'1').rect(9,0,9,5,'g').rect(18,0,9,5,'2').rect(27,0,7,5,'4');                              // norte
     C.rect(0,5,5,8,'8').rect(0,13,5,10,'6');                                                                  // oeste
     C.rect(8,8,13,6,'5').rect(8,14,13,6,'a');                                                                 // miolo
     C.rect(27,8,4,12,'c').rect(0,23,12,5,'t').rect(12,23,11,5,'y').rect(23,23,11,5,'z');
-    PL.ascii(D,C.rows(),{L:'ld_lf',S:'ld_st','1':'lqD1',g:['ls_gun',{d:[['s',.5,'door','c'],['w',.5,'door','r']]}],'2':'lqD2','4':'lqD4','8':'lqD8','6':'lqD6','5':'lqD5',a:'ls_aru',c:'lqD3',t:'lqD10',y:'lqD11',z:'lqD12'},
+    PL.ascii(D,C.rows(),{L:'ld_lf',S:'ld_st','1':'lqD1',g:['ls_gun',{d:[['s',.5,'door','c'],['w',.5,'door','r']]}],'2':'lqD2','4':'lqD4','8':'lqD8','6':'lqD6','5':'lqD5',a:'ls_aru',c:'ld_sto',t:'lqD10',y:'lqD11',z:'lqD12'},
       {cpre:'lqDc',cname:{'6,10':'Corridor D1','12,6':'Corridor D2'}});
     PL.route(D,'p',[[6.5,21.5],[6.5,6.5],[22.5,6.5],[22.5,16],[23.5,16]]);
     PL.route(D,'s',[[32.5,6.5],[32.5,21.5],[8,21.5]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
-  /* ---------- Deck C (+50): alas de cabines nas pontas, sala redonda no centro, anel em volta ---------- */
+  /* ---------- Deck C (+52): alas de cabines nas pontas, sala redonda no centro, anel em volta ---------- */
   PL.A.lqC=(function(){
-    const D=mk('lqC','C','Living quarters · Deck C','+50 m · crosses the weather deck'),C=PL.canvas(34,28);core(C,'lc');
+    const D=mk('lqC','C','Living quarters · Deck C','+52 m · same level as the weather deck'),C=PL.canvas(34,28);core(C,'lc');
     C.rect(5,2,24,3,'.').rect(5,2,3,24,'.').rect(5,23,24,3,'.').rect(27,0,2,28,'.');                              // anel em volta do miolo
     C.rect(0,2,5,24,'w').rect(29,0,5,12,'e').rect(29,12,5,4,'x').rect(29,16,5,12,'E');
     C.rect(8,5,12,12,'o').rect(8,17,9,6,'b').rect(17,17,7,6,'l').rect(20,5,4,6,'n').rect(20,11,4,6,'s');
@@ -494,31 +517,33 @@ PL.A=PL.A||{};
     PL.route(D,'s',[[28,2],[6,3.5]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
-  /* ---------- Deck B (+46): quase tudo lacrado; corredor em T com becos ---------- */
+  /* ---------- Deck B (+48): quase tudo lacrado; corredor em T com becos ---------- */
   PL.A.lqB=(function(){
-    const D=mk('lqB','B','Living quarters · Deck B','+46 m · mostly sealed'),C=PL.canvas(34,28);core(C,'lb');
+    const D=mk('lqB','B','Living quarters · Deck B','+48 m · mostly sealed'),C=PL.canvas(34,28);core(C,'lb');
     C.rect(2,12,22,3,'.').rect(21,8,3,4,'.').rect(5,3,3,9,'.').rect(14,15,3,10,'.');
+    C.rect(28,0,2,28,'.').rect(27,8,1,12,'.').rect(5,0,23,3,'.');                                   // corredor leste, colado no nucleo
+    C.rect(24,3,4,5,'1').rect(30,0,4,8,'2').rect(30,8,4,12,'3').rect(24,20,4,8,'4').rect(30,20,4,8,'5');   // alas lacradas das pontas
     C.rect(8,3,10,9,'t').rect(18,3,6,5,'g').rect(2,15,12,5,'c').rect(17,15,7,9,'w').rect(0,3,5,9,'d').rect(2,20,12,5,'s');
-    PL.ascii(D,C.rows(),{L:'lb_lf',S:'lb_st',t:'lqB2',g:'lqB5',c:['lb_c1',{cab:{n:3,side:'n'}}],w:'lqB6',d:['lb_c3',{cab:{n:2,side:'e'}}],s:'lb_sto'},{cpre:'lqBc',cname:{'10,13':'Corridor B1'}});
+    PL.ascii(D,C.rows(),{'1':['lb_c4',{cab:{n:1,side:'e'}}],'2':['lb_c5',{cab:{n:2,side:'w'}}],'3':['lb_c6',{cab:{n:3,side:'w'}}],'4':['lb_c7',{cab:{n:2,side:'e'}}],'5':['lb_c8',{cab:{n:2,side:'w'}}],L:'lb_lf',S:'lb_st',t:'lqB2',g:'lqB5',c:['lb_c1',{cab:{n:3,side:'n'}}],w:'lqB6',d:['lb_c3',{cab:{n:2,side:'e'}}],s:'lb_sto'},{cpre:'lqBc',cname:{'10,13':'Corridor B1'}});
     PL.route(D,'p',[[3,13.5],[22.5,13.5],[22.5,16],[23.5,16]]);
     PL.finish(D,{autoVoid:true});return D;})();
 
-  /* ---------- Deck A (+42): restaurante aberto pro lounge, cozinha colada, antessala da entrada ---------- */
+  /* ---------- Deck A (+44): restaurante aberto pro lounge, cozinha colada, antessala da entrada ---------- */
   PL.A.lqA=(function(){
-    const D=mk('lqA','A','Living quarters · Deck A','+42 m'),C=PL.canvas(34,28);core(C,'la');
+    const D=mk('lqA','A','Living quarters · Deck A','+44 m'),C=PL.canvas(34,28);core(C,'la');
     C.rect(21,5,3,18,'.').rect(21,5,13,3,'.').rect(21,20,13,3,'.').rect(27,8,7,3,'.').rect(27,17,7,3,'.').rect(10,13,11,3,'.');
     C.rect(0,0,13,13,'R').rect(13,0,8,13,'U').rect(0,13,10,8,'K').rect(0,21,5,7,'p').rect(5,21,5,7,'c').rect(10,21,5,7,'f').rect(15,21,6,7,'d').rect(10,16,11,5,'i');
     C.rect(27,11,4,6,'v').rect(31,11,3,6,'s').rect(21,0,13,5,'G').rect(21,23,13,5,'Z');
     PL.ascii(D,C.rows(),{L:'la_lf',S:'la_st',R:['la_rest',{d:[['s',.8,'door','c'],['e',.5,'wide','r']]}],U:'la_lng',K:['la_kit',{d:[['n',.5,'open','r'],['e',.19,'door','c'],['s',.25,'door','r'],['s',.85,'door','r']]}],
       p:['la_pan',{d:[['n',.5,'door','r']]}],c:['la_cold',{d:[['n',.5,'door','r']]}],f:['la_frz',{d:[['w',.5,'door','r']]}],d:['la_fos',{d:[['n',.3,'door','r'],['e',.14,'door','c']]}],i:'la_inf',G:'la_gym',Z:'la_cln',
-      v:['la_vst',{d:[['n',.5,'door','c'],['e',.5,'door','r']]}],s:['la_stp',{d:[['w',.5,'open','r']]}]},{cpre:'lqAc',cname:{'12,14':'Corridor A1','22,12':'Corridor A2'}});
+      v:['la_vst',{d:[['n',.5,'door','c'],['e',.5,'door','r']]}],s:['la_stp',{dir:'dn',to:'L-05',n:'Entrance stair',d:[['w',.5,'open','r']]}]},{cpre:'lqAc',cname:{'12,14':'Corridor A1','22,12':'Corridor A2'}});
     PL.route(D,'p',[[11,14.5],[22.5,14.5],[22.5,6.5],[32.5,6.5],[32.5,9.5]]);
     PL.route(D,'s',[[22.5,21.5],[32.5,21.5],[32.5,18.5]]);
     D.cams.push({id:'cam01',x:6,y:6,room:'la_rest'});
     PL.finish(D,{autoVoid:true});return D;})();
 })();
 
-PL.assemble('A',{rev:'A1',block:{org:[2,12],size:[34,28]},column:['wd4','md4','cd7'],stack:{blk:[2,12,34,28],shafts:[[100,26]],crane:[98,0],moon:[63,24],plate:[136,52]}});
+PL.assemble('A',{rev:'A1',block:{org:[2,12],size:[34,28]},column:['wd4','md4','cd7'],stack:{lq:{lqE:60,lqD:56,lqC:52,lqB:48,lqA:44},roof:64,base:40,blk:[2,12,34,28],shafts:[[100,26]],crane:[98,0],moon:[63,24],plate:[136,52]}});
 
 delete window.PL;delete window.OLDR;
 })();

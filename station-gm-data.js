@@ -37,7 +37,7 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Porta sanfonada de aço",
-   "Cinco botões, e o E tem etiqueta nova",
+   "Seis botões, e o E tem etiqueta nova",
    "Cabine com cheiro de pó queimado"
   ]
  },
@@ -45,7 +45,7 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Corrimão gasto no meio dos degraus",
-   "Cinco lances subindo pela parte de dentro do bloco",
+   "Cinco lances subindo pela parte de dentro do bloco, quatro metros cada",
    "Luz fria em cada patamar"
   ]
  },
@@ -123,16 +123,17 @@ window.STATION_GM={text:{
  "md5": {
   "p": 1,
   "b": [
-   "Peneiras cuspindo lama cinza",
+   "Peneiras paradas, cobertas por lona e cinza de lama seca",
    "Tudo coberto, inclusive o vidro do laboratório",
-   "Cheiro de argila molhada e químico doce"
+   "Bombas de lama vazias, com as mangueiras enroladas",
+   "Cheiro de argila seca e de químico doce"
   ]
  },
  "md_lab": {
   "p": 0,
   "b": [
    "Capela de exaustão e bancada de frascos com sedimento cinza",
-   "Etiquetas com datas que param em 2013"
+   "Etiquetas com datas que param no fim da última campanha de perfuração, antes do inverno"
   ]
  },
  "md_chem": {
@@ -170,8 +171,10 @@ window.STATION_GM={text:{
  "md9": {
   "p": 0,
   "b": [
-   "Ar quente e óleo de motor",
-   "Dois geradores enormes, um com lona por cima"
+   "Ar quente e cheiro de óleo de motor",
+   "Compressor de serviço e tanque de ar com lona por cima",
+   "Tanque de água quente isolado, com a válvula de vapor etiquetada",
+   "Painel de utilidades com todas as luzes verdes"
   ]
  },
  "md8": {
@@ -285,7 +288,7 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Duas unidades de tratamento de ar do tamanho de um ônibus",
-   "Prumada de duto subindo pelo teto, uma por deck",
+   "Prumada de duto subindo pelo teto, uma por deck, daqui até o Deck E",
    "Zumbido que sobe pela sola",
    "Filtros trocados, etiqueta de 2013"
   ]
@@ -328,9 +331,10 @@ window.STATION_GM={text:{
  "mb_inc": {
   "p": 0,
   "b": [
-   "Forno de aço com chaminé que sobe pelo teto",
-   "Cinza fina no chão em volta da porta",
-   "Cheiro de plástico queimado, antigo"
+   "Forno de aço frio, porta de carga travada com arame",
+   "Chaminé sem uso, teia dentro do duto",
+   "Cinza velha e dura no chão em volta da porta",
+   "Etiqueta de desativação do refit, o lixo vai pra sala de resíduos"
   ]
  },
  "wd8": {
@@ -373,7 +377,7 @@ window.STATION_GM={text:{
   "p": 1,
   "b": [
    "Quatro cápsulas laranja em berço inclinado",
-   "70 lugares cada uma",
+   "35 lugares cada uma",
    "Quadro de nomes com a maioria das linhas em branco"
   ]
  },
@@ -477,7 +481,7 @@ window.STATION_GM={text:{
   "b": [
    "Pé-direito de oito metros",
    "Marcação amarela de área de içamento",
-   "Vão aberto pro céu",
+   "Estoque em estrado alinhado contra a parede norte, etiqueta de embarque na frente",
    "Contêiner formando corredores"
   ]
  },
@@ -485,8 +489,9 @@ window.STATION_GM={text:{
   "p": 1,
   "b": [
    "Labirinto de duto prateado no teto",
-   "Ventiladores em três tons",
-   "Sauna de compensado com válvula de vapor desviada",
+   "Três geradores em fila, ventiladores em três tons",
+   "Caldeira cilíndrica de casco vermelho no fundo, manômetro parado no meio da escala",
+   "Sauna de compensado com válvula de vapor desviada da caldeira",
    "Vapor denso demais pra ver a parede oposta"
   ]
  },
@@ -578,12 +583,14 @@ window.STATION_GM={text:{
    "Tubo do diâmetro de um corpo descendo pelo piso"
   ]
  },
- "cd_hpu": {
-  "p": 0,
+ "cd_emb": {
+  "p": 1,
   "b": [
-   "Tanque de óleo hidráulico e duas bombas",
-   "Bandeja de gotejamento sob cada conexão",
-   "Painel de pressão com ponteiro parado no vermelho"
+   "Plataforma gradeada rente à água, na borda norte",
+   "Escada de aço descendo pro mar, degraus verdes de alga",
+   "Boia com o nome da plataforma",
+   "Casco do barco de apoio batendo no defensa",
+   "Dois bancos de aço e um monte de caixa de carga leve esperando"
   ]
  },
  "cd_bal": {
@@ -591,7 +598,7 @@ window.STATION_GM={text:{
   "b": [
    "Console com o diagrama das pernas e dos tanques de lastro",
    "Vários indicadores em âmbar",
-   "Livro de registro com a última entrada às 03:12 sem assinatura"
+   "Livro de registro com a última entrada às 14:20 sem assinatura"
   ]
  },
  "cd3": {
@@ -642,13 +649,12 @@ window.STATION_GM={text:{
    "Depois do quarto patamar não tem rádio"
   ]
  },
- "cd_emb": {
-  "p": 1,
+ "cd_hpu": {
+  "p": 0,
   "b": [
-   "Plataforma gradeada rente à água",
-   "Escada de aço descendo pro mar, degraus verdes de alga",
-   "Boia com o nome da plataforma",
-   "Casco do barco de apoio batendo no defensa"
+   "Tanque de óleo hidráulico e duas bombas",
+   "Bandeja de gotejamento sob cada conexão",
+   "Painel de pressão com ponteiro parado no vermelho"
   ]
  },
  "cd13": {
@@ -744,7 +750,7 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Porta sanfonada de aço",
-   "Cinco botões, e o E tem etiqueta nova",
+   "Seis botões, e o E tem etiqueta nova",
    "Cabine com cheiro de pó queimado"
   ]
  },
@@ -807,7 +813,7 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Porta sanfonada de aço",
-   "Cinco botões, e o E tem etiqueta nova",
+   "Seis botões, e o E tem etiqueta nova",
    "Cabine com cheiro de pó queimado"
   ]
  },
@@ -823,6 +829,9 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Escritório e cama no mesmo cômodo, mesa virada pra janela",
+   "Gunnar dorme e trabalha aqui; não há outro escritório de gerente no bloco",
+   "Arquivo trancado, a única porta do bloco com chave de verdade",
+   "Toca-discos com vinil clássico sobre o aparador",
    "Rádio portátil na base de carga, luz verde",
    "Cartão de natal de dois anos atrás ainda na parede"
   ]
@@ -835,11 +844,12 @@ window.STATION_GM={text:{
    "Cortina da janela fechada"
   ]
  },
- "lqD3": {
+ "ld_sto": {
   "p": 0,
   "b": [
-   "Arquivo trancado e toca-discos com vinil clássico",
-   "Única porta do bloco com chave de verdade"
+   "Caixas de papel e pasta suspensa até o teto",
+   "Material de escritório contado, lápis por caixa",
+   "Poeira fina e uma única cadeira dobrável"
   ]
  },
  "lqD10": {
@@ -847,7 +857,7 @@ window.STATION_GM={text:{
   "b": [
    "Manequim de RCP sentado, de frente pra porta",
    "Mapa de estações laminado, Rev. 3, 2011",
-   "Vídeo de indução gravado em 2009"
+   "Vídeo de indução gravado em 2011"
   ]
  },
  "lqD11": {
@@ -870,7 +880,7 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Porta sanfonada de aço",
-   "Cinco botões, e o E tem etiqueta nova",
+   "Seis botões, e o E tem etiqueta nova",
    "Cabine com cheiro de pó queimado"
   ]
  },
@@ -885,7 +895,7 @@ window.STATION_GM={text:{
  "lc_w": {
   "p": 1,
   "b": [
-   "23 m de corredor, uma porta a cada 3,5 m",
+   "23 m de corredor, uma porta a cada 3,5 m; as 12 cabines do Deck C são as que ainda estão em uso",
    "Cartão de nome, metade a caneta",
    "Beliche, escrivaninha dobrável, armário estreito",
    "Parede fina o bastante pra ouvir o vizinho"
@@ -955,11 +965,51 @@ window.STATION_GM={text:{
    "Porta destrancada e ninguém nunca levou nada"
   ]
  },
+ "lb_c4": {
+  "p": 0,
+  "b": [
+   "Uma cabine, porta fechada com fita",
+   "Fita já amarelada, sem marca de dedo",
+   "Cheiro de madeira velha"
+  ]
+ },
+ "lb_c5": {
+  "p": 0,
+  "b": [
+   "Duas portas fechadas com fita cruzada",
+   "Luz de emergência a cada dez metros no corredor",
+   "Nenhum cheiro, e isso é o que estranha"
+  ]
+ },
+ "lb_c6": {
+  "p": 0,
+  "b": [
+   "Três portas, a do meio entreaberta, fita rompida",
+   "Colchão sem lençol e armário aberto",
+   "Cheiro fechado de mofo leve"
+  ]
+ },
+ "lb_c7": {
+  "p": 0,
+  "b": [
+   "Duas portas fechadas com fita",
+   "Placa de nome raspada em uma delas",
+   "Eco de corredor vazio"
+  ]
+ },
+ "lb_c8": {
+  "p": 0,
+  "b": [
+   "Duas portas fechadas com fita já amarelada",
+   "Capacho ainda na frente de uma delas",
+   "Silêncio do outro lado"
+  ]
+ },
  "lb_lf": {
   "p": 0,
   "b": [
    "Porta sanfonada de aço",
-   "Cinco botões, e o E tem etiqueta nova",
+   "Seis botões, e o E tem etiqueta nova",
    "Cabine com cheiro de pó queimado"
   ]
  },
@@ -993,7 +1043,8 @@ window.STATION_GM={text:{
    "Três portas fechadas",
    "Fita cruzando cada batente, já amarelada",
    "Luz de emergência a cada dez metros",
-   "Nenhum cheiro, e isso é o que estranha"
+   "Nenhum cheiro, e isso é o que estranha",
+   "Capacidade de projeto do bloco: 15 cabines aqui e 12 no Deck C, uns 60 leitos com as suítes"
   ]
  },
  "lqB6": {
@@ -1024,7 +1075,7 @@ window.STATION_GM={text:{
   "p": 0,
   "b": [
    "Porta sanfonada de aço",
-   "Cinco botões, e o E tem etiqueta nova",
+   "Seis botões, e o E tem etiqueta nova",
    "Cabine com cheiro de pó queimado"
   ]
  },
@@ -1128,7 +1179,7 @@ window.STATION_GM={text:{
  "la_stp": {
   "p": 0,
   "b": [
-   "Degraus largos descendo pro module deck",
+   "Escada longa de quatro metros de altura descendo pro module deck",
    "Corrimão frio",
    "Luz do deck de baixo no fim"
   ]

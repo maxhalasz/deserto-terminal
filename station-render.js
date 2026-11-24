@@ -119,7 +119,10 @@ function plan(deck,st,o){
     // vazios estruturais (poche solido)
     (deck.voids||[]).forEach((v,i)=>{const vis=mode==='f'?nearFull(v):(st.ghost&&nearAny(v)&&!nearFull(v));if(vis){s+=rect(v,WE,T.wall)+rect(v,-WE,T.deck)+frame(v,6);}});
     // contorno do bloco de alojamento (estrutura do bloco que atravessa/pousa neste deck)
-    (deck.blocks||[]).forEach(b=>{const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(vis){if(b.open){s+=rect(b.r,0,'none',`stroke="${T.wall}" stroke-width="1.8" stroke-dasharray="10 5" pointer-events="none"`);}else{s+=rect(b.r,WE,T.wall)+rect(b.r,-WE,T.deck)+frame(b.r,5.7);(b.d||[]).forEach(d=>{s+=door(b,d);});}}});
+    (deck.blocks||[]).forEach(b=>{const vis=mode==='f'?nearFull(b.r):(st.ghost&&nearAny(b.r)&&!nearFull(b.r));if(vis){if(b.open){s+=rect(b.r,0,'none',`stroke="${T.wall}" stroke-width="1.8" stroke-dasharray="10 5" pointer-events="none"`);}else{/* predio fechado: parede grossa, cobertura com platibanda e juntas de telhado, no traco das salas */
+      const bw=.34,[bx,by,bW,bH]=b.r;s+=rect(b.r,bw,T.wall)+rect(b.r,-bw,T.room)+rect([bx+1.1,by+1.1,bW-2.2,bH-2.2],0,'none',`stroke="${T.sub}" stroke-width=".8" pointer-events="none"`);
+      for(let yy=by+2.5;yy<by+bH-1.2;yy+=2.4)s+=`<path d="M${f1(X(bx+1.1))} ${f1(Y(yy))}H${f1(X(bx+bW-1.1))}" stroke="${T.grid}" stroke-width=".6" pointer-events="none"/>`;
+      (b.d||[]).forEach(d=>{s+=door(b,d);});}}});
     // firewall
     (deck.firewall||[]).forEach(f=>{const vis=mode==='f'?nearFull(f):(st.ghost&&nearAny(f)&&!nearFull(f));if(vis)s+=rect(f,0,`url(#${id}h)`,`stroke="${T.wall}" stroke-width="1"`);});
     // pisos dos corredores

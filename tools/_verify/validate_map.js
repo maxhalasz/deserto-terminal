@@ -84,4 +84,6 @@ if(S.COLUMN){const rs=S.COLUMN.map(id=>S.roomIndex[id]);
   else{const c=rs.map(r=>[r.r[0]+r.r[2]/2,r.r[1]+r.r[3]/2]);c.forEach((p,i)=>{if(Math.hypot(p[0]-c[0][0],p[1]-c[0][1])>1.2)E('coluna do poco: '+S.COLUMN[i]+' fora do eixo da torre');});}}
 /* nada da DRE em nenhum arquivo publico */
 {const j=JSON.stringify(S);if(/\bDRE\b|caisson|ala da DRE/i.test(j))E('o mapa cita a DRE ou o caisson (proibido nos arquivos publicos)');}
+/* deck B ocupa o contorno inteiro do bloco */
+{const b=S.DECKS.lqB&&S.DECKS.lqB.bbox,sz=S.BLOCK&&S.BLOCK.size;if(b&&sz&&(Math.abs(b[2]-sz[0])>.01||Math.abs(b[3]-sz[1])>.01))E('lqB: bbox '+b[2]+'x'+b[3]+' difere do bloco '+sz.join('x'));}
 console.log('\n'+err+' erros, '+warn+' avisos');process.exit(err?1:0);
