@@ -22,8 +22,8 @@ const ME=(()=>{let v=LS.get('deserto:op');if(!v){v='OP-'+Math.random().toString(
 /* ---------- niveis / decks ---------- */
 const unlockedMap=()=>STATE.unlocked||{};
 function isUnlocked(level){const u=unlockedMap();return !!(u[level]||Object.keys(S.LEGACY).some(k=>S.LEGACY[k]===level&&u[k]));}
-/* camada de sistemas (VENT/POWER): prototipo, so liga com ?layer=vent ou ?layer=power; as abas continuam desligadas */
-const LAYER=(function(){try{const v=new URLSearchParams(location.search).get('layer');return v==='vent'||v==='power'?v:null;}catch(e){return null;}})();
+/* camada de sistemas (VENT/POWER): prototipo; as abas POWER e VENT alternam, ou abre direto com ?layer=vent|power */
+let LAYER=(function(){try{const v=new URLSearchParams(location.search).get('layer');return v==='vent'||v==='power'?v:null;}catch(e){return null;}})();
 const forcedLevel=()=>{const f=STATE.force?S.levelId(STATE.force):null;return f&&S.LEVELS.some(l=>l.id===f)?f:null;};
 const mapState=()=>STATE.map||{};
 const revRooms=()=>mapState().rooms||{};
@@ -285,6 +285,7 @@ function renderAll(){
   const forced=forcedLevel();
   $('topinfo').innerHTML=forced?`<span class="forced">▲ DIRECTED VIEW</span>`:'';
   $('btnCctv').className='btn'+(showCams?' on':'');
+  $('btnLyStruct').className=LAYER?'btn':'on';$('btnLyPower').className='btn'+(LAYER==='power'?' on':'');$('btnLyVent').className='btn'+(LAYER==='vent'?' on':'');
   $('btnPin').classList.toggle('hid',!pn);
   const tk=tickerList();$('ticker').style.display=tk.length?'':'none';
   $('ticker').innerHTML=tk.length?'<b>▲ WARNING</b>'+tk.map(t=>`<span>${esc(t)}</span>`).join(''):'';
@@ -398,6 +399,7 @@ function start(sessionRef){
   $('zRoom').addEventListener('click',zoomToRoom);$('btnPin').addEventListener('click',goPin);$('btnFull').addEventListener('click',()=>setFull(!fullMode));$('btnTheme').addEventListener('click',()=>applyTheme(theme==='dark'?'light':'dark'));
   $('zIn').addEventListener('click',()=>zoomAt(1.4,PW/2,PH/2));$('zOut').addEventListener('click',()=>zoomAt(1/1.4,PW/2,PH/2));
   $('btnCctv').addEventListener('click',()=>{showCams=!showCams;renderAll();});
+  $('btnLyStruct').addEventListener('click',()=>{LAYER=null;renderAll();});$('btnLyPower').addEventListener('click',()=>{LAYER=LAYER==='power'?null:'power';renderAll();});$('btnLyVent').addEventListener('click',()=>{LAYER=LAYER==='vent'?null:'vent';renderAll();});
   $('nbl').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='ninp'){const v=e.target.value;e.target.value='';addNote(v);e.preventDefault();}});
   $('nbl').addEventListener('click',e=>{const rt=e.target.closest('.rt');if(rt){focusRoom(rt.dataset.r);return;}const x=e.target.closest('.x');if(!x)return;
     ref.child('station/notes/'+x.dataset.k).remove();});

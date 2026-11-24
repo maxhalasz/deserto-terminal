@@ -1,31 +1,26 @@
 # Estação: camadas VENT e POWER
 
-Status: PROTOTIPO visual (2026-11-24). As abas VENT e POWER do terminal continuam desligadas. O protótipo só aparece com `estacao.html?layer=vent` ou `?layer=power`. Falta o Max aprovar a direção antes de ligar nas abas e no painel do Guardião.
+Status: PROTOTIPO na branch `estacao-rodada-9` (2026-11-24), ainda não publicado. As abas POWER e VENT do terminal agora alternam a camada (STRUCTURE volta ao mapa); `?layer=vent` ou `?layer=power` abre direto.
 
-## Ideia
+## Como fica
 
-O mapa escurece e a rede aparece por cima, com o traço detalhado e as prumadas que mostram onde a rede sobe e onde desce. A planta de baixo fica como orientação (contorno fraco e nomes); o que importa é a rede.
+Clicar em VENT ou POWER escurece **tudo**, inclusive os nomes das salas (quase somem, só o contorno fraco fica pra orientar). A rede aparece por cima como caminhos simples:
 
-- **VENT.** Insuflamento em creme, exaustão em laranja, os dois em duto vazado (parede fina, miolo escuro) com seta de fluxo. Cada sala atendida ganha um ramal curto e uma grelha: quadrado com X no insuflamento, círculo com cruz na exaustão. Unidades: casa de ar-condicionado (duas turbinas), ventilador, chaminé do gas vent.
-- **POWER.** Alimentador de alta em laranja grosso (geradores, quadro principal, transformador), distribuição de baixa em creme fino com pontos de quadro. Geradores, quadro, transformador, UPS e baterias têm símbolo próprio. Alimentação de emergência tracejada.
-- **Prumadas.** Anel com ▲ (sobe), ▼ (desce) ou os dois, e uma etiqueta com o destino ("L-06 · DECKS A–E", "L-07 ↑ GAS VENT"). A prumada fica no mesmo x,y em todos os decks que atravessa.
+- **VENT.** Insuflamento em creme, exaustão em laranja. Tronco = traço grosso pelo eixo dos corredores (espessura cresce com o número de salas atendidas, seta de fluxo só nos trechos longos). Ramal = traço fino que entra pela porta e anda até o mobiliário.
+- **Saídas.** Duas formas: barra na parede (ao lado da porta) e anel no teto sobre o mobiliário. Nunca no centro da sala: a posição vem do tipo da sala (sobre a cama na suíte, sobre a mesa no escritório, sobre o fogão na cozinha, em linha sobre os geradores, etc.). Exaustão tem o anel com cruz.
+- **Só quem precisa.** Sem ramal: escadas, elevadores, antecâmara, depósitos, câmaras frias, cabines lacradas, salas desativadas, convés, moonpool. Insuflamento vai pras salas ocupadas; exaustão pras molhadas e perigosas (banheiro, cozinha, lavanderia, laboratório, bateria, tinta, oficina, geradores, compressores, módulos de processo, wellbay).
+- **POWER.** Alimentador de alta em laranja grosso (geradores, quadro principal, transformador), distribuição de baixa em creme fino terminando num quadro pequeno na parede ao lado da porta. Só salas que consomem.
+- **Prumadas.** Anel com ▲, ▼ ou os dois e uma etiqueta com o destino. Ficam no mesmo x,y em todos os decks que atravessam: ar-condicionado do bloco (module → Deck E), exaustão de processo (cellar → module → gas vent do weather) e energia no núcleo do bloco.
+- **Segredo.** A rede só aparece onde o corredor ou a sala já foi revelado (no painel do Guardião aparece tudo).
 
-## Como o protótipo funciona
+## Como é gerado
 
-`station-systems.js` gera a rede a partir da própria planta: o eixo dos corredores vira o caminho de duto e de cabo, o caminho mais curto entre a origem e cada sala vira o tronco (a espessura cresce com o número de salas atendidas) e cada porta vira um ramal. Nada é desenhado à mão deck a deck. O desenho em si está em `station-render.js` (`sysLayer`).
-
-Prumadas definidas:
-
-- **Ar-condicionado do bloco:** (24,5; 21,5) no module deck, (22,5; 9,5) em cada deck do alojamento. Do HVAC do nível técnico sobe até o AHU do Deck E.
-- **Exaustão de processo:** (50,5; 40,5) no cellar, no module e no weather. Sobe do cellar, atravessa a área suja e descarrega no gas vent.
-- **Energia:** no núcleo do bloco, (28,5; 26) global. Sobe do quadro principal do cellar até os decks do alojamento.
-
-Decks cobertos: module, cellar, weather e os cinco decks do bloco (módulo e cellar são os mais completos).
+`station-systems.js` monta a rede a partir da planta: o eixo dos corredores é o caminho, o menor caminho entre a origem e cada sala vira o tronco e cada porta vira um ramal; `FURN` guarda onde ficam as saídas por tipo de sala. O desenho está em `station-render.js` (`sysLayer`).
 
 ## Para decidir
 
-1. O visual agrada? Ajustes possíveis: intensidade do escurecimento, cor do insuflamento, ramais até o centro da sala ou só até a porta.
-2. O jogador vê a rede toda ou só o que o Guardião revelou (mesma regra do mapa: só aparece onde a sala ou o corredor foi revelado)?
-3. O Guardião edita a rede (mover prumada, apagar ramal, desligar um trecho) ou o gerador basta?
-4. Clicar numa prumada leva ao deck de destino com o foco na mesma prumada?
-5. Algum trecho "morto" ou com falha (duto desligado, quadro sem energia) como pista narrativa? Fica pra uma segunda etapa.
+1. Escurecimento e nomes: do jeito que está ou mais claro?
+2. Sala sem ramal aparece de algum jeito (um pontinho "sem ventilação") ou fica em branco?
+3. O Guardião edita (mover saída, apagar ramal, cortar um trecho) ou o gerador basta?
+4. Clicar numa prumada leva ao deck de destino?
+5. Falha narrativa: duto cortado, quadro sem energia, trecho que não funciona mais? Fica pra uma segunda etapa.
