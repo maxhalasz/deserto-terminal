@@ -328,3 +328,8 @@ html[data-theme="light"]{--alarm:#cf111b;--alarmtx:#8f0a12}
 @media (prefers-reduced-motion:reduce){.tick b{animation:none}}
 body.full .pen{display:none}
 .sk-blk{fill:var(--live);fill-opacity:.14;stroke:var(--live);stroke-width:1.3;stroke-dasharray:4 3}
+
+/* VENT: pontinhos de ar correndo pelo duto (sentido do fluxo) */
+.vflow{stroke-dasharray:.5 11;animation:vflow 1.1s linear infinite}
+@keyframes vflow{to{stroke-dashoffset:-11.5}}
+@media (prefers-reduced-motion:reduce){.vflow{animation:none}}

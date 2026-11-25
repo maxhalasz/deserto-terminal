@@ -100,6 +100,53 @@ function net(d,o){
   return {k:o.k,edges,branches,src:srcP,rev:!!o.rev,w:o.w};
 }
 
+/* ---------- VENT: arvore de dutos pelo forro, ligando as saidas entre si (nao segue corredor) ---------- */
+const ceilCands=r=>{const [rx,ry,rw,rh]=r.r;const fp=FURN[r.eq];
+  const ts=fp?fp.map(q=>[rx+rw*q[0],ry+rh*q[1]]):[[rx+rw*.3,ry+rh*.35]];
+  return ts.map(q=>[Math.round(q[0]*2)/2,Math.round(q[1]*2)/2]);};
+
+function ventTree(d,o){
+  const srcR=o.src.room?d.rooms.find(r=>r.id===o.src.room):null;
+  const S=o.src.pt||(srcR?centre(srcR):null);if(!S)return null;
+  const man=(a,b)=>Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1]);
+  const flat=[];
+  (o.to||[]).forEach((t,k)=>{if(Array.isArray(t))flat.push({it:{pt:true,room:null,id:'pt'+k},c:t});
+    else{const r=d.rooms.find(q=>q.id===t);if(r)ceilCands(r).forEach(c=>flat.push({it:{room:r,id:r.id},c}));}});
+  const segs=[],br=[];
+  const nearest=c=>{let best={d:man(c,S),seg:null,P:S};
+    segs.forEach(s=>{const P=s.hz?[clamp(c[0],s.a,s.b),s.c]:[s.c,clamp(c[1],s.a,s.b)];const dd=man(c,P);if(dd<best.d-1e-6)best={d:dd,seg:s,P};});return best;};
+  const addSegs=(pts,own)=>{for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];if(Math.abs(a[1]-b[1])<1e-6&&Math.abs(a[0]-b[0])>1e-6)segs.push({hz:1,c:a[1],a:Math.min(a[0],b[0]),b:Math.max(a[0],b[0]),own});
+    else if(Math.abs(a[0]-b[0])<1e-6&&Math.abs(a[1]-b[1])>1e-6)segs.push({hz:0,c:a[0],a:Math.min(a[1],b[1]),b:Math.max(a[1],b[1]),own});}};
+  let guard=0;
+  while(flat.length&&guard++<600){
+    let bi=0,bb=null;
+    flat.forEach((f,i)=>{const n=nearest(f.c);if(!bb||n.d<bb.d-1e-6){bb=n;bi=i;}});
+    const f=flat.splice(bi,1)[0],c=f.c,P=bb.P,seg=bb.seg;let pts;
+    if(!seg){const dx=Math.abs(c[0]-S[0]),dy=Math.abs(c[1]-S[1]);pts=dx>=dy?[S,[c[0],S[1]],c]:[S,[S[0],c[1]],c];}
+    else if(seg.hz)pts=(c[0]>=seg.a&&c[0]<=seg.b)?[P,c]:[P,[P[0],c[1]],c];
+    else pts=(c[1]>=seg.a&&c[1]<=seg.b)?[P,c]:[P,[c[0],P[1]],c];
+    pts=pts.filter((p,i)=>!i||dist(p,pts[i-1])>1e-6);
+    if(pts.length<2)pts=[P,[c[0]+.01,c[1]]];
+    const id=br.length;br.push({pts,parent:seg?seg.own:null,room:f.it.room?f.it.room.id:null,roomObj:f.it.room,entry:f.it.entryBr==null,size:1});
+    if(f.it.entryBr==null)f.it.entryBr=id;
+    addSegs(pts,id);
+  }
+  for(let i=br.length-1;i>=0;i--)if(br[i].parent!=null)br[br[i].parent].size+=br[i].size;
+  /* terminais: anel no teto em cada ponta; barra na parede onde o duto entra na sala */
+  const terms=[],seen={};
+  br.forEach(b=>{const q=b.pts[b.pts.length-1];terms.push({x:q[0],y:q[1],t:'ceil'});
+    const r=b.roomObj;if(!r||!b.entry||seen[r.id])return;seen[r.id]=1;
+    const [rx,ry,rw,rh]=r.r;if((r.eq==='bath'||r.eq==='wash')||Math.min(rw,rh)<3.6)return;
+    const inside=(x,y)=>x>rx+.05&&x<rx+rw-.05&&y>ry+.05&&y<ry+rh-.05;
+    for(let i=0;i<b.pts.length-1;i++){const p=b.pts[i],q2=b.pts[i+1],L=dist(p,q2),n=Math.max(2,Math.ceil(L/.1));let prev=p,found=false;
+      for(let k=1;k<=n;k++){const x=p[0]+(q2[0]-p[0])*k/n,y=p[1]+(q2[1]-p[1])*k/n;
+        if(!inside(prev[0],prev[1])&&inside(x,y)){const hz=Math.abs(q2[1]-p[1])<1e-6,dirv=hz?Math.sign(q2[0]-p[0]):Math.sign(q2[1]-p[1]);
+          terms.push(hz?{x:dirv>0?rx:rx+rw,y,t:'wall',nx:1,ny:0}:{x,y:dirv>0?ry:ry+rh,t:'wall',nx:0,ny:1});found=true;break;}
+        prev=[x,y];}
+      if(found)break;}});
+  return {k:o.k,rev:!!o.rev,src:S,branches:br.map(b=>({pts:b.pts,size:b.size,room:b.room})),terms};
+}
+
 /* ---------- quais salas precisam de cada rede ---------- */
 const NOT=r=>r.t==='stair'||/lift|stair/i.test(r.n);
 const NOSUP={vest:1,hatch:1,store:1,paint:1,linen:1,cold:1,freezer:1,cabinrow:1,moonpool:1,tower:1,shaft:1,jetty:1,antenna:1,tcards:1,xmas:1,wellheads:1,cargo:1,sealed:1,tv:1,heli:1,rov:1,winch:1,hpu:1,ballast:1,waste:1,engine:1,entry:0,inj:1,chemstore:1,mud:1,separators:1,utilities:1,compressors:1,pumps:1,gens:1,drying:1,battery:1,switch:1,xfmr:1,elec:0,old:1,flare:1,crane:1,muster0:1,liferaft:1,lifeboats:1,vent:1,containers:1,bath:1,wash:1,laundry:1,kitchen:0,lab:0,desal:1,ahu:1};
@@ -115,14 +162,14 @@ const P1=[28.5,26],P1_LQ=[26.5,14]; /* prumada eletrica no nucleo do bloco */
 
 function vent(S,id){const d=S.DECKS[id];if(!d)return null;
   const rm=f=>d.rooms.filter(f).map(r=>r.id);
-  const out={title:'VENTILATION',nets:[],units:[],risers:[]};
+  const out={title:'VENTILATION',trees:[],units:[],risers:[]};
   if(id==='module'){
-    out.nets.push({k:'s',src:{room:'mb_hvac'},to:[...rm(r=>r.r[0]+r.r[2]<=47.2&&needSup(r)&&r.id!=='mb_hvac'),BLOCK_V]});
-    out.nets.push({k:'x',src:{pt:CHASE_V},to:rm(r=>r.r[0]>=48.5&&needExh(r)),rev:true});
+    out.trees.push({k:'s',src:{room:'mb_hvac'},to:[...rm(r=>r.r[0]+r.r[2]<=47.2&&needSup(r)&&r.id!=='mb_hvac'),BLOCK_V]});
+    out.trees.push({k:'x',src:{pt:CHASE_V},to:rm(r=>r.r[0]>=48.5&&needExh(r)),rev:true});
     out.units.push({room:'mb_hvac',t:'ahu',lbl:'AHU-1'});
     out.risers.push({x:BLOCK_V[0],y:BLOCK_V[1],dir:'up',to:'L-06 · DECKS A–E',k:'s'},{x:CHASE_V[0],y:CHASE_V[1],dir:'ud',to:'L-03 ↓ · L-07 ↑ GAS VENT',k:'x'});
   }else if(id==='cellar'){
-    out.nets.push({k:'x',src:{pt:CHASE_V},to:rm(r=>needExh(r)||['cd12','cd_lube','cd_wks','cd_egen','cd1'].includes(r.id)),rev:true});
+    out.trees.push({k:'x',src:{pt:CHASE_V},to:rm(r=>needExh(r)||['cd12','cd_lube','cd_wks','cd_egen','cd1'].includes(r.id)),rev:true});
     out.units.push({room:'cd1',t:'fan',lbl:'INTAKE'},{room:'cd_egen',t:'fan',lbl:'EXH'});
     out.risers.push({x:CHASE_V[0],y:CHASE_V[1],dir:'up',to:'L-05 · GAS VENT',k:'x'});
   }else if(id==='weather'){
@@ -130,8 +177,8 @@ function vent(S,id){const d=S.DECKS[id];if(!d)return null;
     out.risers.push({x:CHASE_V[0],y:CHASE_V[1],dir:'dn',to:'L-05 · PROCESS EXHAUST',k:'x'});
   }else if(/^lq/.test(id)){
     const src=id==='lqE'?{room:'lqE4'}:{pt:BLOCK_V_LQ};
-    out.nets.push({k:'s',src,to:rm(r=>needSup(r)&&!(id==='lqE'&&r.id==='lqE4'))});
-    const ex=rm(needExh);if(ex.length)out.nets.push({k:'x',src:{pt:BLOCK_V_LQ},to:ex,rev:true});
+    out.trees.push({k:'s',src,to:rm(r=>needSup(r)&&!(id==='lqE'&&r.id==='lqE4'))});
+    const ex=rm(needExh);if(ex.length)out.trees.push({k:'x',src:{pt:BLOCK_V_LQ},to:ex,rev:true});
     if(id==='lqE'){out.units.push({room:'lqE4',t:'ahu',lbl:'AHU-2'});out.risers.push({x:BLOCK_V_LQ[0],y:BLOCK_V_LQ[1],dir:'dn',to:'DECK D ↓ · ROOF ↑',k:'s'});}
     else out.risers.push({x:BLOCK_V_LQ[0],y:BLOCK_V_LQ[1],dir:'ud',to:({lqD:'DECK E ↑ · DECK C ↓',lqC:'DECK D ↑ · DECK B ↓',lqB:'DECK C ↑ · DECK A ↓',lqA:'DECK B ↑ · MODULE ↓'})[id],k:'s'});
   }
@@ -168,7 +215,8 @@ function power(S,id){const d=S.DECKS[id];if(!d)return null;
 /* ---------- resultado pro renderer ---------- */
 function forDeck(S,id,kind){
   const cfg=kind==='vent'?vent(S,id):kind==='power'?power(S,id):null;if(!cfg)return null;const d=S.DECKS[id];
-  const res={kind,title:cfg.title,paths:[],units:[],risers:cfg.risers||[],lines:cfg.lines||[],hi:{}};
+  const res={kind,title:cfg.title,paths:[],vent:[],units:[],risers:cfg.risers||[],lines:cfg.lines||[],hi:{}};
+  (cfg.trees||[]).forEach(t=>{const r=ventTree(d,t);if(!r)return;res.vent.push(r);if(t.src.room)res.hi[t.src.room]=1;r.branches.forEach(b=>{if(b.room)res.hi[b.room]=1;});});
   (cfg.nets||[]).forEach(n=>{const r=net(d,Object.assign({},n,{kind:n.k}));if(!r)return;res.paths.push(r);
     if(n.src.room)res.hi[n.src.room]=1;r.branches.forEach(b=>{if(b.room)res.hi[b.room]=1;});});
   (cfg.units||[]).forEach(u=>{let x=u.x,y=u.y;if(u.room){const r=d.rooms.find(q=>q.id===u.room);if(!r)return;[x,y]=centre(r);res.hi[u.room]=1;}res.units.push({x,y,t:u.t,lbl:u.lbl,room:u.room||null});});

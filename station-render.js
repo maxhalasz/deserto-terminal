@@ -114,56 +114,77 @@ function plan(deck,st,o){
   }
 
 
-  /* ---------- camadas de sistemas (VENT / POWER): tudo escurece, inclusive os nomes; a rede aparece por cima como caminhos simples ---------- */
+  /* ---------- camadas de sistemas (VENT / POWER): tudo escurece, inclusive os nomes ----------
+     VENT  = dutos pelo forro: curvas suaves, espessura que afina, pontinhos de ar correndo, saidas na parede e no teto; nao segue corredor.
+     POWER = bandejas de cabo e unifilar: angular, ambar, escada de cabos pela parede do corredor, quadros com raio. */
   function sysLayer(sy){
-    const CR='#ece6d3',OR='#e8602a',DK='#141311',f=f1;
-    const C={s:CR,x:OR,hv:OR,lv:CR,em:CR};
+    const CR='#ece6d3',OR='#e8602a',AM='#f2c14e',DK='#141311',f=f1,power=sy.kind==='power';
     const inR_=(r,x,y,t)=>x>=r[0]-t&&x<=r[0]+r[2]+t&&y>=r[1]-t&&y<=r[1]+r[3]+t;
     const roomAt=(x,y)=>deck.rooms.find(r=>inR_(r.r,x,y,.05));
     const corrVis=(x,y)=>deck.corr.some(c=>(st.ghost?showC(c):showC(c)==='f')&&inR_(c.r,x,y,2.1));
     const roomVis=id=>{const r=deck.rooms.find(q=>q.id===id);return !!r&&(st.ghost?showR(r):showR(r)==='f');};
     const ptVis=(x,y)=>{const r=roomAt(x,y);return r?(st.ghost?!!showR(r):showR(r)==='f'):corrVis(x,y);};
     let g=`<rect x="0" y="0" width="${PW}" height="${H}" fill="rgba(10,10,9,.92)" pointer-events="none"/>`;
-    /* o mapa quase some: contorno muito fraco das salas e corredores, nomes apagados */
     deck.corr.forEach(c=>{if(showC(c)==='f')g+=rect(c.r,0,'none','stroke="rgba(236,230,211,.10)" stroke-width="1" pointer-events="none"');});
     deck.rooms.forEach(r=>{if(showR(r)==='f'&&!(out&&r.t==='ext'))g+=rect(r.r,0,'none','stroke="rgba(236,230,211,.14)" stroke-width="1" pointer-events="none"');});
     g+=`<g filter="url(#${id}inv)" opacity=".16" pointer-events="none">${LAB.f}</g>`;
-    const dist2=(a_,b_)=>Math.hypot(a_[0]-b_[0],a_[1]-b_[1]);
-    const chev=(a_,b_,col,rev)=>{const L=dist2(a_,b_);if(L<7)return '';const m=[(a_[0]+b_[0])/2,(a_[1]+b_[1])/2],dx=(b_[0]-a_[0])/L*(rev?-1:1),dy=(b_[1]-a_[1])/L*(rev?-1:1),cx=X(m[0]),cy=Y(m[1]),k=3.4;
-      return `<path d="M${f(cx+dx*k)} ${f(cy+dy*k)}L${f(cx-dx*k-dy*k)} ${f(cy-dy*k+dx*k)}L${f(cx-dx*k+dy*k)} ${f(cy-dy*k-dx*k)}Z" fill="${DK}"/>`;};
-    sy.paths.forEach(n=>{
-      const col=C[n.k],duct=n.k==='s'||n.k==='x',off=n.k==='x'&&sy.paths.some(q=>q.k==='s')?P(.55):0;
-      let tr='',br='',mk='';
-      n.edges.forEach(e=>{if(!(corrVis(e.a[0],e.a[1])&&corrVis(e.b[0],e.b[1])))return;
-        const hz=Math.abs(e.a[1]-e.b[1])<.01,ox=hz?0:off,oy=hz?off:0;
-        const w=n.k==='hv'?3:n.k==='lv'?1.6:n.k==='em'?1.8:clampW(2.4+1.15*Math.sqrt(e.n));
-        tr+=`<path d="M${f(X(e.a[0])+ox)} ${f(Y(e.a[1])+oy)}L${f(X(e.b[0])+ox)} ${f(Y(e.b[1])+oy)}" stroke="${col}" stroke-width="${f(w)}" fill="none" stroke-linecap="round" ${n.k==='em'?'stroke-dasharray="6 4"':''}/>`;
-        if(duct)mk+=chev(e.a,e.b,col,n.rev);});
-      n.branches.forEach(b=>{if(!roomVis(b.room))return;
-        const d=b.pts.map((p,i)=>(i?'L':'M')+f(X(p[0]))+' '+f(Y(p[1]))).join('');
-        br+=`<path d="${d}" stroke="${col}" stroke-width="${duct?2:1.2}" fill="none" stroke-linecap="round" stroke-linejoin="round" ${n.k==='em'?'stroke-dasharray="4 3"':''}/>`;
-        (b.terms||[]).forEach(t=>{const x=X(t.x),y=Y(t.y);
-          if(t.sx!=null&&dist2([t.sx,t.sy],[t.x,t.y])>.35)br+=`<path d="M${f(X(t.sx))} ${f(Y(t.sy))}L${f(x)} ${f(y)}" stroke="${col}" stroke-width="1.2" fill="none"/>`;
-          if(t.t==='ceil')mk+=n.k==='x'?`<g stroke="${col}" stroke-width="1.4" fill="${DK}"><circle cx="${f(x)}" cy="${f(y)}" r="4.2"/><path d="M${f(x-2.4)} ${f(y)}h4.8M${f(x)} ${f(y-2.4)}v4.8"/></g>`:`<circle cx="${f(x)}" cy="${f(y)}" r="4" stroke="${col}" stroke-width="1.6" fill="${DK}"/>`;
-          else if(t.t==='wall'){const vert=t.nx!==0;mk+=`<rect x="${f(vert?x-1.6:x-5)}" y="${f(vert?y-5:y-1.6)}" width="${vert?3.2:10}" height="${vert?10:3.2}" fill="${col}"/>`;}
-          else mk+=`<rect x="${f(x-2.8)}" y="${f(y-2.8)}" width="5.6" height="5.6" fill="${col}" stroke="${DK}" stroke-width=".8"/>`;});});
-      g+=`<g pointer-events="none">${tr}${br}${mk}</g>`;});
-    (sy.lines||[]).forEach(l=>{if(!ptVis(l.pts[0][0],l.pts[0][1]))return;const d=l.pts.map((p,i)=>(i?'L':'M')+f(X(p[0]))+' '+f(Y(p[1]))).join('');g+=`<path d="${d}" stroke="${C[l.k]||OR}" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" pointer-events="none"/>`;});
+    const d2=(a_,b_)=>Math.hypot(a_[0]-b_[0],a_[1]-b_[1]);
+    /* caminho com curvas suaves (px) */
+    const soft=(pts,r)=>{const p=pts.map(q=>[X(q[0]),Y(q[1])]);let s_=`M${f(p[0][0])} ${f(p[0][1])}`;
+      for(let i=1;i<p.length-1;i++){const a_=p[i-1],b_=p[i],c_=p[i+1],l1=d2(a_,b_),l2=d2(b_,c_),t=Math.min(r,l1/2,l2/2);
+        s_+=`L${f(b_[0]+(a_[0]-b_[0])/l1*t)} ${f(b_[1]+(a_[1]-b_[1])/l1*t)}Q${f(b_[0])} ${f(b_[1])} ${f(b_[0]+(c_[0]-b_[0])/l2*t)} ${f(b_[1]+(c_[1]-b_[1])/l2*t)}`;}
+      return s_+`L${f(p[p.length-1][0])} ${f(p[p.length-1][1])}`;};
+    if(!power){
+      /* ---------- VENT ---------- */
+      sy.vent.forEach(v=>{const col=v.k==='x'?OR:CR;
+        const bs=v.branches.filter(b=>(b.room?roomVis(b.room):ptVis(b.pts[b.pts.length-1][0],b.pts[b.pts.length-1][1]))&&ptVis(b.pts[0][0],b.pts[0][1])).sort((a_,b_)=>b_.size-a_.size);
+        let body='',flow='';
+        bs.forEach(b=>{const w=Math.max(2.4,Math.min(8.5,2.2+1.3*Math.sqrt(b.size)));
+          body+=`<path d="${soft(b.pts,11)}" stroke="${col}" stroke-width="${f(w)}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+          const fp=v.rev?b.pts.slice().reverse():b.pts;
+          flow+=`<path class="vflow" d="${soft(fp,11)}" stroke="${DK}" stroke-width="${f(Math.max(1.2,w*.42))}" fill="none" stroke-linecap="round"/>`;});
+        let mk='';
+        v.terms.forEach(t=>{if(!ptVis(t.x,t.y))return;const x=X(t.x),y=Y(t.y);
+          if(t.t==='wall'){const vert=t.nx!==0;mk+=`<rect x="${f(vert?x-1.8:x-5.5)}" y="${f(vert?y-5.5:y-1.8)}" width="${vert?3.6:11}" height="${vert?11:3.6}" fill="${col}"/>`;}
+          else mk+=v.k==='x'?`<g stroke="${col}" stroke-width="1.5" fill="${DK}"><circle cx="${f(x)}" cy="${f(y)}" r="4.4"/><path d="M${f(x-2.5)} ${f(y)}h5M${f(x)} ${f(y-2.5)}v5"/></g>`:`<circle cx="${f(x)}" cy="${f(y)}" r="4.2" stroke="${col}" stroke-width="1.7" fill="${DK}"/>`;});
+        g+=`<g pointer-events="none">${body}${flow}${mk}</g>`;});
+    }else{
+      /* ---------- POWER ---------- */
+      const off=P(.95);
+      sy.paths.forEach(n=>{const hv=n.k==='hv',em=n.k==='em';let tr='',bx='',jn='';
+        n.edges.forEach(e=>{if(!(corrVis(e.a[0],e.a[1])&&corrVis(e.b[0],e.b[1])))return;
+          const hz=Math.abs(e.a[1]-e.b[1])<.01,ox=hz?0:off,oy=hz?off:0;
+          const ax=X(e.a[0])+ox,ay=Y(e.a[1])+oy,bx_=X(e.b[0])+ox,by_=Y(e.b[1])+oy,L=d2([ax,ay],[bx_,by_]);
+          if(hv){tr+=`<path d="M${f(ax)} ${f(ay)}L${f(bx_)} ${f(by_)}" stroke="${AM}" stroke-width="3" fill="none" stroke-linecap="square"/>`;}
+          else{const nx=hz?0:1,ny=hz?1:0,w=2.1;
+            const l1=`M${f(ax-nx*w)} ${f(ay-ny*w)}L${f(bx_-nx*w)} ${f(by_-ny*w)}`,l2=`M${f(ax+nx*w)} ${f(ay+ny*w)}L${f(bx_+nx*w)} ${f(by_+ny*w)}`;
+            tr+=`<path d="${l1}${l2}" stroke="${AM}" stroke-width="1" fill="none" ${em?'stroke-dasharray="5 3"':''}/>`;
+            const cnt=Math.floor(L/8);for(let i=1;i<=cnt;i++){const t=i/(cnt+1),px_=ax+(bx_-ax)*t,py_=ay+(by_-ay)*t;tr+=`<path d="M${f(px_-nx*w)} ${f(py_-ny*w)}L${f(px_+nx*w)} ${f(py_+ny*w)}" stroke="${AM}" stroke-width=".8"/>`;}}
+          jn+=`<rect x="${f(ax-2.2)}" y="${f(ay-2.2)}" width="4.4" height="4.4" fill="${DK}" stroke="${AM}" stroke-width="1"/><rect x="${f(bx_-2.2)}" y="${f(by_-2.2)}" width="4.4" height="4.4" fill="${DK}" stroke="${AM}" stroke-width="1"/>`;});
+        n.branches.forEach(b=>{if(!roomVis(b.room))return;
+          const pp=b.pts.map(p=>[X(p[0]),Y(p[1])]);
+          bx+=`<path d="${pp.map((p,i)=>(i?'L':'M')+f(p[0])+' '+f(p[1])).join('')}" stroke="${AM}" stroke-width="1.2" fill="none" ${em?'stroke-dasharray="4 3"':''}/>`;
+          (b.terms||[]).forEach(t=>{const x=X(t.x),y=Y(t.y);
+            bx+=`<g><rect x="${f(x-4.2)}" y="${f(y-4.2)}" width="8.4" height="8.4" fill="${DK}" stroke="${AM}" stroke-width="1.4"/><path d="M${f(x+.9)} ${f(y-3)}l-2.6 3.4h2l-1 2.8l3 -3.8h-2z" fill="${AM}"/></g>`;});});
+        g+=`<g pointer-events="none">${tr}${jn}${bx}</g>`;});
+    }
+    (sy.lines||[]).forEach(l=>{if(!ptVis(l.pts[0][0],l.pts[0][1]))return;g+=`<path d="${l.pts.map((p,i)=>(i?'L':'M')+f(X(p[0]))+' '+f(Y(p[1]))).join('')}" stroke="${power?AM:OR}" stroke-width="3.2" fill="none" stroke-linecap="square" stroke-linejoin="miter" pointer-events="none"/>`;});
     /* equipamentos */
-    sy.units.forEach(u=>{if(!(u.room?roomVis(u.room):ptVis(u.x,u.y)))return;const x=X(u.x),y=Y(u.y),S1=`stroke="${CR}" stroke-width="1.3" fill="${DK}"`;let s_='';
+    const UC=power?AM:CR;
+    sy.units.forEach(u=>{if(!(u.room?roomVis(u.room):ptVis(u.x,u.y)))return;const x=X(u.x),y=Y(u.y),S1=`stroke="${UC}" stroke-width="1.3" fill="${DK}"`;let s_='';
       if(u.t==='ahu'){const w=P(3),h=P(1.7);s_=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" ${S1}/><circle cx="${f(x-w/4)}" cy="${f(y)}" r="${f(h*.3)}" ${S1}/><circle cx="${f(x+w/4)}" cy="${f(y)}" r="${f(h*.3)}" ${S1}/>`;}
-      else if(u.t==='fan'){const r=P(.9);s_=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" ${S1}/><path d="M${f(x-r*.6)} ${f(y)}h${f(r*1.2)}M${f(x)} ${f(y-r*.6)}v${f(r*1.2)}" stroke="${CR}" stroke-width="1.2"/>`;}
+      else if(u.t==='fan'){const r=P(.9);s_=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.4" fill="${DK}"/><path d="M${f(x)} ${f(y)}q${f(r*.7)} ${f(-r*.2)} ${f(r*.6)} ${f(-r*.6)}M${f(x)} ${f(y)}q${f(r*.2)} ${f(r*.7)} ${f(r*.6)} ${f(r*.6)}M${f(x)} ${f(y)}q${f(-r*.7)} ${f(r*.2)} ${f(-r*.6)} ${f(r*.6)}M${f(x)} ${f(y)}q${f(-r*.2)} ${f(-r*.7)} ${f(-r*.6)} ${f(-r*.6)}" stroke="${OR}" stroke-width="1.2" fill="none"/>`;}
       else if(u.t==='stack'){const r=P(1.6);s_=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.8" fill="${DK}"/><circle cx="${f(x)}" cy="${f(y)}" r="${f(r*.45)}" stroke="${OR}" stroke-width="1.2" fill="none"/>`;}
-      else if(u.t==='gen'){const r=P(1.1);s_=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.6" fill="${DK}"/><path d="M${f(x-r*.6)} ${f(y)}q${f(r*.3)} ${f(-r*.7)} ${f(r*.6)} 0t${f(r*.6)} 0" stroke="${OR}" stroke-width="1.2" fill="none"/>`;}
-      else if(u.t==='sw'){const w=P(2.6),h=P(1.3);s_=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" stroke="${OR}" stroke-width="1.6" fill="${DK}"/><path d="M${f(x-w/6)} ${f(y-h/2)}v${f(h)}M${f(x+w/6)} ${f(y-h/2)}v${f(h)}" stroke="${OR}" stroke-width="1"/>`;}
-      else if(u.t==='xfmr'){const r=P(.9);s_=`<circle cx="${f(x-r*.55)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.6" fill="${DK}"/><circle cx="${f(x+r*.55)}" cy="${f(y)}" r="${f(r)}" stroke="${OR}" stroke-width="1.6" fill="none"/>`;}
-      else if(u.t==='ups'||u.t==='bat'){const w=P(2.4),h=P(1.3);s_=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" ${S1}/><path d="M${f(x-w/4)} ${f(y)}h${f(w*.2)}M${f(x+w/6)} ${f(y)}h${f(w*.2)}M${f(x+w/4)} ${f(y-h*.25)}v${f(h*.5)}" stroke="${CR}" stroke-width="1"/>`;}
-      else{const w=P(1.2);s_=`<rect x="${f(x-w/2)}" y="${f(y-w/2)}" width="${f(w)}" height="${f(w)}" ${S1}/><path d="M${f(x-w/2)} ${f(y-w/2)}l${f(w)} ${f(w)}" stroke="${CR}" stroke-width="1"/>`;}
-      if(u.lbl)s_+=`<text x="${f(x)}" y="${f(y+P(1.6)+8)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" letter-spacing=".1em" fill="${CR}" opacity=".8">${esc(u.lbl)}</text>`;
+      else if(u.t==='gen'){const r=P(1.1);s_=`<circle cx="${f(x)}" cy="${f(y)}" r="${f(r)}" stroke="${AM}" stroke-width="1.6" fill="${DK}"/><path d="M${f(x-r*.6)} ${f(y)}q${f(r*.3)} ${f(-r*.7)} ${f(r*.6)} 0t${f(r*.6)} 0" stroke="${AM}" stroke-width="1.2" fill="none"/>`;}
+      else if(u.t==='sw'){const w=P(2.6),h=P(1.3);s_=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" stroke="${AM}" stroke-width="1.6" fill="${DK}"/><path d="M${f(x-w/6)} ${f(y-h/2)}v${f(h)}M${f(x+w/6)} ${f(y-h/2)}v${f(h)}" stroke="${AM}" stroke-width="1"/>`;}
+      else if(u.t==='xfmr'){const r=P(.9);s_=`<circle cx="${f(x-r*.55)}" cy="${f(y)}" r="${f(r)}" stroke="${AM}" stroke-width="1.6" fill="${DK}"/><circle cx="${f(x+r*.55)}" cy="${f(y)}" r="${f(r)}" stroke="${AM}" stroke-width="1.6" fill="none"/>`;}
+      else if(u.t==='ups'||u.t==='bat'){const w=P(2.4),h=P(1.3);s_=`<rect x="${f(x-w/2)}" y="${f(y-h/2)}" width="${f(w)}" height="${f(h)}" ${S1}/><path d="M${f(x-w/4)} ${f(y)}h${f(w*.2)}M${f(x+w/6)} ${f(y)}h${f(w*.2)}M${f(x+w/4)} ${f(y-h*.25)}v${f(h*.5)}" stroke="${UC}" stroke-width="1"/>`;}
+      else{const w=P(1.2);s_=`<rect x="${f(x-w/2)}" y="${f(y-w/2)}" width="${f(w)}" height="${f(w)}" ${S1}/><path d="M${f(x+.9)} ${f(y-w/2+1)}l-2.6 3.4h2l-1 2.8l3 -3.8h-2z" fill="${UC}"/>`;}
+      if(u.lbl)s_+=`<text x="${f(x)}" y="${f(y+P(1.6)+8)}" text-anchor="middle" font-family="IBM Plex Mono" font-size="7" letter-spacing=".1em" fill="${UC}" opacity=".8">${esc(u.lbl)}</text>`;
       g+=`<g pointer-events="none">${s_}</g>`;});
     /* prumadas: onde a rede sobe e onde desce */
-    sy.risers.forEach(r=>{if(!ptVis(r.x,r.y))return;const x=X(r.x),y=Y(r.y),col=C[r.k]||CR,left=x>PW*.55;
-      let s_=`<circle cx="${f(x)}" cy="${f(y)}" r="9.5" fill="${DK}" stroke="${col}" stroke-width="2"/>`;
+    sy.risers.forEach(r=>{if(!ptVis(r.x,r.y))return;const x=X(r.x),y=Y(r.y),col=power?AM:(r.k==='x'?OR:CR),left=x>PW*.55;
+      let s_=power?`<rect x="${f(x-9)}" y="${f(y-9)}" width="18" height="18" fill="${DK}" stroke="${col}" stroke-width="2"/>`:`<circle cx="${f(x)}" cy="${f(y)}" r="9.5" fill="${DK}" stroke="${col}" stroke-width="2"/>`;
       if(r.dir==='up')s_+=`<path d="M${f(x)} ${f(y-5.6)}l4.4 5.6h-8.8z" fill="${col}"/>`;
       else if(r.dir==='dn')s_+=`<path d="M${f(x)} ${f(y+5.6)}l4.4 -5.6h-8.8z" fill="${col}"/>`;
       else s_+=`<path d="M${f(x)} ${f(y-7)}l3.8 4.4h-7.6zM${f(x)} ${f(y+7)}l3.8 -4.4h-7.6z" fill="${col}"/>`;
@@ -171,13 +192,13 @@ function plan(deck,st,o){
       s_+=`<rect x="${f(tx)}" y="${f(y-7)}" width="${f(tw)}" height="14" fill="${DK}" stroke="${col}" stroke-width="1"/><text x="${f(tx+5)}" y="${f(y+3.2)}" font-family="IBM Plex Mono" font-size="7.4" letter-spacing=".08em" fill="${col}">${esc(r.to)}</text>`;
       g+=`<g pointer-events="none">${s_}</g>`;});
     /* titulo e legenda da camada */
-    const items=sy.kind==='vent'?[[CR,'SUPPLY'],[OR,'EXHAUST']]:[[OR,'HV FEEDER'],[CR,'LV DISTRIBUTION']];
-    let lx=padL;g+=`<text x="${lx}" y="16" font-family="Barlow Condensed" font-weight="700" font-size="13" letter-spacing=".24em" fill="${CR}">${esc(sy.title)}</text>`;lx+=sy.title.length*9+16;
-    items.forEach(([c,t])=>{g+=`<path d="M${lx} 12H${lx+22}" stroke="${c}" stroke-width="3.4" stroke-linecap="round"/><text x="${lx+28}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${CR}">${t}</text>`;lx+=t.length*6.4+44;});
-    g+=`<path d="M${lx} 11l4.4 6h-8.8z" fill="${CR}"/><text x="${lx+9}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${CR}">UP</text>`;lx+=34;
-    g+=`<path d="M${lx} 17l4.4 -6h-8.8z" fill="${CR}"/><text x="${lx+9}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${CR}">DOWN</text>`;
+    let lx=padL;g+=`<text x="${lx}" y="16" font-family="Barlow Condensed" font-weight="700" font-size="13" letter-spacing=".24em" fill="${power?AM:CR}">${esc(sy.title)}</text>`;lx+=sy.title.length*9+16;
+    const leg=power?[[x=>`<path d="M${x} 12H${x+22}" stroke="${AM}" stroke-width="3"/>`,'HV FEEDER',60],[x=>`<path d="M${x} 10H${x+22}M${x} 14H${x+22}" stroke="${AM}" stroke-width="1"/>`,'LV CABLE TRAY',84],[x=>`<rect x="${x}" y="7" width="9" height="9" fill="${DK}" stroke="${AM}" stroke-width="1.4"/>`,'BOARD',40]]
+      :[[x=>`<path d="M${x} 12H${x+22}" stroke="${CR}" stroke-width="4" stroke-linecap="round"/>`,'SUPPLY',50],[x=>`<path d="M${x} 12H${x+22}" stroke="${OR}" stroke-width="4" stroke-linecap="round"/>`,'EXHAUST',58]];
+    leg.forEach(([fn,t,w])=>{g+=fn(lx)+`<text x="${lx+28}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${power?AM:CR}">${t}</text>`;lx+=w+34;});
+    g+=`<path d="M${lx} 11l4.4 6h-8.8z" fill="${power?AM:CR}"/><text x="${lx+9}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${power?AM:CR}">UP</text>`;lx+=34;
+    g+=`<path d="M${lx} 17l4.4 -6h-8.8z" fill="${power?AM:CR}"/><text x="${lx+9}" y="15" font-family="IBM Plex Mono" font-size="8" letter-spacing=".1em" fill="${power?AM:CR}">DOWN</text>`;
     return g;}
-  const clampW=v=>Math.max(2.4,Math.min(7,v));
 
   /* camadas: ghost (so GM) e full */
   const layer=mode=>{
